@@ -68,7 +68,7 @@ The create screen limits the name to 12 characters. It also refuses, before send
 - **Storing** happens in one transaction holding the account row's lock (`store.Accounts.CreateCharacter`):
   - It inserts only if the kingdom is still the one the start position came from.
   - A name taken in any case is refused with reason `1`.
-  - A taken slot is refused with reason `0`.
+  - A taken slot is refused with reason `0`, so the screen shows a general failure. open-mt2 sends `1` there, which shows "name taken"; we chose not to say something untrue.
   - A kingdom changed meanwhile by another connection of the same account closes this connection: its screens are out of date, and logging in again shows the account as it is.
   - `ChooseEmpire` takes the same lock, so a kingdom change and a creation cannot interleave. Each one sees the other's result.
 - **The reply** is `08` with the new character's record. Its look is stored but sent as body part `0` for now, like every character's. The map is not stored: positions are world coordinates, and the client's `atlasinfo.txt` gives each map's area.
@@ -92,8 +92,10 @@ The create screen limits the name to 12 characters. It also refuses, before send
   - each rule refused with the general failure;
   - a taken slot;
   - the kingdom fixed once a character exists;
-  - creation without a kingdom.
-- `internal/store/store_test.go`: a kingdom change waiting on a creation is refused once it runs.
+  - creation without a kingdom;
+  - a kingdom changed by another connection of the same account, which closes the connection and stores nothing.
+- `internal/store/store_test.go`: a kingdom change waiting on a creation is refused once it runs, and a creation waiting on a kingdom change is refused too.
+- `internal/account/start_test.go`: every class's starting stats and every kingdom's start position, against the sources above.
 
 ## Not done yet
 

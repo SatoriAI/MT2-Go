@@ -537,6 +537,10 @@ func TestACreationAfterAnotherConnectionChangedTheKingdomEndsTheConnection(t *te
 	this.createCharacter(0, "Hendra", 0, 0)
 
 	this.expectClosed()
+	var characters int
+	if err := h.accounts.Pool.QueryRow(context.Background(), `SELECT count(*) FROM characters`).Scan(&characters); err != nil || characters != 0 {
+		t.Errorf("%d characters stored, err %v", characters, err)
+	}
 }
 
 func TestOnceACharacterExistsTheKingdomIsFixed(t *testing.T) {

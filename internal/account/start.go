@@ -12,30 +12,33 @@ type Stats struct {
 	Dexterity    uint8 // DEX: hit rate, evasion and bows
 }
 
-// StartingStats are the stats a new character of the class has, for either sex.
-func (c Class) StartingStats() Stats {
-	switch c {
-	case Warrior:
-		return Stats{Vitality: 4, Intelligence: 3, Strength: 6, Dexterity: 3}
-	case Ninja:
-		return Stats{Vitality: 3, Intelligence: 3, Strength: 4, Dexterity: 6}
-	case Sura:
-		return Stats{Vitality: 3, Intelligence: 5, Strength: 5, Dexterity: 3}
-	default:
-		return Stats{Vitality: 4, Intelligence: 6, Strength: 3, Dexterity: 3}
-	}
+var startingStats = map[Class]Stats{
+	Warrior: {Vitality: 4, Intelligence: 3, Strength: 6, Dexterity: 3},
+	Ninja:   {Vitality: 3, Intelligence: 3, Strength: 4, Dexterity: 6},
+	Sura:    {Vitality: 3, Intelligence: 5, Strength: 5, Dexterity: 3},
+	Shaman:  {Vitality: 4, Intelligence: 6, Strength: 3, Dexterity: 3},
 }
 
-// StartPosition is where the kingdom's new characters appear, in world coordinates.
-func (e Empire) StartPosition() (x, y int32) {
-	switch e {
-	case EmpireShinsoo:
-		return 475000, 966100
-	case EmpireChunjo:
-		return 60000, 156000
-	default:
-		return 963400, 278200
-	}
+// StartingStats are the stats a new character of the class has, for either sex; false
+// for a class the game does not have.
+func (c Class) StartingStats() (Stats, bool) {
+	s, ok := startingStats[c]
+	return s, ok
+}
+
+type position struct{ x, y int32 }
+
+var startPositions = map[Empire]position{
+	EmpireShinsoo: {475000, 966100},
+	EmpireChunjo:  {60000, 156000},
+	EmpireJinno:   {963400, 278200},
+}
+
+// StartPosition is where the kingdom's new characters appear, in world coordinates; false
+// when there is no kingdom.
+func (e Empire) StartPosition() (x, y int32, ok bool) {
+	p, ok := startPositions[e]
+	return p.x, p.y, ok
 }
 
 // Name limits for characters, this server's own rule: the create screen takes at most 12

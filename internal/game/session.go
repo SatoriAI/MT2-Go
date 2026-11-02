@@ -163,7 +163,8 @@ func (s *session) onCreateCharacter(ctx context.Context, body []byte) error {
 	if err != nil {
 		return err
 	}
-	if s.empire == account.EmpireNone {
+	x, y, ok := s.empire.StartPosition()
+	if !ok {
 		return errors.New("game: a character needs a kingdom first")
 	}
 	class, sex, ok := raceFromNumber(req.Race)
@@ -171,16 +172,18 @@ func (s *session) onCreateCharacter(ctx context.Context, body []byte) error {
 		s.conn.Log().Info("character refused", "name", req.Name, "race", req.Race, "slot", req.Slot, "shape", req.Shape)
 		return s.conn.Send(protocol.EncodeCreateFailure(protocol.CreateRefused))
 	}
+	stats, _ := class.StartingStats() // every class raceFromNumber returns has them
 	c := account.Character{
 		Slot:  int(req.Slot),
 		Name:  req.Name,
 		Class: class,
 		Sex:   sex,
 		Level: 1,
-		Stats: class.StartingStats(),
+		Stats: stats,
 		Shape: req.Shape,
+		X:     x,
+		Y:     y,
 	}
-	c.X, c.Y = s.empire.StartPosition()
 
 	c.ID, err = s.svc.store.CreateCharacter(ctx, s.accountID, s.empire, c)
 	switch {
