@@ -24,6 +24,8 @@ const (
 	ServerLoginFailure     ServerHeader = 0x07
 	ServerCharacterCreated ServerHeader = 0x08
 	ServerCreateFailure    ServerHeader = 0x09
+	ServerPoints           ServerHeader = 0x10
+	ServerSkillLevels      ServerHeader = 0x4C
 	ServerCharacterList    ServerHeader = 0x20 // LOGIN_SUCCESS4: four character slots
 	ServerEmpire           ServerHeader = 0x5A
 	ServerAuthSuccess      ServerHeader = 0x96

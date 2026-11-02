@@ -2,6 +2,7 @@ package protocol
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"net/netip"
@@ -167,5 +168,27 @@ func TestCharacterListPlacesEveryFieldOfASlotWhereTheClientReadsIt(t *testing.T)
 	}
 	if empty := list[1 : 1+63]; !bytes.Equal(empty[:4], []byte{0, 0, 0, 0}) {
 		t.Errorf("slot 0 should be empty: %x", empty[:4])
+	}
+}
+
+func TestPointsAreSentWholeWithEachValueAtItsIndex(t *testing.T) {
+	points := EncodePoints(CharacterPoints{Level: 1, NextExp: 300, HP: 950, MaxHP: 950, ST: 5, MoveSpeed: 150})
+
+	if len(points) != 1021 || points[0] != 0x10 {
+		t.Fatalf("header %x, length %d", points[0], len(points))
+	}
+	at := func(index int) uint32 { return binary.LittleEndian.Uint32(points[1+4*index:]) }
+	for index, want := range map[int]uint32{1: 1, 4: 300, 5: 950, 6: 950, 12: 5, 19: 150, 2: 0, 254: 0} {
+		if got := at(index); got != want {
+			t.Errorf("index %d: got %d, want %d", index, got, want)
+		}
+	}
+}
+
+func TestSkillLevelsAreSentAllUnlearnt(t *testing.T) {
+	skills := EncodeSkillLevels()
+
+	if len(skills) != 1531 || skills[0] != 0x4C || !bytes.Equal(skills[1:], make([]byte, 1530)) {
+		t.Fatalf("got %d bytes starting %x", len(skills), skills[:2])
 	}
 }

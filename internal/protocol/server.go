@@ -130,6 +130,52 @@ func EncodeCreateFailure(reason CreateFailure) []byte {
 	return w.Bytes()
 }
 
+// CharacterPoints are the values the client's character window and gauges show.
+type CharacterPoints struct {
+	Level, Exp, NextExp uint32
+	HP, MaxHP           uint32
+	SP, MaxSP           uint32
+	Stamina, MaxStamina uint32
+	Gold                uint32
+	ST, HT, DX, IQ      uint32
+	AttackSpeed         uint32
+	MoveSpeed           uint32
+}
+
+// pointCount is how many entries the client's points array has. The client reads each
+// value by its index, so the array is always sent whole.
+const pointCount = 255
+
+// EncodePoints places each value at the index the client reads it from. The indices are
+// open-mt2's (PointsEnum); the rest stay 0.
+func EncodePoints(p CharacterPoints) []byte {
+	var points [pointCount]uint32
+	for index, v := range map[int]uint32{
+		1: p.Level, 3: p.Exp, 4: p.NextExp,
+		5: p.HP, 6: p.MaxHP, 7: p.SP, 8: p.MaxSP, 9: p.Stamina, 10: p.MaxStamina,
+		11: p.Gold, 12: p.ST, 13: p.HT, 14: p.DX, 15: p.IQ,
+		17: p.AttackSpeed, 19: p.MoveSpeed,
+	} {
+		points[index] = v
+	}
+	w := NewWriter(byte(ServerPoints), 1+4*pointCount)
+	for _, v := range points {
+		w.U32(v)
+	}
+	return w.Bytes()
+}
+
+// skillCount is how many skills the client's skill-level packet covers.
+const skillCount = 255
+
+// EncodeSkillLevels sends every skill unlearnt: master type, level and next reading time
+// all 0, 6 bytes per skill.
+func EncodeSkillLevels() []byte {
+	w := NewWriter(byte(ServerSkillLevels), 1+6*skillCount)
+	w.Raw(make([]byte, 6*skillCount))
+	return w.Bytes()
+}
+
 // ChannelStatus is one channel the login screen lists.
 type ChannelStatus struct {
 	Port   uint16
