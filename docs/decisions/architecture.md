@@ -20,7 +20,7 @@ open-mt2 and the original game use MySQL with a schema shaped by twenty years of
 
 ## The migration runner is forty lines
 
-`internal/store/store.go` applies the embedded `migrations/*.sql` files in name order, each in a transaction with its record in `schema_migrations`, under a table lock so two starting servers take turns. A migration tool (goose, golang-migrate) would add down-migrations, a CLI and a dependency for features this project does not use; the runner is short enough to read in a minute, which is the project's point.
+`internal/store/store.go` applies the embedded `migrations/*.sql` files in name order, each in a transaction with its record in `schema_migrations`, under a PostgreSQL advisory lock held for the whole run, so servers starting at once take turns, from creating `schema_migrations` onwards. A migration tool (goose, golang-migrate) would add down-migrations, a CLI and a dependency for features this project does not use; the runner is short enough to read in a minute, which is the project's point.
 
 ## Dependency budget
 

@@ -10,12 +10,10 @@ import (
 	"github.com/SatoriAI/MT2-Go/internal/account"
 )
 
-// Accounts implements account.Store on PostgreSQL.
+// Accounts keeps accounts and their characters in PostgreSQL.
 type Accounts struct {
 	Pool *pgxpool.Pool
 }
-
-var _ account.Store = Accounts{}
 
 // CreateAccount stores a new account and returns its id.
 func (a Accounts) CreateAccount(ctx context.Context, name string, passwordHash []byte) (int64, error) {
@@ -26,6 +24,7 @@ func (a Accounts) CreateAccount(ctx context.Context, name string, passwordHash [
 	return id, err
 }
 
+// AccountByName ignores case: names are unique regardless of it.
 func (a Accounts) AccountByName(ctx context.Context, name string) (account.Account, error) {
 	return a.one(ctx, `WHERE lower(name) = lower($1)`, name)
 }
@@ -46,6 +45,8 @@ func (a Accounts) one(ctx context.Context, where string, arg any) (account.Accou
 	return acc, err
 }
 
+// ChooseEmpire sets the kingdom of an account that has none, and reports whether it did:
+// a kingdom, once chosen, stays.
 func (a Accounts) ChooseEmpire(ctx context.Context, id int64, empire account.Empire) (bool, error) {
 	tag, err := a.Pool.Exec(ctx, `UPDATE accounts SET empire = $2 WHERE id = $1 AND empire IS NULL`, id, empire)
 	return tag.RowsAffected() == 1, err
@@ -54,7 +55,7 @@ func (a Accounts) ChooseEmpire(ctx context.Context, id int64, empire account.Emp
 func (a Accounts) Characters(ctx context.Context, accountID int64) ([]account.Character, error) {
 	rows, err := a.Pool.Query(ctx, `
 		SELECT id, slot, name, class, sex, level, play_minutes, st, ht, dx, iq,
-		       hair, map, x, y, coalesce(skill_group, '')
+		       hair, x, y, coalesce(skill_group, '')
 		FROM characters WHERE account_id = $1 ORDER BY slot`, accountID)
 	if err != nil {
 		return nil, err
@@ -62,7 +63,7 @@ func (a Accounts) Characters(ctx context.Context, accountID int64) ([]account.Ch
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (account.Character, error) {
 		var c account.Character
 		err := row.Scan(&c.ID, &c.Slot, &c.Name, &c.Class, &c.Sex, &c.Level, &c.PlayMinutes,
-			&c.ST, &c.HT, &c.DX, &c.IQ, &c.Hair, &c.Map, &c.X, &c.Y, &c.SkillGroup)
+			&c.ST, &c.HT, &c.DX, &c.IQ, &c.Hair, &c.X, &c.Y, &c.SkillGroup)
 		return c, err
 	})
 }

@@ -9,7 +9,6 @@ import (
 	"log/slog"
 	"net"
 	"net/netip"
-	"os"
 	"testing"
 	"time"
 
@@ -38,9 +37,12 @@ type harness struct {
 
 func start(t *testing.T) *harness {
 	t.Helper()
-	url := os.Getenv("TEST_DATABASE_URL")
+	if testing.Short() {
+		t.Skip("needs PostgreSQL; run without -short")
+	}
+	url := config.TestDatabaseURL()
 	if url == "" {
-		t.Skip("TEST_DATABASE_URL is not set; run `make db` and use .env")
+		t.Fatal("TEST_DATABASE_URL is not set: copy .env.example to .env and run `make db`, or pass -short")
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	pool, err := store.Open(ctx, url)
@@ -50,8 +52,8 @@ func start(t *testing.T) *harness {
 	if _, err := pool.Exec(ctx, `TRUNCATE accounts, characters RESTART IDENTITY CASCADE`); err != nil {
 		t.Fatal(err)
 	}
-	authLn, _ := net.Listen("tcp", "127.0.0.1:0")
-	gameLn, _ := net.Listen("tcp", "127.0.0.1:0")
+	authLn := listen(t)
+	gameLn := listen(t)
 	cfg := config.Config{GamePublic: netip.MustParseAddrPort(gameLn.Addr().String())}
 	accounts := store.Accounts{Pool: pool}
 	done := make(chan error, 1)
@@ -68,8 +70,21 @@ func start(t *testing.T) *harness {
 	return &harness{t: t, accounts: accounts, auth: authLn.Addr().String(), game: gameLn.Addr().String()}
 }
 
+func listen(t *testing.T) net.Listener {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return ln
+}
+
 func (h *harness) createAccount(name string) int64 {
-	hash, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.MinCost)
+	h.t.Helper()
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.MinCost)
+	if err != nil {
+		h.t.Fatal(err)
+	}
 	id, err := h.accounts.CreateAccount(context.Background(), name, hash)
 	if err != nil {
 		h.t.Fatal(err)
@@ -102,6 +117,7 @@ type client struct {
 }
 
 func (h *harness) dial(addr string) *client {
+	h.t.Helper()
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
 		h.t.Fatal(err)
@@ -150,16 +166,19 @@ func field(s string, size int) []byte {
 }
 
 func (c *client) login(name, password string) {
+	c.t.Helper()
 	c.send([]byte{byte(protocol.ClientLogin)}, field(name, 31), field(password, 17), make([]byte, 16), []byte{sequenceByte})
 }
 
 func (c *client) loginByKey(name string, key uint32) {
+	c.t.Helper()
 	c.send([]byte{byte(protocol.ClientLoginByKey)}, field(name, 31), binary.LittleEndian.AppendUint32(nil, key),
 		make([]byte, 16), []byte{sequenceByte})
 }
 
 // chooseEmpire sends the kingdom by the client's number: 1 Shinsoo, 2 Chunjo, 3 Jinno.
 func (c *client) chooseEmpire(number, sequence byte) {
+	c.t.Helper()
 	c.send([]byte{byte(protocol.ClientEmpire), number, sequence})
 }
 
@@ -174,6 +193,7 @@ func (c *client) expectClosed() {
 // enterSelection logs in with a key on a new game connection, up to the select phase
 // and anything sent before it.
 func (h *harness) enterSelection(name string, key uint32) *client {
+	h.t.Helper()
 	game := h.dial(h.game)
 	game.handshake(protocol.PhaseLogin)
 	game.loginByKey(name, key)
@@ -182,6 +202,7 @@ func (h *harness) enterSelection(name string, key uint32) *client {
 
 // authenticate logs in on the auth port and returns the key for the game port.
 func (h *harness) authenticate(name string) uint32 {
+	h.t.Helper()
 	auth := h.dial(h.auth)
 	auth.handshake(protocol.PhaseAuth)
 	auth.login(name, password)

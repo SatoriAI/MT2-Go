@@ -15,18 +15,31 @@ import (
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
 )
 
+// Accounts is what the game port needs from storage.
+type Accounts interface {
+	AccountByID(ctx context.Context, id int64) (account.Account, error)
+	// ChooseEmpire sets the kingdom of an account that has none, and reports whether it
+	// did: a kingdom, once chosen, stays.
+	ChooseEmpire(ctx context.Context, id int64, empire account.Empire) (bool, error)
+	Characters(ctx context.Context, accountID int64) ([]account.Character, error)
+}
+
 // Service is what every game connection shares.
 type Service struct {
-	Store account.Store
-	Keys  *account.Keys
-	Clock handshake.Clock
-	// Public is the address the client is told to connect to for this game server. It
+	store Accounts
+	keys  *account.Keys
+	clock handshake.Clock
+	// public is the address the client is told to connect to for this game server. It
 	// has to be reachable from the client, so it is never 0.0.0.0.
-	Public netip.AddrPort
+	public netip.AddrPort
+}
+
+func NewService(store Accounts, keys *account.Keys, clock handshake.Clock, public netip.AddrPort) *Service {
+	return &Service{store: store, keys: keys, clock: clock, public: public}
 }
 
 func (s *Service) NewSession(conn *network.Conn) network.Session {
-	return &session{svc: s, conn: conn, sync: handshake.NewSync(s.Clock), phase: protocol.PhaseHandshake}
+	return &session{svc: s, conn: conn, sync: handshake.NewSync(s.clock), phase: protocol.PhaseHandshake}
 }
 
 type session struct {
@@ -41,7 +54,7 @@ func (s *session) Open() error { return s.conn.Send(s.sync.Greeting()...) }
 
 func (s *session) Close() {
 	if s.accountID != 0 {
-		s.svc.Keys.Release(s.accountID)
+		s.svc.keys.Release(s.accountID)
 	}
 }
 
@@ -49,7 +62,7 @@ func (s *session) Handle(ctx context.Context, f protocol.Frame) error {
 	switch {
 	case f.Header == protocol.ClientStateChecker:
 		return s.conn.Send(protocol.EncodeChannelStatus([]protocol.ChannelStatus{
-			{Port: s.svc.Public.Port(), Status: protocol.ChannelNormal},
+			{Port: s.svc.public.Port(), Status: protocol.ChannelNormal},
 		}))
 	case f.Header == protocol.ClientMarkLogin:
 		// Guild marks are not served yet; the client copes with a closed mark socket.
@@ -84,25 +97,25 @@ func (s *session) onLoginByKey(ctx context.Context, body []byte) error {
 	if err != nil {
 		return err
 	}
-	id, ok := s.svc.Keys.Redeem(login.Key, login.Name)
+	id, ok := s.svc.keys.Redeem(login.Key, login.Name)
 	if !ok {
 		return fmt.Errorf("game: login key refused for %q", login.Name)
 	}
 	s.accountID = id
-	s.conn.SetIdleTimeout(0) // the player may sit on the selection screens for as long as they like
+	s.conn.KeepOpen() // the player may sit on the selection screens for as long as they like
 
-	acc, err := s.svc.Store.AccountByID(ctx, id)
+	acc, err := s.svc.store.AccountByID(ctx, id)
 	if err != nil {
 		return err
 	}
 	var packets [][]byte
 	if acc.Empire != account.EmpireNone {
-		characters, err := s.svc.Store.Characters(ctx, id)
+		characters, err := s.svc.store.Characters(ctx, id)
 		if err != nil {
 			return err
 		}
 		packets = append(packets, protocol.EncodeEmpire(empireNumbers[acc.Empire]),
-			protocol.EncodeCharacterList(slots(characters), s.svc.Public))
+			protocol.EncodeCharacterList(slots(characters), s.svc.public))
 	}
 	s.phase = protocol.PhaseSelect
 	s.conn.Log().Info("entered selection", "account", acc.Name, "empire", acc.Empire)
@@ -120,7 +133,7 @@ func (s *session) onEmpire(ctx context.Context, body []byte) error {
 	if !ok {
 		return fmt.Errorf("game: kingdom %d does not exist", raw)
 	}
-	chosen, err := s.svc.Store.ChooseEmpire(ctx, s.accountID, empire)
+	chosen, err := s.svc.store.ChooseEmpire(ctx, s.accountID, empire)
 	if err != nil {
 		return err
 	}

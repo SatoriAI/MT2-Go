@@ -30,7 +30,7 @@ lint: ## go vet and golangci-lint
 	go vet ./...
 	go tool golangci-lint run
 
-test: ## The test suite; tests that need PostgreSQL run when TEST_DATABASE_URL is set
+test: ## The test suite; it needs `make db` (go test -short ./... skips the PostgreSQL tests)
 	go test -race ./...
 
 # The definition of done, and the only one. A pre-commit hook runs it, so no commit lands

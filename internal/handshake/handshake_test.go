@@ -15,9 +15,9 @@ func clockAt(ms int) Clock {
 
 func TestAnswerAcceptsAnEchoThatArrivesInTime(t *testing.T) {
 	s := NewSync(clockAt(10_000))
-	sent := s.Start()
+	sent := s.start()
 
-	done, _, err := s.Answer(protocol.Handshake{ID: sent.ID, Time: sent.Time})
+	done, _, err := s.answer(protocol.Handshake{ID: sent.ID, Time: sent.Time})
 
 	if err != nil || !done {
 		t.Fatalf("done %v err %v", done, err)
@@ -26,9 +26,9 @@ func TestAnswerAcceptsAnEchoThatArrivesInTime(t *testing.T) {
 
 func TestAnswerResendsWithHalfTheLagWhenTheEchoIsLate(t *testing.T) {
 	s := NewSync(clockAt(10_000))
-	sent := s.Start()
+	sent := s.start()
 
-	done, next, err := s.Answer(protocol.Handshake{ID: sent.ID, Time: sent.Time - 2_000})
+	done, next, err := s.answer(protocol.Handshake{ID: sent.ID, Time: sent.Time - 2_000})
 
 	if err != nil || done {
 		t.Fatalf("done %v err %v", done, err)
@@ -40,9 +40,9 @@ func TestAnswerResendsWithHalfTheLagWhenTheEchoIsLate(t *testing.T) {
 
 func TestAnswerRejectsAReplyToAnotherHandshake(t *testing.T) {
 	s := NewSync(clockAt(0))
-	sent := s.Start()
+	sent := s.start()
 
-	_, _, err := s.Answer(protocol.Handshake{ID: sent.ID + 1})
+	_, _, err := s.answer(protocol.Handshake{ID: sent.ID + 1})
 
 	if !errors.Is(err, ErrForeignID) {
 		t.Fatalf("got %v", err)
@@ -51,11 +51,11 @@ func TestAnswerRejectsAReplyToAnotherHandshake(t *testing.T) {
 
 func TestAClientThatNeverSyncsIsGivenUp(t *testing.T) {
 	s := NewSync(clockAt(10_000))
-	sent := s.Start()
+	sent := s.start()
 
 	var err error
 	for range maxRounds + 1 {
-		_, _, err = s.Answer(protocol.Handshake{ID: sent.ID, Time: sent.Time - 2_000})
+		_, _, err = s.answer(protocol.Handshake{ID: sent.ID, Time: sent.Time - 2_000})
 	}
 
 	if !errors.Is(err, ErrNoSync) {

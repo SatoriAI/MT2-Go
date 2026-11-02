@@ -3,19 +3,13 @@
 // port. These are the game's own types; how they look on the wire is the sessions' job.
 package account
 
-import (
-	"context"
-	"errors"
-)
+import "errors"
 
 // Limits the client's login fields impose, in bytes.
 const (
 	MaxNameLength     = 30
 	MaxPasswordLength = 16
 )
-
-// MaxCharacters is how many characters an account holds.
-const MaxCharacters = 4
 
 // ErrNotFound means no account has that name or id.
 var ErrNotFound = errors.New("account: not found")
@@ -83,18 +77,6 @@ type Character struct {
 	ST, HT, DX  uint8
 	IQ          uint8
 	Hair        uint16
-	Map         uint16
 	X, Y        int32
 	SkillGroup  SkillGroup
-}
-
-// Store is the persistence the login flow needs.
-type Store interface {
-	// AccountByName ignores case: names are unique regardless of it.
-	AccountByName(ctx context.Context, name string) (Account, error)
-	AccountByID(ctx context.Context, id int64) (Account, error)
-	// ChooseEmpire sets the kingdom of an account that has none, and reports whether it
-	// did: a kingdom, once chosen, stays.
-	ChooseEmpire(ctx context.Context, id int64, empire Empire) (bool, error)
-	Characters(ctx context.Context, accountID int64) ([]Character, error)
 }

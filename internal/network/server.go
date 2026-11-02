@@ -18,6 +18,15 @@ import (
 // the process is out of file descriptors.
 const maxAcceptDelay = time.Second
 
+// Timeouts bound how long a client can hold a connection without earning it.
+type Timeouts struct {
+	// Login is counted from the accept: a connection still open after it is closed,
+	// however busy it was, unless its session called KeepOpen.
+	Login time.Duration
+	// Write bounds each Send, so a client that stops reading cannot stall its goroutine.
+	Write time.Duration
+}
+
 // ErrHangUp is what a session returns to end its connection on purpose, without the
 // warning an error would log.
 var ErrHangUp = errors.New("network: session hung up")
@@ -35,10 +44,10 @@ type Session interface {
 // NewSession builds the Session for a freshly accepted connection.
 type NewSession func(*Conn) Session
 
-// Serve accepts connections on ln until ctx ends, then closes every open connection and
-// waits for their goroutines to finish. Each connection starts with the idle timeout: a
-// connection that sends nothing for that long is closed, until its session lifts it.
-func Serve(ctx context.Context, ln net.Listener, newSession NewSession, idle time.Duration, log *slog.Logger) error {
+// Serve accepts connections on ln until ctx ends or accepting fails for good, then closes
+// every open connection and waits for their goroutines to finish.
+func Serve(ctx context.Context, ln net.Listener, newSession NewSession, limits Timeouts, log *slog.Logger) error {
+	ctx, cancel := context.WithCancel(ctx)
 	var (
 		wg      sync.WaitGroup
 		mu      sync.Mutex
@@ -55,7 +64,9 @@ func Serve(ctx context.Context, ln net.Listener, newSession NewSession, idle tim
 		}
 		mu.Unlock()
 	}()
+	// Deferred calls run last first: cancelling closes the connections, then they are awaited.
 	defer wg.Wait()
+	defer cancel()
 
 	var delay time.Duration
 	for {
@@ -77,7 +88,7 @@ func Serve(ctx context.Context, ln net.Listener, newSession NewSession, idle tim
 			continue
 		}
 		delay = 0
-		c := newConn(raw, idle, log)
+		c := newConn(raw, limits, log)
 		mu.Lock()
 		if stopped {
 			mu.Unlock()
@@ -99,14 +110,18 @@ func Serve(ctx context.Context, ln net.Listener, newSession NewSession, idle tim
 
 // Conn is one client connection.
 type Conn struct {
-	raw  net.Conn
-	log  *slog.Logger
-	once sync.Once
-	idle time.Duration // only the connection's own goroutine reads or sets it
+	raw   net.Conn
+	log   *slog.Logger
+	once  sync.Once
+	write time.Duration
 }
 
-func newConn(raw net.Conn, idle time.Duration, log *slog.Logger) *Conn {
-	return &Conn{raw: raw, idle: idle, log: log.With("remote", raw.RemoteAddr().String())}
+func newConn(raw net.Conn, limits Timeouts, log *slog.Logger) *Conn {
+	// Setting a deadline fails only on a closed connection, which the first Read reports.
+	if limits.Login > 0 {
+		_ = raw.SetReadDeadline(time.Now().Add(limits.Login))
+	}
+	return &Conn{raw: raw, write: limits.Write, log: log.With("remote", raw.RemoteAddr().String())}
 }
 
 // Log is this connection's logger, tagged with the remote address.
@@ -115,6 +130,11 @@ func (c *Conn) Log() *slog.Logger { return c.log }
 // Send writes packets in order. Only the connection's own goroutine sends, so writes
 // never interleave.
 func (c *Conn) Send(packets ...[]byte) error {
+	if c.write > 0 {
+		if err := c.raw.SetWriteDeadline(time.Now().Add(c.write)); err != nil {
+			return err
+		}
+	}
 	for _, p := range packets {
 		if _, err := c.raw.Write(p); err != nil {
 			return err
@@ -123,9 +143,9 @@ func (c *Conn) Send(packets ...[]byte) error {
 	return nil
 }
 
-// SetIdleTimeout changes how long the connection may stay silent; 0 means forever. A
-// session lifts the limit once the client has proved who it is.
-func (c *Conn) SetIdleTimeout(d time.Duration) { c.idle = d }
+// KeepOpen lifts the login deadline. A session calls it once the client has proved who it
+// is; the player may then stay as long as they like.
+func (c *Conn) KeepOpen() { _ = c.raw.SetReadDeadline(time.Time{}) }
 
 // Close ends the connection; the read loop then returns and the Session is closed.
 func (c *Conn) Close() {
@@ -143,11 +163,6 @@ func (c *Conn) serve(ctx context.Context, s Session) {
 	var buf []byte
 	chunk := make([]byte, 4096)
 	for {
-		var deadline time.Time
-		if c.idle > 0 {
-			deadline = time.Now().Add(c.idle)
-		}
-		_ = c.raw.SetReadDeadline(deadline) // fails only on a closed connection, which Read reports
 		n, err := c.raw.Read(chunk)
 		if err != nil {
 			if !errors.Is(err, net.ErrClosed) {
@@ -157,7 +172,8 @@ func (c *Conn) serve(ctx context.Context, s Session) {
 		}
 		buf = append(buf, chunk[:n]...)
 		if buf, err = c.dispatch(ctx, buf, s); err != nil {
-			if !errors.Is(err, ErrHangUp) {
+			// Shutting down cuts sessions short; that is not the client's doing.
+			if !errors.Is(err, ErrHangUp) && ctx.Err() == nil {
 				c.log.Warn("closing connection", "err", err)
 			}
 			return

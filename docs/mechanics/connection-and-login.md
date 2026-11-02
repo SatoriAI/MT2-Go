@@ -130,7 +130,7 @@ The server never sends a length: the client knows each header's size. The client
 
 A key is redeemable while its account holds a game connection and for 60 seconds after the last one closes, with the account name in any case. An account with an open game connection cannot log in again (`ALREADY`). A new login replaces the account's earlier key, so two clients that log in one after the other cannot both reach the game port. Account names are unique regardless of case.
 
-**Idle connections.** A connection that sends nothing for 30 seconds is closed, so idle sockets cannot use up the server's file descriptors. The limit is lifted once a game connection has redeemed its key, because the player may stay on the selection screens as long as they like. If accepting a connection fails, for example because the process is out of file descriptors, the port waits briefly and tries again.
+**Connections that do not log in.** A connection still open 30 seconds after it was accepted is closed, however much it sent, so sockets that never log in cannot use up the server's file descriptors. Counting from the accept rather than from the last packet matters: the channel-status ping is answered before login, and a client sending it every few seconds would otherwise stay forever. The deadline is lifted once a game connection has redeemed its key, because the player may stay on the selection screens as long as they like. Every send gives up after 10 seconds, so a client that stops reading cannot hold the connection's goroutine. If accepting a connection fails, for example because the process is out of file descriptors, the port waits briefly and tries again.
 
 ## How we know
 
@@ -142,5 +142,5 @@ The flow, layouts and the sequence-byte exemptions come from the client's own sc
 - `internal/handshake/handshake_test.go` — in-time echo, late echo and the corrected delta, a foreign id, a client that never syncs, no `D2` in ids.
 - `internal/account/keys_test.go` — the key works for a second connection, expires after the grace period, never while held; a new key revokes the old one; no key while the account is in the game.
 - `internal/game/wire_test.go` — job numbers for both sexes, skill group numbers, kingdom numbers both ways.
-- `internal/network/server_test.go` — a failed accept does not stop the port, the idle timeout and lifting it, shutdown closing open connections.
+- `internal/network/server_test.go` — a failed accept does not stop the port, the login deadline (busy or silent) and lifting it, a send to a client that stops reading giving up, shutdown and a closed listener closing open connections.
 - `internal/server/server_test.go` — the whole path over real sockets and a real database: new account to the kingdom screen, the kingdom stored and a stored character listed byte for byte on the next connection, a kingdom that cannot be changed, a skill group of another class refused by the database, `ALREADY`, a name in another case, a key presented for another name, a packet out of its phase, wrong passwords and unknown names, the channel check.

@@ -46,15 +46,15 @@ func NewSync(clock Clock) *Sync {
 	return &Sync{clock: clock}
 }
 
-// Start returns the first handshake to send.
-func (s *Sync) Start() protocol.Handshake {
+// start returns the first handshake to send.
+func (s *Sync) start() protocol.Handshake {
 	s.sent = protocol.Handshake{ID: newID(), Time: s.clock.Now()}
 	return s.sent
 }
 
-// Answer checks the client's echo. It returns done once the clocks agree; otherwise it
+// answer checks the client's echo. It returns done once the clocks agree; otherwise it
 // returns the corrected handshake to send next.
-func (s *Sync) Answer(reply protocol.Handshake) (done bool, next protocol.Handshake, err error) {
+func (s *Sync) answer(reply protocol.Handshake) (done bool, next protocol.Handshake, err error) {
 	if reply.ID != s.sent.ID {
 		return false, protocol.Handshake{}, ErrForeignID
 	}
@@ -77,7 +77,7 @@ func (s *Sync) Answer(reply protocol.Handshake) (done bool, next protocol.Handsh
 
 // Greeting is what every port sends first: the handshake phase, then the handshake.
 func (s *Sync) Greeting() [][]byte {
-	return [][]byte{protocol.EncodePhase(protocol.PhaseHandshake), protocol.EncodeHandshake(s.Start())}
+	return [][]byte{protocol.EncodePhase(protocol.PhaseHandshake), protocol.EncodeHandshake(s.start())}
 }
 
 // Reply decodes the client's echo and answers it: done once in sync, otherwise the
@@ -87,7 +87,7 @@ func (s *Sync) Reply(body []byte) (done bool, resend []byte, err error) {
 	if err != nil {
 		return false, nil, err
 	}
-	done, next, err := s.Answer(echo)
+	done, next, err := s.answer(echo)
 	if err != nil || done {
 		return done, nil, err
 	}

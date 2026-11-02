@@ -20,9 +20,15 @@ import (
 // maxAttempts is how many wrong passwords one connection may send before it is closed.
 const maxAttempts = 3
 
+// Accounts is what the login port needs from storage.
+type Accounts interface {
+	// AccountByName ignores case, and returns account.ErrNotFound for an unknown name.
+	AccountByName(ctx context.Context, name string) (account.Account, error)
+}
+
 // Service is what every auth connection shares.
 type Service struct {
-	store account.Store
+	store Accounts
 	keys  *account.Keys
 	clock handshake.Clock
 	// checks bounds the password checks running at once, so a flood of logins queues
@@ -33,7 +39,7 @@ type Service struct {
 	decoy []byte
 }
 
-func NewService(store account.Store, keys *account.Keys, clock handshake.Clock) (*Service, error) {
+func NewService(store Accounts, keys *account.Keys, clock handshake.Clock) (*Service, error) {
 	decoy, err := bcrypt.GenerateFromPassword([]byte("decoy"), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, err

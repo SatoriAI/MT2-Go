@@ -21,22 +21,36 @@ type Config struct {
 
 // Load reads the environment, falling back to the local defaults the client in this
 // project is configured for.
-func Load() (Config, error) {
+func Load() (Config, error) { return load(os.Getenv) }
+
+// TestDatabaseURL is the database the tests that need PostgreSQL use and wipe.
+func TestDatabaseURL() string { return os.Getenv(testDatabaseURL) }
+
+const testDatabaseURL = "TEST_DATABASE_URL"
+
+// load takes the lookup as a parameter so a test can see every variable it reads.
+func load(getenv func(string) string) (Config, error) {
+	env := func(name, fallback string) string {
+		if v := getenv(name); v != "" {
+			return v
+		}
+		return fallback
+	}
 	var c Config
-	c.DatabaseURL = os.Getenv("DATABASE_URL")
+	c.DatabaseURL = getenv("DATABASE_URL")
 	if c.DatabaseURL == "" {
 		return c, errors.New("config: DATABASE_URL is not set")
 	}
 	var err error
-	if c.AuthListen, err = addrPort("AUTH_LISTEN", "127.0.0.1:11002"); err != nil {
+	if c.AuthListen, err = addrPort("AUTH_LISTEN", env("AUTH_LISTEN", "127.0.0.1:11002")); err != nil {
 		return c, err
 	}
-	if c.GameListen, err = addrPort("GAME_LISTEN", "127.0.0.1:13001"); err != nil {
+	if c.GameListen, err = addrPort("GAME_LISTEN", env("GAME_LISTEN", "127.0.0.1:13001")); err != nil {
 		return c, err
 	}
-	public, err := addr("GAME_PUBLIC_ADDRESS", "127.0.0.1")
+	public, err := netip.ParseAddr(env("GAME_PUBLIC_ADDRESS", "127.0.0.1"))
 	if err != nil {
-		return c, err
+		return c, fmt.Errorf("config: GAME_PUBLIC_ADDRESS: %w", err)
 	}
 	if public.IsUnspecified() || !public.Is4() {
 		return c, fmt.Errorf("config: GAME_PUBLIC_ADDRESS must be a reachable IPv4 address, got %s", public)
@@ -45,25 +59,10 @@ func Load() (Config, error) {
 	return c, nil
 }
 
-func addrPort(name, fallback string) (netip.AddrPort, error) {
-	v, err := netip.ParseAddrPort(env(name, fallback))
+func addrPort(name, value string) (netip.AddrPort, error) {
+	v, err := netip.ParseAddrPort(value)
 	if err != nil {
 		return v, fmt.Errorf("config: %s: %w", name, err)
 	}
 	return v, nil
-}
-
-func addr(name, fallback string) (netip.Addr, error) {
-	v, err := netip.ParseAddr(env(name, fallback))
-	if err != nil {
-		return v, fmt.Errorf("config: %s: %w", name, err)
-	}
-	return v, nil
-}
-
-func env(name, fallback string) string {
-	if v := os.Getenv(name); v != "" {
-		return v
-	}
-	return fallback
 }
