@@ -113,18 +113,32 @@ func (a Accounts) withAccount(ctx context.Context, id int64, fn func(pgx.Tx, acc
 	})
 }
 
+// characterColumns are what account.Character holds, in the order scanCharacter reads them.
+const characterColumns = `id, slot, name, class, sex, shape, level, play_minutes,
+	vitality, intelligence, strength, dexterity, hair, x, y, coalesce(skill_group, '')`
+
+func scanCharacter(row pgx.Row) (account.Character, error) {
+	var c account.Character
+	err := row.Scan(&c.ID, &c.Slot, &c.Name, &c.Class, &c.Sex, &c.Shape, &c.Level, &c.PlayMinutes,
+		&c.Vitality, &c.Intelligence, &c.Strength, &c.Dexterity, &c.Hair, &c.X, &c.Y, &c.SkillGroup)
+	return c, err
+}
+
 func (a Accounts) Characters(ctx context.Context, accountID int64) ([]account.Character, error) {
-	rows, err := a.Pool.Query(ctx, `
-		SELECT id, slot, name, class, sex, shape, level, play_minutes,
-		       vitality, intelligence, strength, dexterity, hair, x, y, coalesce(skill_group, '')
-		FROM characters WHERE account_id = $1 ORDER BY slot`, accountID)
+	rows, err := a.Pool.Query(ctx,
+		`SELECT `+characterColumns+` FROM characters WHERE account_id = $1 ORDER BY slot`, accountID)
 	if err != nil {
 		return nil, err
 	}
-	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (account.Character, error) {
-		var c account.Character
-		err := row.Scan(&c.ID, &c.Slot, &c.Name, &c.Class, &c.Sex, &c.Shape, &c.Level, &c.PlayMinutes,
-			&c.Vitality, &c.Intelligence, &c.Strength, &c.Dexterity, &c.Hair, &c.X, &c.Y, &c.SkillGroup)
-		return c, err
-	})
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (account.Character, error) { return scanCharacter(row) })
+}
+
+// Character reads the account's character in slot, or returns account.ErrNotFound.
+func (a Accounts) Character(ctx context.Context, accountID int64, slot int) (account.Character, error) {
+	c, err := scanCharacter(a.Pool.QueryRow(ctx,
+		`SELECT `+characterColumns+` FROM characters WHERE account_id = $1 AND slot = $2`, accountID, slot))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return c, account.ErrNotFound
+	}
+	return c, err
 }

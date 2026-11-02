@@ -66,6 +66,13 @@ func DecodeCreateCharacter(body []byte) (CreateCharacter, error) {
 	return c, r.Err()
 }
 
+// DecodeSelectCharacter reads the slot of the character the player pressed Start on.
+func DecodeSelectCharacter(body []byte) (uint8, error) {
+	r := NewReader(body)
+	slot := r.U8()
+	return slot, r.Err()
+}
+
 // DecodeEmpire reads the kingdom a new account picked: 1 Shinsoo, 2 Chunjo, 3 Jinno.
 func DecodeEmpire(body []byte) (uint8, error) {
 	r := NewReader(body)

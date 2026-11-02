@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"math"
 )
 
 // ErrShort means a packet body ended before all of its fields were read.
@@ -65,11 +66,12 @@ func NewWriter(header byte, size int) *Writer {
 	return w
 }
 
-func (w *Writer) U8(v uint8)   { w.buf = append(w.buf, v) }
-func (w *Writer) U16(v uint16) { w.buf = binary.LittleEndian.AppendUint16(w.buf, v) }
-func (w *Writer) U32(v uint32) { w.buf = binary.LittleEndian.AppendUint32(w.buf, v) }
-func (w *Writer) I32(v int32)  { w.buf = binary.LittleEndian.AppendUint32(w.buf, uint32(v)) }
-func (w *Writer) Raw(b []byte) { w.buf = append(w.buf, b...) }
+func (w *Writer) U8(v uint8)    { w.buf = append(w.buf, v) }
+func (w *Writer) U16(v uint16)  { w.buf = binary.LittleEndian.AppendUint16(w.buf, v) }
+func (w *Writer) U32(v uint32)  { w.buf = binary.LittleEndian.AppendUint32(w.buf, v) }
+func (w *Writer) I32(v int32)   { w.buf = binary.LittleEndian.AppendUint32(w.buf, uint32(v)) }
+func (w *Writer) F32(v float32) { w.buf = binary.LittleEndian.AppendUint32(w.buf, math.Float32bits(v)) }
+func (w *Writer) Raw(b []byte)  { w.buf = append(w.buf, b...) }
 
 // String writes text into a fixed-size field, cut to leave room for the terminating NUL
 // the client expects.

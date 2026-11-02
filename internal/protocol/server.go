@@ -176,6 +176,104 @@ func EncodeSkillLevels() []byte {
 	return w.Bytes()
 }
 
+// MainCharacter is who the player is and where the world loads.
+type MainCharacter struct {
+	VID        uint32 // the character's id in the world, for this session
+	Race       uint16
+	Name       string
+	X, Y       int32
+	Empire     uint8
+	SkillGroup uint8
+}
+
+// EncodeMainCharacter starts the loading screen: the client loads the map the coordinates
+// fall in, so no map is named.
+func EncodeMainCharacter(m MainCharacter) []byte {
+	w := NewWriter(byte(ServerMainCharacter), 46)
+	w.U32(m.VID)
+	w.U16(m.Race)
+	w.String(m.Name, characterNameSize)
+	w.I32(m.X)
+	w.I32(m.Y)
+	w.I32(0) // height: the client places characters on the ground itself
+	w.U8(m.Empire)
+	w.U8(m.SkillGroup)
+	return w.Bytes()
+}
+
+func EncodeTime(t uint32) []byte {
+	w := NewWriter(byte(ServerTime), 5)
+	w.U32(t)
+	return w.Bytes()
+}
+
+func EncodeChannel(channel uint8) []byte {
+	w := NewWriter(byte(ServerChannel), 2)
+	w.U8(channel)
+	return w.Bytes()
+}
+
+// EntityPlayer is the entity type of a player character (open-mt2's EntityTypeEnum).
+const EntityPlayer uint8 = 6
+
+// CharacterAdd is a character appearing in the client's view, the player included.
+type CharacterAdd struct {
+	VID         uint32
+	Rotation    float32 // degrees
+	X, Y        int32
+	Type        uint8
+	Race        uint16
+	MoveSpeed   uint8
+	AttackSpeed uint8
+}
+
+// EncodeCharacterAdd sends a character standing still with no effects on it.
+func EncodeCharacterAdd(c CharacterAdd) []byte {
+	w := NewWriter(byte(ServerCharacterAdd), 35)
+	w.U32(c.VID)
+	w.F32(c.Rotation)
+	w.I32(c.X)
+	w.I32(c.Y)
+	w.I32(0) // height
+	w.U8(c.Type)
+	w.U16(c.Race)
+	w.U8(c.MoveSpeed)
+	w.U8(c.AttackSpeed)
+	w.U8(0)                // state
+	w.Raw(make([]byte, 8)) // effects
+	return w.Bytes()
+}
+
+// CharacterInfo is what the client shows of a character beyond its model: its name, the
+// parts it wears and its level.
+type CharacterInfo struct {
+	VID      uint32
+	Name     string
+	BodyPart uint16
+	HairPart uint16
+	Empire   uint8
+	Level    uint32
+}
+
+// EncodeCharacterInfo sends the parts as body, weapon, head and hair; the weapon and head
+// stay 0 until characters carry items. Guild, rank, player-kill mode and mount are 0.
+func EncodeCharacterInfo(c CharacterInfo) []byte {
+	w := NewWriter(byte(ServerCharacterInfo), 54)
+	w.U32(c.VID)
+	w.String(c.Name, characterNameSize)
+	w.U16(c.BodyPart)
+	w.U16(0) // weapon
+	w.U16(0) // head
+	w.U16(c.HairPart)
+	w.U8(c.Empire)
+	w.U32(0) // guild
+	w.U32(c.Level)
+	w.U16(0) // rank
+	w.U8(0)  // player-kill mode
+	w.U32(0) // mount
+	return w.Bytes()
+}
+
 // ChannelStatus is one channel the login screen lists.
 type ChannelStatus struct {
 	Port   uint16

@@ -191,6 +191,16 @@ func (c *client) createCharacter(slot byte, name string, race uint16, shape byte
 		binary.LittleEndian.AppendUint16(nil, race), []byte{shape, 9, 9, 9, 9, sequenceByte})
 }
 
+func (c *client) selectCharacter(slot byte) {
+	c.t.Helper()
+	c.send([]byte{byte(protocol.ClientSelectCharacter), slot, sequenceByte})
+}
+
+func (c *client) enterGame() {
+	c.t.Helper()
+	c.send([]byte{byte(protocol.ClientEnterGame), sequenceByte})
+}
+
 // expectOpen proves the server still serves the connection: it answers the channel check
 // only after handling every packet sent before it.
 func (c *client) expectOpen() {
@@ -564,6 +574,91 @@ func TestACharacterWithoutAKingdomEndsTheConnection(t *testing.T) {
 	game.expect(protocol.EncodePhase(protocol.PhaseSelect))
 
 	game.createCharacter(0, "Hendra", 0, 0)
+
+	game.expectClosed()
+}
+
+// withHendra is admin in Jinno with Hendra, a female sura in her second look, in slot 0.
+func (h *harness) withHendra() *client {
+	h.t.Helper()
+	h.createAccount("admin")
+	game := h.inKingdom(3)
+	game.createCharacter(0, "Hendra", 6, 1)
+	game.read(65)
+	return game
+}
+
+// expectLoading reads what Start makes the server send, for Hendra as the first character
+// in the world.
+func (c *client) expectLoading() {
+	c.t.Helper()
+	c.expect(protocol.EncodePhase(protocol.PhaseLoading))
+	c.expect(protocol.EncodeMainCharacter(protocol.MainCharacter{VID: 1, Race: 6, Name: "Hendra",
+		X: 963400, Y: 278200, Empire: 3}))
+	c.expect(protocol.EncodePoints(protocol.CharacterPoints{Level: 1, NextExp: 300,
+		HP: 950, MaxHP: 950, SP: 850, MaxSP: 850, Stamina: 1000, MaxStamina: 1000, // a level-1 sura's
+		ST: 5, HT: 3, DX: 3, IQ: 5, AttackSpeed: 150, MoveSpeed: 150}))
+	c.expect(protocol.EncodeSkillLevels())
+}
+
+func TestStartLoadsTheWorldAndEnteringPutsThePlayerInIt(t *testing.T) {
+	h := start(t)
+	game := h.withHendra()
+
+	game.selectCharacter(0)
+	game.expectLoading()
+	game.enterGame()
+
+	game.expect(protocol.EncodePhase(protocol.PhaseGame))
+	if clock := game.read(5); clock[0] != byte(protocol.ServerTime) {
+		t.Fatalf("expected the time, got %x", clock)
+	}
+	game.expect(protocol.EncodeChannel(1))
+	game.expect(protocol.EncodeCharacterAdd(protocol.CharacterAdd{VID: 1, X: 963400, Y: 278200,
+		Type: protocol.EntityPlayer, Race: 6, MoveSpeed: 150, AttackSpeed: 150}))
+	game.expect(protocol.EncodeCharacterInfo(protocol.CharacterInfo{VID: 1, Name: "Hendra", BodyPart: 1,
+		Empire: 3, Level: 1}))
+	game.expectOpen()
+}
+
+// The loading screen may ask for the character the select screen already asked for.
+func TestTheSameCharacterSelectedAgainWhileLoadingIsIgnored(t *testing.T) {
+	h := start(t)
+	game := h.withHendra()
+	game.selectCharacter(0)
+	game.expectLoading()
+
+	game.selectCharacter(0)
+	game.enterGame()
+
+	game.expect(protocol.EncodePhase(protocol.PhaseGame))
+}
+
+func TestAnotherCharacterSelectedWhileLoadingEndsTheConnection(t *testing.T) {
+	h := start(t)
+	game := h.withHendra()
+	game.selectCharacter(0)
+	game.expectLoading()
+
+	game.selectCharacter(1)
+
+	game.expectClosed()
+}
+
+func TestStartOnAnEmptySlotEndsTheConnection(t *testing.T) {
+	h := start(t)
+	game := h.withHendra()
+
+	game.selectCharacter(1)
+
+	game.expectClosed()
+}
+
+func TestEnteringBeforeStartEndsTheConnection(t *testing.T) {
+	h := start(t)
+	game := h.withHendra()
+
+	game.enterGame()
 
 	game.expectClosed()
 }

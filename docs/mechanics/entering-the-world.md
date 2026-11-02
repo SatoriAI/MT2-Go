@@ -1,0 +1,127 @@
+# Entering the world
+
+## What the player sees
+
+On the character screen the player picks a character and presses **Start**. The character plays its selection motion, the loading screen fills its bar, and the character stands in its kingdom's first village, with its name, level, hit points and mana shown. Nothing moves yet: no other players, no monsters, no items.
+
+## What the client does
+
+Everything happens on the game connection already open; the client does not reconnect.
+
+1. **Start.** The select screen plays the selection motion, then asks for the character by its slot (`introselect.py`).
+2. **Loading.** At phase `LOADING` the client opens the loading screen, which may ask for the same slot again (`introloading.py`). It reads the main character's race, kingdom, skill group and position, loads the map those coordinates fall in, and steps through its loading work one frame at a time.
+3. **Enter.** The last loading step sends `ENTERGAME`. At phase `GAME` the client opens the game window.
+
+No map is named anywhere: positions are world coordinates, and the client's `atlasinfo.txt` gives each map's area.
+
+## The bytes
+
+### CHARACTER_SELECT — client, `06`, 2 bytes, sequenced
+
+| Offset | Field | |
+|---|---|---|
+| 0 | u8 header | `06` |
+| 1 | u8 slot | `0`–`3` |
+
+### ENTERGAME — client, `0A`, 1 byte, sequenced
+
+The header alone.
+
+### Phase — server, `FD`
+
+`4` loading, `5` game, as on the [connection page](connection-and-login.md).
+
+### MAIN_CHARACTER — server, `71`, 46 bytes
+
+| Offset | Field | |
+|---|---|---|
+| 0 | u8 header | `71` |
+| 1 | u32 vid | the character's id in the world |
+| 5 | u16 race | as in the character list |
+| 7 | char[25] name | |
+| 32 | i32 x, i32 y, i32 z | world coordinates; z is `0` and the client puts the character on the ground |
+| 44 | u8 kingdom | `1`–`3` |
+| 45 | u8 skill group | |
+
+### POINTS — server, `10`, 1021 bytes
+
+255 × u32, each value at its index. The indices sent so far:
+
+| Index | Value | Index | Value |
+|---|---|---|---|
+| 1 | level | 9, 10 | stamina, max stamina |
+| 3, 4 | exp, exp for the next level | 11 | gold |
+| 5, 6 | hit points, max hit points | 12–15 | strength, vitality, dexterity, intelligence |
+| 7, 8 | mana, max mana | 17, 19 | attack speed, move speed |
+
+### SKILL_LEVEL — server, `4C`, 1531 bytes
+
+255 skills × 6 bytes (master type u8, level u8, next reading time i32), all `0` for now.
+
+### TIME — server, `6A`, 5 bytes; CHANNEL — server, `79`, 2 bytes
+
+A u32 time and a u8 channel. The time is the server clock the handshake already shares (milliseconds since the server started). Whether the client uses it for more than display is not known yet. The channel is `1`.
+
+### CHARACTER_ADD — server, `01`, 35 bytes
+
+| Offset | Field | |
+|---|---|---|
+| 1 | u32 vid | |
+| 5 | f32 rotation | degrees |
+| 9 | i32 x, y, z | |
+| 21 | u8 type | `6` player |
+| 22 | u16 race | |
+| 24 | u8 move speed, u8 attack speed | |
+| 26 | u8 state | `0` |
+| 27 | u32 ×2 effects | `0` |
+
+### CHARACTER_ADDITIONAL_INFO — server, `88`, 54 bytes
+
+| Offset | Field | |
+|---|---|---|
+| 1 | u32 vid | |
+| 5 | char[25] name | |
+| 30 | u16 ×4 parts | body, weapon, head, hair |
+| 38 | u8 kingdom | |
+| 39 | u32 guild | `0` |
+| 43 | u32 level | |
+| 47 | u16 rank, u8 player-kill mode, u32 mount | `0` |
+
+## What the server does
+
+`internal/game/enter.go`:
+
+- **Start (`SELECT`).** `06` loads the character in that slot. An empty slot closes the connection, since the client only offers slots it shows a character in. The character gets a vid, unique in this server process. Then the server sends phase `LOADING`, `MAIN_CHARACTER`, `POINTS` and `SKILL_LEVEL`.
+- **Loading.** A second `06` for the same slot is ignored; any other slot closes the connection. `ENTERGAME` moves to `GAME` and sends the time, the channel, and the player's own character: `CHARACTER_ADD`, then `CHARACTER_ADDITIONAL_INFO`. The body part is the character's look, as in the list.
+- **Derived values** (`internal/account/points.go`) are worked out, not stored:
+  - **Max hit points:** 700 + 50 per vitality + 100 per level.
+  - **Max mana:** 500 for warrior and ninja, 700 for sura and shaman, + 20 per intelligence + 50 per level.
+  - **Stamina, speeds and exp:** stamina 1000, attack and move speed 150. The next level needs 300 exp at level 1; other levels send 0 until they matter.
+  - **Current values:** hit points and mana are full, because nothing can hurt a character yet.
+
+  A new sura has 950 hit points and 850 mana.
+
+## How we know
+
+- **The flow and layouts:** open-mt2, whose flow brings this client into the world, and the client's `introselect.py`, `introloading.py` and `networkmodule.py`.
+- **The derived values:** open-mt2's formula and `jobs.json` constants, applied to our starting stats, which come from the client. No source closer to the original game has been checked; this is the first thing to revisit when one is.
+
+## What proves it
+
+- `internal/protocol/protocol_test.go`: every new packet, byte for byte.
+- `internal/account/points_test.go`: each class's level-1 hit points and mana, and growth per level.
+- `internal/server/server_test.go`:
+  - Start then enter, with every packet compared;
+  - the same slot asked for again while loading;
+  - another slot while loading;
+  - an empty slot;
+  - entering before Start.
+
+## Not done yet
+
+- Moving, and saving the position.
+- Other players, monsters and NPCs.
+- Items, equipment and quickslots.
+- Quests.
+- Play time, and saving anything on logout.
+- Warps between maps.
