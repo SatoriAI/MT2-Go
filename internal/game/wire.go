@@ -65,8 +65,7 @@ func skillGroupNumber(c account.Class, g account.SkillGroup) uint8 {
 	return 0
 }
 
-// slots lays the characters out as the selection screen shows them. The body part stays
-// 0, the bare body, until characters wear armour.
+// slots lays the characters out as the selection screen shows them.
 func slots(characters []account.Character) [protocol.CharacterSlots]protocol.CharacterSummary {
 	var out [protocol.CharacterSlots]protocol.CharacterSummary
 	for _, c := range characters {
@@ -75,7 +74,9 @@ func slots(characters []account.Character) [protocol.CharacterSlots]protocol.Cha
 	return out
 }
 
-// summary is one character as a slot of the selection screen shows it.
+// summary is one character as a slot of the selection screen shows it. The client draws
+// the body part as a shape from the class's .msm file, where 0 and 1 are the two looks of
+// the create screen; until characters wear armour, the body part is the look.
 func summary(c account.Character) protocol.CharacterSummary {
 	return protocol.CharacterSummary{
 		ID:          c.ID,
@@ -87,6 +88,7 @@ func summary(c account.Character) protocol.CharacterSummary {
 		HT:          c.Vitality,
 		DX:          c.Dexterity,
 		IQ:          c.Intelligence,
+		BodyPart:    uint16(c.Shape),
 		HairPart:    c.Hair,
 		X:           c.X,
 		Y:           c.Y,
