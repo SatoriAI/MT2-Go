@@ -621,6 +621,24 @@ func TestStartLoadsTheWorldAndEnteringPutsThePlayerInIt(t *testing.T) {
 	game.expectOpen()
 }
 
+// Seen with the real client: seconds after entering, it reports the player's movement.
+func TestAMoveInTheWorldKeepsTheConnection(t *testing.T) {
+	h := start(t)
+	game := h.withHendra()
+	game.selectCharacter(0)
+	game.expectLoading()
+	game.enterGame()
+	game.read(2 + 5 + 2 + 35 + 54) // phase, time, channel, the player and their info
+
+	move := []byte{byte(protocol.ClientMove), 1, 0, 64}
+	move = binary.LittleEndian.AppendUint32(move, 963500)
+	move = binary.LittleEndian.AppendUint32(move, 278300)
+	move = binary.LittleEndian.AppendUint32(move, 12345)
+	game.send(move, []byte{sequenceByte})
+
+	game.expectOpen()
+}
+
 // Seen with the real client: while loading it reports its version before entering.
 func TestTheClientsVersionWhileLoadingIsAccepted(t *testing.T) {
 	h := start(t)

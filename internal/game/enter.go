@@ -107,6 +107,18 @@ func (s *session) onEnterGame() error {
 	)
 }
 
+// onMove keeps where the player's character is. Nobody else is in the world to be told
+// yet, and the position is not saved; the client moves its own character by itself.
+func (s *session) onMove(body []byte) error {
+	m, err := protocol.DecodeMove(body)
+	if err != nil {
+		return err
+	}
+	s.playing.X, s.playing.Y = m.X, m.Y
+	s.conn.Log().Debug("moved", "character", s.playing.Name, "type", m.Type, "x", m.X, "y", m.Y)
+	return nil
+}
+
 // pointsOf fills the client's points array for the character, at full hit points and
 // mana.
 func pointsOf(p *character) protocol.CharacterPoints {

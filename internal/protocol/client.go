@@ -73,6 +73,21 @@ func DecodeSelectCharacter(body []byte) (uint8, error) {
 	return slot, r.Err()
 }
 
+// Move is the player's character starting, changing or ending a movement.
+type Move struct {
+	Type     uint8 // walking, stopping, attacking and the like
+	Arg      uint8
+	Rotation uint8 // the direction faced; its unit is not known yet
+	X, Y     int32
+	Time     uint32 // the client's clock, as the handshake set it
+}
+
+func DecodeMove(body []byte) (Move, error) {
+	r := NewReader(body)
+	m := Move{Type: r.U8(), Arg: r.U8(), Rotation: r.U8(), X: r.I32(), Y: r.I32(), Time: r.U32()}
+	return m, r.Err()
+}
+
 // Version is the build the client reports while it loads the world.
 type Version struct {
 	Name      string

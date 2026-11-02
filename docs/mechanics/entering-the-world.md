@@ -93,12 +93,24 @@ A u32 time and a u8 channel. The time is the server clock the handshake already 
 | 43 | u32 level | |
 | 47 | u16 rank, u8 player-kill mode, u32 mount | `0` |
 
+### CHARACTER_MOVE — client, `07`, 16 bytes, sequenced
+
+| Offset | Field | |
+|---|---|---|
+| 0 | u8 header | `07` |
+| 1 | u8 type, u8 arg, u8 rotation | the kind of movement; the units are not known yet |
+| 4 | i32 x, i32 y | where the character is going or stopped |
+| 12 | u32 time | the client's clock |
+
+The client sends it on its own a few seconds after entering, seen with the real client, and whenever the player moves.
+
 ## What the server does
 
 `internal/game/enter.go`:
 
 - **Start (`SELECT`).** `06` loads the character in that slot. An empty slot closes the connection, since the client only offers slots it shows a character in. The character gets a vid, unique in this server process. Then the server sends phase `LOADING`, `MAIN_CHARACTER`, `POINTS` and `SKILL_LEVEL`.
 - **Loading.** A second `06` for the same slot is ignored; any other slot closes the connection. `CLIENT_VERSION` is logged and otherwise ignored. `ENTERGAME` moves to `GAME` and sends the time, the channel, and the player's own character: `CHARACTER_ADD`, then `CHARACTER_ADDITIONAL_INFO`. The body part is the character's look, as in the list.
+- **In the world.** `CHARACTER_MOVE` updates where the player's character is, in memory only: it is not saved and nobody else is told. Any other packet closes the connection for now, and the log names its header.
 - **Derived values** (`internal/account/points.go`) are worked out, not stored:
   - **Max hit points:** 700 + 50 per vitality + 100 per level.
   - **Max mana:** 500 for warrior and ninja, 700 for sura and shaman, + 20 per intelligence + 50 per level.
@@ -120,13 +132,14 @@ A u32 time and a u8 channel. The time is the server clock the handshake already 
   - Start then enter, with every packet compared;
   - the same slot asked for again while loading;
   - the client's version while loading;
+  - a move in the world;
   - another slot while loading;
   - an empty slot;
   - entering before Start.
 
 ## Not done yet
 
-- Moving, and saving the position.
+- Movement seen by others, checked against the map, and saved.
 - Other players, monsters and NPCs.
 - Items, equipment and quickslots.
 - Quests.

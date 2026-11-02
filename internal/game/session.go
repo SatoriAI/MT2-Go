@@ -93,6 +93,8 @@ func (s *session) Handle(ctx context.Context, f protocol.Frame) error {
 		return s.onVersion(f.Body)
 	case s.phase == protocol.PhaseLoading && f.Header == protocol.ClientEnterGame:
 		return s.onEnterGame()
+	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientMove:
+		return s.onMove(f.Body)
 	}
 	return fmt.Errorf("game: header 0x%02X not expected in phase %d", byte(f.Header), s.phase)
 }

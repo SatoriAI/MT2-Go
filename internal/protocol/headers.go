@@ -10,6 +10,7 @@ type ClientHeader byte
 const (
 	ClientCreateCharacter ClientHeader = 0x04
 	ClientSelectCharacter ClientHeader = 0x06
+	ClientMove            ClientHeader = 0x07
 	ClientEnterGame       ClientHeader = 0x0A
 	ClientMarkLogin       ClientHeader = 0x64
 	ClientEmpire          ClientHeader = 0x5A

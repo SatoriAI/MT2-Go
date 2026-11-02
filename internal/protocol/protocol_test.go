@@ -245,3 +245,16 @@ func TestDecodeVersionReadsNameAndTimestamp(t *testing.T) {
 		t.Fatalf("got %+v %v", v, err)
 	}
 }
+
+func TestDecodeMoveReadsTypeDirectionPositionAndTime(t *testing.T) {
+	body := []byte{1, 0, 64}
+	body = binary.LittleEndian.AppendUint32(body, 963500)
+	body = binary.LittleEndian.AppendUint32(body, 278300)
+	body = binary.LittleEndian.AppendUint32(body, 12345)
+
+	m, err := DecodeMove(body)
+
+	if err != nil || m != (Move{Type: 1, Rotation: 64, X: 963500, Y: 278300, Time: 12345}) {
+		t.Fatalf("got %+v %v", m, err)
+	}
+}
