@@ -7,6 +7,7 @@ Why the rules in `CLAUDE.md` are what they are: the reasoning, the measurements,
 | File | Covers |
 |---|---|
 | `architecture.md` | One process with two ports, PostgreSQL, the migration runner, the dependency budget |
+| `claude-md-budget.md` | Why `CLAUDE.md` has a character budget, why 10,000, and where it is checked |
 | `comment-blocks.md` | The comment length guard, and how Go was added to it |
 
 How a game mechanic works is not a decision and does not live here: see `docs/mechanics/`.

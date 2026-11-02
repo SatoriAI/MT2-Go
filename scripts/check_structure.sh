@@ -44,6 +44,15 @@ if [ -f .railway/railway.ts ]; then
   done
 fi
 
+# CLAUDE.md is loaded into every session, so its length is a cost paid on every task and
+# it grows a defensible paragraph at a time. Over budget: move reasoning to docs/decisions/,
+# or raise the budget here and say why. See docs/decisions/claude-md-budget.md.
+claude_budget=10000
+claude_size=$(wc -c < CLAUDE.md | tr -d ' ')
+if [ "$claude_size" -gt "$claude_budget" ]; then
+  note "CLAUDE.md is $claude_size characters, over its $claude_budget-character budget."
+fi
+
 # Placeholders left behind mean the setup was never finished. Named explicitly: a bare
 # `{{` also matches a GitHub Actions expression, a JSX style object and a template
 # language, all of which are legitimate source.

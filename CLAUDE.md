@@ -19,7 +19,7 @@ A Metin2 server written from scratch in Go, compatible with the original TMP4 ga
 
 ## Gate
 
-`make check` is the definition of done, and a pre-commit hook runs it: structure, comment blocks, gofmt, `go vet`, golangci-lint, `go test -race`. No commit lands red; never `--no-verify`. CI invokes the same targets.
+`make check` is the definition of done, and a pre-commit hook runs it: structure (including this file's 10,000-character budget), comment blocks, gofmt, `go vet`, golangci-lint, `go test -race`. No commit lands red; never `--no-verify`. CI invokes the same targets.
 
 The tests that need PostgreSQL run only when `TEST_DATABASE_URL` is set (it is, in `.env.example`); start the database with `make db`. They wipe the test database, never the development one.
 
@@ -78,4 +78,5 @@ A connection's goroutine is the only one that touches its session, so session st
 |---|---|
 | Process layout, database, migrations, dependencies | `architecture.md` |
 | The comment length guard | `comment-blocks.md` |
+| The size of this file | `claude-md-budget.md` |
 | How a packet or mechanic works | the page in `docs/mechanics/` |
