@@ -5,7 +5,6 @@ package game
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/netip"
 
@@ -18,8 +17,8 @@ import (
 // Accounts is what the game port needs from storage.
 type Accounts interface {
 	AccountByID(ctx context.Context, id int64) (account.Account, error)
-	// ChooseEmpire sets the kingdom of an account that has none, and reports whether it
-	// did: a kingdom, once chosen, stays.
+	// ChooseEmpire sets the account's kingdom while it has no character, and reports
+	// whether the account now has that kingdom.
 	ChooseEmpire(ctx context.Context, id int64, empire account.Empire) (bool, error)
 	Characters(ctx context.Context, accountID int64) ([]account.Character, error)
 }
@@ -47,7 +46,8 @@ type session struct {
 	conn      *network.Conn
 	sync      *handshake.Sync
 	phase     protocol.Phase
-	accountID int64 // set once the login key is redeemed
+	accountID int64          // set once the login key is redeemed
+	empire    account.Empire // the account's kingdom as this connection last knew it
 }
 
 func (s *session) Open() error { return s.conn.Send(s.sync.Greeting()...) }
@@ -108,6 +108,7 @@ func (s *session) onLoginByKey(ctx context.Context, body []byte) error {
 	if err != nil {
 		return err
 	}
+	s.empire = acc.Empire
 	var packets [][]byte
 	if acc.Empire != account.EmpireNone {
 		characters, err := s.svc.store.Characters(ctx, id)
@@ -122,8 +123,10 @@ func (s *session) onLoginByKey(ctx context.Context, body []byte) error {
 	return s.conn.Send(append(packets, protocol.EncodePhase(protocol.PhaseSelect))...)
 }
 
-// onEmpire stores the kingdom a new account picked. The client moves on to the character
-// screen by itself, so nothing is sent back.
+// onEmpire stores the kingdom the player picked. The client sends it from the kingdom
+// screen, and again from the screen it shows before the first character is created, where
+// the player may pick another; nothing is sent back. Once the account has a character,
+// only the same kingdom again is accepted.
 func (s *session) onEmpire(ctx context.Context, body []byte) error {
 	raw, err := protocol.DecodeEmpire(body)
 	if err != nil {
@@ -133,12 +136,16 @@ func (s *session) onEmpire(ctx context.Context, body []byte) error {
 	if !ok {
 		return fmt.Errorf("game: kingdom %d does not exist", raw)
 	}
+	if empire == s.empire {
+		return nil // a repeat, for example a double click; nothing to store
+	}
 	chosen, err := s.svc.store.ChooseEmpire(ctx, s.accountID, empire)
 	if err != nil {
 		return err
 	}
 	if !chosen {
-		return errors.New("game: the account already has a kingdom")
+		return fmt.Errorf("game: kingdom %q refused: the account has characters in another", empire)
 	}
+	s.empire = empire
 	return nil
 }

@@ -100,14 +100,15 @@ func (h *harness) exec(sql string, args ...any) {
 	}
 }
 
-func (h *harness) waitForEmpire(name string, want account.Empire) {
+// waitForEmpire waits until the account admin, the one every kingdom test uses, has want.
+func (h *harness) waitForEmpire(want account.Empire) {
 	h.t.Helper()
 	for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline); time.Sleep(10 * time.Millisecond) {
-		if acc, err := h.accounts.AccountByName(context.Background(), name); err == nil && acc.Empire == want {
+		if acc, err := h.accounts.AccountByName(context.Background(), "admin"); err == nil && acc.Empire == want {
 			return
 		}
 	}
-	h.t.Fatalf("kingdom %q was never stored for %s", want, name)
+	h.t.Fatalf("kingdom %q was never stored for admin", want)
 }
 
 // client plays the game client's side of one connection.
@@ -182,6 +183,15 @@ func (c *client) chooseEmpire(number, sequence byte) {
 	c.send([]byte{byte(protocol.ClientEmpire), number, sequence})
 }
 
+// expectOpen proves the server still serves the connection: it answers the channel check
+// only after handling every packet sent before it.
+func (c *client) expectOpen() {
+	c.t.Helper()
+	port := netip.MustParseAddrPort(c.conn.RemoteAddr().String()).Port()
+	c.send([]byte{byte(protocol.ClientStateChecker)})
+	c.expect(protocol.EncodeChannelStatus([]protocol.ChannelStatus{{Port: port, Status: protocol.ChannelNormal}}))
+}
+
 // expectClosed waits for the server to end the connection.
 func (c *client) expectClosed() {
 	c.t.Helper()
@@ -241,7 +251,7 @@ func TestTheChosenKingdomIsStoredAndTheNextLoginShowsTheCharacterList(t *testing
 	first.expect(protocol.EncodePhase(protocol.PhaseSelect))
 
 	first.chooseEmpire(2, 0xCA)
-	h.waitForEmpire("admin", account.EmpireChunjo) // the server sends nothing back to wait on
+	h.waitForEmpire(account.EmpireChunjo) // the server sends nothing back to wait on
 	_ = first.conn.Close()
 	h.exec(`INSERT INTO characters (account_id, slot, name, class, sex, level, st, ht, dx, iq, hair, map, x, y,
 		skill_group) VALUES ($1, 2, 'Hendra', 'sura', 'female', 21, 6, 4, 3, 2, 3, 1, 469300, 964200, 'black_magic')`, id)
@@ -269,19 +279,50 @@ func TestTheDatabaseRefusesASkillGroupOfAnotherClass(t *testing.T) {
 	}
 }
 
-func TestAKingdomOnceChosenCannotBeChanged(t *testing.T) {
+func TestADoubleClickedKingdomKeepsTheConnection(t *testing.T) {
 	h := start(t)
 	h.createAccount("admin")
-	key := h.authenticate("admin")
-	game := h.enterSelection("admin", key)
+	game := h.enterSelection("admin", h.authenticate("admin"))
+	game.expect(protocol.EncodePhase(protocol.PhaseSelect))
+
+	game.chooseEmpire(3, 0xCA)
+	game.chooseEmpire(3, 0x8A)
+
+	h.waitForEmpire(account.EmpireJinno)
+	game.expectOpen()
+}
+
+// Before the first character is created, the client shows the kingdom screen again,
+// starting on a random kingdom, and sends whichever the player picks there.
+func TestANewAccountMayChangeItsKingdomBeforeItsFirstCharacter(t *testing.T) {
+	h := start(t)
+	h.createAccount("admin")
+	game := h.enterSelection("admin", h.authenticate("admin"))
 	game.expect(protocol.EncodePhase(protocol.PhaseSelect))
 	game.chooseEmpire(1, 0xCA)
-	h.waitForEmpire("admin", account.EmpireShinsoo)
+	h.waitForEmpire(account.EmpireShinsoo)
 
 	game.chooseEmpire(3, 0x8A)
 
+	h.waitForEmpire(account.EmpireJinno)
+	game.expectOpen()
+}
+
+func TestAKingdomCannotChangeOnceTheAccountHasACharacter(t *testing.T) {
+	h := start(t)
+	id := h.createAccount("admin")
+	h.exec(`UPDATE accounts SET empire = 'shinsoo' WHERE id = $1`, id)
+	h.exec(`INSERT INTO characters (account_id, slot, name, class, sex, st, ht, dx, iq, map, x, y)
+		VALUES ($1, 0, 'Hendra', 'sura', 'female', 6, 4, 3, 2, 1, 469300, 964200)`, id)
+	game := h.enterSelection("admin", h.authenticate("admin"))
+	game.expect(protocol.EncodeEmpire(1))
+	game.read(329) // the character list, whose bytes another test checks
+	game.expect(protocol.EncodePhase(protocol.PhaseSelect))
+
+	game.chooseEmpire(3, 0xCA)
+
 	game.expectClosed()
-	h.waitForEmpire("admin", account.EmpireShinsoo)
+	h.waitForEmpire(account.EmpireShinsoo)
 }
 
 func TestASecondLoginIsRefusedWhileTheAccountIsInTheGame(t *testing.T) {

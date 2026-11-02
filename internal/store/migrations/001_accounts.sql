@@ -7,7 +7,7 @@ CREATE TABLE accounts (
     id            bigint      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     name          text        NOT NULL CHECK (octet_length(name) BETWEEN 1 AND 30),
     password_hash bytea       NOT NULL,
-    -- Picked on the first login; it never changes after.
+    -- Picked on the first login; it can change until the account has a character.
     empire        text        CHECK (empire IN ('shinsoo', 'chunjo', 'jinno')),
     created_at    timestamptz NOT NULL DEFAULT now()
 );
