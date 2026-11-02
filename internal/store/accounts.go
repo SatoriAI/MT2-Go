@@ -34,10 +34,11 @@ func (a Accounts) AccountByID(ctx context.Context, id int64) (account.Account, e
 	return a.one(ctx, `WHERE id = $1`, id)
 }
 
+// one reads an account. A kingdom not chosen yet is NULL in the table and "" in Go.
 func (a Accounts) one(ctx context.Context, where string, arg any) (account.Account, error) {
 	var acc account.Account
 	err := a.Pool.QueryRow(ctx,
-		`SELECT id, name, password_hash, empire FROM accounts `+where, arg).
+		`SELECT id, name, password_hash, coalesce(empire, '') FROM accounts `+where, arg).
 		Scan(&acc.ID, &acc.Name, &acc.PasswordHash, &acc.Empire)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return account.Account{}, account.ErrNotFound
@@ -46,14 +47,14 @@ func (a Accounts) one(ctx context.Context, where string, arg any) (account.Accou
 }
 
 func (a Accounts) ChooseEmpire(ctx context.Context, id int64, empire account.Empire) (bool, error) {
-	tag, err := a.Pool.Exec(ctx, `UPDATE accounts SET empire = $2 WHERE id = $1 AND empire = 0`, id, empire)
+	tag, err := a.Pool.Exec(ctx, `UPDATE accounts SET empire = $2 WHERE id = $1 AND empire IS NULL`, id, empire)
 	return tag.RowsAffected() == 1, err
 }
 
 func (a Accounts) Characters(ctx context.Context, accountID int64) ([]account.Character, error) {
 	rows, err := a.Pool.Query(ctx, `
 		SELECT id, slot, name, class, sex, level, play_minutes, st, ht, dx, iq,
-		       hair, map, x, y, skill_group
+		       hair, map, x, y, coalesce(skill_group, '')
 		FROM characters WHERE account_id = $1 ORDER BY slot`, accountID)
 	if err != nil {
 		return nil, err

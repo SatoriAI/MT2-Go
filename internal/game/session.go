@@ -101,7 +101,7 @@ func (s *session) onLoginByKey(ctx context.Context, body []byte) error {
 		if err != nil {
 			return err
 		}
-		packets = append(packets, protocol.EncodeEmpire(uint8(acc.Empire)),
+		packets = append(packets, protocol.EncodeEmpire(empireNumbers[acc.Empire]),
 			protocol.EncodeCharacterList(slots(characters), s.svc.Public))
 	}
 	s.phase = protocol.PhaseSelect
@@ -116,9 +116,9 @@ func (s *session) onEmpire(ctx context.Context, body []byte) error {
 	if err != nil {
 		return err
 	}
-	empire := account.Empire(raw)
-	if !empire.Valid() {
-		return fmt.Errorf("game: kingdom %d does not exist", empire)
+	empire, ok := empireFromNumber(raw)
+	if !ok {
+		return fmt.Errorf("game: kingdom %d does not exist", raw)
 	}
 	chosen, err := s.svc.Store.ChooseEmpire(ctx, s.accountID, empire)
 	if err != nil {
@@ -128,30 +128,4 @@ func (s *session) onEmpire(ctx context.Context, body []byte) error {
 		return errors.New("game: the account already has a kingdom")
 	}
 	return nil
-}
-
-// slots lays the characters out as the selection screen shows them.
-func slots(characters []account.Character) [protocol.CharacterSlots]protocol.CharacterSummary {
-	var out [protocol.CharacterSlots]protocol.CharacterSummary
-	for _, c := range characters {
-		out[c.Slot] = protocol.CharacterSummary{
-			ID:          c.ID,
-			Name:        c.Name,
-			Job:         job(c.Class, c.Sex),
-			Level:       c.Level,
-			PlayMinutes: c.PlayMinutes,
-			ST:          c.ST, HT: c.HT, DX: c.DX, IQ: c.IQ,
-			HairPart: c.Hair,
-			X:        c.X, Y: c.Y,
-			SkillGroup: c.SkillGroup,
-		}
-	}
-	return out
-}
-
-// job is the client's single number for class and sex: 0 to 3 are the male warrior,
-// ninja, sura and shaman, 4 to 7 the female ones. The body part stays 0, the bare body, until
-// characters wear armour.
-func job(c account.Class, s account.Sex) uint8 {
-	return uint8(c) + 4*uint8(s)
 }

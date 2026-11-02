@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/SatoriAI/MT2-Go/internal/account"
@@ -91,7 +92,7 @@ func (h *harness) waitForEmpire(name string, want account.Empire) {
 			return
 		}
 	}
-	h.t.Fatalf("kingdom %d was never stored for %s", want, name)
+	h.t.Fatalf("kingdom %q was never stored for %s", want, name)
 }
 
 // client plays the game client's side of one connection.
@@ -157,8 +158,9 @@ func (c *client) loginByKey(name string, key uint32) {
 		make([]byte, 16), []byte{sequenceByte})
 }
 
-func (c *client) chooseEmpire(e account.Empire, sequence byte) {
-	c.send([]byte{byte(protocol.ClientEmpire), byte(e), sequence})
+// chooseEmpire sends the kingdom by the client's number: 1 Shinsoo, 2 Chunjo, 3 Jinno.
+func (c *client) chooseEmpire(number, sequence byte) {
+	c.send([]byte{byte(protocol.ClientEmpire), number, sequence})
 }
 
 // expectClosed waits for the server to end the connection.
@@ -217,19 +219,33 @@ func TestTheChosenKingdomIsStoredAndTheNextLoginShowsTheCharacterList(t *testing
 	first := h.enterSelection("admin", key)
 	first.expect(protocol.EncodePhase(protocol.PhaseSelect))
 
-	first.chooseEmpire(account.EmpireYellow, 0xCA)
-	h.waitForEmpire("admin", account.EmpireYellow) // the server sends nothing back to wait on
+	first.chooseEmpire(2, 0xCA)
+	h.waitForEmpire("admin", account.EmpireChunjo) // the server sends nothing back to wait on
 	_ = first.conn.Close()
-	h.exec(`INSERT INTO characters (account_id, slot, name, class, sex, level, st, ht, dx, iq, hair, map, x, y)
-		VALUES ($1, 2, 'Hendra', 2, 1, 21, 6, 4, 3, 2, 3, 1, 469300, 964200)`, id)
+	h.exec(`INSERT INTO characters (account_id, slot, name, class, sex, level, st, ht, dx, iq, hair, map, x, y,
+		skill_group) VALUES ($1, 2, 'Hendra', 'sura', 'female', 21, 6, 4, 3, 2, 3, 1, 469300, 964200, 'black_magic')`, id)
 
 	second := h.enterSelection("admin", key) // the client reuses its key for a second game connection
-	second.expect(protocol.EncodeEmpire(uint8(account.EmpireYellow)))
+	second.expect(protocol.EncodeEmpire(2))
 	var slots [protocol.CharacterSlots]protocol.CharacterSummary
 	slots[2] = protocol.CharacterSummary{ID: 1, Name: "Hendra", Job: 6, Level: 21, ST: 6, HT: 4, DX: 3, IQ: 2,
-		HairPart: 3, X: 469300, Y: 964200}
+		HairPart: 3, X: 469300, Y: 964200, SkillGroup: 2}
 	second.expect(protocol.EncodeCharacterList(slots, netip.MustParseAddrPort(h.game)))
 	second.expect(protocol.EncodePhase(protocol.PhaseSelect))
+}
+
+func TestTheDatabaseRefusesASkillGroupOfAnotherClass(t *testing.T) {
+	h := start(t)
+	id := h.createAccount("admin")
+
+	_, err := h.accounts.Pool.Exec(context.Background(), `INSERT INTO characters
+		(account_id, slot, name, class, sex, st, ht, dx, iq, map, x, y, skill_group)
+		VALUES ($1, 0, 'Hendra', 'warrior', 'male', 6, 4, 3, 2, 1, 0, 0, 'healing')`, id)
+
+	var pgErr *pgconn.PgError
+	if !errors.As(err, &pgErr) || pgErr.Code != "23514" { // check_violation
+		t.Fatalf("a warrior with the healing path was stored: %v", err)
+	}
 }
 
 func TestAKingdomOnceChosenCannotBeChanged(t *testing.T) {
@@ -238,13 +254,13 @@ func TestAKingdomOnceChosenCannotBeChanged(t *testing.T) {
 	key := h.authenticate("admin")
 	game := h.enterSelection("admin", key)
 	game.expect(protocol.EncodePhase(protocol.PhaseSelect))
-	game.chooseEmpire(account.EmpireRed, 0xCA)
-	h.waitForEmpire("admin", account.EmpireRed)
+	game.chooseEmpire(1, 0xCA)
+	h.waitForEmpire("admin", account.EmpireShinsoo)
 
-	game.chooseEmpire(account.EmpireBlue, 0x8A)
+	game.chooseEmpire(3, 0x8A)
 
 	game.expectClosed()
-	h.waitForEmpire("admin", account.EmpireRed)
+	h.waitForEmpire("admin", account.EmpireShinsoo)
 }
 
 func TestASecondLoginIsRefusedWhileTheAccountIsInTheGame(t *testing.T) {
@@ -277,7 +293,7 @@ func TestAPacketOutOfItsPhaseEndsTheConnection(t *testing.T) {
 	game := h.dial(h.game)
 	game.handshake(protocol.PhaseLogin)
 
-	game.chooseEmpire(account.EmpireRed, sequenceByte) // before logging in
+	game.chooseEmpire(1, sequenceByte) // before logging in
 
 	game.expectClosed()
 }

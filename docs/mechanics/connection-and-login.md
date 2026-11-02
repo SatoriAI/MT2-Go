@@ -97,7 +97,7 @@ One slot, 63 bytes:
 | | | 60 | **u16 game port** |
 | | | 62 | u8 skill group |
 
-**Job** is class and sex in one number: `0`–`3` are the male warrior, ninja, sura and shaman, `4`–`7` the female ones. The database keeps class and sex apart and the server combines them when it sends the list. The **body part** is the armour the character wears; it is `0`, the bare body, until characters have equipment, and it will be worked out from the equipment rather than stored.
+**Job** is class and sex in one number: `0`–`3` are the male warrior, ninja, sura and shaman, `4`–`7` the female ones. The **skill group** is `1` or `2`, the first or second path of the class (warrior: body, mental; ninja: dagger, archery; sura: weaponry, black magic; shaman: dragon, healing), and `0` before one is chosen. The database stores kingdom, class, sex and skill group by name (`'chunjo'`, `'sura'`, `'female'`, `'black_magic'`) and `internal/game/wire.go` turns them into these numbers. The **body part** is the armour the character wears; it is `0`, the bare body, until characters have equipment, and it will be worked out from the equipment rather than stored.
 
 The address and port are where the client connects when this character starts. They must be reachable from the client: never `0.0.0.0` (hence `GAME_PUBLIC_ADDRESS`). The address is written as four raw bytes; open-mt2 builds it as a signed integer and fails for any address whose last byte is 128 or more.
 
@@ -125,6 +125,7 @@ The server never sends a length: the client knows each header's size. The client
 | Handshake | `internal/handshake/handshake.go` |
 | Password check (bcrypt), login key | `internal/auth/session.go`, `internal/account/keys.go` |
 | Login by key, kingdom, character list, channel status | `internal/game/session.go` |
+| Names to the client's numbers (kingdom, job, skill group) | `internal/game/wire.go` |
 | Accounts and characters | `internal/store/accounts.go`, `internal/store/migrations/001_accounts.sql` |
 
 A key is redeemable while its account holds a game connection and for 60 seconds after the last one closes, with the account name in any case. An account with an open game connection cannot log in again (`ALREADY`). A new login replaces the account's earlier key, so two clients that log in one after the other cannot both reach the game port. Account names are unique regardless of case.
@@ -140,5 +141,6 @@ The flow, layouts and the sequence-byte exemptions come from the client's own sc
 - `internal/protocol/protocol_test.go` — every packet above against its exact bytes, every field of a character slot, framing with and without the sequence byte, an incomplete packet, an address ending in 200.
 - `internal/handshake/handshake_test.go` — in-time echo, late echo and the corrected delta, a foreign id, a client that never syncs, no `D2` in ids.
 - `internal/account/keys_test.go` — the key works for a second connection, expires after the grace period, never while held; a new key revokes the old one; no key while the account is in the game.
+- `internal/game/wire_test.go` — job numbers for both sexes, skill group numbers, kingdom numbers both ways.
 - `internal/network/server_test.go` — a failed accept does not stop the port, the idle timeout and lifting it, shutdown closing open connections.
-- `internal/server/server_test.go` — the whole path over real sockets and a real database: new account to the kingdom screen, the kingdom stored and a stored character listed byte for byte on the next connection, a kingdom that cannot be changed, `ALREADY`, a name in another case, a key presented for another name, a packet out of its phase, wrong passwords and unknown names, the channel check.
+- `internal/server/server_test.go` — the whole path over real sockets and a real database: new account to the kingdom screen, the kingdom stored and a stored character listed byte for byte on the next connection, a kingdom that cannot be changed, a skill group of another class refused by the database, `ALREADY`, a name in another case, a key presented for another name, a packet out of its phase, wrong passwords and unknown names, the channel check.

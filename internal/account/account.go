@@ -20,17 +20,15 @@ const MaxCharacters = 4
 // ErrNotFound means no account has that name or id.
 var ErrNotFound = errors.New("account: not found")
 
-// Empire is the kingdom an account belongs to; 0 means not chosen yet.
-type Empire uint8
+// Empire is the kingdom an account belongs to; "" means not chosen yet.
+type Empire string
 
 const (
-	EmpireNone   Empire = 0
-	EmpireRed    Empire = 1 // Shinsoo
-	EmpireYellow Empire = 2 // Chunjo
-	EmpireBlue   Empire = 3 // Jinno
+	EmpireNone    Empire = ""
+	EmpireShinsoo Empire = "shinsoo" // red
+	EmpireChunjo  Empire = "chunjo"  // yellow
+	EmpireJinno   Empire = "jinno"   // blue
 )
-
-func (e Empire) Valid() bool { return e >= EmpireRed && e <= EmpireBlue }
 
 type Account struct {
 	ID           int64
@@ -39,21 +37,39 @@ type Account struct {
 	Empire       Empire
 }
 
-type Class uint8
+type Class string
 
 const (
-	Warrior Class = 0
-	Ninja   Class = 1
-	Sura    Class = 2
-	Shaman  Class = 3
+	Warrior Class = "warrior"
+	Ninja   Class = "ninja"
+	Sura    Class = "sura"
+	Shaman  Class = "shaman"
 )
 
-type Sex uint8
+// SkillGroups are the two paths a character of the class chooses between, in the
+// order the game numbers them.
+func (c Class) SkillGroups() [2]SkillGroup {
+	switch c {
+	case Warrior:
+		return [2]SkillGroup{"body", "mental"}
+	case Ninja:
+		return [2]SkillGroup{"dagger", "archery"}
+	case Sura:
+		return [2]SkillGroup{"weaponry", "black_magic"}
+	default:
+		return [2]SkillGroup{"dragon", "healing"}
+	}
+}
+
+type Sex string
 
 const (
-	Male   Sex = 0
-	Female Sex = 1
+	Male   Sex = "male"
+	Female Sex = "female"
 )
+
+// SkillGroup is the path of skills a character follows; "" until it chooses one.
+type SkillGroup string
 
 // Character is one of an account's characters, as far as the game knows it so far.
 type Character struct {
@@ -69,7 +85,7 @@ type Character struct {
 	Hair        uint16
 	Map         uint16
 	X, Y        int32
-	SkillGroup  uint8
+	SkillGroup  SkillGroup
 }
 
 // Store is the persistence the login flow needs.

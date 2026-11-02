@@ -37,7 +37,8 @@ Every game mechanic has a page in `docs/mechanics/`: what the client does, the e
 - **Interfaces are declared where they are consumed** (`account.Store` is what the login flow needs), and kept to the methods actually called.
 - **`internal/protocol` is pure:** bytes in, values out, no sockets, no database, no clock. Every packet test compares exact bytes.
 - **Header types are per direction** (`ClientHeader`, `ServerHeader`): numbers are reused across directions.
-- **Game types and wire types stay apart.** `internal/account` holds the game's own types (`Empire`, `Character`, `Class`, `Sex`); `internal/protocol` holds packet layouts. Sessions convert between them; the store never imports `protocol`.
+- **Game types and wire types stay apart.** `internal/account` holds the game's own types (`Empire`, `Character`, `Class`, `Sex`, `SkillGroup`); `internal/protocol` holds packet layouts. The game port converts between them in `internal/game/wire.go`, the one place the client's numbers for named things appear; the store never imports `protocol`.
+- **What the game names is stored by name**, as text with a CHECK listing the allowed values (`empire IN ('shinsoo', 'chunjo', 'jinno')`), so the tables read without a lookup. NULL means not chosen yet; the store reads it as `""`. Quantities stay numbers.
 - **The schema guarantees what the wire needs.** A column sent to the client has a CHECK matching its field (`level` 1–255 for a u8, name length in bytes), so no stored row can fail to encode. Names are unique on `lower(name)`.
 - **The environment is read only in `internal/config`**, and every variable is documented in `.env.example`.
 - **Errors wrap with `%w` and are checked with `errors.Is`/`errors.As`.** A session returns an error to end its connection; it never panics.
