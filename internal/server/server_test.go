@@ -739,3 +739,78 @@ func TestEnteringBeforeStartEndsTheConnection(t *testing.T) {
 
 	game.expectClosed()
 }
+
+// hendraInWorld logs admin in and enters the world with Hendra, a female sura created in
+// Jinno, and returns the connection with the login key, which a new game connection can
+// present again, as the client does.
+func (h *harness) hendraInWorld() (*client, uint32) {
+	h.t.Helper()
+	h.createAccount("admin")
+	key := h.authenticate("admin")
+	game := h.enterSelection("admin", key)
+	game.expect(protocol.EncodePhase(protocol.PhaseSelect))
+	game.chooseEmpire(3, sequenceByte)
+	game.createCharacter(0, "Hendra", 6, 1)
+	game.read(65)
+	game.selectCharacter(0)
+	game.expectLoading()
+	game.enterGame()
+	game.read(2 + 5 + 2 + 35 + 54) // phase, time, channel, the player and their info
+	return game, key
+}
+
+// startHendra opens a game connection with the key, presses Start on Hendra and returns
+// the position she loads at.
+func (h *harness) startHendra(key uint32) (x, y int32) {
+	h.t.Helper()
+	game := h.enterSelection("admin", key)
+	game.read(2 + 329 + 2) // kingdom, list, select phase
+	game.selectCharacter(0)
+	game.expect(protocol.EncodePhase(protocol.PhaseLoading))
+	main := game.read(46)
+	game.read(1021 + 1531) // points, skills
+	position := protocol.NewReader(main[32:])
+	return position.I32(), position.I32()
+}
+
+func TestACharacterStartsWhereItStoodWhenItLeft(t *testing.T) {
+	h := start(t)
+	game, key := h.hendraInWorld()
+	game.send(moveTo(963500, 278300))
+	game.expectOpen()
+
+	_ = game.conn.Close()
+
+	if x, y := h.startHendra(key); x != 963500 || y != 278300 {
+		t.Fatalf("started at (%d, %d), want where she left", x, y)
+	}
+}
+
+func TestAPositionOnNoKnownMapIsNotSaved(t *testing.T) {
+	h := start(t)
+	game, key := h.hendraInWorld()
+	game.send(moveTo(5, 5))
+	game.expectOpen()
+
+	_ = game.conn.Close()
+
+	if x, y := h.startHendra(key); x != 963400 || y != 278200 {
+		t.Fatalf("started at (%d, %d), want Jinno's start", x, y)
+	}
+}
+
+// Starting a character that is already in the world closes the connection it was on; the
+// new one loads where that one left it.
+func TestStartingACharacterAlreadyInTheWorldTakesItOver(t *testing.T) {
+	h := start(t)
+	first, key := h.hendraInWorld()
+	first.send(moveTo(963500, 278300))
+	first.expectOpen()
+
+	x, y := h.startHendra(key)
+
+	first.expectClosed()
+	if x != 963500 || y != 278300 {
+		t.Fatalf("started at (%d, %d), want where the first connection left her", x, y)
+	}
+}

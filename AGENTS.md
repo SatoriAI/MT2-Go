@@ -56,6 +56,7 @@ internal/auth/      the login port: password check, login key
 internal/game/      the game port: login by key, kingdom, characters, entering the world
 internal/account/   the game's types for accounts and characters, starting and derived values, login keys
 internal/store/     PostgreSQL: pool, embedded migrations, queries
+internal/world/     the game world: which maps exist and where
 internal/server/    wires everything and runs both ports; the end-to-end tests live here
 docs/mechanics/     how each mechanic works
 docs/decisions/     why the rules here are what they are
