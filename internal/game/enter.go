@@ -36,12 +36,17 @@ func (s *session) onSelectCharacter(ctx context.Context, body []byte) error {
 	if err != nil {
 		return err
 	}
-	if s.claim, err = s.svc.claimCharacter(c.ID, s.conn); err != nil {
+	claim, displaced, err := s.svc.claimCharacter(ctx, c.ID, s.conn.Close)
+	if err != nil {
 		return err
 	}
-	// Read again: a connection this one displaced has just saved where it stood.
-	if c, err = s.svc.store.Character(ctx, s.accountID, int(slot)); err != nil {
-		return err
+	s.claim = claim
+	if displaced {
+		s.conn.Log().Info("took the character over from another connection", "character", c.Name)
+		// The displaced connection has just saved where the character stood.
+		if c, err = s.svc.store.Character(ctx, s.accountID, int(slot)); err != nil {
+			return err
+		}
 	}
 	points, ok := c.Points()
 	if !ok {
@@ -155,8 +160,8 @@ func pointsOf(p *character) protocol.CharacterPoints {
 }
 
 // savePosition keeps where the character stood for its next login, if that is on a map the
-// server knows; otherwise the last good position stays. The connection's context is gone
-// by now, so the save has its own.
+// server knows; otherwise the last good position stays. It runs as the connection closes,
+// which at shutdown is after the server's context is cancelled, so the save has its own.
 func (s *session) savePosition() {
 	p := s.playing
 	if _, ok := world.MapAt(p.X, p.Y); !ok {

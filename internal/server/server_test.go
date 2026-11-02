@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net"
 	"net/netip"
+	"sync"
 	"testing"
 	"time"
 
@@ -33,6 +34,8 @@ type harness struct {
 	accounts store.Accounts
 	auth     string
 	game     string
+	// stop shuts the server down and waits for it, as a signal does; it runs once.
+	stop func() error
 }
 
 func start(t *testing.T) *harness {
@@ -60,14 +63,17 @@ func start(t *testing.T) *harness {
 	go func() {
 		done <- Serve(ctx, Ports{Auth: authLn, Game: gameLn}, accounts, cfg, slog.New(slog.DiscardHandler))
 	}()
-	t.Cleanup(func() {
+	stop := sync.OnceValue(func() error {
 		cancel()
-		if err := <-done; err != nil {
+		return <-done
+	})
+	t.Cleanup(func() {
+		if err := stop(); err != nil {
 			t.Error(err)
 		}
 		pool.Close()
 	})
-	return &harness{t: t, accounts: accounts, auth: authLn.Addr().String(), game: gameLn.Addr().String()}
+	return &harness{t: t, accounts: accounts, auth: authLn.Addr().String(), game: gameLn.Addr().String(), stop: stop}
 }
 
 func listen(t *testing.T) net.Listener {
@@ -812,5 +818,24 @@ func TestStartingACharacterAlreadyInTheWorldTakesItOver(t *testing.T) {
 	first.expectClosed()
 	if x != 963500 || y != 278300 {
 		t.Fatalf("started at (%d, %d), want where the first connection left her", x, y)
+	}
+}
+
+// Shutting the server down closes every connection, and each saves before the server
+// returns.
+func TestAServerShutdownSavesWhereThePlayerStood(t *testing.T) {
+	h := start(t)
+	game, _ := h.hendraInWorld()
+	game.send(moveTo(963500, 278300))
+	game.expectOpen()
+
+	if err := h.stop(); err != nil {
+		t.Fatal(err)
+	}
+
+	var x, y int32
+	if err := h.accounts.Pool.QueryRow(context.Background(), `SELECT x, y FROM characters WHERE name = 'Hendra'`).
+		Scan(&x, &y); err != nil || x != 963500 || y != 278300 {
+		t.Fatalf("saved (%d, %d), err %v; want where she stood", x, y, err)
 	}
 }
