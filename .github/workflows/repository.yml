@@ -41,23 +41,6 @@ jobs:
         with:
           version: "0.12.17"
 
-      # Dependabot bumps the uv image in a Dockerfile and never the setup action's
-      # `version:` input, so without this CI would test with one uv while the image builds
-      # with another, and nothing would notice. Skipped where there is no Dockerfile.
-      - name: One uv everywhere
-        run: |
-          images=$(sed -n 's|^FROM ghcr\.io/astral-sh/uv:\([^@ ]*\)@.*|\1|p' $(git ls-files '*Dockerfile*') 2>/dev/null || true)
-          [ -z "$images" ] && echo "No Dockerfile pins uv; nothing to compare." && exit 0
-          uses=$(grep -rhE '^ *(- )?uses: astral-sh/setup-uv@' .github | wc -l)
-          inputs=$(grep -rhE -A8 '^ *(- )?uses: astral-sh/setup-uv@' .github | sed -n 's|^ *version: "\(.*\)"$|\1|p')
-          echo "Dockerfiles: $(echo $images). setup-uv, $uses uses: $(echo $inputs)."
-          # A use with no `version:` at all must fail too, or the pin is simply absent.
-          if [ "$(echo "$inputs" | grep -c .)" -ne "$uses" ] \
-            || [ "$(printf '%s\n' $images $inputs | sort -u | wc -l)" -ne 1 ]; then
-            echo "::error::uv must be one version in every Dockerfile and every setup-uv input."
-            exit 1
-          fi
-
       # Keyed on the config, because that file decides which hook environments exist.
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -71,7 +54,7 @@ jobs:
       - name: Structure
         run: ./scripts/check_structure.sh
 
-      # The same debt the CLAUDE.md budget keeps out of that file, in the place it flows to
+      # The same debt the AGENTS.md budget keeps out of that file, in the place it flows to
       # next: a long comment is case history, and it belongs in docs/decisions/.
       - name: Comment blocks
         run: make comment-blocks

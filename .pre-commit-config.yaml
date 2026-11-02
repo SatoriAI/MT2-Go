@@ -5,14 +5,8 @@ repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
-      # A file whose bytes are pinned elsewhere — a CSP script hash, an integrity attribute,
-      # a checksum fixture — is an artefact, not source: tidying one byte breaks the pin
-      # while every other check stays green. Such files live in a directory named `pinned/`
-      # and are left exactly alone, and a test recomputes each pin from the committed file.
       - id: trailing-whitespace
-        exclude: (^|/)pinned/
       - id: end-of-file-fixer
-        exclude: (^|/)pinned/
       - id: check-yaml
       - id: check-added-large-files
       - id: check-merge-conflict
@@ -22,7 +16,7 @@ repos:
     hooks:
       - id: codespell
         # Exclude generated files and any non-English catalogue as files, not word by word.
-        exclude: (package-lock\.json|uv\.lock|go\.mod|go\.sum)$
+        exclude: (go\.mod|go\.sum)$
 
   - repo: local
     hooks:

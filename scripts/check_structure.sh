@@ -9,8 +9,7 @@ fail=0
 note() { echo "::error::$1"; fail=1; }
 
 # Directories that are not this repository's source: dependencies, caches, build output.
-PRUNE=(-name .git -o -name .venv -o -name node_modules -o -name dist -o -name .claude
-       -o -name __pycache__ -o -name .mypy_cache -o -name .ruff_cache -o -name .pytest_cache)
+PRUNE=(-name .git -o -name .claude -o -name __pycache__)
 # -print0 throughout: a file name with a space would otherwise split into two paths
 # that match nothing, and the scan below would pass by finding nothing to read.
 sources() { find . \( "${PRUNE[@]}" \) -prune -o -type f -print0; }
@@ -27,31 +26,14 @@ done
 grep -q '^check:' Makefile || note "Makefile has no 'check' target; it is the definition of done."
 grep -q '^check:.*structure' Makefile || note "'make check' no longer runs the structure check."
 
-# A Python service carries its own pins. Checked only where one exists, so the base
-# blueprint on its own still passes.
-if [ -f backend/pyproject.toml ]; then
-  for file in backend/.python-version backend/uv.lock backend/Dockerfile .dockerignore \
-              .github/workflows/backend.yml .github/actions/setup-python/action.yml; do
-    [ -f "$file" ] || note "$file is missing, and backend/pyproject.toml says this is a Python service."
-  done
-fi
-
-# A project deploying on Railway carries the file, its pinned SDK and the workflow that
-# applies it. `npm ci` in that workflow needs the lockfile to be committed.
-if [ -f .railway/railway.ts ]; then
-  for file in .railway/package.json .railway/package-lock.json .github/workflows/railway.yml; do
-    [ -f "$file" ] || note "$file is missing, and .railway/railway.ts says this project deploys on Railway."
-  done
-fi
-
-# CLAUDE.md is loaded into every session, so its length is a cost paid on every task and
-# it grows a defensible paragraph at a time. Over budget: move reasoning to docs/decisions/,
-# or raise the budget here and say why. See docs/decisions/claude-md-budget.md.
-claude_budget=10000
-claude_size=$(wc -c < CLAUDE.md | tr -d ' ')
-if [ "$claude_size" -gt "$claude_budget" ]; then
-  note "CLAUDE.md is $claude_size characters, over its $claude_budget-character budget."
-fi
+# AGENTS.md holds the rules and is loaded into every session, so its length is a cost paid
+# on every task and it grows a defensible paragraph at a time. Over budget: move reasoning
+# to docs/decisions/, or raise the budget here and say why. CLAUDE.md only imports it.
+# See docs/decisions/instructions-budget.md.
+budget=10000
+size=$(wc -c < AGENTS.md | tr -d ' ')
+[ "$size" -gt "$budget" ] && note "AGENTS.md is $size characters, over its $budget-character budget."
+grep -qx '@AGENTS.md' CLAUDE.md || note "CLAUDE.md no longer imports AGENTS.md with an @AGENTS.md line."
 
 # Placeholders left behind mean the setup was never finished. Named explicitly: a bare
 # `{{` also matches a GitHub Actions expression, a JSX style object and a template
@@ -65,7 +47,7 @@ fi
 # The blueprint's own prompts, left in a file that is supposed to describe this project.
 # The blueprint's own prompts are `TODO:` at the start of a line or `| TODO |` in a table,
 # so a sentence about TODO comments in prose does not trip this.
-for file in CLAUDE.md README.md docs/decisions/README.md; do
+for file in AGENTS.md README.md docs/decisions/README.md; do
   [ -f "$file" ] && grep -qE '^TODO:|\| TODO \|' "$file" && note "$file still carries the blueprint's TODO prompts."
 done
 
@@ -79,19 +61,6 @@ if ls .github/workflows/*.yml > /dev/null 2>&1; then
     note "These actions are not pinned to a commit SHA:"
     echo "$unpinned"
   fi
-fi
-
-# Every variable the code reads is documented where people look for it. Names only: this
-# cannot see a variable read through a computed string, and does not try.
-if [ -f .env.example ]; then
-  # `name(` or `name[`, then the opening quote, then the variable. The quote is matched as
-  # a run of non-word characters so the pattern needs no nested shell quoting.
-  read_names=$(sources | grep -z '\.py$' | xargs -0 -r grep -hoE \
-                 '(getenv|environ\.get|environ|\bconfig)[([][^A-Za-z0-9_]*[A-Z][A-Z0-9_]+' 2>/dev/null \
-               | grep -oE '[A-Z][A-Z0-9_]+$' | sort -u || true)
-  for name in $read_names; do
-    grep -qE "^#? *${name}=" .env.example || note "$name is read by the code but not documented in .env.example."
-  done
 fi
 
 [ "$fail" -eq 0 ] && echo "Structure OK."

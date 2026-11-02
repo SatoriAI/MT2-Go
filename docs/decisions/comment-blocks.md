@@ -12,4 +12,4 @@ A block is a run of lines holding only a comment; a blank line does not end it, 
 
 The blueprint scans Python and TypeScript only. This copy adds `.go` under `cmd/` and `internal/`, scanned by the TypeScript scanner: Go's `//` and `/* */` comments and its quoted strings behave the same way for this purpose, and backquoted raw strings are treated as code, which a test pins. `_test.go` files are exempt, as TypeScript test files are.
 
-The blueprint itself has no Go overlay; the gap is recorded in the guidelines inbox rather than patched there.
+The script stays a copy of the blueprint's, Python and TypeScript scanning included: Go reuses the TypeScript scanner, the script's own tests are written against Python and TypeScript fixtures, and directories that do not exist here are skipped. Keeping it whole lets it be updated from the blueprint as one file.
