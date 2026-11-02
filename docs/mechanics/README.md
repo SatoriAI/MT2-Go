@@ -14,6 +14,7 @@ Pages state facts in our own words. They never paste code from another server or
 | Page | Covers |
 |---|---|
 | [connection-and-login.md](connection-and-login.md) | Connecting, the handshake, framing, logging in, the kingdom choice, the character list |
+| [character-creation.md](character-creation.md) | The create screen: the packet, the rules, starting stats and positions, the replies |
 
 ## Conventions for the bytes
 

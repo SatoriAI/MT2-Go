@@ -73,30 +73,60 @@ type CharacterSummary struct {
 // sent as zero until something uses them.
 func EncodeCharacterList(slots [CharacterSlots]CharacterSummary, game netip.AddrPort) []byte {
 	w := NewWriter(byte(ServerCharacterList), 329)
-	ip := game.Addr().As4()
 	for _, c := range slots {
-		w.U32(c.ID)
-		w.String(c.Name, characterNameSize)
-		w.U8(c.Race)
-		w.U8(c.Level)
-		w.U32(c.PlayMinutes)
-		w.U8(c.ST)
-		w.U8(c.HT)
-		w.U8(c.DX)
-		w.U8(c.IQ)
-		w.U16(c.BodyPart)
-		w.U8(0) // change-name flag
-		w.U16(c.HairPart)
-		w.U32(0) // unused
-		w.I32(c.X)
-		w.I32(c.Y)
-		w.Raw(ip[:]) // the client reads the address in network byte order
-		w.U16(game.Port())
-		w.U8(c.SkillGroup)
+		writeCharacter(w, c, game)
 	}
 	w.Raw(make([]byte, 4*4+4*13)) // guild ids and guild names
 	w.U32(0)                      // guild mark handle
 	w.U32(0)                      // random key
+	return w.Bytes()
+}
+
+// writeCharacter writes the 63-byte record one character slot has, in the list and in
+// the reply to a creation.
+func writeCharacter(w *Writer, c CharacterSummary, game netip.AddrPort) {
+	ip := game.Addr().As4()
+	w.U32(c.ID)
+	w.String(c.Name, characterNameSize)
+	w.U8(c.Race)
+	w.U8(c.Level)
+	w.U32(c.PlayMinutes)
+	w.U8(c.ST)
+	w.U8(c.HT)
+	w.U8(c.DX)
+	w.U8(c.IQ)
+	w.U16(c.BodyPart)
+	w.U8(0) // change-name flag
+	w.U16(c.HairPart)
+	w.U32(0) // unused
+	w.I32(c.X)
+	w.I32(c.Y)
+	w.Raw(ip[:]) // the client reads the address in network byte order
+	w.U16(game.Port())
+	w.U8(c.SkillGroup)
+}
+
+// EncodeCharacterCreated tells the create screen the character exists; the client puts
+// it in its slot and returns to the selection screen.
+func EncodeCharacterCreated(slot uint8, c CharacterSummary, game netip.AddrPort) []byte {
+	w := NewWriter(byte(ServerCharacterCreated), 65)
+	w.U8(slot)
+	writeCharacter(w, c, game)
+	return w.Bytes()
+}
+
+// CreateFailure is why a creation was refused. The create screen shows "name taken" for
+// CreateNameTaken and a general failure for anything else.
+type CreateFailure uint8
+
+const (
+	CreateRefused   CreateFailure = 0
+	CreateNameTaken CreateFailure = 1
+)
+
+func EncodeCreateFailure(reason CreateFailure) []byte {
+	w := NewWriter(byte(ServerCreateFailure), 2)
+	w.U8(uint8(reason))
 	return w.Bytes()
 }
 

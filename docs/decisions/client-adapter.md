@@ -6,7 +6,7 @@ The server talks to the original TMP4 client today, and a client of our own is b
 
 The TMP4 client numbers what the game names: kingdoms are 1 to 3, skill groups 1 and 2, and class and sex share one "race" number from 0 to 7 in an order that is not arithmetic (the female ninja is 1, the male ninja 5). Storing those numbers would tie the database and every rule to one client's encoding, and to its quirks.
 
-So the database and `internal/account` hold names (`'sura'`, `'female'`, `'jinno'`), and `internal/game/wire.go` converts between names and the client's numbers in both directions. It is the only place the numbers appear. `internal/protocol` holds the TMP4 packet layouts.
+So the database and `internal/account` hold names (`'sura'`, `'female'`, `'jinno'`), and `internal/game/wire.go` converts between names and the client's numbers in both directions. It is the only place the numbers appear. A character's look (`shape`, 0 or 1) is kept as a number because it is one: which of the class's two looks, with no name in the game to give it. `internal/protocol` holds the TMP4 packet layouts.
 
 ## When it goes
 

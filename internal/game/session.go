@@ -5,6 +5,7 @@ package game
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/netip"
 
@@ -21,6 +22,9 @@ type Accounts interface {
 	// whether the account now has that kingdom.
 	ChooseEmpire(ctx context.Context, id int64, empire account.Empire) (bool, error)
 	Characters(ctx context.Context, accountID int64) ([]account.Character, error)
+	// CreateCharacter stores c and returns its id, while the account's kingdom is still
+	// empire: account.ErrKingdomChanged, ErrNameTaken or ErrSlotTaken otherwise.
+	CreateCharacter(ctx context.Context, accountID int64, empire account.Empire, c account.Character) (uint32, error)
 }
 
 // Service is what every game connection shares.
@@ -73,6 +77,8 @@ func (s *session) Handle(ctx context.Context, f protocol.Frame) error {
 		return s.onLoginByKey(ctx, f.Body)
 	case s.phase == protocol.PhaseSelect && f.Header == protocol.ClientEmpire:
 		return s.onEmpire(ctx, f.Body)
+	case s.phase == protocol.PhaseSelect && f.Header == protocol.ClientCreateCharacter:
+		return s.onCreateCharacter(ctx, f.Body)
 	}
 	return fmt.Errorf("game: header 0x%02X not expected in phase %d", byte(f.Header), s.phase)
 }
@@ -148,4 +154,50 @@ func (s *session) onEmpire(ctx context.Context, body []byte) error {
 	}
 	s.empire = empire
 	return nil
+}
+
+// onCreateCharacter creates a character in an empty slot. A request the rules refuse gets
+// the failure reply the create screen shows, and the connection stays open.
+func (s *session) onCreateCharacter(ctx context.Context, body []byte) error {
+	req, err := protocol.DecodeCreateCharacter(body)
+	if err != nil {
+		return err
+	}
+	x, y, ok := s.empire.StartPosition()
+	if !ok {
+		return errors.New("game: a character needs a kingdom first")
+	}
+	class, sex, ok := raceFromNumber(req.Race)
+	if !ok || req.Slot >= protocol.CharacterSlots || req.Shape > 1 || !account.ValidCharacterName(req.Name) {
+		s.conn.Log().Info("character refused", "name", req.Name, "race", req.Race, "slot", req.Slot, "shape", req.Shape)
+		return s.conn.Send(protocol.EncodeCreateFailure(protocol.CreateRefused))
+	}
+	stats, _ := class.StartingStats() // every class raceFromNumber returns has them
+	c := account.Character{
+		Slot:  int(req.Slot),
+		Name:  req.Name,
+		Class: class,
+		Sex:   sex,
+		Level: 1,
+		Stats: stats,
+		Shape: req.Shape,
+		X:     x,
+		Y:     y,
+	}
+
+	c.ID, err = s.svc.store.CreateCharacter(ctx, s.accountID, s.empire, c)
+	switch {
+	case errors.Is(err, account.ErrNameTaken):
+		return s.conn.Send(protocol.EncodeCreateFailure(protocol.CreateNameTaken))
+	case errors.Is(err, account.ErrSlotTaken):
+		return s.conn.Send(protocol.EncodeCreateFailure(protocol.CreateRefused))
+	case errors.Is(err, account.ErrKingdomChanged):
+		// Another connection changed it. This one's screens are out of date, and logging in
+		// again shows the account as it is.
+		return fmt.Errorf("game: the kingdom changed while %q was being created", c.Name)
+	case err != nil:
+		return err
+	}
+	s.conn.Log().Info("character created", "name", c.Name, "class", c.Class, "sex", c.Sex)
+	return s.conn.Send(protocol.EncodeCharacterCreated(req.Slot, summary(c), s.svc.public))
 }

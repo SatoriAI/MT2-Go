@@ -11,8 +11,16 @@ const (
 	MaxPasswordLength = 16
 )
 
-// ErrNotFound means no account has that name or id.
-var ErrNotFound = errors.New("account: not found")
+var (
+	// ErrNotFound means no account has that name or id.
+	ErrNotFound = errors.New("account: not found")
+	// ErrNameTaken means another character already has the name, in any case.
+	ErrNameTaken = errors.New("account: character name taken")
+	// ErrSlotTaken means the account already has a character in that slot.
+	ErrSlotTaken = errors.New("account: character slot taken")
+	// ErrKingdomChanged means the account's kingdom is not the one the creation assumed.
+	ErrKingdomChanged = errors.New("account: kingdom changed")
+)
 
 // Empire is the kingdom an account belongs to; "" means not chosen yet.
 type Empire string
@@ -74,9 +82,9 @@ type Character struct {
 	Sex         Sex
 	Level       uint8
 	PlayMinutes uint32
-	ST, HT, DX  uint8
-	IQ          uint8
-	Hair        uint16
-	X, Y        int32
-	SkillGroup  SkillGroup
+	Stats
+	Shape      uint8 // which of the class's two looks the player picked: 0 or 1
+	Hair       uint16
+	X, Y       int32
+	SkillGroup SkillGroup
 }

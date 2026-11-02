@@ -183,6 +183,14 @@ func (c *client) chooseEmpire(number, sequence byte) {
 	c.send([]byte{byte(protocol.ClientEmpire), number, sequence})
 }
 
+// createCharacter sends what the create screen sends. The real client's four stat points
+// are always 0; these are not, so every test shows the server ignores them.
+func (c *client) createCharacter(slot byte, name string, race uint16, shape byte) {
+	c.t.Helper()
+	c.send([]byte{byte(protocol.ClientCreateCharacter), slot}, field(name, 25),
+		binary.LittleEndian.AppendUint16(nil, race), []byte{shape, 9, 9, 9, 9, sequenceByte})
+}
+
 // expectOpen proves the server still serves the connection: it answers the channel check
 // only after handling every packet sent before it.
 func (c *client) expectOpen() {
@@ -253,8 +261,9 @@ func TestTheChosenKingdomIsStoredAndTheNextLoginShowsTheCharacterList(t *testing
 	first.chooseEmpire(2, 0xCA)
 	h.waitForEmpire(account.EmpireChunjo) // the server sends nothing back to wait on
 	_ = first.conn.Close()
-	h.exec(`INSERT INTO characters (account_id, slot, name, class, sex, level, st, ht, dx, iq, hair, map, x, y,
-		skill_group) VALUES ($1, 2, 'Hendra', 'sura', 'female', 21, 6, 4, 3, 2, 3, 1, 469300, 964200, 'black_magic')`, id)
+	h.exec(`INSERT INTO characters (account_id, slot, name, class, sex, level, strength, vitality, dexterity,
+		intelligence, hair, x, y, skill_group) VALUES ($1, 2, 'Hendra', 'sura', 'female', 21, 6, 4, 3, 2, 3, 469300, 964200,
+		'black_magic')`, id)
 
 	second := h.enterSelection("admin", key) // the client reuses its key for a second game connection
 	second.expect(protocol.EncodeEmpire(2))
@@ -270,8 +279,8 @@ func TestTheDatabaseRefusesASkillGroupOfAnotherClass(t *testing.T) {
 	id := h.createAccount("admin")
 
 	_, err := h.accounts.Pool.Exec(context.Background(), `INSERT INTO characters
-		(account_id, slot, name, class, sex, st, ht, dx, iq, map, x, y, skill_group)
-		VALUES ($1, 0, 'Hendra', 'warrior', 'male', 6, 4, 3, 2, 1, 0, 0, 'healing')`, id)
+		(account_id, slot, name, class, sex, strength, vitality, dexterity, intelligence, x, y, skill_group)
+		VALUES ($1, 0, 'Hendra', 'warrior', 'male', 6, 4, 3, 2, 0, 0, 'healing')`, id)
 
 	var pgErr *pgconn.PgError
 	if !errors.As(err, &pgErr) || pgErr.Code != "23514" { // check_violation
@@ -312,8 +321,8 @@ func TestAKingdomCannotChangeOnceTheAccountHasACharacter(t *testing.T) {
 	h := start(t)
 	id := h.createAccount("admin")
 	h.exec(`UPDATE accounts SET empire = 'shinsoo' WHERE id = $1`, id)
-	h.exec(`INSERT INTO characters (account_id, slot, name, class, sex, st, ht, dx, iq, map, x, y)
-		VALUES ($1, 0, 'Hendra', 'sura', 'female', 6, 4, 3, 2, 1, 469300, 964200)`, id)
+	h.exec(`INSERT INTO characters (account_id, slot, name, class, sex, strength, vitality, dexterity, intelligence, x, y)
+		VALUES ($1, 0, 'Hendra', 'sura', 'female', 6, 4, 3, 2, 469300, 964200)`, id)
 	game := h.enterSelection("admin", h.authenticate("admin"))
 	game.expect(protocol.EncodeEmpire(1))
 	game.read(329) // the character list, whose bytes another test checks
@@ -405,4 +414,155 @@ func TestTheLoginScreenSeesTheChannelAsOpen(t *testing.T) {
 	game.send([]byte{byte(protocol.ClientStateChecker)})
 
 	game.expect(protocol.EncodeChannelStatus([]protocol.ChannelStatus{{Port: port, Status: protocol.ChannelNormal}}))
+}
+
+// inKingdom logs admin in on a new game connection and chooses the kingdom by its number.
+func (h *harness) inKingdom(number byte) *client {
+	h.t.Helper()
+	game := h.enterSelection("admin", h.authenticate("admin"))
+	game.expect(protocol.EncodePhase(protocol.PhaseSelect))
+	game.chooseEmpire(number, sequenceByte)
+	return game
+}
+
+func TestANewCharacterIsCreatedAndListedOnTheNextLogin(t *testing.T) {
+	h := start(t)
+	h.createAccount("admin")
+	game := h.inKingdom(3)
+
+	game.createCharacter(0, "Hendra", 6, 1) // a female sura in her second look
+
+	hendra := protocol.CharacterSummary{ID: 1, Name: "Hendra", Race: 6, Level: 1,
+		ST: 5, HT: 3, DX: 3, IQ: 5, X: 963400, Y: 278200} // the sura's start, at Jinno's village
+	address := netip.MustParseAddrPort(h.game)
+	game.expect(protocol.EncodeCharacterCreated(0, hendra, address))
+	_ = game.conn.Close()
+
+	next := h.enterSelection("admin", h.authenticate("admin"))
+	next.expect(protocol.EncodeEmpire(3))
+	var slots [protocol.CharacterSlots]protocol.CharacterSummary
+	slots[0] = hendra
+	next.expect(protocol.EncodeCharacterList(slots, address))
+	var shape int
+	if err := h.accounts.Pool.QueryRow(context.Background(), `SELECT shape FROM characters`).Scan(&shape); err != nil || shape != 1 {
+		t.Errorf("shape %d stored, err %v", shape, err)
+	}
+}
+
+func TestANameTakenInAnyCaseIsRefusedAsTaken(t *testing.T) {
+	h := start(t)
+	h.createAccount("admin")
+	game := h.inKingdom(1)
+	game.createCharacter(0, "Hendra", 0, 0)
+	game.read(65)
+
+	game.createCharacter(1, "HENDRA", 0, 0)
+
+	game.expect(protocol.EncodeCreateFailure(protocol.CreateNameTaken))
+	game.expectOpen()
+}
+
+func TestACharacterTheRulesRefuseGetsTheGeneralFailure(t *testing.T) {
+	cases := map[string]struct {
+		slot  byte
+		name  string
+		race  uint16
+		shape byte
+	}{
+		"name too short":         {0, "H", 0, 0},
+		"name too long":          {0, "Hendrakowalsk", 0, 0},
+		"name filling the field": {0, "Aaaaaaaaaaaaaaaaaaaaaaaaa", 0, 0},
+		"name not ASCII":         {0, "Hendr\xb1", 0, 0},
+		"name with a symbol":     {0, "Hendra!", 0, 0},
+		"unknown race":           {0, "Hendra", 8, 0},
+		"no such slot":           {4, "Hendra", 0, 0},
+		"no such look":           {0, "Hendra", 0, 2},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			h := start(t)
+			h.createAccount("admin")
+			game := h.inKingdom(1)
+
+			game.createCharacter(c.slot, c.name, c.race, c.shape)
+
+			game.expect(protocol.EncodeCreateFailure(protocol.CreateRefused))
+			game.expectOpen()
+		})
+	}
+}
+
+func TestATakenSlotGetsTheGeneralFailure(t *testing.T) {
+	h := start(t)
+	h.createAccount("admin")
+	game := h.inKingdom(1)
+	game.createCharacter(0, "Hendra", 0, 0)
+	game.read(65)
+
+	game.createCharacter(0, "Kowal", 0, 0)
+
+	game.expect(protocol.EncodeCreateFailure(protocol.CreateRefused))
+	game.expectOpen()
+}
+
+func TestNamesAtTheLengthLimitsAreAccepted(t *testing.T) {
+	h := start(t)
+	h.createAccount("admin")
+	game := h.inKingdom(1)
+
+	game.createCharacter(0, "Hk", 0, 0)
+	game.expect([]byte{byte(protocol.ServerCharacterCreated), 0})
+	game.read(63)
+	game.createCharacter(1, "Hendrakowals", 0, 0)
+	game.expect([]byte{byte(protocol.ServerCharacterCreated), 1})
+}
+
+// Two connections of one account: the other changes the kingdom while this one, which
+// still knows the old kingdom, creates a character.
+func TestACreationAfterAnotherConnectionChangedTheKingdomEndsTheConnection(t *testing.T) {
+	h := start(t)
+	h.createAccount("admin")
+	key := h.authenticate("admin")
+	this := h.enterSelection("admin", key)
+	this.expect(protocol.EncodePhase(protocol.PhaseSelect))
+	this.chooseEmpire(1, sequenceByte)
+	h.waitForEmpire(account.EmpireShinsoo)
+	other := h.enterSelection("admin", key)
+	other.expect(protocol.EncodeEmpire(1))
+	other.read(329)
+	other.expect(protocol.EncodePhase(protocol.PhaseSelect))
+	other.chooseEmpire(3, sequenceByte)
+	h.waitForEmpire(account.EmpireJinno)
+
+	this.createCharacter(0, "Hendra", 0, 0)
+
+	this.expectClosed()
+	var characters int
+	if err := h.accounts.Pool.QueryRow(context.Background(), `SELECT count(*) FROM characters`).Scan(&characters); err != nil || characters != 0 {
+		t.Errorf("%d characters stored, err %v", characters, err)
+	}
+}
+
+func TestOnceACharacterExistsTheKingdomIsFixed(t *testing.T) {
+	h := start(t)
+	h.createAccount("admin")
+	game := h.inKingdom(1)
+	game.createCharacter(0, "Hendra", 0, 0)
+	game.read(65)
+
+	game.chooseEmpire(3, sequenceByte)
+
+	game.expectClosed()
+	h.waitForEmpire(account.EmpireShinsoo)
+}
+
+func TestACharacterWithoutAKingdomEndsTheConnection(t *testing.T) {
+	h := start(t)
+	h.createAccount("admin")
+	game := h.enterSelection("admin", h.authenticate("admin"))
+	game.expect(protocol.EncodePhase(protocol.PhaseSelect))
+
+	game.createCharacter(0, "Hendra", 0, 0)
+
+	game.expectClosed()
 }

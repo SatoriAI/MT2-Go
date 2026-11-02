@@ -17,12 +17,13 @@ type frameSpec struct {
 // checker and the guild mark login are sent without it; counting a byte that never comes
 // stalls the connection. The value itself is not checked yet (docs/mechanics).
 var clientFrames = map[ClientHeader]frameSpec{
-	ClientHandshake:    {size: 13},
-	ClientStateChecker: {size: 1},
-	ClientMarkLogin:    {size: 9},
-	ClientLogin:        {size: 65, sequenced: true},
-	ClientLoginByKey:   {size: 52, sequenced: true},
-	ClientEmpire:       {size: 2, sequenced: true},
+	ClientHandshake:       {size: 13},
+	ClientStateChecker:    {size: 1},
+	ClientMarkLogin:       {size: 9},
+	ClientLogin:           {size: 65, sequenced: true},
+	ClientLoginByKey:      {size: 52, sequenced: true},
+	ClientEmpire:          {size: 2, sequenced: true},
+	ClientCreateCharacter: {size: 34, sequenced: true},
 }
 
 // ErrIncomplete means the buffer holds only part of the next packet; read more first.
