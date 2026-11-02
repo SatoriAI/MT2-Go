@@ -249,7 +249,7 @@ func TestTheChosenKingdomIsStoredAndTheNextLoginShowsTheCharacterList(t *testing
 	second := h.enterSelection("admin", key) // the client reuses its key for a second game connection
 	second.expect(protocol.EncodeEmpire(2))
 	var slots [protocol.CharacterSlots]protocol.CharacterSummary
-	slots[2] = protocol.CharacterSummary{ID: 1, Name: "Hendra", Job: 6, Level: 21, ST: 6, HT: 4, DX: 3, IQ: 2,
+	slots[2] = protocol.CharacterSummary{ID: 1, Name: "Hendra", Race: 6, Level: 21, ST: 6, HT: 4, DX: 3, IQ: 2,
 		HairPart: 3, X: 469300, Y: 964200, SkillGroup: 2}
 	second.expect(protocol.EncodeCharacterList(slots, netip.MustParseAddrPort(h.game)))
 	second.expect(protocol.EncodePhase(protocol.PhaseSelect))

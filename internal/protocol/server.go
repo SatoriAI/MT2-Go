@@ -57,7 +57,7 @@ const characterNameSize = 25 // 24 characters plus a NUL
 type CharacterSummary struct {
 	ID          uint32 // 0 marks an empty slot
 	Name        string
-	Job         uint8
+	Race        uint8 // class and sex in one number; internal/game/wire.go has the table
 	Level       uint8
 	PlayMinutes uint32
 	ST, HT, DX  uint8
@@ -77,7 +77,7 @@ func EncodeCharacterList(slots [CharacterSlots]CharacterSummary, game netip.Addr
 	for _, c := range slots {
 		w.U32(c.ID)
 		w.String(c.Name, characterNameSize)
-		w.U8(c.Job)
+		w.U8(c.Race)
 		w.U8(c.Level)
 		w.U32(c.PlayMinutes)
 		w.U8(c.ST)
