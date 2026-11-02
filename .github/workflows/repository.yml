@@ -1,0 +1,105 @@
+# The repository itself, as opposed to the code in it. Unfiltered by path, because its
+# subjects — whitespace, spelling, merge markers, oversized files, the shape of the tree —
+# belong to no part of the repo. Being unconditional also makes it the one check already
+# safe to mark required.
+#
+# `make check` is what the local hook runs last; the hooks before it run nowhere else, so
+# one `--no-verify` and nothing ever checks them again.
+name: Repository
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # A stack workflow may filter by path; this one never does, so `workflow_dispatch` is
+  # how you ask for a verdict on a ref whose last push touched only the filtered half.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: repository-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  repository:
+    runs-on: ubuntu-latest
+    # The default is six hours, which on a private Free plan lets one wedged run spend a
+    # fifth of the month's minutes.
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Nothing here pushes, and left on disk the token is readable by every step that
+          # follows, including a dependency's install script.
+          persist-credentials: false
+
+      # `uvx` is how the hooks and the pinned pre-commit are run, and the runner image
+      # does not ship uv.
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version: "0.12.17"
+
+      # Dependabot bumps the uv image in a Dockerfile and never the setup action's
+      # `version:` input, so without this CI would test with one uv while the image builds
+      # with another, and nothing would notice. Skipped where there is no Dockerfile.
+      - name: One uv everywhere
+        run: |
+          images=$(sed -n 's|^FROM ghcr\.io/astral-sh/uv:\([^@ ]*\)@.*|\1|p' $(git ls-files '*Dockerfile*') 2>/dev/null || true)
+          [ -z "$images" ] && echo "No Dockerfile pins uv; nothing to compare." && exit 0
+          uses=$(grep -rhE '^ *(- )?uses: astral-sh/setup-uv@' .github | wc -l)
+          inputs=$(grep -rhE -A8 '^ *(- )?uses: astral-sh/setup-uv@' .github | sed -n 's|^ *version: "\(.*\)"$|\1|p')
+          echo "Dockerfiles: $(echo $images). setup-uv, $uses uses: $(echo $inputs)."
+          # A use with no `version:` at all must fail too, or the pin is simply absent.
+          if [ "$(echo "$inputs" | grep -c .)" -ne "$uses" ] \
+            || [ "$(printf '%s\n' $images $inputs | sort -u | wc -l)" -ne 1 ]; then
+            echo "::error::uv must be one version in every Dockerfile and every setup-uv input."
+            exit 1
+          fi
+
+      # Keyed on the config, because that file decides which hook environments exist.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
+
+      # `make-check` is skipped here because the stack's own workflow owns that verdict.
+      - name: Repo-wide hooks
+        run: SKIP=make-check uvx pre-commit@4.6.2 run --all-files --show-diff-on-failure
+
+      - name: Structure
+        run: ./scripts/check_structure.sh
+
+      # The same debt the CLAUDE.md budget keeps out of that file, in the place it flows to
+      # next: a long comment is case history, and it belongs in docs/decisions/.
+      - name: Comment blocks
+        run: make comment-blocks
+
+      # CLAUDE.md is loaded into the context window of every session, so its length is a
+      # cost paid on every piece of work rather than a matter of taste. It grows by
+      # accretion — one reasonable paragraph at a time, each defensible on its own — and
+      # nothing else can notice, because every individual commit is small.
+      #
+      # Going over is not a defect. Either the rules genuinely grew, in which case raise
+      # the budget in this pull request and say why, or case history crept into a file that
+      # holds rules, in which case it belongs in docs/decisions/.
+      #
+      # It counts CHARACTERS, not lines, and that is a measured correction. The line
+      # budget this replaced read 114 lines and passed for months on a file holding
+      # 74,940 characters, because one of those lines was 20,370 characters long. A
+      # conventions file is written in paragraphs and a paragraph is one line, so the
+      # quantity the old check measured was not the quantity it meant. 20,000 characters
+      # is roughly what 250 lines was intended to permit.
+      - name: CLAUDE.md budget
+        env:
+          BUDGET: 20000
+        run: |
+          now=$(wc -c < CLAUDE.md | tr -d ' ')
+          if [ "$now" -gt "$BUDGET" ]; then
+            echo "::error::CLAUDE.md is $now characters, over its $BUDGET-character budget."
+            echo "Move the reasoning to docs/decisions/ and leave the rule, or raise"
+            echo "BUDGET in .github/workflows/repository.yml and say why."
+            exit 1
+          fi
+          echo "CLAUDE.md $now/$BUDGET characters"

@@ -1,0 +1,26 @@
+version: 2
+updates:
+  # Keeps the SHA pins current. A pin nobody bumps is just an old version with a longer
+  # name, so the pin and this file are one decision rather than two.
+  #
+  # Every directory that pins an action has to be listed: with only "/" the workflows are
+  # updated and the composite actions are not, leaving two versions of the same action.
+  - package-ecosystem: github-actions
+    directories:
+      - /
+    schedule:
+      interval: weekly
+    groups:
+      # One pull request per round rather than one per action per directory. Ungrouped, a
+      # single release opens several pull requests that each rebase over the others.
+      actions:
+        patterns: ['*']
+
+  # Go modules, golangci-lint included: it is a `tool` in go.mod.
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      gomod:
+        patterns: ['*']

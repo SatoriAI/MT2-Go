@@ -1,0 +1,50 @@
+# The gate on a machine that is not yours: `make check`, with a PostgreSQL service so the
+# end-to-end tests run instead of skipping.
+name: Go
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: go-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: mt2go
+          POSTGRES_PASSWORD: mt2go
+          POSTGRES_DB: mt2go_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U mt2go"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    env:
+      DATABASE_URL: postgres://mt2go:mt2go@localhost:5432/mt2go_test
+      TEST_DATABASE_URL: postgres://mt2go:mt2go@localhost:5432/mt2go_test
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The version comes from go.mod, so CI cannot test with a Go the code does not name.
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      - name: make check
+        run: make check
