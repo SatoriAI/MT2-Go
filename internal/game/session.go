@@ -69,12 +69,7 @@ type session struct {
 func (s *session) Open() error { return s.conn.Send(s.sync.Greeting()...) }
 
 func (s *session) Close() {
-	if s.claim != nil {
-		if s.phase == protocol.PhaseGame {
-			s.savePosition()
-		}
-		s.svc.release(s.claim)
-	}
+	s.leaveWorld()
 	if s.accountID != 0 {
 		s.svc.keys.Release(s.accountID)
 	}
@@ -107,6 +102,8 @@ func (s *session) Handle(ctx context.Context, f protocol.Frame) error {
 		return s.onEnterGame()
 	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientMove:
 		return s.onMove(f.Body)
+	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientChat:
+		return s.onChat(ctx, f.Body)
 	}
 	return fmt.Errorf("game: header 0x%02X not expected in phase %d", byte(f.Header), s.phase)
 }
@@ -123,9 +120,7 @@ func (s *session) onHandshake(body []byte) error {
 	return s.conn.Send(protocol.EncodePhase(protocol.PhaseLogin))
 }
 
-// onLoginByKey sends what the selection screens need. The client picks its screen when
-// the select phase arrives: with a kingdom known it shows the characters, without one it
-// asks for a kingdom first. So the kingdom and the list must come before the phase.
+// onLoginByKey takes the key the auth port handed out and opens the selection screens.
 func (s *session) onLoginByKey(ctx context.Context, body []byte) error {
 	login, err := protocol.DecodeLoginByKey(body)
 	if err != nil {
@@ -138,14 +133,22 @@ func (s *session) onLoginByKey(ctx context.Context, body []byte) error {
 	s.accountID = id
 	s.conn.KeepOpen() // the player may sit on the selection screens for as long as they like
 
-	acc, err := s.svc.store.AccountByID(ctx, id)
+	return s.enterSelection(ctx)
+}
+
+// enterSelection sends what the selection screens need and moves there. The client picks
+// its screen when the select phase arrives: with a kingdom known it shows the characters,
+// without one it asks for a kingdom first. So the kingdom and the list come before the
+// phase.
+func (s *session) enterSelection(ctx context.Context) error {
+	acc, err := s.svc.store.AccountByID(ctx, s.accountID)
 	if err != nil {
 		return err
 	}
 	s.empire = acc.Empire
 	var packets [][]byte
 	if acc.Empire != account.EmpireNone {
-		characters, err := s.svc.store.Characters(ctx, id)
+		characters, err := s.svc.store.Characters(ctx, s.accountID)
 		if err != nil {
 			return err
 		}

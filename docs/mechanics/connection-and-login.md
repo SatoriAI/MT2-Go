@@ -111,7 +111,7 @@ The reply is `D2`, then i32 **number of entries**, then per entry u16 port and u
 
 ## Framing what the client sends
 
-The server never sends a length: the client knows each header's size. The client does not send one either, for these packets: the server keeps its own table of size per header (`internal/protocol/frame.go`). A header missing from the table cannot be delimited, so the connection is closed and the header logged.
+The server never sends a length: the client knows each header's size. The client does not send one either, for these packets: the server keeps its own table of size per header (`internal/protocol/frame.go`). A header missing from the table cannot be delimited, so the connection is closed and the header logged. A few packets vary in length, chat first among them; they carry a u16 total size right after the header ([chat.md](chat.md) has the details).
 
 **The sequence byte.** The client turns sequencing on for its auth and game connections, and from then appends one byte to every packet except the handshake reply, the channel check and the mark login. The byte comes from a fixed 32,768-entry table in the client, starting `AF CA 8A CF`, restarting at each new connection — so `LOGIN3` and the first `LOGIN2` carry `AF` and the `EMPIRE` after it `CA`. This server counts the byte and does not check it: verifying would mean carrying the client's table, and it protects nothing a plaintext connection does not already give away. Counting one on a packet that has none, or the reverse, stalls the connection.
 

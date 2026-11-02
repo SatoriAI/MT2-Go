@@ -174,3 +174,16 @@ func (s *session) savePosition() {
 		s.conn.Log().Error("position not saved", "character", p.Name, "err", err)
 	}
 }
+
+// leaveWorld saves the character in play, if it entered the world, and lets go of it.
+func (s *session) leaveWorld() {
+	if s.claim == nil {
+		return
+	}
+	if s.phase == protocol.PhaseGame {
+		s.savePosition()
+	}
+	s.svc.release(s.claim)
+	s.claim = nil
+	s.playing = nil
+}

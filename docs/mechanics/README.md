@@ -16,6 +16,7 @@ Pages state facts in our own words. They never paste code from another server or
 | [connection-and-login.md](connection-and-login.md) | Connecting, the handshake, framing, logging in, the kingdom choice, the character list |
 | [character-creation.md](character-creation.md) | The create screen: the packet, the rules, starting stats and positions, the replies |
 | [entering-the-world.md](entering-the-world.md) | Start, the loading screen, the main character, points and the player appearing in the world |
+| [chat.md](chat.md) | Packets with their own length, chat, and leaving the world through the game menu |
 
 ## Conventions for the bytes
 

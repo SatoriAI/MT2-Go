@@ -1,5 +1,10 @@
 package protocol
 
+import (
+	"bytes"
+	"errors"
+)
+
 // Packets the client sends, decoded from a Frame body (the bytes after the header).
 
 // Field sizes the client uses: names are 30 characters plus a NUL, passwords 16 plus a
@@ -86,6 +91,39 @@ func DecodeMove(body []byte) (Move, error) {
 	r := NewReader(body)
 	m := Move{Type: r.U8(), Arg: r.U8(), Rotation: r.U8(), X: r.I32(), Y: r.I32(), Time: r.U32()}
 	return m, r.Err()
+}
+
+// ChatType is how a line is meant to be heard. The numbers are open-mt2's; only the ones
+// the server uses are named.
+type ChatType uint8
+
+const (
+	ChatNormal  ChatType = 0
+	ChatCommand ChatType = 5 // an instruction to the client itself, such as "quit"
+)
+
+// ErrNoTerminator means a text field has no NUL before the packet ends.
+var ErrNoTerminator = errors.New("protocol: text without its terminator")
+
+// Chat is a line the player typed, or a command a button sent as one. The text stays the
+// client's bytes: it is in the client's single-byte code page, and decoding it as UTF-8
+// or ASCII would garble letters such as ą.
+type Chat struct {
+	Type ChatType
+	Text string
+}
+
+func DecodeChat(body []byte) (Chat, error) {
+	r := NewReader(body)
+	t := ChatType(r.U8())
+	if err := r.Err(); err != nil {
+		return Chat{}, err
+	}
+	text, _, found := bytes.Cut(body[1:], []byte{0})
+	if !found {
+		return Chat{}, ErrNoTerminator
+	}
+	return Chat{Type: t, Text: string(text)}, nil
 }
 
 // Version is the build the client reports while it loads the world.

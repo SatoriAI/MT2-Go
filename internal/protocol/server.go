@@ -274,6 +274,20 @@ func EncodeCharacterInfo(c CharacterInfo) []byte {
 	return w.Bytes()
 }
 
+// EncodeChat sends a line to the client's chat. vid is whose line it is: the client drops
+// a line whose vid is a character it does not know, so a line from no one carries 0.
+func EncodeChat(t ChatType, vid uint32, empire uint8, text string) []byte {
+	size := 1 + 2 + 1 + 4 + 1 + len(text) + 1
+	w := NewWriter(byte(ServerChat), size)
+	w.U16(uint16(size)) //nolint:gosec // a chat line is far shorter than 64 KiB
+	w.U8(uint8(t))
+	w.U32(vid)
+	w.U8(empire)
+	w.Raw([]byte(text))
+	w.U8(0)
+	return w.Bytes()
+}
+
 // ChannelStatus is one channel the login screen lists.
 type ChannelStatus struct {
 	Port   uint16

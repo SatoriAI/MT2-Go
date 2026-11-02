@@ -839,3 +839,91 @@ func TestAServerShutdownSavesWhereThePlayerStood(t *testing.T) {
 		t.Fatalf("saved (%d, %d), err %v; want where she stood", x, y, err)
 	}
 }
+
+// say sends a chat line as the client frames it: header, total size, type normal, the text
+// and its NUL, then the sequence byte.
+func (c *client) say(text string) {
+	c.t.Helper()
+	size := 1 + 2 + 1 + len(text) + 1
+	packet := binary.LittleEndian.AppendUint16([]byte{byte(protocol.ClientChat)}, uint16(size)) //nolint:gosec // test lines are short
+	c.send(packet, []byte{0}, []byte(text), []byte{0, sequenceByte})
+}
+
+func TestALineInTheWorldComesBackToItsSpeaker(t *testing.T) {
+	h := start(t)
+	game := h.inWorld()
+
+	game.say("hi")
+
+	game.expect(protocol.EncodeChat(protocol.ChatNormal, 1, 3, "Hendra : hi"))
+}
+
+func TestALineKeepsTheClientsCodePage(t *testing.T) {
+	h := start(t)
+	game := h.inWorld()
+
+	game.say("z\xb9b") // "ząb" in the client's Polish code page
+
+	game.expect(protocol.EncodeChat(protocol.ChatNormal, 1, 3, "Hendra : z\xb9b"))
+}
+
+func TestACommandTheServerDoesNotKnowIsIgnored(t *testing.T) {
+	h := start(t)
+	game := h.inWorld()
+
+	game.say("/pkmode 1")
+
+	game.expectOpen()
+}
+
+func TestQuitTellsTheClientToClose(t *testing.T) {
+	h := start(t)
+	game := h.inWorld()
+
+	game.say("/quit")
+
+	game.expect(protocol.EncodeChat(protocol.ChatCommand, 1, 3, "quit"))
+}
+
+func TestLogoutEndsTheConnectionAndKeepsWhereThePlayerStood(t *testing.T) {
+	h := start(t)
+	game, key := h.hendraInWorld()
+	game.send(moveTo(963500, 278300))
+
+	game.say("/logout")
+
+	game.expect(protocol.EncodePhase(protocol.PhaseClose))
+	game.expectClosed()
+	if x, y := h.startHendra(key); x != 963500 || y != 278300 {
+		t.Fatalf("started at (%d, %d), want where she left", x, y)
+	}
+}
+
+// Change character returns to the character screen on the same connection, with the list
+// showing where the character now stands, and Start works again.
+func TestChangeCharacterReturnsToTheCharacterScreen(t *testing.T) {
+	h := start(t)
+	game, _ := h.hendraInWorld()
+	game.send(moveTo(963500, 278300))
+
+	game.say("/phase_select")
+
+	game.expect(protocol.EncodeEmpire(3))
+	list := game.read(329)
+	position := protocol.NewReader(list[1+48:]) // slot 0's x and y, after its id, name, race and looks
+	if x, y := position.I32(), position.I32(); x != 963500 || y != 278300 {
+		t.Fatalf("listed at (%d, %d), want where she stood", x, y)
+	}
+	game.expect(protocol.EncodePhase(protocol.PhaseSelect))
+	game.selectCharacter(0)
+	game.expect(protocol.EncodePhase(protocol.PhaseLoading))
+}
+
+func TestChatBeforeEnteringTheWorldEndsTheConnection(t *testing.T) {
+	h := start(t)
+	game := h.withHendra()
+
+	game.say("hi")
+
+	game.expectClosed()
+}

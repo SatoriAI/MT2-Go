@@ -1,16 +1,30 @@
 package protocol
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 )
 
 // frameSpec is how the client frames one header: its fixed size including the header
-// byte, and whether a sequence byte follows it.
+// byte, or, when sized, a u16 total size right after the header; and whether a sequence
+// byte follows it.
 type frameSpec struct {
 	size      int
+	sized     bool
 	sequenced bool
 }
+
+// A sized packet's length counts its header, the size field and the body, but not the
+// sequence byte. The bound is far above what the client's chat box allows (512 bytes),
+// and keeps a lying length from making the server buffer without end.
+const (
+	minSized = 3
+	maxSized = 1024
+)
+
+// ErrBadSize means a sized packet declared a length no packet can have.
+var ErrBadSize = errors.New("protocol: impossible packet size")
 
 // The client turns sequencing on for its game and account streams, then appends one
 // byte from a fixed table to most packets. The handshake reply, the login screen's state
@@ -27,6 +41,7 @@ var clientFrames = map[ClientHeader]frameSpec{
 	ClientSelectCharacter: {size: 2, sequenced: true},
 	ClientEnterGame:       {size: 1, sequenced: true},
 	ClientMove:            {size: 16, sequenced: true},
+	ClientChat:            {sized: true, sequenced: true},
 	ClientVersion:         {size: 67, sequenced: true},
 }
 
@@ -58,12 +73,22 @@ func NextFrame(buf []byte) (Frame, int, error) {
 	if !ok {
 		return Frame{}, 0, UnknownHeaderError{Header: buf[0]}
 	}
-	used := spec.size
+	size, bodyStart := spec.size, 1
+	if spec.sized {
+		if len(buf) < minSized {
+			return Frame{}, 0, ErrIncomplete
+		}
+		size, bodyStart = int(binary.LittleEndian.Uint16(buf[1:])), minSized
+		if size < minSized || size > maxSized {
+			return Frame{}, 0, fmt.Errorf("%w: %d for header 0x%02X", ErrBadSize, size, buf[0])
+		}
+	}
+	used := size
 	if spec.sequenced {
 		used++
 	}
 	if len(buf) < used {
 		return Frame{}, 0, ErrIncomplete
 	}
-	return Frame{Header: header, Body: buf[1:spec.size]}, used, nil
+	return Frame{Header: header, Body: buf[bodyStart:size]}, used, nil
 }
