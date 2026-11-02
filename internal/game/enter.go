@@ -54,8 +54,9 @@ func (s *session) onSelectCharacter(ctx context.Context, body []byte) error {
 	)
 }
 
-// onSelectAgain tolerates the client asking for the same character a second time while it
-// loads; any other character then is not something the client does.
+// onSelectAgain accepts the second request for the same character, which the loading
+// screen always sends (introloading.py); any other character then is not something the
+// client does.
 func (s *session) onSelectAgain(body []byte) error {
 	slot, err := protocol.DecodeSelectCharacter(body)
 	if err != nil {

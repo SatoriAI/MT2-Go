@@ -621,39 +621,30 @@ func TestStartLoadsTheWorldAndEnteringPutsThePlayerInIt(t *testing.T) {
 	game.expectOpen()
 }
 
-// Seen with the real client: seconds after entering, it reports the player's movement.
+// The client reports the player's movement on its own, seconds after entering.
 func TestAMoveInTheWorldKeepsTheConnection(t *testing.T) {
 	h := start(t)
-	game := h.withHendra()
-	game.selectCharacter(0)
-	game.expectLoading()
-	game.enterGame()
-	game.read(2 + 5 + 2 + 35 + 54) // phase, time, channel, the player and their info
+	game := h.inWorld()
 
-	move := []byte{byte(protocol.ClientMove), 1, 0, 64}
-	move = binary.LittleEndian.AppendUint32(move, 963500)
-	move = binary.LittleEndian.AppendUint32(move, 278300)
-	move = binary.LittleEndian.AppendUint32(move, 12345)
-	game.send(move, []byte{sequenceByte})
+	game.send(moveTo(963500, 278300))
 
 	game.expectOpen()
 }
 
-// Seen with the real client: while loading it reports its version before entering.
+// The client reports its version while it loads, before it enters.
 func TestTheClientsVersionWhileLoadingIsAccepted(t *testing.T) {
 	h := start(t)
 	game := h.withHendra()
 	game.selectCharacter(0)
 	game.expectLoading()
 
-	game.send([]byte{byte(protocol.ClientVersion)}, field("metin2client.bin", 33), field("1215955205", 33),
-		[]byte{sequenceByte})
+	game.send(version())
 	game.enterGame()
 
 	game.expect(protocol.EncodePhase(protocol.PhaseGame))
 }
 
-// The loading screen may ask for the character the select screen already asked for.
+// The loading screen always asks again for the character the select screen asked for.
 func TestTheSameCharacterSelectedAgainWhileLoadingIsIgnored(t *testing.T) {
 	h := start(t)
 	game := h.withHendra()
@@ -684,6 +675,60 @@ func TestStartOnAnEmptySlotEndsTheConnection(t *testing.T) {
 	game.selectCharacter(1)
 
 	game.expectClosed()
+}
+
+// moveTo is a move to x, y, as the client sends it.
+func moveTo(x, y uint32) []byte {
+	move := []byte{byte(protocol.ClientMove), 1, 0, 64}
+	move = binary.LittleEndian.AppendUint32(move, x)
+	move = binary.LittleEndian.AppendUint32(move, y)
+	move = binary.LittleEndian.AppendUint32(move, 12345)
+	return append(move, sequenceByte)
+}
+
+func version() []byte {
+	return bytes.Join([][]byte{{byte(protocol.ClientVersion)}, field("Metin2Distribute.exe", 33),
+		field("1215955205", 33), {sequenceByte}}, nil)
+}
+
+// inWorld is Hendra standing in the world, with everything the server sent so far read.
+func (h *harness) inWorld() *client {
+	h.t.Helper()
+	game := h.withHendra()
+	game.selectCharacter(0)
+	game.expectLoading()
+	game.enterGame()
+	game.read(2 + 5 + 2 + 35 + 54) // phase, time, channel, the player and their info
+	return game
+}
+
+// Packets out of their phase end the connection, like every packet the server does not
+// expect where it arrives.
+func TestPacketsOutOfTheirPhaseInTheWorldFlowEndTheConnection(t *testing.T) {
+	cases := map[string]struct {
+		from   func(*harness) *client
+		packet []byte
+	}{
+		"a move while loading": {func(h *harness) *client {
+			game := h.withHendra()
+			game.selectCharacter(0)
+			game.expectLoading()
+			return game
+		}, moveTo(963500, 278300)},
+		"entering twice":                 {(*harness).inWorld, []byte{byte(protocol.ClientEnterGame), sequenceByte}},
+		"a version on the select screen": {(*harness).withHendra, version()},
+		"a version in the world":         {(*harness).inWorld, version()},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			h := start(t)
+			game := c.from(h)
+
+			game.send(c.packet)
+
+			game.expectClosed()
+		})
+	}
 }
 
 func TestEnteringBeforeStartEndsTheConnection(t *testing.T) {

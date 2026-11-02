@@ -2,12 +2,12 @@
 
 ## What the player sees
 
-On the character screen the player picks a character and presses **Start**. The character plays its selection motion, the loading screen fills its bar, and the character stands in its kingdom's first village, with its name, level, hit points and mana shown. Nothing moves yet: no other players, no monsters, no items.
+On the character screen the player picks a character and presses **Start**. The character plays its selection motion, the loading screen fills its bar, and the character stands in its kingdom's first village and can walk around. The world is otherwise empty: no other players, no monsters, no items.
 
 ## What the client does
 
 1. **Start.** The select screen plays the selection motion. Then the client opens a **new** game connection, does the handshake and logs in with the **same key** (`LOGIN2`), and on that connection asks for the character by its slot (`introselect.py`). Seen with the real client: the server logged a second "entered selection" a few seconds after the first, then the loading on the new connection. This is why a login key must survive its first use ([connection page](connection-and-login.md)).
-2. **Loading.** At phase `LOADING` the client opens the loading screen, which may ask for the same slot again (`introloading.py`). It reports its build with `CLIENT_VERSION`, reads the main character's race, kingdom, skill group and position, loads the map those coordinates fall in, and steps through its loading work one frame at a time.
+2. **Loading.** At phase `LOADING` the client opens the loading screen, which always asks for the same slot again (`introloading.py`, unconditionally when it opens). It reports its build with `CLIENT_VERSION`, reads the main character's race, kingdom, skill group and position, loads the map those coordinates fall in, and steps through its loading work one frame at a time.
 3. **Enter.** The last loading step sends `ENTERGAME`. At phase `GAME` the client opens the game window.
 
 No map is named anywhere: positions are world coordinates, and the client's `atlasinfo.txt` gives each map's area.
@@ -66,7 +66,7 @@ The header alone.
 
 ### TIME — server, `6A`, 5 bytes; CHANNEL — server, `79`, 2 bytes
 
-A u32 time and a u8 channel. The time is the server clock the handshake already shares (milliseconds since the server started). Whether the client uses it for more than display is not known yet. The channel is `1`.
+A u32 time and a u8 channel. The time is the server clock the handshake already shares (milliseconds since the server started), as open-mt2 sends it. That is probably wrong: open-mt2's own description of the packet says Unix seconds, and the client's scripts compare the game's timestamp with Unix dates for affect and item expiry (`uiaffectshower.py`, `uidragonsoul.py`). Nothing uses it yet; before timed affects or items exist, it should become Unix seconds. The channel is `1`.
 
 ### CHARACTER_ADD — server, `01`, 35 bytes
 
@@ -110,7 +110,7 @@ The client sends it on its own a few seconds after entering, seen with the real 
 
 - **Start (`SELECT`).** `06` loads the character in that slot. An empty slot closes the connection, since the client only offers slots it shows a character in. The character gets a vid, unique in this server process. Then the server sends phase `LOADING`, `MAIN_CHARACTER`, `POINTS` and `SKILL_LEVEL`.
 - **Loading.** A second `06` for the same slot is ignored; any other slot closes the connection. `CLIENT_VERSION` is logged and otherwise ignored. `ENTERGAME` moves to `GAME` and sends the time, the channel, and the player's own character: `CHARACTER_ADD`, then `CHARACTER_ADDITIONAL_INFO`. The body part is the character's look, as in the list.
-- **In the world.** `CHARACTER_MOVE` updates where the player's character is, in memory only: it is not saved and nobody else is told. Any other packet closes the connection for now, and the log names its header.
+- **In the world.** `CHARACTER_MOVE` is accepted, and the session keeps the reported position in memory only: it is not saved and nobody else is told, so nothing can observe it yet. Any other packet closes the connection for now, and the log names its header.
 - **Derived values** (`internal/account/points.go`) are worked out, not stored:
   - **Max hit points:** 700 + 50 per vitality + 100 per level.
   - **Max mana:** 500 for warrior and ninja, 700 for sura and shaman, + 20 per intelligence + 50 per level.
@@ -135,11 +135,13 @@ The client sends it on its own a few seconds after entering, seen with the real 
   - a move in the world;
   - another slot while loading;
   - an empty slot;
-  - entering before Start.
+  - entering before Start;
+  - a move while loading, entering twice, and the version report outside loading.
 
 ## Not done yet
 
 - Movement seen by others, checked against the map, and saved.
+- One character in the world at a time. The client reconnects with the same login key to load, so the key allows several game connections per account. Two clients, or a modified one, could therefore enter with the same character twice. Nothing is saved yet, so it is harmless now; it has to be closed before positions are saved.
 - Other players, monsters and NPCs.
 - Items, equipment and quickslots.
 - Quests.

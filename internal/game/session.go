@@ -1,6 +1,6 @@
-// Package game is the game port. So far it covers what happens before a character
-// enters the world: the login screen's channel check, the login by key, the kingdom
-// choice and the character list.
+// Package game is the game port: the login screen's channel check, the login by key, the
+// kingdom choice, creating and listing characters, and entering the world, where so far
+// the player can only move.
 package game
 
 import (
