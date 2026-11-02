@@ -183,6 +183,15 @@ func (c *client) chooseEmpire(number, sequence byte) {
 	c.send([]byte{byte(protocol.ClientEmpire), number, sequence})
 }
 
+// expectOpen proves the server still serves the connection: it answers the channel check
+// only after handling every packet sent before it.
+func (c *client) expectOpen() {
+	c.t.Helper()
+	port := netip.MustParseAddrPort(c.conn.RemoteAddr().String()).Port()
+	c.send([]byte{byte(protocol.ClientStateChecker)})
+	c.expect(protocol.EncodeChannelStatus([]protocol.ChannelStatus{{Port: port, Status: protocol.ChannelNormal}}))
+}
+
 // expectClosed waits for the server to end the connection.
 func (c *client) expectClosed() {
 	c.t.Helper()
@@ -270,35 +279,47 @@ func TestTheDatabaseRefusesASkillGroupOfAnotherClass(t *testing.T) {
 	}
 }
 
-// The client sends the kingdom when its select button is clicked, so a double click
-// sends it twice. Seen with the real client: closing the connection there stranded it
-// before the character screen.
 func TestADoubleClickedKingdomKeepsTheConnection(t *testing.T) {
 	h := start(t)
 	h.createAccount("admin")
-	key := h.authenticate("admin")
-	game := h.enterSelection("admin", key)
+	game := h.enterSelection("admin", h.authenticate("admin"))
 	game.expect(protocol.EncodePhase(protocol.PhaseSelect))
 
 	game.chooseEmpire(3, 0xCA)
 	game.chooseEmpire(3, 0x8A)
 
 	h.waitForEmpire(account.EmpireJinno)
-	port := netip.MustParseAddrPort(h.game).Port()
-	game.send([]byte{byte(protocol.ClientStateChecker)})
-	game.expect(protocol.EncodeChannelStatus([]protocol.ChannelStatus{{Port: port, Status: protocol.ChannelNormal}}))
+	game.expectOpen()
 }
 
-func TestAKingdomOnceChosenCannotBeChanged(t *testing.T) {
+// Before the first character is created, the client shows the kingdom screen again,
+// starting on a random kingdom, and sends whichever the player picks there.
+func TestANewAccountMayChangeItsKingdomBeforeItsFirstCharacter(t *testing.T) {
 	h := start(t)
 	h.createAccount("admin")
-	key := h.authenticate("admin")
-	game := h.enterSelection("admin", key)
+	game := h.enterSelection("admin", h.authenticate("admin"))
 	game.expect(protocol.EncodePhase(protocol.PhaseSelect))
 	game.chooseEmpire(1, 0xCA)
 	h.waitForEmpire(account.EmpireShinsoo)
 
 	game.chooseEmpire(3, 0x8A)
+
+	h.waitForEmpire(account.EmpireJinno)
+	game.expectOpen()
+}
+
+func TestAKingdomCannotChangeOnceTheAccountHasACharacter(t *testing.T) {
+	h := start(t)
+	id := h.createAccount("admin")
+	h.exec(`UPDATE accounts SET empire = 'shinsoo' WHERE id = $1`, id)
+	h.exec(`INSERT INTO characters (account_id, slot, name, class, sex, st, ht, dx, iq, map, x, y)
+		VALUES ($1, 0, 'Hendra', 'sura', 'female', 6, 4, 3, 2, 1, 469300, 964200)`, id)
+	game := h.enterSelection("admin", h.authenticate("admin"))
+	game.expect(protocol.EncodeEmpire(1))
+	game.read(329) // the character list, whose bytes another test checks
+	game.expect(protocol.EncodePhase(protocol.PhaseSelect))
+
+	game.chooseEmpire(3, 0xCA)
 
 	game.expectClosed()
 	h.waitForEmpire(account.EmpireShinsoo)
