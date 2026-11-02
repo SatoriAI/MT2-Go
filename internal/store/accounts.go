@@ -142,3 +142,9 @@ func (a Accounts) Character(ctx context.Context, accountID int64, slot int) (acc
 	}
 	return c, err
 }
+
+// SavePosition keeps where the character stands for its next login.
+func (a Accounts) SavePosition(ctx context.Context, characterID uint32, x, y int32) error {
+	_, err := a.Pool.Exec(ctx, `UPDATE characters SET x = $2, y = $3 WHERE id = $1`, characterID, x, y)
+	return err
+}

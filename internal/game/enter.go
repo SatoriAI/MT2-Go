@@ -4,10 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/SatoriAI/MT2-Go/internal/account"
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
+	"github.com/SatoriAI/MT2-Go/internal/world"
 )
+
+// saveTimeout bounds saving a character when its connection closes.
+const saveTimeout = 5 * time.Second
 
 // character is the one this connection plays, once Start was pressed.
 type character struct {
@@ -30,6 +35,18 @@ func (s *session) onSelectCharacter(ctx context.Context, body []byte) error {
 	}
 	if err != nil {
 		return err
+	}
+	claim, displaced, err := s.svc.claimCharacter(ctx, c.ID, s.conn.Close)
+	if err != nil {
+		return err
+	}
+	s.claim = claim
+	if displaced {
+		s.conn.Log().Info("took the character over from another connection", "character", c.Name)
+		// The displaced connection has just saved where the character stood.
+		if c, err = s.svc.store.Character(ctx, s.accountID, int(slot)); err != nil {
+			return err
+		}
 	}
 	points, ok := c.Points()
 	if !ok {
@@ -108,8 +125,9 @@ func (s *session) onEnterGame() error {
 	)
 }
 
-// onMove keeps where the player's character is. Nobody else is in the world to be told
-// yet, and the position is not saved; the client moves its own character by itself.
+// onMove keeps where the player's character is; it is saved when the connection closes.
+// Nobody else is in the world to be told yet, and the client moves its own character by
+// itself.
 func (s *session) onMove(body []byte) error {
 	m, err := protocol.DecodeMove(body)
 	if err != nil {
@@ -138,5 +156,21 @@ func pointsOf(p *character) protocol.CharacterPoints {
 		IQ:          uint32(p.Intelligence),
 		AttackSpeed: uint32(p.points.AttackSpeed),
 		MoveSpeed:   uint32(p.points.MoveSpeed),
+	}
+}
+
+// savePosition keeps where the character stood for its next login, if that is on a map the
+// server knows; otherwise the last good position stays. It runs as the connection closes,
+// which at shutdown is after the server's context is cancelled, so the save has its own.
+func (s *session) savePosition() {
+	p := s.playing
+	if _, ok := world.MapAt(p.X, p.Y); !ok {
+		s.conn.Log().Warn("position not saved: on no known map", "character", p.Name, "x", p.X, "y", p.Y)
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), saveTimeout)
+	defer cancel()
+	if err := s.svc.store.SavePosition(ctx, p.ID, p.X, p.Y); err != nil {
+		s.conn.Log().Error("position not saved", "character", p.Name, "err", err)
 	}
 }

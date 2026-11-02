@@ -109,8 +109,10 @@ The client sends it on its own a few seconds after entering, seen with the real 
 `internal/game/enter.go`:
 
 - **Start (`SELECT`).** `06` loads the character in that slot. An empty slot closes the connection, since the client only offers slots it shows a character in. The character gets a vid, unique in this server process. Then the server sends phase `LOADING`, `MAIN_CHARACTER`, `POINTS` and `SKILL_LEVEL`.
+- **One connection per character** (`internal/game/claims.go`). Start claims the character for its connection. If another connection holds it, which the client's key reuse allows, that connection is closed. Start then waits for it to save and reads the character afterwards, so the newcomer loads where the other left off. The wait is bounded, a little longer than the save's own timeout, and ends at shutdown. A newcomer that gives up closes its connection, but its claim lets go only after the connection it waited on has, so a third connection never reads the character before the slow one has saved. One login per account stays the rule at the auth port (`ALREADY`).
 - **Loading.** A second `06` for the same slot is ignored; any other slot closes the connection. `CLIENT_VERSION` is logged and otherwise ignored. `ENTERGAME` moves to `GAME` and sends the time, the channel, and the player's own character: `CHARACTER_ADD`, then `CHARACTER_ADDITIONAL_INFO`. The body part is the character's look, as in the list.
-- **In the world.** `CHARACTER_MOVE` is accepted, and the session keeps the reported position in memory only: it is not saved and nobody else is told, so nothing can observe it yet. Any other packet closes the connection for now, and the log names its header.
+- **In the world.** `CHARACTER_MOVE` is accepted, and the session keeps the reported position. Nobody else is told yet. Any other packet closes the connection for now, and the log names its header.
+- **Where a character appears.** The first time, at its kingdom's start, written into its row at creation. Afterwards, where it stood when its connection closed: logout, a dropped connection and a server shutdown all go through the session's close, which saves the position. A position is saved only if it lies on a map the server knows (`internal/world`); otherwise the last good one stays and the server logs a warning. The map check uses each map's area from the client's `atlasinfo.txt`, in cells of 25600; without warps, the known maps are the three first villages. A hard crash loses the walk since the last login, because there is no periodic save yet.
 - **Derived values** (`internal/account/points.go`) are worked out, not stored:
   - **Max hit points:** 700 + 50 per vitality + 100 per level.
   - **Max mana:** 500 for warrior and ninja, 700 for sura and shaman, + 20 per intelligence + 50 per level.
@@ -121,6 +123,7 @@ The client sends it on its own a few seconds after entering, seen with the real 
 
 ## How we know
 
+- **Map areas:** the client's `atlasinfo.txt` (name, base x and y, width and height in cells); open-mt2 uses the same 25600-unit cell.
 - **The flow and layouts:** open-mt2, whose flow brings this client into the world, and the client's `introselect.py`, `introloading.py` and `networkmodule.py`.
 - **The derived values:** open-mt2's formula and `jobs.json` constants, applied to our starting stats, which come from the client. No source closer to the original game has been checked; this is the first thing to revisit when one is.
 
@@ -136,12 +139,18 @@ The client sends it on its own a few seconds after entering, seen with the real 
   - another slot while loading;
   - an empty slot;
   - entering before Start;
-  - a move while loading, entering twice, and the version report outside loading.
+  - a move while loading, entering twice, and the version report outside loading;
+  - a character starting where it stood when it left;
+  - a position on no known map not saved;
+  - a character started on a second connection, which closes the first and loads where it left off;
+  - a server shutdown saving where the player stood.
+- `internal/game/claims_test.go`: a takeover stopping the holder and waiting for it, and a claim given up letting go only after the holder has.
+- `internal/world/maps_test.go`: map corners, and every kingdom's start lying on a known map.
 
 ## Not done yet
 
-- Movement seen by others, checked against the map, and saved.
-- One character in the world at a time. The client reconnects with the same login key to load, so the key allows several game connections per account. Two clients, or a modified one, could therefore enter with the same character twice. Nothing is saved yet, so it is harmless now; it has to be closed before positions are saved.
+- Movement seen by others, and checked against the map's terrain rather than only its area.
+- A periodic save, once there is more to lose than a walk (experience, items).
 - Other players, monsters and NPCs.
 - Items, equipment and quickslots.
 - Quests.

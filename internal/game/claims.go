@@ -1,0 +1,62 @@
+package game
+
+import (
+	"context"
+	"errors"
+	"time"
+)
+
+// releaseWait bounds how long Start waits for a displaced connection to save and let go.
+// That connection only starts saving once it is closed, so the wait must outlast the
+// save's own timeout.
+const releaseWait = saveTimeout + time.Second
+
+// claim is one connection's hold on a character in play. done closes once that connection
+// has let go of the character, and never before every claim it displaced has: a closed
+// done means the saved position is the latest.
+type claim struct {
+	character uint32
+	stop      func() // closes the holding connection
+	done      chan struct{}
+}
+
+// claimCharacter gives the character to the connection stop closes, displacing any
+// connection that held it: that one is stopped, and claimCharacter returns once it has
+// saved, reporting whether there was one, so the caller knows to read the character
+// again. Each character is in play on one connection at most.
+func (s *Service) claimCharacter(ctx context.Context, id uint32, stop func()) (mine *claim, displaced bool, err error) {
+	mine = &claim{character: id, stop: stop, done: make(chan struct{})}
+	s.mu.Lock()
+	previous := s.claims[id]
+	s.claims[id] = mine
+	s.mu.Unlock()
+	if previous == nil {
+		return mine, false, nil
+	}
+	previous.stop()
+	select {
+	case <-previous.done:
+		return mine, true, nil
+	case <-ctx.Done():
+		err = ctx.Err()
+	case <-time.After(releaseWait):
+		err = errors.New("game: the character's previous connection did not let go")
+	}
+	// Giving up must not let a later claim past the one still saving.
+	given := mine
+	go func() {
+		<-previous.done
+		s.release(given)
+	}()
+	return nil, false, err
+}
+
+// release lets go of the character, unless another connection has claimed it since.
+func (s *Service) release(c *claim) {
+	s.mu.Lock()
+	if s.claims[c.character] == c {
+		delete(s.claims, c.character)
+	}
+	s.mu.Unlock()
+	close(c.done)
+}

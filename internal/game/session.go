@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"sync"
 	"sync/atomic"
 
 	"github.com/SatoriAI/MT2-Go/internal/account"
@@ -28,6 +29,7 @@ type Accounts interface {
 	CreateCharacter(ctx context.Context, accountID int64, empire account.Empire, c account.Character) (uint32, error)
 	// Character reads the account's character in slot, or returns account.ErrNotFound.
 	Character(ctx context.Context, accountID int64, slot int) (account.Character, error)
+	SavePosition(ctx context.Context, characterID uint32, x, y int32) error
 }
 
 // Service is what every game connection shares.
@@ -40,10 +42,13 @@ type Service struct {
 	public netip.AddrPort
 	// lastVID numbers the characters in the world, so each has its own id.
 	lastVID atomic.Uint32
+
+	mu     sync.Mutex
+	claims map[uint32]*claim // the characters in play, by id
 }
 
 func NewService(store Accounts, keys *account.Keys, clock handshake.Clock, public netip.AddrPort) *Service {
-	return &Service{store: store, keys: keys, clock: clock, public: public}
+	return &Service{store: store, keys: keys, clock: clock, public: public, claims: map[uint32]*claim{}}
 }
 
 func (s *Service) NewSession(conn *network.Conn) network.Session {
@@ -58,11 +63,18 @@ type session struct {
 	accountID int64          // set once the login key is redeemed
 	empire    account.Empire // the account's kingdom as this connection last knew it
 	playing   *character     // set once the player pressed Start
+	claim     *claim         // this connection's hold on playing
 }
 
 func (s *session) Open() error { return s.conn.Send(s.sync.Greeting()...) }
 
 func (s *session) Close() {
+	if s.claim != nil {
+		if s.phase == protocol.PhaseGame {
+			s.savePosition()
+		}
+		s.svc.release(s.claim)
+	}
 	if s.accountID != 0 {
 		s.svc.keys.Release(s.accountID)
 	}
