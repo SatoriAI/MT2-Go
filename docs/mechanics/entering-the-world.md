@@ -1,0 +1,149 @@
+# Entering the world
+
+## What the player sees
+
+On the character screen the player picks a character and presses **Start**. The character plays its selection motion, the loading screen fills its bar, and the character stands in its kingdom's first village and can walk around. The world is otherwise empty: no other players, no monsters, no items.
+
+## What the client does
+
+1. **Start.** The select screen plays the selection motion. Then the client opens a **new** game connection, does the handshake and logs in with the **same key** (`LOGIN2`), and on that connection asks for the character by its slot (`introselect.py`). Seen with the real client: the server logged a second "entered selection" a few seconds after the first, then the loading on the new connection. This is why a login key must survive its first use ([connection page](connection-and-login.md)).
+2. **Loading.** At phase `LOADING` the client opens the loading screen, which always asks for the same slot again (`introloading.py`, unconditionally when it opens). It reports its build with `CLIENT_VERSION`, reads the main character's race, kingdom, skill group and position, loads the map those coordinates fall in, and steps through its loading work one frame at a time.
+3. **Enter.** The last loading step sends `ENTERGAME`. At phase `GAME` the client opens the game window.
+
+No map is named anywhere: positions are world coordinates, and the client's `atlasinfo.txt` gives each map's area.
+
+## The bytes
+
+### CHARACTER_SELECT — client, `06`, 2 bytes, sequenced
+
+| Offset | Field | |
+|---|---|---|
+| 0 | u8 header | `06` |
+| 1 | u8 slot | `0`–`3` |
+
+### CLIENT_VERSION — client, `F1`, 67 bytes, sequenced
+
+| Offset | Field | |
+|---|---|---|
+| 0 | u8 header | `F1` |
+| 1 | char[33] name | the client executable's name |
+| 34 | char[33] timestamp | its build time |
+
+### ENTERGAME — client, `0A`, 1 byte, sequenced
+
+The header alone.
+
+### Phase — server, `FD`
+
+`4` loading, `5` game, as on the [connection page](connection-and-login.md).
+
+### MAIN_CHARACTER — server, `71`, 46 bytes
+
+| Offset | Field | |
+|---|---|---|
+| 0 | u8 header | `71` |
+| 1 | u32 vid | the character's id in the world |
+| 5 | u16 race | as in the character list |
+| 7 | char[25] name | |
+| 32 | i32 x, i32 y, i32 z | world coordinates; z is `0` and the client puts the character on the ground |
+| 44 | u8 kingdom | `1`–`3` |
+| 45 | u8 skill group | |
+
+### POINTS — server, `10`, 1021 bytes
+
+255 × u32, each value at its index. The indices sent so far:
+
+| Index | Value | Index | Value |
+|---|---|---|---|
+| 1 | level | 9, 10 | stamina, max stamina |
+| 3, 4 | exp, exp for the next level | 11 | gold |
+| 5, 6 | hit points, max hit points | 12–15 | strength, vitality, dexterity, intelligence |
+| 7, 8 | mana, max mana | 17, 19 | attack speed, move speed |
+
+### SKILL_LEVEL — server, `4C`, 1531 bytes
+
+255 skills × 6 bytes (master type u8, level u8, next reading time i32), all `0` for now.
+
+### TIME — server, `6A`, 5 bytes; CHANNEL — server, `79`, 2 bytes
+
+A u32 time and a u8 channel. The time is the server clock the handshake already shares (milliseconds since the server started), as open-mt2 sends it. That is probably wrong: open-mt2's own description of the packet says Unix seconds, and the client's scripts compare the game's timestamp with Unix dates for affect and item expiry (`uiaffectshower.py`, `uidragonsoul.py`). Nothing uses it yet; before timed affects or items exist, it should become Unix seconds. The channel is `1`.
+
+### CHARACTER_ADD — server, `01`, 35 bytes
+
+| Offset | Field | |
+|---|---|---|
+| 1 | u32 vid | |
+| 5 | f32 rotation | degrees |
+| 9 | i32 x, y, z | |
+| 21 | u8 type | `6` player |
+| 22 | u16 race | |
+| 24 | u8 move speed, u8 attack speed | |
+| 26 | u8 state | `0` |
+| 27 | u32 ×2 effects | `0` |
+
+### CHARACTER_ADDITIONAL_INFO — server, `88`, 54 bytes
+
+| Offset | Field | |
+|---|---|---|
+| 1 | u32 vid | |
+| 5 | char[25] name | |
+| 30 | u16 ×4 parts | body, weapon, head, hair |
+| 38 | u8 kingdom | |
+| 39 | u32 guild | `0` |
+| 43 | u32 level | |
+| 47 | u16 rank, u8 player-kill mode, u32 mount | `0` |
+
+### CHARACTER_MOVE — client, `07`, 16 bytes, sequenced
+
+| Offset | Field | |
+|---|---|---|
+| 0 | u8 header | `07` |
+| 1 | u8 type, u8 arg, u8 rotation | the kind of movement; the units are not known yet |
+| 4 | i32 x, i32 y | where the character is going or stopped |
+| 12 | u32 time | the client's clock |
+
+The client sends it on its own a few seconds after entering, seen with the real client, and whenever the player moves.
+
+## What the server does
+
+`internal/game/enter.go`:
+
+- **Start (`SELECT`).** `06` loads the character in that slot. An empty slot closes the connection, since the client only offers slots it shows a character in. The character gets a vid, unique in this server process. Then the server sends phase `LOADING`, `MAIN_CHARACTER`, `POINTS` and `SKILL_LEVEL`.
+- **Loading.** A second `06` for the same slot is ignored; any other slot closes the connection. `CLIENT_VERSION` is logged and otherwise ignored. `ENTERGAME` moves to `GAME` and sends the time, the channel, and the player's own character: `CHARACTER_ADD`, then `CHARACTER_ADDITIONAL_INFO`. The body part is the character's look, as in the list.
+- **In the world.** `CHARACTER_MOVE` is accepted, and the session keeps the reported position in memory only: it is not saved and nobody else is told, so nothing can observe it yet. Any other packet closes the connection for now, and the log names its header.
+- **Derived values** (`internal/account/points.go`) are worked out, not stored:
+  - **Max hit points:** 700 + 50 per vitality + 100 per level.
+  - **Max mana:** 500 for warrior and ninja, 700 for sura and shaman, + 20 per intelligence + 50 per level.
+  - **Stamina, speeds and exp:** stamina 1000, attack and move speed 150. The next level needs 300 exp at level 1; other levels send 0 until they matter.
+  - **Current values:** hit points and mana are full, because nothing can hurt a character yet.
+
+  A new sura has 950 hit points and 850 mana.
+
+## How we know
+
+- **The flow and layouts:** open-mt2, whose flow brings this client into the world, and the client's `introselect.py`, `introloading.py` and `networkmodule.py`.
+- **The derived values:** open-mt2's formula and `jobs.json` constants, applied to our starting stats, which come from the client. No source closer to the original game has been checked; this is the first thing to revisit when one is.
+
+## What proves it
+
+- `internal/protocol/protocol_test.go`: every new packet, byte for byte.
+- `internal/account/points_test.go`: each class's level-1 hit points and mana, and growth per level.
+- `internal/server/server_test.go`:
+  - Start then enter, with every packet compared;
+  - the same slot asked for again while loading;
+  - the client's version while loading;
+  - a move in the world;
+  - another slot while loading;
+  - an empty slot;
+  - entering before Start;
+  - a move while loading, entering twice, and the version report outside loading.
+
+## Not done yet
+
+- Movement seen by others, checked against the map, and saved.
+- One character in the world at a time. The client reconnects with the same login key to load, so the key allows several game connections per account. Two clients, or a modified one, could therefore enter with the same character twice. Nothing is saved yet, so it is harmless now; it has to be closed before positions are saved.
+- Other players, monsters and NPCs.
+- Items, equipment and quickslots.
+- Quests.
+- Play time, and saving anything on logout.
+- Warps between maps.

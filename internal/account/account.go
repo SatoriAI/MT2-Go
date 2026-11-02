@@ -12,7 +12,7 @@ const (
 )
 
 var (
-	// ErrNotFound means no account has that name or id.
+	// ErrNotFound means no account, or no character, matches.
 	ErrNotFound = errors.New("account: not found")
 	// ErrNameTaken means another character already has the name, in any case.
 	ErrNameTaken = errors.New("account: character name taken")

@@ -66,6 +66,40 @@ func DecodeCreateCharacter(body []byte) (CreateCharacter, error) {
 	return c, r.Err()
 }
 
+// DecodeSelectCharacter reads the slot of the character the player pressed Start on.
+func DecodeSelectCharacter(body []byte) (uint8, error) {
+	r := NewReader(body)
+	slot := r.U8()
+	return slot, r.Err()
+}
+
+// Move is the player's character starting, changing or ending a movement.
+type Move struct {
+	Type     uint8 // walking, stopping, attacking and the like
+	Arg      uint8
+	Rotation uint8 // the direction faced; its unit is not known yet
+	X, Y     int32
+	Time     uint32 // the client's clock, as the handshake set it
+}
+
+func DecodeMove(body []byte) (Move, error) {
+	r := NewReader(body)
+	m := Move{Type: r.U8(), Arg: r.U8(), Rotation: r.U8(), X: r.I32(), Y: r.I32(), Time: r.U32()}
+	return m, r.Err()
+}
+
+// Version is the build the client reports while it loads the world.
+type Version struct {
+	Name      string
+	Timestamp string
+}
+
+func DecodeVersion(body []byte) (Version, error) {
+	r := NewReader(body)
+	v := Version{Name: r.String(33), Timestamp: r.String(33)}
+	return v, r.Err()
+}
+
 // DecodeEmpire reads the kingdom a new account picked: 1 Shinsoo, 2 Chunjo, 3 Jinno.
 func DecodeEmpire(body []byte) (uint8, error) {
 	r := NewReader(body)

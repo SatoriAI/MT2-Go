@@ -24,6 +24,10 @@ var clientFrames = map[ClientHeader]frameSpec{
 	ClientLoginByKey:      {size: 52, sequenced: true},
 	ClientEmpire:          {size: 2, sequenced: true},
 	ClientCreateCharacter: {size: 34, sequenced: true},
+	ClientSelectCharacter: {size: 2, sequenced: true},
+	ClientEnterGame:       {size: 1, sequenced: true},
+	ClientMove:            {size: 16, sequenced: true},
+	ClientVersion:         {size: 67, sequenced: true},
 }
 
 // ErrIncomplete means the buffer holds only part of the next packet; read more first.

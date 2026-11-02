@@ -2,6 +2,7 @@ package protocol
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"net/netip"
@@ -125,6 +126,8 @@ func TestEncodedPacketsMatchTheClientLayouts(t *testing.T) {
 		"auth success":  {EncodeAuthSuccess(0x12345678), "967856341201"},
 		"login failure": {EncodeLoginFailure(LoginWrongPassword), "0757524f4e47505744" + "00"},
 		"empire":        {EncodeEmpire(2), "5a02"},
+		"time":          {EncodeTime(0x01020304), "6a04030201"},
+		"channel":       {EncodeChannel(1), "7901"},
 		"name taken":    {EncodeCreateFailure(CreateNameTaken), "0901"},
 		"channel status": {
 			EncodeChannelStatus([]ChannelStatus{{Port: 13001, Status: ChannelNormal}}),
@@ -167,5 +170,91 @@ func TestCharacterListPlacesEveryFieldOfASlotWhereTheClientReadsIt(t *testing.T)
 	}
 	if empty := list[1 : 1+63]; !bytes.Equal(empty[:4], []byte{0, 0, 0, 0}) {
 		t.Errorf("slot 0 should be empty: %x", empty[:4])
+	}
+}
+
+func TestPointsAreSentWholeWithEachValueAtItsIndex(t *testing.T) {
+	points := EncodePoints(CharacterPoints{Level: 1, NextExp: 300, HP: 950, MaxHP: 950, ST: 5, MoveSpeed: 150})
+
+	if len(points) != 1021 || points[0] != 0x10 {
+		t.Fatalf("header %x, length %d", points[0], len(points))
+	}
+	at := func(index int) uint32 { return binary.LittleEndian.Uint32(points[1+4*index:]) }
+	for index, want := range map[int]uint32{1: 1, 4: 300, 5: 950, 6: 950, 12: 5, 19: 150, 2: 0, 254: 0} {
+		if got := at(index); got != want {
+			t.Errorf("index %d: got %d, want %d", index, got, want)
+		}
+	}
+}
+
+func TestSkillLevelsAreSentAllUnlearnt(t *testing.T) {
+	skills := EncodeSkillLevels()
+
+	if len(skills) != 1531 || skills[0] != 0x4C || !bytes.Equal(skills[1:], make([]byte, 1530)) {
+		t.Fatalf("got %d bytes starting %x", len(skills), skills[:2])
+	}
+}
+
+func TestDecodeSelectCharacterReadsTheSlot(t *testing.T) {
+	if slot, err := DecodeSelectCharacter([]byte{2}); err != nil || slot != 2 {
+		t.Fatalf("got %d %v", slot, err)
+	}
+}
+
+func TestMainCharacterPlacesEveryFieldWhereTheClientReadsIt(t *testing.T) {
+	got := EncodeMainCharacter(MainCharacter{VID: 7, Race: 2, Name: "Hendra", X: 963400, Y: 278200, Empire: 3, SkillGroup: 1})
+
+	want := mustHex(t, "71"+"07000000"+"0200"+ // header, vid, race
+		hex.EncodeToString(fixed("Hendra", 25))+
+		"48b30e00"+"b83e0400"+"00000000"+ // x, y, height
+		"03"+"01") // empire, skill group
+	if !bytes.Equal(got, want) {
+		t.Errorf("got  %x\nwant %x", got, want)
+	}
+}
+
+func TestCharacterAddPlacesEveryFieldWhereTheClientReadsIt(t *testing.T) {
+	got := EncodeCharacterAdd(CharacterAdd{VID: 7, Rotation: 90, X: 963400, Y: 278200, Type: EntityPlayer,
+		Race: 2, MoveSpeed: 150, AttackSpeed: 140})
+
+	want := mustHex(t, "01"+"07000000"+"0000b442"+ // header, vid, rotation 90.0
+		"48b30e00"+"b83e0400"+"00000000"+ // x, y, height
+		"06"+"0200"+"96"+"8c"+"00"+ // type, race, move and attack speed, state
+		"0000000000000000") // effects
+	if !bytes.Equal(got, want) {
+		t.Errorf("got  %x\nwant %x", got, want)
+	}
+}
+
+func TestCharacterInfoSendsThePartsAsBodyWeaponHeadHair(t *testing.T) {
+	got := EncodeCharacterInfo(CharacterInfo{VID: 7, Name: "Hendra", BodyPart: 1, HairPart: 3, Empire: 3, Level: 21})
+
+	want := mustHex(t, "88"+"07000000"+hex.EncodeToString(fixed("Hendra", 25))+
+		"0100"+"0000"+"0000"+"0300"+ // body, weapon, head, hair
+		"03"+"00000000"+"15000000"+ // empire, guild, level
+		"0000"+"00"+"00000000") // rank, player-kill mode, mount
+	if !bytes.Equal(got, want) {
+		t.Errorf("got  %x\nwant %x", got, want)
+	}
+}
+
+func TestDecodeVersionReadsNameAndTimestamp(t *testing.T) {
+	v, err := DecodeVersion(append(fixed("metin2client.bin", 33), fixed("1215955205", 33)...))
+
+	if err != nil || v != (Version{Name: "metin2client.bin", Timestamp: "1215955205"}) {
+		t.Fatalf("got %+v %v", v, err)
+	}
+}
+
+func TestDecodeMoveReadsTypeDirectionPositionAndTime(t *testing.T) {
+	body := []byte{1, 0, 64}
+	body = binary.LittleEndian.AppendUint32(body, 963500)
+	body = binary.LittleEndian.AppendUint32(body, 278300)
+	body = binary.LittleEndian.AppendUint32(body, 12345)
+
+	m, err := DecodeMove(body)
+
+	if err != nil || m != (Move{Type: 1, Rotation: 64, X: 963500, Y: 278300, Time: 12345}) {
+		t.Fatalf("got %+v %v", m, err)
 	}
 }

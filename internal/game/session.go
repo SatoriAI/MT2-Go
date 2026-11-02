@@ -1,6 +1,6 @@
-// Package game is the game port. So far it covers what happens before a character
-// enters the world: the login screen's channel check, the login by key, the kingdom
-// choice and the character list.
+// Package game is the game port: the login screen's channel check, the login by key, the
+// kingdom choice, creating and listing characters, and entering the world, where so far
+// the player can only move.
 package game
 
 import (
@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"sync/atomic"
 
 	"github.com/SatoriAI/MT2-Go/internal/account"
 	"github.com/SatoriAI/MT2-Go/internal/handshake"
@@ -25,6 +26,8 @@ type Accounts interface {
 	// CreateCharacter stores c and returns its id, while the account's kingdom is still
 	// empire: account.ErrKingdomChanged, ErrNameTaken or ErrSlotTaken otherwise.
 	CreateCharacter(ctx context.Context, accountID int64, empire account.Empire, c account.Character) (uint32, error)
+	// Character reads the account's character in slot, or returns account.ErrNotFound.
+	Character(ctx context.Context, accountID int64, slot int) (account.Character, error)
 }
 
 // Service is what every game connection shares.
@@ -35,6 +38,8 @@ type Service struct {
 	// public is the address the client is told to connect to for this game server. It
 	// has to be reachable from the client, so it is never 0.0.0.0.
 	public netip.AddrPort
+	// lastVID numbers the characters in the world, so each has its own id.
+	lastVID atomic.Uint32
 }
 
 func NewService(store Accounts, keys *account.Keys, clock handshake.Clock, public netip.AddrPort) *Service {
@@ -52,6 +57,7 @@ type session struct {
 	phase     protocol.Phase
 	accountID int64          // set once the login key is redeemed
 	empire    account.Empire // the account's kingdom as this connection last knew it
+	playing   *character     // set once the player pressed Start
 }
 
 func (s *session) Open() error { return s.conn.Send(s.sync.Greeting()...) }
@@ -79,6 +85,16 @@ func (s *session) Handle(ctx context.Context, f protocol.Frame) error {
 		return s.onEmpire(ctx, f.Body)
 	case s.phase == protocol.PhaseSelect && f.Header == protocol.ClientCreateCharacter:
 		return s.onCreateCharacter(ctx, f.Body)
+	case s.phase == protocol.PhaseSelect && f.Header == protocol.ClientSelectCharacter:
+		return s.onSelectCharacter(ctx, f.Body)
+	case s.phase == protocol.PhaseLoading && f.Header == protocol.ClientSelectCharacter:
+		return s.onSelectAgain(f.Body)
+	case s.phase == protocol.PhaseLoading && f.Header == protocol.ClientVersion:
+		return s.onVersion(f.Body)
+	case s.phase == protocol.PhaseLoading && f.Header == protocol.ClientEnterGame:
+		return s.onEnterGame()
+	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientMove:
+		return s.onMove(f.Body)
 	}
 	return fmt.Errorf("game: header 0x%02X not expected in phase %d", byte(f.Header), s.phase)
 }
