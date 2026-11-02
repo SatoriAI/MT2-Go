@@ -112,7 +112,7 @@ func TestEncodedPacketsMatchTheClientLayouts(t *testing.T) {
 func TestCharacterListPlacesEveryFieldOfASlotWhereTheClientReadsIt(t *testing.T) {
 	var slots [CharacterSlots]CharacterSummary
 	slots[1] = CharacterSummary{
-		ID: 7, Name: "Hendra", Job: 5, Level: 21, PlayMinutes: 0x0102,
+		ID: 7, Name: "Hendra", Race: 5, Level: 21, PlayMinutes: 0x0102,
 		ST: 6, HT: 4, DX: 3, IQ: 2, BodyPart: 0x1122, HairPart: 0x3344,
 		X: 469_300, Y: -2, SkillGroup: 1,
 	}

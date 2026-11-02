@@ -37,7 +37,7 @@ Every game mechanic has a page in `docs/mechanics/`: what the client does, the e
 - **Interfaces are declared where they are consumed** (`auth.Accounts` and `game.Accounts` are what each port needs from `store.Accounts`), and kept to the methods actually called.
 - **`internal/protocol` is pure:** bytes in, values out, no sockets, no database, no clock. Every packet test compares exact bytes.
 - **Header types are per direction** (`ClientHeader`, `ServerHeader`): numbers are reused across directions.
-- **Game types and wire types stay apart.** `internal/account` holds the game's own types (`Empire`, `Character`, `Class`, `Sex`, `SkillGroup`); `internal/protocol` holds packet layouts. The game port converts between them in `internal/game/wire.go`, the one place the client's numbers for named things appear; the store never imports `protocol`.
+- **Game types and wire types stay apart.** `internal/account` holds the game's own types (`Empire`, `Character`, `Class`, `Sex`, `SkillGroup`); `internal/protocol` holds packet layouts. The game port converts between them in `internal/game/wire.go`, the one place the client's numbers for named things appear. It is an adapter for the original client and goes when our own client replaces it, so never let those numbers into the model; the store never imports `protocol`.
 - **What the game names is stored by name**, as text with a CHECK listing the allowed values (`empire IN ('shinsoo', 'chunjo', 'jinno')`), so the tables read without a lookup. NULL means not chosen yet; the store reads it as `""`. Quantities stay numbers.
 - **The schema guarantees what the wire needs.** A column sent to the client has a CHECK matching its field (`level` 1–255 for a u8, name length in bytes), so no stored row can fail to encode. Names are unique on `lower(name)`.
 - **The environment is read only in `internal/config`** (forbidigo enforces it), and `.env.example` documents exactly the variables it reads (a config test enforces that).
@@ -77,6 +77,7 @@ A connection's goroutine is the only one that touches its session, so session st
 | Working on | Read |
 |---|---|
 | Process layout, database, migrations, dependencies | `architecture.md` |
+| Converting between names and the original client's numbers | `client-adapter.md` |
 | The comment length guard | `comment-blocks.md` |
 | The size of this file | `instructions-budget.md` |
 | How a packet or mechanic works | the page in `docs/mechanics/` |

@@ -89,7 +89,7 @@ One slot, 63 bytes:
 |---|---|---|---|
 | 0 | u32 id (0 = empty slot) | 39 | u16 body part (armour shown) |
 | 4 | char[25] name | 41 | u8 change-name flag |
-| 29 | u8 job | 42 | u16 hair part |
+| 29 | u8 race | 42 | u16 hair part |
 | 30 | u8 level | 44 | u32 unused |
 | 31 | u32 minutes played | 48 | i32 x |
 | 35 | u8 ST, HT, DX, IQ (4 bytes) | 52 | i32 y |
@@ -97,7 +97,7 @@ One slot, 63 bytes:
 | | | 60 | **u16 game port** |
 | | | 62 | u8 skill group |
 
-**Job** is class and sex in one number: `0`–`3` are the male warrior, ninja, sura and shaman, `4`–`7` the female ones. The **skill group** is `1` or `2`, the first or second path of the class (warrior: body, mental; ninja: dagger, archery; sura: weaponry, black magic; shaman: dragon, healing), and `0` before one is chosen. The database stores kingdom, class, sex and skill group by name (`'chunjo'`, `'sura'`, `'female'`, `'black_magic'`) and `internal/game/wire.go` turns them into these numbers. The **body part** is the armour the character wears; it is `0`, the bare body, until characters have equipment, and it will be worked out from the equipment rather than stored.
+**Race** is class and sex in one number, and not "female plus four": `0` warrior male, `1` ninja female, `2` sura male, `3` shaman female, `4` warrior female, `5` ninja male, `6` sura female, `7` shaman male (the client's `RACE_*` constants in `playersettingmodule.py`). An earlier version of this page, following open-mt2, had the ninja and shaman sexes the wrong way round. The **skill group** is `1` or `2`, the first or second path of the class (warrior: body, mental; ninja: dagger, archery; sura: weaponry, black magic; shaman: dragon, healing), and `0` before one is chosen. The database stores kingdom, class, sex and skill group by name (`'chunjo'`, `'sura'`, `'female'`, `'black_magic'`) and `internal/game/wire.go` turns them into these numbers. The **body part** is the armour the character wears; it is `0`, the bare body, until characters have equipment, and it will be worked out from the equipment rather than stored.
 
 The address and port are where the client connects when this character starts. They must be reachable from the client: never `0.0.0.0` (hence `GAME_PUBLIC_ADDRESS`). The address is written as four raw bytes; open-mt2 builds it as a signed integer and fails for any address whose last byte is 128 or more.
 
@@ -125,7 +125,7 @@ The server never sends a length: the client knows each header's size. The client
 | Handshake | `internal/handshake/handshake.go` |
 | Password check (bcrypt), login key | `internal/auth/session.go`, `internal/account/keys.go` |
 | Login by key, kingdom, character list, channel status | `internal/game/session.go` |
-| Names to the client's numbers (kingdom, job, skill group) | `internal/game/wire.go` |
+| Names to the client's numbers (kingdom, race, skill group) | `internal/game/wire.go` |
 | Accounts and characters | `internal/store/accounts.go`, `internal/store/migrations/001_accounts.sql` |
 
 A key is redeemable while its account holds a game connection and for 60 seconds after the last one closes, with the account name in any case. An account with an open game connection cannot log in again (`ALREADY`). A new login replaces the account's earlier key, so two clients that log in one after the other cannot both reach the game port. Account names are unique regardless of case.
@@ -141,6 +141,6 @@ The flow, layouts and the sequence-byte exemptions come from the client's own sc
 - `internal/protocol/protocol_test.go` — every packet above against its exact bytes, every field of a character slot, framing with and without the sequence byte, an incomplete packet, an address ending in 200.
 - `internal/handshake/handshake_test.go` — in-time echo, late echo and the corrected delta, a foreign id, a client that never syncs, no `D2` in ids.
 - `internal/account/keys_test.go` — the key works for a second connection, expires after the grace period, never while held; a new key revokes the old one; no key while the account is in the game.
-- `internal/game/wire_test.go` — job numbers for both sexes, skill group numbers, kingdom numbers both ways.
+- `internal/game/wire_test.go` — all eight race numbers both ways, skill group numbers, kingdom numbers both ways.
 - `internal/network/server_test.go` — a failed accept does not stop the port, the login deadline (busy or silent) and lifting it, a send to a client that stops reading giving up, shutdown and a closed listener closing open connections.
 - `internal/server/server_test.go` — the whole path over real sockets and a real database: new account to the kingdom screen, the kingdom stored and a stored character listed byte for byte on the next connection, a double-clicked kingdom keeping the connection, a new account changing its kingdom, a kingdom that cannot change once the account has a character, a skill group of another class refused by the database, `ALREADY`, a name in another case, a key presented for another name, a packet out of its phase, wrong passwords and unknown names, the channel check.

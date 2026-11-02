@@ -8,6 +8,7 @@ Why the rules in `AGENTS.md` are what they are: the reasoning, the measurements,
 |---|---|
 | `architecture.md` | One process with two ports, PostgreSQL, the migration runner, the dependency budget |
 | `instructions-budget.md` | Why the rules live in `AGENTS.md`, why it has a character budget of 10,000, and where it is checked |
+| `client-adapter.md` | Why the server models the game rather than the original client's protocol, and when `internal/game/wire.go` goes |
 | `comment-blocks.md` | The comment length guard, and how Go was added to it |
 
 How a game mechanic works is not a decision and does not live here: see `docs/mechanics/`.
