@@ -96,10 +96,10 @@ func TestEncodedPacketsMatchTheClientLayouts(t *testing.T) {
 		"handshake":     {EncodeHandshake(Handshake{ID: 1, Time: 2, Delta: -1}), "ff0100000002000000ffffffff"},
 		"auth success":  {EncodeAuthSuccess(0x12345678), "967856341201"},
 		"login failure": {EncodeLoginFailure(LoginWrongPassword), "0757524f4e47505744" + "00"},
-		"empire":        {EncodeEmpire(EmpireYellow), "5a02"},
+		"empire":        {EncodeEmpire(2), "5a02"},
 		"channel status": {
 			EncodeChannelStatus([]ChannelStatus{{Port: 13001, Status: ChannelNormal}}),
-			"d201000000c93201",
+			"d201000000c9320101",
 		},
 	}
 	for name, c := range cases {
@@ -109,9 +109,13 @@ func TestEncodedPacketsMatchTheClientLayouts(t *testing.T) {
 	}
 }
 
-func TestCharacterListIs329BytesAndCarriesTheGameAddressPerSlot(t *testing.T) {
+func TestCharacterListPlacesEveryFieldOfASlotWhereTheClientReadsIt(t *testing.T) {
 	var slots [CharacterSlots]CharacterSummary
-	slots[1] = CharacterSummary{ID: 7, Name: "Hendra", Level: 21}
+	slots[1] = CharacterSummary{
+		ID: 7, Name: "Hendra", Job: 5, Level: 21, PlayMinutes: 0x0102,
+		ST: 6, HT: 4, DX: 3, IQ: 2, BodyPart: 0x1122, HairPart: 0x3344,
+		X: 469_300, Y: -2, SkillGroup: 1,
+	}
 	game := netip.MustParseAddrPort("192.168.1.200:13001")
 
 	list := EncodeCharacterList(slots, game)
@@ -119,11 +123,20 @@ func TestCharacterListIs329BytesAndCarriesTheGameAddressPerSlot(t *testing.T) {
 	if len(list) != 329 {
 		t.Fatalf("length %d", len(list))
 	}
-	second := list[1+63 : 1+2*63]
-	if r := NewReader(second); r.U32() != 7 || r.String(25) != "Hendra" {
-		t.Errorf("slot 1 does not hold the character: %x", second)
+	want := mustHex(t, "07000000"+ // id
+		hex.EncodeToString(fixed("Hendra", 25))+
+		"05"+"15"+ // job, level
+		"02010000"+ // minutes played
+		"06040302"+ // ST HT DX IQ
+		"2211"+"00"+"4433"+ // body part, change-name flag, hair part
+		"00000000"+ // unused
+		"34290700"+"feffffff"+ // x, y
+		"c0a801c8"+"c932"+ // address in network order, port
+		"01") // skill group
+	if got := list[1+63 : 1+2*63]; !bytes.Equal(got, want) {
+		t.Errorf("slot 1:\n got %x\nwant %x", got, want)
 	}
-	if !bytes.Equal(second[56:62], []byte{192, 168, 1, 200, 0xC9, 0x32}) {
-		t.Errorf("address and port: got %x", second[56:62])
+	if empty := list[1 : 1+63]; !bytes.Equal(empty[:4], []byte{0, 0, 0, 0}) {
+		t.Errorf("slot 0 should be empty: %x", empty[:4])
 	}
 }

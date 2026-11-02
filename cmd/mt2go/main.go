@@ -58,7 +58,7 @@ func createAccount(ctx context.Context, cfg config.Config, name string) error {
 	}
 	password = strings.TrimRight(password, "\r\n")
 	if name == "" || len(name) > account.MaxNameLength {
-		return fmt.Errorf("the name must be 1 to %d characters", account.MaxNameLength)
+		return fmt.Errorf("the name must be 1 to %d bytes", account.MaxNameLength)
 	}
 	if password == "" || len(password) > account.MaxPasswordLength {
 		return fmt.Errorf("the password must be 1 to %d characters: the client sends no more", account.MaxPasswordLength)

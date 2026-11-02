@@ -5,6 +5,7 @@ package game
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/netip"
 
@@ -52,8 +53,7 @@ func (s *session) Handle(ctx context.Context, f protocol.Frame) error {
 		}))
 	case f.Header == protocol.ClientMarkLogin:
 		// Guild marks are not served yet; the client copes with a closed mark socket.
-		s.conn.Close()
-		return nil
+		return network.ErrHangUp
 	case s.phase == protocol.PhaseHandshake && f.Header == protocol.ClientHandshake:
 		return s.onHandshake(f.Body)
 	case s.phase == protocol.PhaseLogin && f.Header == protocol.ClientLoginByKey:
@@ -89,18 +89,20 @@ func (s *session) onLoginByKey(ctx context.Context, body []byte) error {
 		return fmt.Errorf("game: login key refused for %q", login.Name)
 	}
 	s.accountID = id
+	s.conn.SetIdleTimeout(0) // the player may sit on the selection screens for as long as they like
 
 	acc, err := s.svc.Store.AccountByID(ctx, id)
 	if err != nil {
 		return err
 	}
 	var packets [][]byte
-	if acc.Empire != protocol.EmpireNone {
-		slots, err := s.svc.Store.Characters(ctx, id)
+	if acc.Empire != account.EmpireNone {
+		characters, err := s.svc.Store.Characters(ctx, id)
 		if err != nil {
 			return err
 		}
-		packets = append(packets, protocol.EncodeEmpire(acc.Empire), protocol.EncodeCharacterList(slots, s.svc.Public))
+		packets = append(packets, protocol.EncodeEmpire(uint8(acc.Empire)),
+			protocol.EncodeCharacterList(slots(characters), s.svc.Public))
 	}
 	s.phase = protocol.PhaseSelect
 	s.conn.Log().Info("entered selection", "account", acc.Name, "empire", acc.Empire)
@@ -110,12 +112,46 @@ func (s *session) onLoginByKey(ctx context.Context, body []byte) error {
 // onEmpire stores the kingdom a new account picked. The client moves on to the character
 // screen by itself, so nothing is sent back.
 func (s *session) onEmpire(ctx context.Context, body []byte) error {
-	empire, err := protocol.DecodeEmpire(body)
+	raw, err := protocol.DecodeEmpire(body)
 	if err != nil {
 		return err
 	}
+	empire := account.Empire(raw)
 	if !empire.Valid() {
 		return fmt.Errorf("game: kingdom %d does not exist", empire)
 	}
-	return s.svc.Store.SetEmpire(ctx, s.accountID, empire)
+	chosen, err := s.svc.Store.ChooseEmpire(ctx, s.accountID, empire)
+	if err != nil {
+		return err
+	}
+	if !chosen {
+		return errors.New("game: the account already has a kingdom")
+	}
+	return nil
+}
+
+// slots lays the characters out as the selection screen shows them.
+func slots(characters []account.Character) [protocol.CharacterSlots]protocol.CharacterSummary {
+	var out [protocol.CharacterSlots]protocol.CharacterSummary
+	for _, c := range characters {
+		out[c.Slot] = protocol.CharacterSummary{
+			ID:          c.ID,
+			Name:        c.Name,
+			Job:         job(c.Class, c.Sex),
+			Level:       c.Level,
+			PlayMinutes: c.PlayMinutes,
+			ST:          c.ST, HT: c.HT, DX: c.DX, IQ: c.IQ,
+			HairPart: c.Hair,
+			X:        c.X, Y: c.Y,
+			SkillGroup: c.SkillGroup,
+		}
+	}
+	return out
+}
+
+// job is the client's single number for class and sex: 0 to 3 are the male warrior,
+// ninja, sura and shaman, 4 to 7 the female ones. The body part stays 0, the bare body, until
+// characters wear armour.
+func job(c account.Class, s account.Sex) uint8 {
+	return uint8(c) + 4*uint8(s)
 }

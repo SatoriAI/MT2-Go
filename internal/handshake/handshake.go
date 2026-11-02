@@ -14,8 +14,16 @@ import (
 // maxLag is how late, in milliseconds, the echo may arrive and still count as in sync.
 const maxLag = 500
 
-// ErrForeignID means the reply does not answer the handshake this server sent.
-var ErrForeignID = errors.New("handshake: reply carries another id")
+// maxRounds is how many corrected handshakes a connection gets. A real client settles in
+// one or two; one that never does is not worth a goroutine.
+const maxRounds = 8
+
+var (
+	// ErrForeignID means the reply does not answer the handshake this server sent.
+	ErrForeignID = errors.New("handshake: reply carries another id")
+	// ErrNoSync means the clocks never agreed within maxRounds.
+	ErrNoSync = errors.New("handshake: clocks never agreed")
+)
 
 // Clock is the server time the handshake shares: milliseconds since the server started,
 // as the u32 the client stores. It wraps after 49 days, and so does the client's copy.
@@ -29,8 +37,9 @@ func (c Clock) Now() uint32 {
 
 // Sync is the handshake state of one connection.
 type Sync struct {
-	clock Clock
-	sent  protocol.Handshake
+	clock  Clock
+	sent   protocol.Handshake
+	rounds int
 }
 
 func NewSync(clock Clock) *Sync {
@@ -53,6 +62,9 @@ func (s *Sync) Answer(reply protocol.Handshake) (done bool, next protocol.Handsh
 	lag := int64(now) - (int64(reply.Time) + int64(reply.Delta))
 	if lag >= 0 && lag <= maxLag {
 		return true, protocol.Handshake{}, nil
+	}
+	if s.rounds++; s.rounds > maxRounds {
+		return false, protocol.Handshake{}, ErrNoSync
 	}
 	delta := (int64(now) - int64(reply.Time)) / 2
 	if delta < 0 {

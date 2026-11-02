@@ -3,6 +3,7 @@ package account
 import (
 	"crypto/rand"
 	"encoding/binary"
+	"strings"
 	"sync"
 	"time"
 )
@@ -31,29 +32,37 @@ func NewKeys(now func() time.Time) *Keys {
 	return &Keys{now: now, keys: map[uint32]issuedKey{}, online: map[int64]int{}}
 }
 
-// Issue returns a new key for the account. Until a game connection redeems it, it
-// expires like a key whose connections have all closed.
-func (k *Keys) Issue(accountID int64, name string) uint32 {
+// Issue returns a new key for the account, or false if the account holds a game
+// connection. A new key replaces any the account was issued before, so two logins in
+// quick succession cannot both reach the game port. Until a game connection redeems it,
+// the key expires like one whose connections have all closed.
+func (k *Keys) Issue(accountID int64, name string) (uint32, bool) {
 	k.mu.Lock()
 	defer k.mu.Unlock()
-	k.forgetExpired()
+	if k.online[accountID] > 0 {
+		return 0, false
+	}
+	for key, issued := range k.keys {
+		if issued.accountID == accountID || k.expired(issued) {
+			delete(k.keys, key)
+		}
+	}
 	for {
 		key := randomKey()
 		if _, taken := k.keys[key]; key != 0 && !taken {
 			k.keys[key] = issuedKey{accountID: accountID, name: name, expires: k.now().Add(KeyGrace)}
-			return key
+			return key, true
 		}
 	}
 }
 
-// Redeem checks a key presented with an account name, and on success counts one more
-// open game connection for the account. Call Release when that connection closes.
+// Redeem checks a key presented with an account name, in any case, and on success counts
+// one more open game connection for the account. Call Release when that connection closes.
 func (k *Keys) Redeem(key uint32, name string) (accountID int64, ok bool) {
 	k.mu.Lock()
 	defer k.mu.Unlock()
-	k.forgetExpired()
 	issued, found := k.keys[key]
-	if !found || issued.name != name {
+	if !found || !strings.EqualFold(issued.name, name) || k.expired(issued) {
 		return 0, false
 	}
 	k.online[issued.accountID]++
@@ -74,13 +83,6 @@ func (k *Keys) Release(accountID int64) {
 	k.setExpiry(accountID, k.now().Add(KeyGrace))
 }
 
-// Online reports whether the account holds a game connection.
-func (k *Keys) Online(accountID int64) bool {
-	k.mu.Lock()
-	defer k.mu.Unlock()
-	return k.online[accountID] > 0
-}
-
 func (k *Keys) setExpiry(accountID int64, at time.Time) {
 	for key, issued := range k.keys {
 		if issued.accountID == accountID {
@@ -90,13 +92,8 @@ func (k *Keys) setExpiry(accountID int64, at time.Time) {
 	}
 }
 
-func (k *Keys) forgetExpired() {
-	now := k.now()
-	for key, issued := range k.keys {
-		if !issued.expires.IsZero() && now.After(issued.expires) {
-			delete(k.keys, key)
-		}
-	}
+func (k *Keys) expired(issued issuedKey) bool {
+	return !issued.expires.IsZero() && k.now().After(issued.expires)
 }
 
 // randomKey comes from crypto/rand because the key, with the account name, is all the

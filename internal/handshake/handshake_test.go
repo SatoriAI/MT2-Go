@@ -49,6 +49,20 @@ func TestAnswerRejectsAReplyToAnotherHandshake(t *testing.T) {
 	}
 }
 
+func TestAClientThatNeverSyncsIsGivenUp(t *testing.T) {
+	s := NewSync(clockAt(10_000))
+	sent := s.Start()
+
+	var err error
+	for range maxRounds + 1 {
+		_, _, err = s.Answer(protocol.Handshake{ID: sent.ID, Time: sent.Time - 2_000})
+	}
+
+	if !errors.Is(err, ErrNoSync) {
+		t.Fatalf("got %v", err)
+	}
+}
+
 func TestNewIDNeverContainsTheChannelStatusHeader(t *testing.T) {
 	for range 10_000 {
 		if hasByte(newID(), 0xD2) {

@@ -49,9 +49,9 @@ func DecodeLoginByKey(body []byte) (LoginByKey, error) {
 	return l, r.Err()
 }
 
-// DecodeEmpire reads the kingdom a new account picked.
-func DecodeEmpire(body []byte) (Empire, error) {
+// DecodeEmpire reads the kingdom a new account picked: 1 Shinsoo, 2 Chunjo, 3 Jinno.
+func DecodeEmpire(body []byte) (uint8, error) {
 	r := NewReader(body)
-	e := Empire(r.U8())
+	e := r.U8()
 	return e, r.Err()
 }

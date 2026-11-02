@@ -42,9 +42,9 @@ func EncodeLoginFailure(status LoginStatus) []byte {
 	return w.Bytes()
 }
 
-func EncodeEmpire(e Empire) []byte {
+func EncodeEmpire(e uint8) []byte {
 	w := NewWriter(byte(ServerEmpire), 2)
-	w.U8(byte(e))
+	w.U8(e)
 	return w.Bytes()
 }
 
@@ -109,12 +109,15 @@ type ChannelStatus struct {
 // ChannelNormal is the "NORM" state; 3 ("FULL") would stop the client connecting.
 const ChannelNormal uint8 = 1
 
+// EncodeChannelStatus ends with a success byte, as the original server's reply does; the
+// client reads past the entries and discards it.
 func EncodeChannelStatus(channels []ChannelStatus) []byte {
-	w := NewWriter(byte(ServerChannelStatus), 5+3*len(channels))
+	w := NewWriter(byte(ServerChannelStatus), 6+3*len(channels))
 	w.I32(int32(len(channels))) //nolint:gosec // one entry per channel this server runs
 	for _, c := range channels {
 		w.U16(c.Port)
 		w.U8(c.Status)
 	}
+	w.U8(1)
 	return w.Bytes()
 }

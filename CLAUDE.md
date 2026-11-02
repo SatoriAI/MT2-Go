@@ -37,6 +37,8 @@ Every game mechanic has a page in `docs/mechanics/`: what the client does, the e
 - **Interfaces are declared where they are consumed** (`account.Store` is what the login flow needs), and kept to the methods actually called.
 - **`internal/protocol` is pure:** bytes in, values out, no sockets, no database, no clock. Every packet test compares exact bytes.
 - **Header types are per direction** (`ClientHeader`, `ServerHeader`): numbers are reused across directions.
+- **Game types and wire types stay apart.** `internal/account` holds the game's own types (`Empire`, `Character`, `Class`, `Sex`); `internal/protocol` holds packet layouts. Sessions convert between them; the store never imports `protocol`.
+- **The schema guarantees what the wire needs.** A column sent to the client has a CHECK matching its field (`level` 1–255 for a u8, name length in bytes), so no stored row can fail to encode. Names are unique on `lower(name)`.
 - **The environment is read only in `internal/config`**, and every variable is documented in `.env.example`.
 - **Errors wrap with `%w` and are checked with `errors.Is`/`errors.As`.** A session returns an error to end its connection; it never panics.
 - **`//nolint` names its linter and gives a reason**, enforced by nolintlint.
@@ -58,7 +60,7 @@ docs/mechanics/     how each mechanic works
 docs/decisions/     why the rules here are what they are
 ```
 
-A connection's goroutine is the only one that touches its session, so session state needs no lock. State shared between connections (`account.Keys`) locks itself.
+A connection's goroutine is the only one that touches its session, so session state needs no lock. A connection that has not logged in is closed after 30 seconds of silence; a session returns `network.ErrHangUp` to end its connection without logging a warning. State shared between connections (`account.Keys`) locks itself.
 
 ## Decisions worth not relitigating
 

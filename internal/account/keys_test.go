@@ -14,9 +14,18 @@ func newKeys() (*Keys, *fakeClock) {
 	return NewKeys(clock.now), clock
 }
 
+func issue(t *testing.T, keys *Keys, id int64, name string) uint32 {
+	t.Helper()
+	key, ok := keys.Issue(id, name)
+	if !ok {
+		t.Fatalf("no key for %s", name)
+	}
+	return key
+}
+
 func TestAKeyIsRedeemedOnlyWithTheNameItWasIssuedFor(t *testing.T) {
 	keys, _ := newKeys()
-	key := keys.Issue(1, "admin")
+	key := issue(t, keys, 1, "admin")
 
 	if _, ok := keys.Redeem(key, "other"); ok {
 		t.Fatal("redeemed with another name")
@@ -28,7 +37,7 @@ func TestAKeyIsRedeemedOnlyWithTheNameItWasIssuedFor(t *testing.T) {
 
 func TestAKeyWorksForASecondConnectionAfterTheFirstCloses(t *testing.T) {
 	keys, clock := newKeys()
-	key := keys.Issue(1, "admin")
+	key := issue(t, keys, 1, "admin")
 	keys.Redeem(key, "admin")
 	keys.Release(1)
 	clock.t = clock.t.Add(KeyGrace - time.Second)
@@ -40,7 +49,7 @@ func TestAKeyWorksForASecondConnectionAfterTheFirstCloses(t *testing.T) {
 
 func TestAKeyExpiresAfterTheGracePeriodWithNoConnection(t *testing.T) {
 	keys, clock := newKeys()
-	key := keys.Issue(1, "admin")
+	key := issue(t, keys, 1, "admin")
 	keys.Redeem(key, "admin")
 	keys.Release(1)
 	clock.t = clock.t.Add(KeyGrace + time.Second)
@@ -52,7 +61,7 @@ func TestAKeyExpiresAfterTheGracePeriodWithNoConnection(t *testing.T) {
 
 func TestAKeyDoesNotExpireWhileAConnectionHoldsIt(t *testing.T) {
 	keys, clock := newKeys()
-	key := keys.Issue(1, "admin")
+	key := issue(t, keys, 1, "admin")
 	keys.Redeem(key, "admin")
 	clock.t = clock.t.Add(10 * KeyGrace)
 
@@ -61,18 +70,62 @@ func TestAKeyDoesNotExpireWhileAConnectionHoldsIt(t *testing.T) {
 	}
 }
 
-func TestOnlineCountsOpenGameConnections(t *testing.T) {
+func TestAKeyIsRedeemedWhateverTheCaseOfTheName(t *testing.T) {
 	keys, _ := newKeys()
-	key := keys.Issue(1, "admin")
+	key := issue(t, keys, 1, "admin")
+
+	if _, ok := keys.Redeem(key, "ADMIN"); !ok {
+		t.Fatal("refused the name typed in another case")
+	}
+}
+
+func TestNoKeyIsIssuedWhileTheAccountHoldsAGameConnection(t *testing.T) {
+	keys, _ := newKeys()
+	keys.Redeem(issue(t, keys, 1, "admin"), "admin")
+
+	if _, ok := keys.Issue(1, "admin"); ok {
+		t.Fatal("issued a second key to an account in the game")
+	}
+}
+
+func TestANewKeyRevokesTheOneIssuedBefore(t *testing.T) {
+	keys, _ := newKeys()
+	first := issue(t, keys, 1, "admin")
+	second := issue(t, keys, 1, "admin")
+
+	if _, ok := keys.Redeem(first, "admin"); ok {
+		t.Fatal("the older key still works, so two clients could share the account")
+	}
+	if _, ok := keys.Redeem(second, "admin"); !ok {
+		t.Fatal("the newer key was refused")
+	}
+}
+
+func TestAKeyIsIssuedAgainOnceEveryConnectionHasClosed(t *testing.T) {
+	keys, _ := newKeys()
+	key := issue(t, keys, 1, "admin")
 	keys.Redeem(key, "admin")
 	keys.Redeem(key, "admin")
 
 	keys.Release(1)
-	if !keys.Online(1) {
-		t.Fatal("offline with one connection still open")
+	if _, ok := keys.Issue(1, "admin"); ok {
+		t.Fatal("issued with one connection still open")
 	}
 	keys.Release(1)
-	if keys.Online(1) {
-		t.Fatal("online with no connection")
+	if _, ok := keys.Issue(1, "admin"); !ok {
+		t.Fatal("refused with no connection open")
+	}
+}
+
+func TestIssuingForOneAccountKeepsAnotherAccountsHeldKey(t *testing.T) {
+	keys, clock := newKeys()
+	held := issue(t, keys, 1, "admin")
+	keys.Redeem(held, "admin")
+	clock.t = clock.t.Add(10 * KeyGrace)
+
+	issue(t, keys, 2, "other")
+
+	if _, ok := keys.Redeem(held, "admin"); !ok {
+		t.Fatal("a held key was dropped while issuing another account's")
 	}
 }

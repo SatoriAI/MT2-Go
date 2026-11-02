@@ -8,7 +8,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/SatoriAI/MT2-Go/internal/account"
-	"github.com/SatoriAI/MT2-Go/internal/protocol"
 )
 
 // Accounts implements account.Store on PostgreSQL.
@@ -28,7 +27,7 @@ func (a Accounts) CreateAccount(ctx context.Context, name string, passwordHash [
 }
 
 func (a Accounts) AccountByName(ctx context.Context, name string) (account.Account, error) {
-	return a.one(ctx, `WHERE name = $1`, name)
+	return a.one(ctx, `WHERE lower(name) = lower($1)`, name)
 }
 
 func (a Accounts) AccountByID(ctx context.Context, id int64) (account.Account, error) {
@@ -46,32 +45,23 @@ func (a Accounts) one(ctx context.Context, where string, arg any) (account.Accou
 	return acc, err
 }
 
-func (a Accounts) SetEmpire(ctx context.Context, id int64, empire protocol.Empire) error {
-	tag, err := a.Pool.Exec(ctx, `UPDATE accounts SET empire = $2 WHERE id = $1`, id, empire)
-	if err == nil && tag.RowsAffected() == 0 {
-		return account.ErrNotFound
-	}
-	return err
+func (a Accounts) ChooseEmpire(ctx context.Context, id int64, empire account.Empire) (bool, error) {
+	tag, err := a.Pool.Exec(ctx, `UPDATE accounts SET empire = $2 WHERE id = $1 AND empire = 0`, id, empire)
+	return tag.RowsAffected() == 1, err
 }
 
-func (a Accounts) Characters(ctx context.Context, accountID int64) ([protocol.CharacterSlots]protocol.CharacterSummary, error) {
-	var slots [protocol.CharacterSlots]protocol.CharacterSummary
+func (a Accounts) Characters(ctx context.Context, accountID int64) ([]account.Character, error) {
 	rows, err := a.Pool.Query(ctx, `
-		SELECT slot, id, name, job, level, play_minutes, st, ht, dx, iq,
-		       body_part, hair_part, x, y, skill_group
-		FROM characters WHERE account_id = $1`, accountID)
+		SELECT id, slot, name, class, sex, level, play_minutes, st, ht, dx, iq,
+		       hair, map, x, y, skill_group
+		FROM characters WHERE account_id = $1 ORDER BY slot`, accountID)
 	if err != nil {
-		return slots, err
+		return nil, err
 	}
-	defer rows.Close()
-	for rows.Next() {
-		var slot int
-		var c protocol.CharacterSummary
-		if err := rows.Scan(&slot, &c.ID, &c.Name, &c.Job, &c.Level, &c.PlayMinutes,
-			&c.ST, &c.HT, &c.DX, &c.IQ, &c.BodyPart, &c.HairPart, &c.X, &c.Y, &c.SkillGroup); err != nil {
-			return slots, err
-		}
-		slots[slot] = c
-	}
-	return slots, rows.Err()
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (account.Character, error) {
+		var c account.Character
+		err := row.Scan(&c.ID, &c.Slot, &c.Name, &c.Class, &c.Sex, &c.Level, &c.PlayMinutes,
+			&c.ST, &c.HT, &c.DX, &c.IQ, &c.Hair, &c.Map, &c.X, &c.Y, &c.SkillGroup)
+		return c, err
+	})
 }

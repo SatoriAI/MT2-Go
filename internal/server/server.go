@@ -19,6 +19,10 @@ import (
 	"github.com/SatoriAI/MT2-Go/internal/store"
 )
 
+// idleTimeout closes a connection that stays silent this long before the player has
+// logged in; a real client answers the server within a second.
+const idleTimeout = 30 * time.Second
+
 // Run serves both ports until ctx ends or one of them fails.
 func Run(ctx context.Context, cfg config.Config, log *slog.Logger) error {
 	pool, err := store.Open(ctx, cfg.DatabaseURL)
@@ -48,13 +52,20 @@ type Ports struct {
 func Serve(ctx context.Context, ports Ports, accounts account.Store, cfg config.Config, log *slog.Logger) error {
 	keys := account.NewKeys(time.Now)
 	clock := handshake.NewClock()
-	authSvc := &auth.Service{Store: accounts, Keys: keys, Clock: clock}
+	authSvc, err := auth.NewService(accounts, keys, clock)
+	if err != nil {
+		return err
+	}
 	gameSvc := &game.Service{Store: accounts, Keys: keys, Clock: clock, Public: cfg.GamePublic}
 
 	log.Info("listening", "auth", ports.Auth.Addr().String(), "game", ports.Game.Addr().String(),
 		"game_public", cfg.GamePublic.String())
 	g, ctx := errgroup.WithContext(ctx)
-	g.Go(func() error { return network.Serve(ctx, ports.Auth, authSvc.NewSession, log.With("port", "auth")) })
-	g.Go(func() error { return network.Serve(ctx, ports.Game, gameSvc.NewSession, log.With("port", "game")) })
+	g.Go(func() error {
+		return network.Serve(ctx, ports.Auth, authSvc.NewSession, idleTimeout, log.With("port", "auth"))
+	})
+	g.Go(func() error {
+		return network.Serve(ctx, ports.Game, gameSvc.NewSession, idleTimeout, log.With("port", "game"))
+	})
 	return g.Wait()
 }
