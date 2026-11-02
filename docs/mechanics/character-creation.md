@@ -8,7 +8,7 @@ On the character screen, the player clicks an empty slot. If every slot is empty
 
 1. **Kingdom again.** Clicking an empty slot while every slot is empty opens the kingdom screen a second time (`introselect.py` `CreateCharacter`, `introempire.py` `ReselectEmpireWindow`), starting on a random kingdom, and sends `EMPIRE` with the choice. See [connection-and-login.md](connection-and-login.md) for that packet and the rule.
 2. **Create.** On confirm the client waits 1.5 seconds for the animation, then sends `CREATE_CHARACTER` (`introcreate.py`).
-3. **Reply.** On success it returns to the character screen. The scripts show only that switch; the character's slot is filled from this reply in the client's compiled code, which is how open-mt2 works too. That the slot shows on screen is not yet confirmed. On failure it shows the message for the reason and stays on the create screen.
+3. **Reply.** On success it returns to the character screen, with the new character in its slot, filled from this reply (seen with the real client). On failure it shows the message for the reason and stays on the create screen.
 
 The create screen limits the name to 12 characters. It also refuses, before sending, a name containing "GM" or a word from its insult list; the server does not repeat those two checks yet.
 
@@ -71,7 +71,7 @@ The create screen limits the name to 12 characters. It also refuses, before send
   - A taken slot is refused with reason `0`, so the screen shows a general failure. open-mt2 sends `1` there, which shows "name taken"; we chose not to say something untrue.
   - A kingdom changed meanwhile by another connection of the same account closes this connection: its screens are out of date, and logging in again shows the account as it is.
   - `ChooseEmpire` takes the same lock, so a kingdom change and a creation cannot interleave. Each one sees the other's result.
-- **The reply** is `08` with the new character's record. Its look is stored but sent as body part `0` for now, like every character's. The map is not stored: positions are world coordinates, and the client's `atlasinfo.txt` gives each map's area.
+- **The reply** is `08` with the new character's record, its look sent as the body part. The map is not stored: positions are world coordinates, and the client's `atlasinfo.txt` gives each map's area.
 
 ## How we know
 
@@ -99,7 +99,6 @@ The create screen limits the name to 12 characters. It also refuses, before send
 
 ## Not done yet
 
-- Deleting a character (`05`, with the 7-character code).
+- Deleting a character. The original asks for a 7-character code (`05`); that policy is too weak and is deliberately not adopted, and deletion will get a rule of its own, in our own client.
 - The "GM" and insult name checks.
-- Showing the chosen look through the body part.
 - Hit points, mana and the other derived values.

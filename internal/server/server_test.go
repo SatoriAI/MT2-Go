@@ -433,7 +433,8 @@ func TestANewCharacterIsCreatedAndListedOnTheNextLogin(t *testing.T) {
 	game.createCharacter(0, "Hendra", 6, 1) // a female sura in her second look
 
 	hendra := protocol.CharacterSummary{ID: 1, Name: "Hendra", Race: 6, Level: 1,
-		ST: 5, HT: 3, DX: 3, IQ: 5, X: 963400, Y: 278200} // the sura's start, at Jinno's village
+		ST: 5, HT: 3, DX: 3, IQ: 5, X: 963400, Y: 278200, // the sura's start, at Jinno's village
+		BodyPart: 1} // her look, shown as the body part
 	address := netip.MustParseAddrPort(h.game)
 	game.expect(protocol.EncodeCharacterCreated(0, hendra, address))
 	_ = game.conn.Close()
