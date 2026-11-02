@@ -6,10 +6,8 @@ On the character screen the player picks a character and presses **Start**. The 
 
 ## What the client does
 
-Everything happens on the game connection already open; the client does not reconnect.
-
-1. **Start.** The select screen plays the selection motion, then asks for the character by its slot (`introselect.py`).
-2. **Loading.** At phase `LOADING` the client opens the loading screen, which may ask for the same slot again (`introloading.py`). It reads the main character's race, kingdom, skill group and position, loads the map those coordinates fall in, and steps through its loading work one frame at a time.
+1. **Start.** The select screen plays the selection motion. Then the client opens a **new** game connection, does the handshake and logs in with the **same key** (`LOGIN2`), and on that connection asks for the character by its slot (`introselect.py`). Seen with the real client: the server logged a second "entered selection" a few seconds after the first, then the loading on the new connection. This is why a login key must survive its first use ([connection page](connection-and-login.md)).
+2. **Loading.** At phase `LOADING` the client opens the loading screen, which may ask for the same slot again (`introloading.py`). It reports its build with `CLIENT_VERSION`, reads the main character's race, kingdom, skill group and position, loads the map those coordinates fall in, and steps through its loading work one frame at a time.
 3. **Enter.** The last loading step sends `ENTERGAME`. At phase `GAME` the client opens the game window.
 
 No map is named anywhere: positions are world coordinates, and the client's `atlasinfo.txt` gives each map's area.
@@ -22,6 +20,14 @@ No map is named anywhere: positions are world coordinates, and the client's `atl
 |---|---|---|
 | 0 | u8 header | `06` |
 | 1 | u8 slot | `0`–`3` |
+
+### CLIENT_VERSION — client, `F1`, 67 bytes, sequenced
+
+| Offset | Field | |
+|---|---|---|
+| 0 | u8 header | `F1` |
+| 1 | char[33] name | the client executable's name |
+| 34 | char[33] timestamp | its build time |
 
 ### ENTERGAME — client, `0A`, 1 byte, sequenced
 
@@ -92,7 +98,7 @@ A u32 time and a u8 channel. The time is the server clock the handshake already 
 `internal/game/enter.go`:
 
 - **Start (`SELECT`).** `06` loads the character in that slot. An empty slot closes the connection, since the client only offers slots it shows a character in. The character gets a vid, unique in this server process. Then the server sends phase `LOADING`, `MAIN_CHARACTER`, `POINTS` and `SKILL_LEVEL`.
-- **Loading.** A second `06` for the same slot is ignored; any other slot closes the connection. `ENTERGAME` moves to `GAME` and sends the time, the channel, and the player's own character: `CHARACTER_ADD`, then `CHARACTER_ADDITIONAL_INFO`. The body part is the character's look, as in the list.
+- **Loading.** A second `06` for the same slot is ignored; any other slot closes the connection. `CLIENT_VERSION` is logged and otherwise ignored. `ENTERGAME` moves to `GAME` and sends the time, the channel, and the player's own character: `CHARACTER_ADD`, then `CHARACTER_ADDITIONAL_INFO`. The body part is the character's look, as in the list.
 - **Derived values** (`internal/account/points.go`) are worked out, not stored:
   - **Max hit points:** 700 + 50 per vitality + 100 per level.
   - **Max mana:** 500 for warrior and ninja, 700 for sura and shaman, + 20 per intelligence + 50 per level.
@@ -113,6 +119,7 @@ A u32 time and a u8 channel. The time is the server clock the handshake already 
 - `internal/server/server_test.go`:
   - Start then enter, with every packet compared;
   - the same slot asked for again while loading;
+  - the client's version while loading;
   - another slot while loading;
   - an empty slot;
   - entering before Start.

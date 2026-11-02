@@ -16,6 +16,7 @@ const (
 	ClientLoginByKey      ClientHeader = 0x6D // LOGIN2, on the game port
 	ClientLogin           ClientHeader = 0x6F // LOGIN3, on the auth port
 	ClientStateChecker    ClientHeader = 0xCE
+	ClientVersion         ClientHeader = 0xF1
 	ClientHandshake       ClientHeader = 0xFF
 )
 

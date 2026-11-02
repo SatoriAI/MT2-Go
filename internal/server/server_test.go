@@ -621,6 +621,20 @@ func TestStartLoadsTheWorldAndEnteringPutsThePlayerInIt(t *testing.T) {
 	game.expectOpen()
 }
 
+// Seen with the real client: while loading it reports its version before entering.
+func TestTheClientsVersionWhileLoadingIsAccepted(t *testing.T) {
+	h := start(t)
+	game := h.withHendra()
+	game.selectCharacter(0)
+	game.expectLoading()
+
+	game.send([]byte{byte(protocol.ClientVersion)}, field("metin2client.bin", 33), field("1215955205", 33),
+		[]byte{sequenceByte})
+	game.enterGame()
+
+	game.expect(protocol.EncodePhase(protocol.PhaseGame))
+}
+
 // The loading screen may ask for the character the select screen already asked for.
 func TestTheSameCharacterSelectedAgainWhileLoadingIsIgnored(t *testing.T) {
 	h := start(t)

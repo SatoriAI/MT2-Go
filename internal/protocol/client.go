@@ -73,6 +73,18 @@ func DecodeSelectCharacter(body []byte) (uint8, error) {
 	return slot, r.Err()
 }
 
+// Version is the build the client reports while it loads the world.
+type Version struct {
+	Name      string
+	Timestamp string
+}
+
+func DecodeVersion(body []byte) (Version, error) {
+	r := NewReader(body)
+	v := Version{Name: r.String(33), Timestamp: r.String(33)}
+	return v, r.Err()
+}
+
 // DecodeEmpire reads the kingdom a new account picked: 1 Shinsoo, 2 Chunjo, 3 Jinno.
 func DecodeEmpire(body []byte) (uint8, error) {
 	r := NewReader(body)

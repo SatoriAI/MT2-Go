@@ -237,3 +237,11 @@ func TestCharacterInfoSendsThePartsAsBodyWeaponHeadHair(t *testing.T) {
 		t.Errorf("got  %x\nwant %x", got, want)
 	}
 }
+
+func TestDecodeVersionReadsNameAndTimestamp(t *testing.T) {
+	v, err := DecodeVersion(append(fixed("metin2client.bin", 33), fixed("1215955205", 33)...))
+
+	if err != nil || v != (Version{Name: "metin2client.bin", Timestamp: "1215955205"}) {
+		t.Fatalf("got %+v %v", v, err)
+	}
+}

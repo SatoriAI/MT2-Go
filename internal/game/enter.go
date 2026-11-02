@@ -67,6 +67,16 @@ func (s *session) onSelectAgain(body []byte) error {
 	return nil
 }
 
+// onVersion records which client build is loading; nothing depends on it yet.
+func (s *session) onVersion(body []byte) error {
+	v, err := protocol.DecodeVersion(body)
+	if err != nil {
+		return err
+	}
+	s.conn.Log().Info("client version", "name", v.Name, "timestamp", v.Timestamp)
+	return nil
+}
+
 // onEnterGame puts the player in the world once the client has loaded the map: the game
 // phase, the clock and channel, then the player's own character.
 func (s *session) onEnterGame() error {

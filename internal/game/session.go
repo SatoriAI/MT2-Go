@@ -89,6 +89,8 @@ func (s *session) Handle(ctx context.Context, f protocol.Frame) error {
 		return s.onSelectCharacter(ctx, f.Body)
 	case s.phase == protocol.PhaseLoading && f.Header == protocol.ClientSelectCharacter:
 		return s.onSelectAgain(f.Body)
+	case s.phase == protocol.PhaseLoading && f.Header == protocol.ClientVersion:
+		return s.onVersion(f.Body)
 	case s.phase == protocol.PhaseLoading && f.Header == protocol.ClientEnterGame:
 		return s.onEnterGame()
 	}
