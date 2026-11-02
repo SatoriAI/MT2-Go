@@ -2,7 +2,7 @@
 
 A Metin2 server written from scratch in Go, compatible with the original TMP4 game client, built so that every mechanic is understood and written down. Go 1.27 + PostgreSQL 17.
 
-**This file is the rules. The reasoning is in `docs/decisions/`**, indexed at the bottom. Read the one file covering the area you are working in; do not load them all. Conventions that are not specific to this project — commits, pull requests, backend defaults — are in the guidelines your global agent instructions point at, and are deliberately not repeated here.
+**This file is the rules. The reasoning is in `docs/decisions/`**, indexed at the bottom. Read the one file covering the area you are working in; do not load them all. **Commits, pull requests and where code may come from are in [`CONTRIBUTING.md`](CONTRIBUTING.md)**, written for people and agents alike; follow it, and do not repeat it here.
 
 ## The bar
 
@@ -29,7 +29,7 @@ PostgreSQL listens on host port 15432 so this project coexists with others runni
 
 Every game mechanic has a page in `docs/mechanics/`: what the client does, the exact bytes, what the server does, how we know (client script or observed traffic), and which test proves it. **A change to a mechanic updates its page in the same commit.** A page states facts in our own words; it never pastes code from another server or from the client.
 
-**Sources.** open-mt2 (`~/Projects/open-mt2`, GPL) and the client's scripts are where protocol facts come from; this repository is MIT and copies no code from either. Leaked original server code is not used, read or referenced.
+**Sources.** Protocol facts come from open-mt2 (`~/Projects/open-mt2`) and the client's scripts; no code is copied from either, and leaked original server code is never used. The full rule is in `CONTRIBUTING.md`.
 
 ## Go conventions
 

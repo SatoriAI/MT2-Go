@@ -48,7 +48,7 @@ internal/store/    PostgreSQL and migrations
 docs/mechanics/    how each mechanic works
 ```
 
-Conventions, for people and coding agents alike, are in [`CLAUDE.md`](CLAUDE.md); the reasoning behind them is in [`docs/decisions/`](docs/decisions/).
+How to contribute — where code may come from, commits and pull requests — is in [`CONTRIBUTING.md`](CONTRIBUTING.md). Code conventions are in [`CLAUDE.md`](CLAUDE.md), and the reasoning behind them is in [`docs/decisions/`](docs/decisions/).
 
 ## Not affiliated
 
