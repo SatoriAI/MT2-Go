@@ -70,21 +70,26 @@ func skillGroupNumber(c account.Class, g account.SkillGroup) uint8 {
 func slots(characters []account.Character) [protocol.CharacterSlots]protocol.CharacterSummary {
 	var out [protocol.CharacterSlots]protocol.CharacterSummary
 	for _, c := range characters {
-		out[c.Slot] = protocol.CharacterSummary{
-			ID:          c.ID,
-			Name:        c.Name,
-			Race:        raceNumber(c.Class, c.Sex),
-			Level:       c.Level,
-			PlayMinutes: c.PlayMinutes,
-			ST:          c.ST,
-			HT:          c.HT,
-			DX:          c.DX,
-			IQ:          c.IQ,
-			HairPart:    c.Hair,
-			X:           c.X,
-			Y:           c.Y,
-			SkillGroup:  skillGroupNumber(c.Class, c.SkillGroup),
-		}
+		out[c.Slot] = summary(c)
 	}
 	return out
+}
+
+// summary is one character as a slot of the selection screen shows it.
+func summary(c account.Character) protocol.CharacterSummary {
+	return protocol.CharacterSummary{
+		ID:          c.ID,
+		Name:        c.Name,
+		Race:        raceNumber(c.Class, c.Sex),
+		Level:       c.Level,
+		PlayMinutes: c.PlayMinutes,
+		ST:          c.Strength,
+		HT:          c.Vitality,
+		DX:          c.Dexterity,
+		IQ:          c.Intelligence,
+		HairPart:    c.Hair,
+		X:           c.X,
+		Y:           c.Y,
+		SkillGroup:  skillGroupNumber(c.Class, c.SkillGroup),
+	}
 }

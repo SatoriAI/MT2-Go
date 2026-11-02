@@ -81,6 +81,34 @@ func TestDecodeLoginByKeyReadsTheKeyAfterTheName(t *testing.T) {
 	}
 }
 
+func TestDecodeCreateCharacterReadsSlotNameRaceAndShape(t *testing.T) {
+	body := append([]byte{2}, fixed("Hendra", 25)...)
+	body = append(body, 0x06, 0x00, 0x01, 0, 0, 0, 0) // race 6, shape 1, four stat points
+
+	c, err := DecodeCreateCharacter(body)
+
+	if err != nil || c != (CreateCharacter{Slot: 2, Name: "Hendra", Race: 6, Shape: 1}) {
+		t.Fatalf("got %+v %v", c, err)
+	}
+}
+
+func TestACreatedCharacterIsSentAsItsSlotAndTheListsRecord(t *testing.T) {
+	c := CharacterSummary{ID: 7, Name: "Hendra", Race: 6, Level: 1, ST: 5, HT: 3, DX: 3, IQ: 5, X: 1, Y: 2}
+	game := netip.MustParseAddrPort("127.0.0.1:13001")
+	var slots [CharacterSlots]CharacterSummary
+	slots[2] = c
+
+	created := EncodeCharacterCreated(2, c, game)
+
+	list := EncodeCharacterList(slots, game)
+	if len(created) != 65 || created[0] != 0x08 || created[1] != 2 {
+		t.Fatalf("header %x, length %d", created[:2], len(created))
+	}
+	if !bytes.Equal(created[2:], list[1+2*63:1+3*63]) {
+		t.Errorf("record differs from the list's:\n got %x\nwant %x", created[2:], list[1+2*63:1+3*63])
+	}
+}
+
 func TestDecodeReportsATruncatedBody(t *testing.T) {
 	if _, err := DecodeHandshake([]byte{1, 2, 3}); !errors.Is(err, ErrShort) {
 		t.Fatalf("got %v", err)
@@ -97,6 +125,7 @@ func TestEncodedPacketsMatchTheClientLayouts(t *testing.T) {
 		"auth success":  {EncodeAuthSuccess(0x12345678), "967856341201"},
 		"login failure": {EncodeLoginFailure(LoginWrongPassword), "0757524f4e47505744" + "00"},
 		"empire":        {EncodeEmpire(2), "5a02"},
+		"name taken":    {EncodeCreateFailure(CreateNameTaken), "0901"},
 		"channel status": {
 			EncodeChannelStatus([]ChannelStatus{{Port: 13001, Status: ChannelNormal}}),
 			"d201000000c9320101",

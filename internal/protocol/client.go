@@ -49,6 +49,23 @@ func DecodeLoginByKey(body []byte) (LoginByKey, error) {
 	return l, r.Err()
 }
 
+// CreateCharacter is what the create screen sends. The client also sends four extra stat
+// points, which it always leaves at 0; the server decides a new character's stats, so
+// they are skipped.
+type CreateCharacter struct {
+	Slot  uint8
+	Name  string
+	Race  uint16
+	Shape uint8
+}
+
+func DecodeCreateCharacter(body []byte) (CreateCharacter, error) {
+	r := NewReader(body)
+	c := CreateCharacter{Slot: r.U8(), Name: r.String(characterNameSize), Race: r.U16(), Shape: r.U8()}
+	r.Skip(4)
+	return c, r.Err()
+}
+
 // DecodeEmpire reads the kingdom a new account picked: 1 Shinsoo, 2 Chunjo, 3 Jinno.
 func DecodeEmpire(body []byte) (uint8, error) {
 	r := NewReader(body)

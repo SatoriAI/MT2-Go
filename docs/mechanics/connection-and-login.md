@@ -2,7 +2,7 @@
 
 ## What the player sees
 
-The login screen shows the channel as online. The player types a name and password. A new account is asked to choose a kingdom; an account that has one goes straight to the character screen, which shows up to four characters (or the creation screen when there are none).
+The login screen shows the channel as online. The player types a name and password. A new account is asked to choose a kingdom; an account that has one goes straight to the character screen, which shows up to four characters; an empty slot leads to [character creation](character-creation.md).
 
 ## What the client does
 
