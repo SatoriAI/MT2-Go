@@ -100,14 +100,15 @@ func (h *harness) exec(sql string, args ...any) {
 	}
 }
 
-func (h *harness) waitForEmpire(name string, want account.Empire) {
+// waitForEmpire waits until the account admin, the one every kingdom test uses, has want.
+func (h *harness) waitForEmpire(want account.Empire) {
 	h.t.Helper()
 	for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline); time.Sleep(10 * time.Millisecond) {
-		if acc, err := h.accounts.AccountByName(context.Background(), name); err == nil && acc.Empire == want {
+		if acc, err := h.accounts.AccountByName(context.Background(), "admin"); err == nil && acc.Empire == want {
 			return
 		}
 	}
-	h.t.Fatalf("kingdom %q was never stored for %s", want, name)
+	h.t.Fatalf("kingdom %q was never stored for admin", want)
 }
 
 // client plays the game client's side of one connection.
@@ -241,7 +242,7 @@ func TestTheChosenKingdomIsStoredAndTheNextLoginShowsTheCharacterList(t *testing
 	first.expect(protocol.EncodePhase(protocol.PhaseSelect))
 
 	first.chooseEmpire(2, 0xCA)
-	h.waitForEmpire("admin", account.EmpireChunjo) // the server sends nothing back to wait on
+	h.waitForEmpire(account.EmpireChunjo) // the server sends nothing back to wait on
 	_ = first.conn.Close()
 	h.exec(`INSERT INTO characters (account_id, slot, name, class, sex, level, st, ht, dx, iq, hair, map, x, y,
 		skill_group) VALUES ($1, 2, 'Hendra', 'sura', 'female', 21, 6, 4, 3, 2, 3, 1, 469300, 964200, 'black_magic')`, id)
@@ -269,6 +270,25 @@ func TestTheDatabaseRefusesASkillGroupOfAnotherClass(t *testing.T) {
 	}
 }
 
+// The client sends the kingdom when its select button is clicked, so a double click
+// sends it twice. Seen with the real client: closing the connection there stranded it
+// before the character screen.
+func TestADoubleClickedKingdomKeepsTheConnection(t *testing.T) {
+	h := start(t)
+	h.createAccount("admin")
+	key := h.authenticate("admin")
+	game := h.enterSelection("admin", key)
+	game.expect(protocol.EncodePhase(protocol.PhaseSelect))
+
+	game.chooseEmpire(3, 0xCA)
+	game.chooseEmpire(3, 0x8A)
+
+	h.waitForEmpire(account.EmpireJinno)
+	port := netip.MustParseAddrPort(h.game).Port()
+	game.send([]byte{byte(protocol.ClientStateChecker)})
+	game.expect(protocol.EncodeChannelStatus([]protocol.ChannelStatus{{Port: port, Status: protocol.ChannelNormal}}))
+}
+
 func TestAKingdomOnceChosenCannotBeChanged(t *testing.T) {
 	h := start(t)
 	h.createAccount("admin")
@@ -276,12 +296,12 @@ func TestAKingdomOnceChosenCannotBeChanged(t *testing.T) {
 	game := h.enterSelection("admin", key)
 	game.expect(protocol.EncodePhase(protocol.PhaseSelect))
 	game.chooseEmpire(1, 0xCA)
-	h.waitForEmpire("admin", account.EmpireShinsoo)
+	h.waitForEmpire(account.EmpireShinsoo)
 
 	game.chooseEmpire(3, 0x8A)
 
 	game.expectClosed()
-	h.waitForEmpire("admin", account.EmpireShinsoo)
+	h.waitForEmpire(account.EmpireShinsoo)
 }
 
 func TestASecondLoginIsRefusedWhileTheAccountIsInTheGame(t *testing.T) {

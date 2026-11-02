@@ -5,7 +5,6 @@ package game
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/netip"
 
@@ -18,8 +17,8 @@ import (
 // Accounts is what the game port needs from storage.
 type Accounts interface {
 	AccountByID(ctx context.Context, id int64) (account.Account, error)
-	// ChooseEmpire sets the kingdom of an account that has none, and reports whether it
-	// did: a kingdom, once chosen, stays.
+	// ChooseEmpire sets the kingdom of an account that has none, and reports whether the
+	// account now has that kingdom: a kingdom, once chosen, stays.
 	ChooseEmpire(ctx context.Context, id int64, empire account.Empire) (bool, error)
 	Characters(ctx context.Context, accountID int64) ([]account.Character, error)
 }
@@ -123,7 +122,8 @@ func (s *session) onLoginByKey(ctx context.Context, body []byte) error {
 }
 
 // onEmpire stores the kingdom a new account picked. The client moves on to the character
-// screen by itself, so nothing is sent back.
+// screen by itself, so nothing is sent back. A double click sends the packet twice, so the
+// same kingdom again is accepted; only a different one is refused.
 func (s *session) onEmpire(ctx context.Context, body []byte) error {
 	raw, err := protocol.DecodeEmpire(body)
 	if err != nil {
@@ -138,7 +138,7 @@ func (s *session) onEmpire(ctx context.Context, body []byte) error {
 		return err
 	}
 	if !chosen {
-		return errors.New("game: the account already has a kingdom")
+		return fmt.Errorf("game: the account already has a kingdom other than %q", empire)
 	}
 	return nil
 }

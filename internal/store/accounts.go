@@ -45,10 +45,11 @@ func (a Accounts) one(ctx context.Context, where string, arg any) (account.Accou
 	return acc, err
 }
 
-// ChooseEmpire sets the kingdom of an account that has none, and reports whether it did:
-// a kingdom, once chosen, stays.
+// ChooseEmpire sets the kingdom of an account that has none, and reports whether the
+// account now has that kingdom: choosing the same one again succeeds, another one fails.
 func (a Accounts) ChooseEmpire(ctx context.Context, id int64, empire account.Empire) (bool, error) {
-	tag, err := a.Pool.Exec(ctx, `UPDATE accounts SET empire = $2 WHERE id = $1 AND empire IS NULL`, id, empire)
+	tag, err := a.Pool.Exec(ctx,
+		`UPDATE accounts SET empire = $2 WHERE id = $1 AND (empire IS NULL OR empire = $2)`, id, empire)
 	return tag.RowsAffected() == 1, err
 }
 

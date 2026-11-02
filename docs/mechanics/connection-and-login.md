@@ -71,7 +71,7 @@ The id never contains the byte `D2`: the channel check reads the same socket byt
 
 ### EMPIRE — both directions, `5A`, 2 bytes (sequenced from the client)
 
-`5A`, then u8 kingdom: `1` Shinsoo (red), `2` Chunjo (yellow), `3` Jinno (blue). The server sends it **before** phase `SELECT`, because the client chooses between the kingdom screen and the character screen at the moment the phase arrives. The client sends it once, for an account without a kingdom; a second one, which only a modified client would send, closes the connection and changes nothing.
+`5A`, then u8 kingdom: `1` Shinsoo (red), `2` Chunjo (yellow), `3` Jinno (blue). The server sends it **before** phase `SELECT`, because the client chooses between the kingdom screen and the character screen at the moment the phase arrives. The client sends it when the select button is clicked, for an account without a kingdom, so a double click sends it twice; tried with the real client, the second arrived. The same kingdom again is therefore accepted and changes nothing. A different kingdom, which only a modified client would send, closes the connection and changes nothing.
 
 ### Character list (LOGIN_SUCCESS4) — server, `20`, 329 bytes
 
@@ -143,4 +143,4 @@ The flow, layouts and the sequence-byte exemptions come from the client's own sc
 - `internal/account/keys_test.go` — the key works for a second connection, expires after the grace period, never while held; a new key revokes the old one; no key while the account is in the game.
 - `internal/game/wire_test.go` — job numbers for both sexes, skill group numbers, kingdom numbers both ways.
 - `internal/network/server_test.go` — a failed accept does not stop the port, the login deadline (busy or silent) and lifting it, a send to a client that stops reading giving up, shutdown and a closed listener closing open connections.
-- `internal/server/server_test.go` — the whole path over real sockets and a real database: new account to the kingdom screen, the kingdom stored and a stored character listed byte for byte on the next connection, a kingdom that cannot be changed, a skill group of another class refused by the database, `ALREADY`, a name in another case, a key presented for another name, a packet out of its phase, wrong passwords and unknown names, the channel check.
+- `internal/server/server_test.go` — the whole path over real sockets and a real database: new account to the kingdom screen, the kingdom stored and a stored character listed byte for byte on the next connection, a double-clicked kingdom keeping the connection, a kingdom that cannot be changed, a skill group of another class refused by the database, `ALREADY`, a name in another case, a key presented for another name, a packet out of its phase, wrong passwords and unknown names, the channel check.
