@@ -1,0 +1,21 @@
+# The local stack: only PostgreSQL. The server itself runs on the host with `make run`,
+# because the game client connects to 127.0.0.1 and a rebuild is then just `go run`.
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: mt2go
+      POSTGRES_PASSWORD: mt2go
+      POSTGRES_DB: mt2go
+    ports:
+      - "127.0.0.1:15432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "mt2go"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  db-data:

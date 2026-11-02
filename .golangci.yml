@@ -1,0 +1,45 @@
+version: "2"
+
+linters:
+  # The standard set (errcheck, govet, ineffassign, staticcheck, unused) plus checks that
+  # catch real mistakes in this kind of code, not matters of style.
+  enable:
+    - errorlint # errors compared with == instead of errors.Is / errors.As
+    - forbidigo # the environment read outside internal/config
+    - gosec # integer overflows on the wire, weak randomness where it matters
+    - misspell
+    - nolintlint # a //nolint must name its linter and say why
+    - unconvert
+    - unparam
+  settings:
+    forbidigo:
+      analyze-types: true
+      forbid:
+        - pattern: ^os\.(Getenv|LookupEnv|Environ)$
+          msg: read the environment only in internal/config, and document the variable in .env.example
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+  exclusions:
+    rules:
+      - path: internal/config/
+        linters: [forbidigo]
+      # Reinterpreting a field's bits as signed or unsigned is what this file is for; the
+      # wire format, not the conversion, decides the range.
+      - path: internal/protocol/bytes\.go
+        linters: [gosec]
+        text: G115
+      # A handshake id only has to differ between connections; it protects nothing. Login
+      # keys do, and come from crypto/rand.
+      - path: internal/handshake/handshake\.go
+        linters: [gosec]
+        text: G404
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/SatoriAI/MT2-Go

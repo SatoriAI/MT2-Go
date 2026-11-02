@@ -1,0 +1,60 @@
+# The repository itself, as opposed to the code in it. Unfiltered by path, because its
+# subjects — whitespace, spelling, merge markers, oversized files, the shape of the tree —
+# belong to no part of the repo. Being unconditional also makes it the one check already
+# safe to mark required.
+#
+# `make check` is what the local hook runs last; the hooks before it run nowhere else, so
+# one `--no-verify` and nothing ever checks them again.
+name: Repository
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # A stack workflow may filter by path; this one never does, so `workflow_dispatch` is
+  # how you ask for a verdict on a ref whose last push touched only the filtered half.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: repository-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  repository:
+    runs-on: ubuntu-latest
+    # The default is six hours, which on a private Free plan lets one wedged run spend a
+    # fifth of the month's minutes.
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Nothing here pushes, and left on disk the token is readable by every step that
+          # follows, including a dependency's install script.
+          persist-credentials: false
+
+      # `uvx` is how the hooks and the pinned pre-commit are run, and the runner image
+      # does not ship uv.
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version: "0.12.17"
+
+      # Keyed on the config, because that file decides which hook environments exist.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
+
+      # `make-check` is skipped here because the stack's own workflow owns that verdict.
+      - name: Repo-wide hooks
+        run: SKIP=make-check uvx pre-commit@4.6.2 run --all-files --show-diff-on-failure
+
+      - name: Structure
+        run: ./scripts/check_structure.sh
+
+      # The same debt the AGENTS.md budget keeps out of that file, in the place it flows to
+      # next: a long comment is case history, and it belongs in docs/decisions/.
+      - name: Comment blocks
+        run: make comment-blocks

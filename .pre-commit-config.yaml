@@ -1,0 +1,28 @@
+# The hooks that run before every commit. The last one is the gate itself, so no commit
+# lands red. The ones above it run nowhere else, which is why the repository workflow
+# runs them again on a machine that is not yours.
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+      - id: check-merge-conflict
+
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.4.1
+    hooks:
+      - id: codespell
+        # Exclude generated files and any non-English catalogue as files, not word by word.
+        exclude: (go\.mod|go\.sum)$
+
+  - repo: local
+    hooks:
+      - id: make-check
+        name: make check (the gate)
+        entry: make check
+        language: system
+        pass_filenames: false
+        always_run: true
