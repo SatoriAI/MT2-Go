@@ -53,6 +53,42 @@ func TestNextFrameWaitsForTheRestOfASplitPacket(t *testing.T) {
 	}
 }
 
+// chat is a chat packet as the client frames it: header, total size, type, the text and
+// its NUL, then the sequence byte.
+func chat(text string) []byte {
+	size := 1 + 2 + 1 + len(text) + 1
+	packet := binary.LittleEndian.AppendUint16([]byte{byte(ClientChat)}, uint16(size)) //nolint:gosec // test lines are short
+	return append(append(append(packet, 0), text...), 0, 0xAF)
+}
+
+func TestNextFrameReadsASizedPacketsLengthFromIt(t *testing.T) {
+	packet := chat("hi")
+
+	frame, used, err := NextFrame(append(packet, byte(ClientStateChecker)))
+
+	if err != nil || used != len(packet) || frame.Header != ClientChat || !bytes.Equal(frame.Body, []byte{0, 'h', 'i', 0}) {
+		t.Fatalf("got %v %d %v", frame, used, err)
+	}
+}
+
+func TestNextFrameWaitsForTheRestOfASplitSizedPacket(t *testing.T) {
+	packet := chat("hello")
+	for _, cut := range []int{1, 2, len(packet) - 1} {
+		if _, _, err := NextFrame(packet[:cut]); !errors.Is(err, ErrIncomplete) {
+			t.Errorf("cut at %d: got %v", cut, err)
+		}
+	}
+}
+
+func TestNextFrameRefusesASizeNoPacketCanHave(t *testing.T) {
+	for _, size := range []uint16{0, 2, 1025, 0xFFFF} {
+		packet := binary.LittleEndian.AppendUint16([]byte{byte(ClientChat)}, size)
+		if _, _, err := NextFrame(packet); !errors.Is(err, ErrBadSize) {
+			t.Errorf("size %d: got %v", size, err)
+		}
+	}
+}
+
 func TestNextFrameRejectsAnUnknownHeader(t *testing.T) {
 	_, _, err := NextFrame([]byte{0x01})
 
@@ -256,5 +292,29 @@ func TestDecodeMoveReadsTypeDirectionPositionAndTime(t *testing.T) {
 
 	if err != nil || m != (Move{Type: 1, Rotation: 64, X: 963500, Y: 278300, Time: 12345}) {
 		t.Fatalf("got %+v %v", m, err)
+	}
+}
+
+func TestDecodeChatKeepsTheClientsBytes(t *testing.T) {
+	c, err := DecodeChat([]byte{0, 'z', 0xB9, 'b', 0}) // "ząb" in the client's Polish code page
+
+	if err != nil || c != (Chat{Type: ChatNormal, Text: "z\xb9b"}) {
+		t.Fatalf("got %+q %v", c, err)
+	}
+}
+
+func TestDecodeChatRefusesTextWithoutItsTerminator(t *testing.T) {
+	if _, err := DecodeChat([]byte{0, 'h', 'i'}); !errors.Is(err, ErrNoTerminator) {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestChatIsSentWithItsTotalSizeTypeSpeakerAndText(t *testing.T) {
+	got := EncodeChat(ChatNormal, 7, 3, "Hendra : hi")
+
+	want := mustHex(t, "04"+"1500"+"00"+"07000000"+"03"+ // header, size 21, type, vid, kingdom
+		hex.EncodeToString([]byte("Hendra : hi"))+"00")
+	if !bytes.Equal(got, want) {
+		t.Errorf("got  %x\nwant %x", got, want)
 	}
 }

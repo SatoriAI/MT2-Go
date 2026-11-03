@@ -8,6 +8,7 @@ package protocol
 type ClientHeader byte
 
 const (
+	ClientChat            ClientHeader = 0x03
 	ClientCreateCharacter ClientHeader = 0x04
 	ClientSelectCharacter ClientHeader = 0x06
 	ClientMove            ClientHeader = 0x07
@@ -29,6 +30,7 @@ const (
 	ServerCharacterCreated ServerHeader = 0x08
 	ServerCreateFailure    ServerHeader = 0x09
 	ServerCharacterAdd     ServerHeader = 0x01 // a character appears in view
+	ServerChat             ServerHeader = 0x04
 	ServerPoints           ServerHeader = 0x10
 	ServerTime             ServerHeader = 0x6A
 	ServerMainCharacter    ServerHeader = 0x71 // who the player is and where
@@ -48,6 +50,7 @@ const (
 type Phase byte
 
 const (
+	PhaseClose     Phase = 0 // the connection is ending; the client stops sending
 	PhaseHandshake Phase = 1
 	PhaseLogin     Phase = 2
 	PhaseSelect    Phase = 3

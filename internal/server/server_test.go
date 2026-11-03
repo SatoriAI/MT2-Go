@@ -216,6 +216,19 @@ func (c *client) expectOpen() {
 	c.expect(protocol.EncodeChannelStatus([]protocol.ChannelStatus{{Port: port, Status: protocol.ChannelNormal}}))
 }
 
+// expectWaiting checks the server neither answers nor closes while a packet is incomplete;
+// expectOpen cannot, as its probe would become part of that packet.
+func (c *client) expectWaiting() {
+	c.t.Helper()
+	_ = c.conn.SetReadDeadline(time.Now().Add(200 * time.Millisecond))
+	defer func() { _ = c.conn.SetReadDeadline(time.Now().Add(5 * time.Second)) }() // as dial set it
+	n, err := c.conn.Read(make([]byte, 1))
+	var netErr net.Error
+	if !errors.As(err, &netErr) || !netErr.Timeout() {
+		c.t.Fatalf("expected the server to wait, read %d bytes, err %v", n, err)
+	}
+}
+
 // expectClosed waits for the server to end the connection.
 func (c *client) expectClosed() {
 	c.t.Helper()
@@ -838,4 +851,117 @@ func TestAServerShutdownSavesWhereThePlayerStood(t *testing.T) {
 		Scan(&x, &y); err != nil || x != 963500 || y != 278300 {
 		t.Fatalf("saved (%d, %d), err %v; want where she stood", x, y, err)
 	}
+}
+
+// say sends a chat line as the client frames it: header, total size, type normal, the text
+// and its NUL, then the sequence byte.
+func (c *client) say(text string) {
+	c.t.Helper()
+	size := 1 + 2 + 1 + len(text) + 1
+	packet := binary.LittleEndian.AppendUint16([]byte{byte(protocol.ClientChat)}, uint16(size)) //nolint:gosec // test lines are short
+	c.send(packet, []byte{0}, []byte(text), []byte{0, sequenceByte})
+}
+
+func TestALineInTheWorldComesBackToItsSpeaker(t *testing.T) {
+	h := start(t)
+	game := h.inWorld()
+
+	game.say("hi")
+
+	game.expect(protocol.EncodeChat(protocol.ChatNormal, 1, 3, "Hendra : hi"))
+}
+
+func TestALineKeepsTheClientsCodePage(t *testing.T) {
+	h := start(t)
+	game := h.inWorld()
+
+	game.say("z\xb9b") // "ząb" in the client's Polish code page
+
+	game.expect(protocol.EncodeChat(protocol.ChatNormal, 1, 3, "Hendra : z\xb9b"))
+}
+
+func TestACommandTheServerDoesNotKnowIsIgnored(t *testing.T) {
+	h := start(t)
+	game := h.inWorld()
+
+	game.say("/pkmode 1")
+
+	game.expectOpen()
+}
+
+func TestQuitTellsTheClientToClose(t *testing.T) {
+	h := start(t)
+	game := h.inWorld()
+
+	game.say("/quit")
+
+	game.expect(protocol.EncodeChat(protocol.ChatCommand, 1, 3, "quit"))
+}
+
+func TestLogoutEndsTheConnectionAndKeepsWhereThePlayerStood(t *testing.T) {
+	h := start(t)
+	game, key := h.hendraInWorld()
+	game.send(moveTo(963500, 278300))
+
+	game.say("/logout")
+
+	game.expect(protocol.EncodePhase(protocol.PhaseClose))
+	game.expectClosed()
+	if x, y := h.startHendra(key); x != 963500 || y != 278300 {
+		t.Fatalf("started at (%d, %d), want where she left", x, y)
+	}
+}
+
+// Change character returns to the character screen with the phase alone: the client,
+// still in its game window, ignores anything sent ahead of it. It then logs in again on a
+// new connection, where Start loads the position the character was left at.
+func TestChangeCharacterReturnsToTheCharacterScreen(t *testing.T) {
+	h := start(t)
+	game, key := h.hendraInWorld()
+	game.send(moveTo(963500, 278300))
+
+	game.say("/phase_select")
+
+	game.expect(protocol.EncodePhase(protocol.PhaseSelect))
+	if x, y := h.startHendra(key); x != 963500 || y != 278300 {
+		t.Fatalf("loaded at (%d, %d), want where she was left", x, y)
+	}
+	game.expectOpen() // the new connection took no character from the old one
+}
+
+// The client may still send what it wrote before it took in the select phase; that is
+// dropped rather than treated as out of its phase.
+func TestMovesAndChatInFlightAfterChangeCharacterAreIgnored(t *testing.T) {
+	h := start(t)
+	game, _ := h.hendraInWorld()
+	game.say("/phase_select")
+	game.expect(protocol.EncodePhase(protocol.PhaseSelect))
+
+	game.send(moveTo(963600, 278400))
+	game.say("hi")
+
+	game.expectOpen()
+}
+
+func TestAnEmptyLineIsIgnored(t *testing.T) {
+	h := start(t)
+	game := h.inWorld()
+
+	game.say("")
+
+	game.expectOpen()
+}
+
+// The line is first held while it arrives, which shows it was framed, and only refused
+// once whole, for its phase.
+func TestChatBeforeEnteringTheWorldEndsTheConnection(t *testing.T) {
+	h := start(t)
+	game := h.withHendra()
+	line := []byte{byte(protocol.ClientChat), 7, 0, 0, 'h', 'i', 0, sequenceByte}
+
+	game.send(line[:3])
+	game.expectWaiting()
+	game.send(line[3:])
+
+	game.expectClosed()
 }

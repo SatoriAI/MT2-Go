@@ -41,6 +41,7 @@ func (s *session) onSelectCharacter(ctx context.Context, body []byte) error {
 		return err
 	}
 	s.claim = claim
+	s.leftWorld = false
 	if displaced {
 		s.conn.Log().Info("took the character over from another connection", "character", c.Name)
 		// The displaced connection has just saved where the character stood.
@@ -173,4 +174,17 @@ func (s *session) savePosition() {
 	if err := s.svc.store.SavePosition(ctx, p.ID, p.X, p.Y); err != nil {
 		s.conn.Log().Error("position not saved", "character", p.Name, "err", err)
 	}
+}
+
+// leaveWorld saves the character in play, if it entered the world, and lets go of it.
+func (s *session) leaveWorld() {
+	if s.claim == nil {
+		return
+	}
+	if s.phase == protocol.PhaseGame {
+		s.savePosition()
+	}
+	s.svc.release(s.claim)
+	s.claim = nil
+	s.playing = nil
 }
