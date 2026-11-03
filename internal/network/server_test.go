@@ -1,11 +1,13 @@
 package network
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
 	"log/slog"
 	"net"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -31,22 +33,86 @@ func (g *greeter) Handle(context.Context, protocol.Frame) error { return nil }
 
 func (g *greeter) Close() {}
 
-// flooder opens by sending more than any socket buffer holds, and reports its Send's
-// error once a reader that never reads has made it give up.
+// flooder opens by sending more than any socket buffer holds, and reports when its
+// connection has closed.
 type flooder struct {
-	conn *Conn
-	sent chan error
+	conn   *Conn
+	closed chan struct{}
 }
 
-func (f *flooder) Open() error {
-	err := f.conn.Send(make([]byte, 64<<20))
-	f.sent <- err
-	return err
-}
+func (f *flooder) Open() error { return f.conn.Send(make([]byte, 64<<20)) }
 
 func (f *flooder) Handle(context.Context, protocol.Frame) error { return nil }
 
-func (f *flooder) Close() {}
+func (f *flooder) Close() { close(f.closed) }
+
+// hoarder opens by sending, without pause, more than a client that never reads can take,
+// and reports the error Send gave up with.
+type hoarder struct {
+	conn *Conn
+	gave chan error
+}
+
+func (h *hoarder) Open() error {
+	unit := make([]byte, 64<<10)
+	for {
+		if err := h.conn.Send(unit); err != nil {
+			h.gave <- err
+			return err
+		}
+	}
+}
+
+func (h *hoarder) Handle(context.Context, protocol.Frame) error { return nil }
+
+func (h *hoarder) Close() {}
+
+// chorus opens by sending from several goroutines at once: each sends its numbered units,
+// every byte of a unit being [goroutine, number].
+type chorus struct{ conn *Conn }
+
+const (
+	voices        = 4
+	unitsPerVoice = 50 // together within queueLength, so none is dropped
+	unitSize      = 16
+)
+
+func (c *chorus) Open() error {
+	var wg sync.WaitGroup
+	for v := range voices {
+		wg.Go(func() {
+			for n := range unitsPerVoice {
+				half := bytes.Repeat([]byte{byte(v), byte(n)}, unitSize/4) //nolint:gosec // both below voices and unitsPerVoice
+				_ = c.conn.Send(half, half)
+			}
+		})
+	}
+	wg.Wait()
+	return nil
+}
+
+func (c *chorus) Handle(context.Context, protocol.Frame) error { return nil }
+
+func (c *chorus) Close() {}
+
+// leaver answers any packet with farewell, a send at a time, and hangs up: more than the
+// writer has sent by then.
+type leaver struct{ conn *Conn }
+
+var farewell = bytes.Repeat([]byte("bye "), queueLength-1)
+
+func (l *leaver) Open() error { return l.conn.Send([]byte("hi")) }
+
+func (l *leaver) Handle(context.Context, protocol.Frame) error {
+	for range queueLength - 1 {
+		if err := l.conn.Send([]byte("bye ")); err != nil {
+			return err
+		}
+	}
+	return ErrHangUp
+}
+
+func (l *leaver) Close() {}
 
 // flakyListener fails its first Accept the way a process out of file descriptors does.
 type flakyListener struct {
@@ -160,11 +226,11 @@ func TestASessionCanKeepItsConnectionOpen(t *testing.T) {
 	}
 }
 
-func TestASendToAClientThatStopsReadingGivesUp(t *testing.T) {
+func TestAClientThatStopsReadingIsDisconnected(t *testing.T) {
 	ln := listen(t)
-	sent := make(chan error, 1)
+	closed := make(chan struct{})
 	stop := serve(t, ln, Timeouts{Write: 100 * time.Millisecond}, func(c *Conn) Session {
-		return &flooder{conn: c, sent: sent}
+		return &flooder{conn: c, closed: closed}
 	})
 	defer func() { _ = stop() }()
 	conn, err := net.Dial("tcp", ln.Addr().String())
@@ -174,13 +240,75 @@ func TestASendToAClientThatStopsReadingGivesUp(t *testing.T) {
 	defer func() { _ = conn.Close() }()
 
 	select {
-	case err := <-sent:
-		var netErr net.Error
-		if !errors.As(err, &netErr) || !netErr.Timeout() {
-			t.Fatalf("expected the send to time out, got %v", err)
+	case <-closed:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the connection is still open")
+	}
+}
+
+// Send never waits for the client, so a sender holding a lock others need is never held
+// up; a client too far behind is dropped instead.
+func TestSendingToAClientFarBehindDropsItRatherThanWaiting(t *testing.T) {
+	ln := listen(t)
+	gave := make(chan error, 1)
+	stop := serve(t, ln, Timeouts{}, func(c *Conn) Session { return &hoarder{conn: c, gave: gave} })
+	defer func() { _ = stop() }()
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = conn.Close() }()
+
+	select {
+	case err := <-gave:
+		if !errors.Is(err, errFallenBehind) {
+			t.Fatalf("Send gave up with %v, want errFallenBehind", err)
 		}
 	case <-time.After(5 * time.Second):
-		t.Fatal("the send is still blocked")
+		t.Fatal("Send is waiting for the client")
+	}
+}
+
+// Sends from several goroutines each arrive whole, and each goroutine's in the order it
+// made them.
+func TestSendsFromManyGoroutinesArriveWholeAndInOrder(t *testing.T) {
+	ln := listen(t)
+	stop := serve(t, ln, Timeouts{}, func(c *Conn) Session { return &chorus{conn: c} })
+	defer func() { _ = stop() }()
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = conn.Close() }()
+	_ = conn.SetDeadline(time.Now().Add(5 * time.Second))
+
+	next := make([]int, voices)
+	unit := make([]byte, unitSize)
+	for range voices * unitsPerVoice {
+		if _, err := io.ReadFull(conn, unit); err != nil {
+			t.Fatal(err)
+		}
+		v, n := int(unit[0]), int(unit[1])
+		if !bytes.Equal(unit, bytes.Repeat(unit[:2], unitSize/2)) || n != next[v] {
+			t.Fatalf("unit % x, want all of goroutine %d's unit %d", unit, v, next[v])
+		}
+		next[v]++
+	}
+}
+
+// What a session sent before hanging up is written before the connection closes, so a
+// last packet like Logout's reaches the client.
+func TestWhatWasSentBeforeAHangUpReachesTheClient(t *testing.T) {
+	ln := listen(t)
+	stop := serve(t, ln, Timeouts{}, func(c *Conn) Session { return &leaver{conn: c} })
+	defer func() { _ = stop() }()
+	conn := dial(t, ln.Addr().String())
+
+	_, _ = conn.Write([]byte{byte(protocol.ClientStateChecker)})
+
+	rest, err := io.ReadAll(conn)
+	if err != nil || !bytes.Equal(rest, farewell) {
+		t.Fatalf("read %d bytes, %v; want the whole farewell (%d), then the end", len(rest), err, len(farewell))
 	}
 }
 

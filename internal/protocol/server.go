@@ -274,6 +274,28 @@ func EncodeCharacterInfo(c CharacterInfo) []byte {
 	return w.Bytes()
 }
 
+// EncodeMove passes another character's move on, as its own client sent it. The client
+// ignores a move of the player's own character. The duration, which the client uses
+// only for characters it has not drawn yet, is left 0.
+func EncodeMove(vid uint32, m Move) []byte {
+	w := NewWriter(byte(ServerMove), 24)
+	w.U8(m.Type)
+	w.U8(m.Arg)
+	w.U8(m.Rotation)
+	w.U32(vid)
+	w.I32(m.X)
+	w.I32(m.Y)
+	w.U32(m.Time)
+	w.U32(0) // duration
+	return w.Bytes()
+}
+
+func EncodeCharacterDelete(vid uint32) []byte {
+	w := NewWriter(byte(ServerCharacterDelete), 5)
+	w.U32(vid)
+	return w.Bytes()
+}
+
 // EncodeChat sends a line to the client's chat. vid is whose line it is: the client drops
 // a line whose vid is a character it does not know, so a line from no one carries 0.
 func EncodeChat(t ChatType, vid uint32, empire uint8, text string) []byte {

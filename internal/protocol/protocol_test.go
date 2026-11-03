@@ -295,6 +295,22 @@ func TestDecodeMoveReadsTypeDirectionPositionAndTime(t *testing.T) {
 	}
 }
 
+func TestAMoveIsPassedOnWithTheMoversVIDAndNoDuration(t *testing.T) {
+	got := EncodeMove(7, Move{Type: 1, Arg: 2, Rotation: 18, X: 963500, Y: 278300, Time: 12345})
+
+	want := mustHex(t, "03"+"01"+"02"+"12"+"07000000"+ // header, type, arg, rotation, vid
+		"acb30e00"+"1c3f0400"+"39300000"+"00000000") // x, y, time, duration
+	if !bytes.Equal(got, want) {
+		t.Errorf("got  %x\nwant %x", got, want)
+	}
+}
+
+func TestCharacterDeleteNamesTheCharacter(t *testing.T) {
+	if got, want := EncodeCharacterDelete(7), mustHex(t, "02"+"07000000"); !bytes.Equal(got, want) {
+		t.Errorf("got  %x\nwant %x", got, want)
+	}
+}
+
 func TestDecodeChatKeepsTheClientsBytes(t *testing.T) {
 	c, err := DecodeChat([]byte{0, 'z', 0xB9, 'b', 0}) // "ząb" in the client's Polish code page
 

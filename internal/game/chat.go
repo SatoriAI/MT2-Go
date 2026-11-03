@@ -8,8 +8,9 @@ import (
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
 )
 
-// onChat answers a line typed in the world, or a command a button or menu sent as one.
-// Nobody else is in the world yet, so a line goes back to its speaker only.
+// onChat answers a line typed in the world, or a command a button or menu sent as one. A
+// line goes to its speaker and everyone who sees them; the client shows nothing it types
+// until the server sends it back.
 func (s *session) onChat(body []byte) error {
 	c, err := protocol.DecodeChat(body)
 	if err != nil {
@@ -23,7 +24,9 @@ func (s *session) onChat(body []byte) error {
 		return nil
 	}
 	p := s.playing
-	return s.conn.Send(protocol.EncodeChat(protocol.ChatNormal, p.vid, empireNumbers[s.empire], p.Name+" : "+c.Text))
+	line := protocol.EncodeChat(protocol.ChatNormal, p.vid, empireNumbers[s.empire], p.Name+" : "+c.Text)
+	s.svc.presence.say(p.vid, line)
+	return s.conn.Send(line)
 }
 
 // onCommand carries out the commands the system menu sends: exit, log out and change

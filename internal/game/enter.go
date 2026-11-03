@@ -97,16 +97,13 @@ func (s *session) onVersion(body []byte) error {
 }
 
 // onEnterGame puts the player in the world once the client has loaded the map: the game
-// phase, the clock and channel, then the player's own character.
+// phase, the clock and channel, then the player's own character, then the others on the
+// map. The client drops every other character when its own is added, so it goes first.
 func (s *session) onEnterGame() error {
 	p := s.playing
-	s.phase = protocol.PhaseGame
-	s.conn.Log().Info("entered the world", "character", p.Name, "x", p.X, "y", p.Y)
-	return s.conn.Send(
-		protocol.EncodePhase(protocol.PhaseGame),
-		protocol.EncodeTime(s.svc.clock.Now()),
-		protocol.EncodeChannel(1),
-		protocol.EncodeCharacterAdd(protocol.CharacterAdd{
+	me := &present{
+		conn: s.conn,
+		add: protocol.CharacterAdd{
 			VID:         p.vid,
 			X:           p.X,
 			Y:           p.Y,
@@ -114,27 +111,41 @@ func (s *session) onEnterGame() error {
 			Race:        uint16(raceNumber(p.Class, p.Sex)),
 			MoveSpeed:   p.points.MoveSpeed,
 			AttackSpeed: p.points.AttackSpeed,
-		}),
-		protocol.EncodeCharacterInfo(protocol.CharacterInfo{
+		},
+		info: protocol.CharacterInfo{
 			VID:      p.vid,
 			Name:     p.Name,
 			BodyPart: uint16(p.Shape),
 			HairPart: p.Hair,
 			Empire:   empireNumbers[s.empire],
 			Level:    uint32(p.Level),
-		}),
-	)
+		},
+	}
+	err := s.conn.Send(append([][]byte{
+		protocol.EncodePhase(protocol.PhaseGame),
+		protocol.EncodeTime(s.svc.clock.Now()),
+		protocol.EncodeChannel(1),
+	}, me.appearance()...)...)
+	if err != nil {
+		return err
+	}
+	// Only now is the player in the game phase: leaving the world takes them out of the
+	// record, so they must be in it.
+	s.svc.presence.enter(me)
+	s.phase = protocol.PhaseGame
+	s.conn.Log().Info("entered the world", "character", p.Name, "x", p.X, "y", p.Y)
+	return nil
 }
 
-// onMove keeps where the player's character is; it is saved when the connection closes.
-// Nobody else is in the world to be told yet, and the client moves its own character by
-// itself.
+// onMove keeps where the player's character is, to be saved when the connection closes,
+// and shows the move to the others; the client moves its own character by itself.
 func (s *session) onMove(body []byte) error {
 	m, err := protocol.DecodeMove(body)
 	if err != nil {
 		return err
 	}
 	s.playing.X, s.playing.Y = m.X, m.Y
+	s.svc.presence.move(s.playing.vid, m)
 	s.conn.Log().Debug("moved", "character", s.playing.Name, "type", m.Type, "x", m.X, "y", m.Y)
 	return nil
 }
@@ -176,12 +187,14 @@ func (s *session) savePosition() {
 	}
 }
 
-// leaveWorld saves the character in play, if it entered the world, and lets go of it.
+// leaveWorld takes the character in play out of the others' view and saves it, if it
+// entered the world, and lets go of it.
 func (s *session) leaveWorld() {
 	if s.claim == nil {
 		return
 	}
 	if s.phase == protocol.PhaseGame {
+		s.svc.presence.leave(s.playing.vid)
 		s.savePosition()
 	}
 	s.svc.release(s.claim)

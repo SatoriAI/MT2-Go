@@ -82,7 +82,7 @@ func DecodeSelectCharacter(body []byte) (uint8, error) {
 type Move struct {
 	Type     uint8 // walking, stopping, attacking and the like
 	Arg      uint8
-	Rotation uint8 // the direction faced; its unit is not known yet
+	Rotation uint8 // the direction faced, in steps of 5 degrees
 	X, Y     int32
 	Time     uint32 // the client's clock, as the handshake set it
 }

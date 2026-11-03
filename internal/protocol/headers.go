@@ -13,6 +13,8 @@ const (
 	ClientSelectCharacter ClientHeader = 0x06
 	ClientMove            ClientHeader = 0x07
 	ClientEnterGame       ClientHeader = 0x0A
+	ClientOnClick         ClientHeader = 0x1A // a click on a character, for talking to it
+	ClientTarget          ClientHeader = 0x3D // a character picked as target, or 0 for none
 	ClientMarkLogin       ClientHeader = 0x64
 	ClientEmpire          ClientHeader = 0x5A
 	ClientLoginByKey      ClientHeader = 0x6D // LOGIN2, on the game port
@@ -30,6 +32,8 @@ const (
 	ServerCharacterCreated ServerHeader = 0x08
 	ServerCreateFailure    ServerHeader = 0x09
 	ServerCharacterAdd     ServerHeader = 0x01 // a character appears in view
+	ServerCharacterDelete  ServerHeader = 0x02 // a character leaves view
+	ServerMove             ServerHeader = 0x03 // another character moves
 	ServerChat             ServerHeader = 0x04
 	ServerPoints           ServerHeader = 0x10
 	ServerTime             ServerHeader = 0x6A
