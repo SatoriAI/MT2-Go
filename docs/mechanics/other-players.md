@@ -68,6 +68,7 @@ The range is open-mt2's choice; the client takes any, and draws characters up to
 - **The ordering rules, the layouts, and what the client ignores:** the client's own source, in `open-mt2/work/client-review/ClientVS22/source`: `Packet.h`, `NetworkActorManager.cpp`, `PythonNetworkStreamPhaseGameActor.cpp`, `InstanceBase.cpp`.
 - **The fields passed through, sending moves to others only, the range and the order on a move:** open-mt2.
 - **Seen with the real client,** with two windows side by side: Hendra and Kira saw each other in Jinno's village, each watched the other walk, a line appeared in both windows, and Logout made the character vanish from the other. The move's duration of 0 caused no visible problem: the other character walked as it should.
+- **The range, seen with the real client** against a scripted second player walking east and back: the scripted player vanished from the real client's window once about 8000 away and reappeared on coming back, and the script received DELETE past the range, then ADD and INFO before the next MOVE on returning, at 7983 apart.
 
 ## What proves it
 
