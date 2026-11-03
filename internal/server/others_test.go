@@ -133,3 +133,110 @@ func TestClickingOrTargetingACharacterIsIgnored(t *testing.T) {
 
 	hendra.expectOpen()
 }
+
+// Jinno's first village spans x from 921600; its start is 963400, 278200. These are
+// positions on that map relative to the start, in and out of view of it.
+const (
+	startX, startY = 963400, 278200
+	edgeOfView     = startX + 8000 // still in view
+	outOfView      = startX + 9000
+)
+
+// movedBy is a move as moveTo sends it, as the server passes it on for vid.
+func movedBy(vid uint32, x, y int32) []byte {
+	return protocol.EncodeMove(vid, protocol.Move{Type: 1, Rotation: 64, X: x, Y: y, Time: 12345})
+}
+
+// expectAppearanceAt reads a character's add and info and checks whose they are and where.
+func (c *client) expectAppearanceAt(vid uint32, x, y int32) {
+	c.t.Helper()
+	add := protocol.NewReader(c.read(appearanceSize)[1:])
+	if v, _, ax, ay := add.U32(), add.U32(), add.I32(), add.I32(); v != vid || ax != x || ay != y {
+		c.t.Fatalf("shown vid %d at (%d, %d), want %d at (%d, %d)", v, ax, ay, vid, x, y)
+	}
+}
+
+func TestWalkingOutOfViewHidesBothFromEachOther(t *testing.T) {
+	h := start(t)
+	hendra, kira := h.hendraAndKira()
+
+	hendra.send(moveTo(outOfView, startY))
+
+	kira.expect(protocol.EncodeCharacterDelete(1))
+	hendra.expect(protocol.EncodeCharacterDelete(2))
+	kira.expectOpen() // and no move from someone out of view
+}
+
+// Coming back into view, each is shown the other again, and the onlooker then the move
+// that brought them.
+func TestWalkingBackIntoViewShowsBothBeforeTheMove(t *testing.T) {
+	h := start(t)
+	hendra, kira := h.hendraAndKira()
+	hendra.send(moveTo(outOfView, startY))
+	kira.expect(protocol.EncodeCharacterDelete(1))
+	hendra.expect(protocol.EncodeCharacterDelete(2))
+
+	hendra.send(moveTo(startX+100, startY))
+
+	kira.expectAppearanceAt(1, startX+100, startY)
+	kira.expect(movedBy(1, startX+100, startY))
+	hendra.expectAppearanceAt(2, startX, startY)
+}
+
+func TestTheEdgeOfViewIsStillInView(t *testing.T) {
+	h := start(t)
+	hendra, kira := h.hendraAndKira()
+
+	kira.send(moveTo(edgeOfView, startY))
+
+	hendra.expect(movedBy(2, edgeOfView, startY))
+}
+
+// A player entering out of view of another hears nothing of them until they meet.
+func TestPlayersOutOfViewMeetByWalking(t *testing.T) {
+	h := start(t)
+	hendra, _ := h.enterWorld("admin", "Hendra", 3, 6)
+	hendra.send(moveTo(outOfView, startY))
+	hendra.expectOpen()
+	kira, _ := h.enterWorld("bob", "Kira", 3, 0)
+	kira.expectOpen()
+	hendra.expectOpen()
+
+	kira.send(moveTo(outOfView-1000, startY+500))
+
+	kira.expectAppearanceAt(1, outOfView, startY)
+	hendra.expectAppearanceAt(2, outOfView-1000, startY+500)
+	hendra.expect(movedBy(2, outOfView-1000, startY+500))
+}
+
+func TestALineOutOfViewIsNotHeard(t *testing.T) {
+	h := start(t)
+	hendra, kira := h.hendraAndKira()
+	hendra.send(moveTo(outOfView, startY))
+	kira.expect(protocol.EncodeCharacterDelete(1))
+	hendra.expect(protocol.EncodeCharacterDelete(2))
+
+	hendra.say("hi")
+
+	hendra.expect(protocol.EncodeChat(protocol.ChatNormal, 1, 3, "Hendra : hi"))
+	kira.expectOpen()
+}
+
+// Leaving tells those who saw the player, and nobody else on the map.
+func TestLeavingTellsOnlyThoseWhoSawThePlayer(t *testing.T) {
+	h := start(t)
+	hendra, _ := h.enterWorld("admin", "Hendra", 3, 6)
+	sora, _ := h.enterWorld("carl", "Sora", 3, 0)
+	sora.expectAppearanceAt(1, startX, startY)
+	hendra.expectAppearanceAt(2, startX, startY)
+	sora.send(moveTo(outOfView, startY))
+	sora.expect(protocol.EncodeCharacterDelete(1))
+	hendra.expect(protocol.EncodeCharacterDelete(2))
+	kira, _ := h.enterWorld("bob", "Kira", 3, 0)
+	kira.expectAppearanceAt(1, startX, startY)
+
+	hendra.say("/logout")
+
+	kira.expect(protocol.EncodeCharacterDelete(1))
+	sora.expectOpen()
+}

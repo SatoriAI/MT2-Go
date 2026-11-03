@@ -17,7 +17,7 @@ Pages state facts in our own words. They never paste code from another server or
 | [character-creation.md](character-creation.md) | The create screen: the packet, the rules, starting stats and positions, the replies |
 | [entering-the-world.md](entering-the-world.md) | Start, the loading screen, the main character, points and the player appearing in the world |
 | [chat.md](chat.md) | Packets with their own length, chat, and leaving the world through the game menu |
-| [other-players.md](other-players.md) | Seeing the others on the same map: arriving, moving, talking and leaving |
+| [other-players.md](other-players.md) | Seeing the others in range: arriving, moving, talking, leaving, and the view range |
 
 ## Conventions for the bytes
 

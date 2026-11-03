@@ -74,14 +74,14 @@ func TestAPlayerWhoseEntryFailedLeavesWithoutDisturbingTheOthers(t *testing.T) {
 	}
 }
 
-// Someone entering a busy map is shown everyone in one send. One send each would fill the
+// Someone entering a crowd is shown everyone in one send. One send each would fill the
 // queue of a client that is reading normally, which the server takes for one that stopped.
 func TestEnteringABusyMapDoesNotOverflowTheNewcomersQueue(t *testing.T) {
 	c := conns(t, 2)
 	var w presence
 	w.players = map[uint32]*present{}
 	for vid := range uint32(20000) {
-		w.players[vid+1] = &present{conn: c[0], add: protocol.CharacterAdd{VID: vid + 1}}
+		w.players[vid+1] = &present{conn: c[0], add: protocol.CharacterAdd{VID: vid + 1}, sees: map[uint32]*present{}}
 	}
 
 	w.enter(&present{conn: c[1], add: protocol.CharacterAdd{VID: 30000}})
