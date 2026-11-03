@@ -216,6 +216,19 @@ func (c *client) expectOpen() {
 	c.expect(protocol.EncodeChannelStatus([]protocol.ChannelStatus{{Port: port, Status: protocol.ChannelNormal}}))
 }
 
+// expectWaiting checks the server neither answers nor closes while a packet is incomplete;
+// expectOpen cannot, as its probe would become part of that packet.
+func (c *client) expectWaiting() {
+	c.t.Helper()
+	_ = c.conn.SetReadDeadline(time.Now().Add(200 * time.Millisecond))
+	defer func() { _ = c.conn.SetReadDeadline(time.Now().Add(5 * time.Second)) }() // as dial set it
+	n, err := c.conn.Read(make([]byte, 1))
+	var netErr net.Error
+	if !errors.As(err, &netErr) || !netErr.Timeout() {
+		c.t.Fatalf("expected the server to wait, read %d bytes, err %v", n, err)
+	}
+}
+
 // expectClosed waits for the server to end the connection.
 func (c *client) expectClosed() {
 	c.t.Helper()
@@ -900,29 +913,55 @@ func TestLogoutEndsTheConnectionAndKeepsWhereThePlayerStood(t *testing.T) {
 }
 
 // Change character returns to the character screen with the phase alone: the client,
-// still in its game window, ignores anything sent ahead of it. Start then works again, on
-// the position the character was left at.
+// still in its game window, ignores anything sent ahead of it. It then logs in again on a
+// new connection, where Start loads the position the character was left at.
 func TestChangeCharacterReturnsToTheCharacterScreen(t *testing.T) {
 	h := start(t)
-	game, _ := h.hendraInWorld()
+	game, key := h.hendraInWorld()
 	game.send(moveTo(963500, 278300))
 
 	game.say("/phase_select")
 
 	game.expect(protocol.EncodePhase(protocol.PhaseSelect))
-	game.selectCharacter(0)
-	game.expect(protocol.EncodePhase(protocol.PhaseLoading))
-	position := protocol.NewReader(game.read(46)[32:]) // the main character's x and y
-	if x, y := position.I32(), position.I32(); x != 963500 || y != 278300 {
+	if x, y := h.startHendra(key); x != 963500 || y != 278300 {
 		t.Fatalf("loaded at (%d, %d), want where she was left", x, y)
 	}
+	game.expectOpen() // the new connection took no character from the old one
 }
 
+// The client may still send what it wrote before it took in the select phase; that is
+// dropped rather than treated as out of its phase.
+func TestMovesAndChatInFlightAfterChangeCharacterAreIgnored(t *testing.T) {
+	h := start(t)
+	game, _ := h.hendraInWorld()
+	game.say("/phase_select")
+	game.expect(protocol.EncodePhase(protocol.PhaseSelect))
+
+	game.send(moveTo(963600, 278400))
+	game.say("hi")
+
+	game.expectOpen()
+}
+
+func TestAnEmptyLineIsIgnored(t *testing.T) {
+	h := start(t)
+	game := h.inWorld()
+
+	game.say("")
+
+	game.expectOpen()
+}
+
+// The line is first held while it arrives, which shows it was framed, and only refused
+// once whole, for its phase.
 func TestChatBeforeEnteringTheWorldEndsTheConnection(t *testing.T) {
 	h := start(t)
 	game := h.withHendra()
+	line := []byte{byte(protocol.ClientChat), 7, 0, 0, 'h', 'i', 0, sequenceByte}
 
-	game.say("hi")
+	game.send(line[:3])
+	game.expectWaiting()
+	game.send(line[3:])
 
 	game.expectClosed()
 }

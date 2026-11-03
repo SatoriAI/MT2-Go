@@ -19,6 +19,9 @@ func (s *session) onChat(body []byte) error {
 	if command, ok := strings.CutPrefix(c.Text, "/"); ok {
 		return s.onCommand(command)
 	}
+	if c.Text == "" {
+		return nil
+	}
 	p := s.playing
 	return s.conn.Send(protocol.EncodeChat(protocol.ChatNormal, p.vid, empireNumbers[s.empire], p.Name+" : "+c.Text))
 }
@@ -40,6 +43,7 @@ func (s *session) onCommand(command string) error {
 		// The phase alone: the client, still in its game window, ignores a kingdom and
 		// list sent ahead of it, and keeps the list it has.
 		s.leaveWorld()
+		s.leftWorld = true
 		s.phase = protocol.PhaseSelect
 		return s.conn.Send(protocol.EncodePhase(protocol.PhaseSelect))
 	default:

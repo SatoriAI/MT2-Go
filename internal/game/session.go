@@ -64,6 +64,9 @@ type session struct {
 	empire    account.Empire // the account's kingdom as this connection last knew it
 	playing   *character     // set once the player pressed Start
 	claim     *claim         // this connection's hold on playing
+	// leftWorld is set from change character until the next Start: the client may still
+	// send moves and chat it wrote before it took in the select phase.
+	leftWorld bool
 }
 
 func (s *session) Open() error { return s.conn.Send(s.sync.Greeting()...) }
@@ -104,8 +107,24 @@ func (s *session) Handle(ctx context.Context, f protocol.Frame) error {
 		return s.onMove(f.Body)
 	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientChat:
 		return s.onChat(f.Body)
+	case s.leftWorld && (f.Header == protocol.ClientMove || f.Header == protocol.ClientChat):
+		return nil
 	}
-	return fmt.Errorf("game: header 0x%02X not expected in phase %d: % x", byte(f.Header), s.phase, f.Body)
+	return unexpected(f, s.phase)
+}
+
+// maxLoggedBody is how much of an unexpected packet's body its error shows.
+const maxLoggedBody = 64
+
+// unexpected is the error for a packet out of its phase. It shows the start of the body,
+// which is what says what the client was doing, but none of a login packet's, which holds a
+// key or a password.
+func unexpected(f protocol.Frame, phase protocol.Phase) error {
+	body := f.Body[:min(len(f.Body), maxLoggedBody)]
+	if f.Header == protocol.ClientLogin || f.Header == protocol.ClientLoginByKey {
+		body = nil
+	}
+	return fmt.Errorf("game: header 0x%02X not expected in phase %d: % x", byte(f.Header), phase, body)
 }
 
 func (s *session) onHandshake(body []byte) error {

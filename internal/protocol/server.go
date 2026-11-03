@@ -279,7 +279,7 @@ func EncodeCharacterInfo(c CharacterInfo) []byte {
 func EncodeChat(t ChatType, vid uint32, empire uint8, text string) []byte {
 	size := 1 + 2 + 1 + 4 + 1 + len(text) + 1
 	w := NewWriter(byte(ServerChat), size)
-	w.U16(uint16(size)) //nolint:gosec // a chat line is far shorter than 64 KiB
+	w.U16(uint16(size)) //nolint:gosec // a line read in is at most maxSized (1024) bytes, plus a name
 	w.U8(uint8(t))
 	w.U32(vid)
 	w.U8(empire)

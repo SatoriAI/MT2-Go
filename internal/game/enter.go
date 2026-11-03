@@ -41,6 +41,7 @@ func (s *session) onSelectCharacter(ctx context.Context, body []byte) error {
 		return err
 	}
 	s.claim = claim
+	s.leftWorld = false
 	if displaced {
 		s.conn.Log().Info("took the character over from another connection", "character", c.Name)
 		// The displaced connection has just saved where the character stood.
