@@ -899,8 +899,9 @@ func TestLogoutEndsTheConnectionAndKeepsWhereThePlayerStood(t *testing.T) {
 	}
 }
 
-// Change character returns to the character screen on the same connection, with the list
-// showing where the character now stands, and Start works again.
+// Change character returns to the character screen with the phase alone: the client,
+// still in its game window, ignores anything sent ahead of it. Start then works again, on
+// the position the character was left at.
 func TestChangeCharacterReturnsToTheCharacterScreen(t *testing.T) {
 	h := start(t)
 	game, _ := h.hendraInWorld()
@@ -908,15 +909,13 @@ func TestChangeCharacterReturnsToTheCharacterScreen(t *testing.T) {
 
 	game.say("/phase_select")
 
-	game.expect(protocol.EncodeEmpire(3))
-	list := game.read(329)
-	position := protocol.NewReader(list[1+48:]) // slot 0's x and y, after its id, name, race and looks
-	if x, y := position.I32(), position.I32(); x != 963500 || y != 278300 {
-		t.Fatalf("listed at (%d, %d), want where she stood", x, y)
-	}
 	game.expect(protocol.EncodePhase(protocol.PhaseSelect))
 	game.selectCharacter(0)
 	game.expect(protocol.EncodePhase(protocol.PhaseLoading))
+	position := protocol.NewReader(game.read(46)[32:]) // the main character's x and y
+	if x, y := position.I32(), position.I32(); x != 963500 || y != 278300 {
+		t.Fatalf("loaded at (%d, %d), want where she was left", x, y)
+	}
 }
 
 func TestChatBeforeEnteringTheWorldEndsTheConnection(t *testing.T) {

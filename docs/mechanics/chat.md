@@ -2,14 +2,14 @@
 
 ## What the player sees
 
-In the world, the player types a line and it appears in their chat window as "Name : text". Nobody else hears it yet: there is nobody else in the world. The game menu's **Change character**, **Logout** and **Exit** work, and the character comes back where it stood.
+In the world, the player types a line and it appears once in their chat window as "Name : text", and in a bubble above their character's head. Nobody else hears it yet: there is nobody else in the world. The game menu's **Change character**, **Logout** and **Exit** work, and the character comes back where it stood.
 
 ## What the client does
 
 - **A typed line** is sent as `CHAT`. Before sending, the client strips the prefixes `#` (party), `%` (guild) and `!` (shout) into the chat type (`uichat.py`). Its input box takes up to 512 characters.
 - **Commands** are lines starting with `/`, sent as ordinary chat. Many buttons send them without the player typing, such as `/pkmode` and `/setblockmode` (`uigameoption.py`), `/skillup` (`uicharacter.py`) and `/ride` (`game.py`).
-- **The system menu** (`uisystem.py`) calls the client's own functions for change character, logout and exit. Those send `/phase_select`, `/logout` and `/quit` as chat. That isn't visible in the scripts; open-mt2 registers exactly these three, and the real client's behaviour settles it.
-- **The text** is in the client's single-byte code page, cp1250 for Polish, not UTF-8.
+- **The system menu** (`uisystem.py`) calls the client's own functions for change character, logout and exit. With the real client, change character sent `/phase_select` and exit sent `/quit` as chat. Logout is expected to send `/logout`, as open-mt2 registers, but hasn't been tried yet.
+- **The text** is in the client's single-byte code page, cp1250 for Polish, not UTF-8. With the real client, "żółta gęś" arrived as `bf f3 b3 74 61 20 67 ea 9c`. Under Wine this needs the prefix's code page set to Polish. With the Western one, the client turned ą into a and ż into z before sending.
 
 ## The bytes
 
@@ -45,10 +45,10 @@ The phase packet with `0`: the connection is ending.
 
 `internal/game/chat.go`, in the game phase only. Chat anywhere else closes the connection, like any packet out of its phase.
 
-- **A line** goes back to its speaker as "Name : text", type normal, with their vid and kingdom. The bytes are kept as the client sent them, so Polish letters survive; open-mt2 decodes them as ASCII and garbles them. Party, guild and shout are answered as normal for now.
-- **`/quit`:** the server replies with chat of type command and the text `quit`, which tells the client to close itself.
+- **A line** goes back to its speaker as "Name : text", type normal, with their vid and kingdom. The client doesn't draw its own line itself: with no reply, nothing appears. With the speaker's vid, the line appears once and in a bubble over the speaker. With vid 0, it appears only in the chat window. The bytes are kept as the client sent them, so Polish letters survive; open-mt2 decodes them as ASCII and garbles them. Party, guild and shout are answered as normal for now.
+- **`/quit`:** the server replies with chat of type command and the text `quit`, which tells the client to close itself. With the real client, it closed.
 - **`/logout`:** phase close, then the connection ends.
-- **`/phase_select`:** the character leaves the world (saved, and its claim released), then the server sends the kingdom, the character list and phase select, as at login. Start works again on the same connection.
+- **`/phase_select`:** the character leaves the world (saved, and its claim released), then the server sends phase select **alone**. The client, still in its game window, ignores a kingdom and list sent ahead of the phase: tried first, it stayed in the game and went on sending moves. With the phase alone it shows the character screen. When the player then presses Start, it reconnects and logs in with its key again, getting a fresh list.
 - **Every other command** is logged and ignored.
 - **When they act:** the original game counts down before leaving, so nobody escapes a fight. With no fighting yet, these act at once.
 - **Saving:** in every case the position is saved, through the same path as a dropped connection.
@@ -56,7 +56,7 @@ The phase packet with `0`: the connection is ending.
 ## How we know
 
 - **The client side:** the client's `uichat.py`, `uisystem.py`, `uigameoption.py` and `game.py`.
-- **The layouts, type numbers and leave commands:** open-mt2. The three leave commands and what the client expects back for each are only in the client's compiled code; this page says what the real client did once that has been tried.
+- **The layouts, type numbers and leave commands:** open-mt2. What the client expects back for each leave command is only in the client's compiled code. The behaviour above was seen with the real client, logout excepted.
 
 ## What proves it
 
@@ -70,7 +70,7 @@ The phase packet with `0`: the connection is ending.
   - an unknown command ignored;
   - `/quit` answered;
   - `/logout` closing and keeping the position;
-  - `/phase_select` returning to the character screen with the list showing where the character stood, and Start working again;
+  - `/phase_select` answered with the phase alone, and Start then loading the character where it was left;
   - chat before entering the world closing the connection.
 
 ## Not done yet
