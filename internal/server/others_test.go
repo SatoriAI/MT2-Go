@@ -192,6 +192,18 @@ func TestTheEdgeOfViewIsStillInView(t *testing.T) {
 	hendra.expect(movedBy(2, edgeOfView, startY))
 }
 
+// The view is a circle: 6000 along each axis is about 8485 away, out of view, though
+// neither distance alone reaches the edge.
+func TestTheViewIsMeasuredInAStraightLine(t *testing.T) {
+	h := start(t)
+	hendra, kira := h.hendraAndKira()
+
+	hendra.send(moveTo(startX+6000, startY+6000))
+
+	kira.expect(protocol.EncodeCharacterDelete(1))
+	hendra.expect(protocol.EncodeCharacterDelete(2))
+}
+
 // A player entering out of view of another hears nothing of them until they meet.
 func TestPlayersOutOfViewMeetByWalking(t *testing.T) {
 	h := start(t)

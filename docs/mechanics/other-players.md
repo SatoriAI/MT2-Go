@@ -83,7 +83,7 @@ The range is open-mt2's choice; the client takes any, and draws characters up to
   - ON_CLICK and TARGET ignored;
   - walking out of range hiding both from each other, with no move after;
   - walking back showing both again, and the onlooker the move after the character;
-  - the edge of the range, 8000, in view;
+  - the edge of the range, 8000, in view, and the range measured in a straight line;
   - players entering out of range meeting by walking;
   - a line out of range not heard;
   - leaving telling those who saw the player, and not a third player on the map out of range.
@@ -94,6 +94,7 @@ The range is open-mt2's choice; the client takes any, and draws characters up to
 
 - A spatial grid, so a move is checked against those nearby rather than everyone on the map; a measurement should ask for it first.
 - A margin against flickering, for two players walking along the edge of each other's range.
+- Changing map. A player's map is taken on entering only, which holds while the only way to another map is entering it; a warp must update it, or the player stays visible on the old map.
 - CHARACTER_UPDATE (`13`), which open-mt2 sends after another player's INFO, for equipment and guild.
 - SYNC_POSITION (`08`), which the client sends once it hits things.
 - The move's duration. With 0, a walk looked right with the real client; what the client uses it for is not confirmed in its source here.
