@@ -46,6 +46,27 @@ func (f *flooder) Handle(context.Context, protocol.Frame) error { return nil }
 
 func (f *flooder) Close() { close(f.closed) }
 
+// hoarder opens by sending, without pause, more than a client that never reads can take,
+// and reports the error Send gave up with.
+type hoarder struct {
+	conn *Conn
+	gave chan error
+}
+
+func (h *hoarder) Open() error {
+	unit := make([]byte, 64<<10)
+	for {
+		if err := h.conn.Send(unit); err != nil {
+			h.gave <- err
+			return err
+		}
+	}
+}
+
+func (h *hoarder) Handle(context.Context, protocol.Frame) error { return nil }
+
+func (h *hoarder) Close() {}
+
 // chorus opens by sending from several goroutines at once: each sends its numbered units,
 // every byte of a unit being [goroutine, number].
 type chorus struct{ conn *Conn }
@@ -222,6 +243,29 @@ func TestAClientThatStopsReadingIsDisconnected(t *testing.T) {
 	case <-closed:
 	case <-time.After(5 * time.Second):
 		t.Fatal("the connection is still open")
+	}
+}
+
+// Send never waits for the client, so a sender holding a lock others need is never held
+// up; a client too far behind is dropped instead.
+func TestSendingToAClientFarBehindDropsItRatherThanWaiting(t *testing.T) {
+	ln := listen(t)
+	gave := make(chan error, 1)
+	stop := serve(t, ln, Timeouts{}, func(c *Conn) Session { return &hoarder{conn: c, gave: gave} })
+	defer func() { _ = stop() }()
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = conn.Close() }()
+
+	select {
+	case err := <-gave:
+		if !errors.Is(err, errFallenBehind) {
+			t.Fatalf("Send gave up with %v, want errFallenBehind", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("Send is waiting for the client")
 	}
 }
 

@@ -31,7 +31,8 @@ type Timeouts struct {
 	// Login is counted from the accept: a connection still open after it is closed,
 	// however busy it was, unless its session called KeepOpen.
 	Login time.Duration
-	// Write bounds each Send, so a client that stops reading cannot stall its goroutine.
+	// Write bounds each write to the client, so one that stops reading cannot hold the
+	// connection's writer for ever.
 	Write time.Duration
 }
 

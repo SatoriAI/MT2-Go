@@ -29,7 +29,7 @@ There is no view range yet: a map is the range. The three starting villages are 
 | 8 | i32 x | |
 | 12 | i32 y | |
 | 16 | u32 time | the mover's clock, as their client sent it |
-| 20 | u32 duration | in milliseconds; sent as 0 |
+| 20 | u32 duration | in milliseconds; sent as 0 (open-mt2 works it out from the walking animation) |
 
 The time is on the clock every connection's handshake sets from the same server clock, so it means the same thing to every client. The client runs the move once its own server clock reaches that time.
 
@@ -51,9 +51,9 @@ Another player's ADD (`01`) and INFO (`88`) are the ones on [entering-the-world.
 
 ## What the server does
 
-`internal/game/presence.go` keeps who is in the world, by vid, with the map each stands on (from `internal/world`) and where they are.
+`internal/game/presence.go` keeps who is in the world, by vid, with the map each stands on (from `internal/world`) and where they are. Players on no known map share one map with each other; only bad data puts a character there.
 
-- **Entering:** after the player's own packets, the server sends the player each other's ADD and INFO, as one send, and sends theirs to each of the others, then records the player.
+- **Entering:** after the player's own packets, the server sends the player everyone else's ADD and INFO, all in one send, and sends theirs to each of the others, then records the player. Only then is the session in the game phase, so a connection that closed while entering never leaves a world it never joined.
 - **Moving:** the position is kept, so a later arrival sees the character where it stands. The move goes to everyone else on the map, with the fields as the mover's client sent them. It is not sent back to the mover.
 - **Chat:** a line goes to the speaker and to everyone else on the map, with the speaker's vid, so the bubble shows. Commands stay the speaker's.
 - **Leaving:** every way out of the world goes through `leaveWorld`, which takes the player out and sends the others DELETE. A character taken over by a new login leaves before the new connection's claim is granted, so the old vid disappears before the new one appears.
@@ -65,7 +65,7 @@ Another player's ADD (`01`) and INFO (`88`) are the ones on [entering-the-world.
 
 - **The ordering rules, the layouts, and what the client ignores:** the client's own source, in `open-mt2/work/client-review/ClientVS22/source`: `Packet.h`, `NetworkActorManager.cpp`, `PythonNetworkStreamPhaseGameActor.cpp`, `InstanceBase.cpp`.
 - **The fields passed through, and sending moves to others only:** open-mt2.
-- **Seen with the real client,** with two windows side by side: Hendra and Kira saw each other in Jinno's village, each watched the other walk, a line appeared in both windows, and Logout made the character vanish from the other. The move's duration of 0 caused no visible problem.
+- **Seen with the real client,** with two windows side by side: Hendra and Kira saw each other in Jinno's village, each watched the other walk, a line appeared in both windows, and Logout made the character vanish from the other. The move's duration of 0 caused no visible problem: the other character walked as it should.
 
 ## What proves it
 
@@ -78,12 +78,13 @@ Another player's ADD (`01`) and INFO (`88`) are the ones on [entering-the-world.
   - Logout, Change character and a dropped connection each sending DELETE;
   - a player on another map seeing nothing;
   - ON_CLICK and TARGET ignored.
-- `internal/network/server_test.go`: sends from several goroutines arriving whole and in order; what was sent before a hang-up reaching the client; a client that stops reading being disconnected.
+- `internal/game/presence_test.go`: a player whose connection closed while entering leaving without disturbing the others; someone entering a map of 20,000 players getting them all without filling their queue.
+- `internal/network/server_test.go`: sends from several goroutines arriving whole and in order; what was sent before a hang-up reaching the client; a client that stops reading being disconnected; a sender to a client far behind being refused at once rather than made to wait.
 
 ## Not done yet
 
 - A view range, rather than the whole map.
 - CHARACTER_UPDATE (`13`), which open-mt2 sends after another player's INFO, for equipment and guild.
 - SYNC_POSITION (`08`), which the client sends once it hits things.
-- The move's duration, which only matters for characters the client holds but has not drawn.
+- The move's duration. With 0, a walk looked right with the real client; what the client uses it for is not confirmed in its source here.
 - Checking that a move is possible, rather than trusting the client.

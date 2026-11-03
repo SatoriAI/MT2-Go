@@ -101,8 +101,6 @@ func (s *session) onVersion(body []byte) error {
 // map. The client drops every other character when its own is added, so it goes first.
 func (s *session) onEnterGame() error {
 	p := s.playing
-	s.phase = protocol.PhaseGame
-	s.conn.Log().Info("entered the world", "character", p.Name, "x", p.X, "y", p.Y)
 	me := &present{
 		conn: s.conn,
 		add: protocol.CharacterAdd{
@@ -131,7 +129,11 @@ func (s *session) onEnterGame() error {
 	if err != nil {
 		return err
 	}
+	// Only now is the player in the game phase: leaving the world takes them out of the
+	// record, so they must be in it.
 	s.svc.presence.enter(me)
+	s.phase = protocol.PhaseGame
+	s.conn.Log().Info("entered the world", "character", p.Name, "x", p.X, "y", p.Y)
 	return nil
 }
 

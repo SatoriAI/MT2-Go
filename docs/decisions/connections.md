@@ -14,7 +14,7 @@ Every move, line and arrival goes to a single goroutine that owns the world and 
 
 `Send` puts its packets, joined into one unit, on the connection's bounded queue, and the connection's writer goroutine writes them in order. Anyone can send, nobody waits for a socket, and a group like another player's ADD and INFO is never split. The world's record is a plain map under a lock, and packets about other players are sent under it, so everyone hears of things in the same order; that is safe because sending only queues.
 
-- **A full queue** (256 sends) means the client has stopped reading: the connection is closed, as a write timeout closed it before.
+- **A full queue** (256 sends) is taken to mean the client has stopped reading: the connection is closed, as a write timeout closed it before. The limit counts sends, not bytes, so whatever goes to one client in a burst is one send where it can be: someone entering a busy map is shown everyone at once. A burst of moves on a map with hundreds of players could still fill a reading client's queue; the view range, which bounds how many players anyone hears of, is the fix for that.
 - **A hang-up** (Logout's phase close, then `ErrHangUp`) lets the writer send what is queued before the socket closes. **`Close`** (a takeover, shutdown) cuts at once, so a displaced connection's save is never held up by its client.
 
 A world goroutine may still come, for things that run on a timer, such as monsters. It would send through the same queues.

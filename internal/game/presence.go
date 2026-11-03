@@ -21,7 +21,7 @@ type presence struct {
 // present is one player in the world, as the others see them.
 type present struct {
 	conn  *network.Conn
-	world string // the map's name; "" for a position on no known map
+	world string // the map's name; "" for a position on no known map, which those share
 	add   protocol.CharacterAdd
 	info  protocol.CharacterInfo
 }
@@ -32,18 +32,23 @@ func (p *present) appearance() [][]byte {
 	return [][]byte{protocol.EncodeCharacterAdd(p.add), protocol.EncodeCharacterInfo(p.info)}
 }
 
-// enter puts p in the world, and shows p and the others on its map to each other.
+// enter puts p in the world, and shows p and the others on its map to each other. The
+// newcomer gets everyone in one send, so a busy map does not fill their queue.
 func (w *presence) enter(p *present) {
 	if m, ok := world.MapAt(p.add.X, p.add.Y); ok {
 		p.world = m.Name
 	}
 	w.mu.Lock()
 	defer w.mu.Unlock()
+	var others [][]byte
 	for _, other := range w.players {
 		if other.world == p.world {
 			_ = other.conn.Send(p.appearance()...)
-			_ = p.conn.Send(other.appearance()...)
+			others = append(others, other.appearance()...)
 		}
+	}
+	if others != nil {
+		_ = p.conn.Send(others...)
 	}
 	w.players[p.add.VID] = p
 }
