@@ -1,6 +1,6 @@
 // Package game is the game port: the login screen's channel check, the login by key, the
-// kingdom choice, creating and listing characters, and entering the world, where so far
-// the player can only move.
+// kingdom choice, creating and listing characters, and the world: moving, talking, and
+// seeing the others on the same map.
 package game
 
 import (
@@ -45,10 +45,13 @@ type Service struct {
 
 	mu     sync.Mutex
 	claims map[uint32]*claim // the characters in play, by id
+
+	presence presence
 }
 
 func NewService(store Accounts, keys *account.Keys, clock handshake.Clock, public netip.AddrPort) *Service {
-	return &Service{store: store, keys: keys, clock: clock, public: public, claims: map[uint32]*claim{}}
+	return &Service{store: store, keys: keys, clock: clock, public: public, claims: map[uint32]*claim{},
+		presence: presence{players: map[uint32]*present{}}}
 }
 
 func (s *Service) NewSession(conn *network.Conn) network.Session {
@@ -107,6 +110,8 @@ func (s *session) Handle(ctx context.Context, f protocol.Frame) error {
 		return s.onMove(f.Body)
 	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientChat:
 		return s.onChat(f.Body)
+	case s.phase == protocol.PhaseGame && (f.Header == protocol.ClientTarget || f.Header == protocol.ClientOnClick):
+		return nil // picking or clicking a character; nothing answers it yet
 	case s.leftWorld && (f.Header == protocol.ClientMove || f.Header == protocol.ClientChat):
 		return nil
 	}

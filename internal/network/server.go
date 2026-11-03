@@ -4,6 +4,7 @@
 package network
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"log/slog"
@@ -13,6 +14,13 @@ import (
 
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
 )
+
+// queueLength is how many sends may wait for a client. A client that falls this far
+// behind is not reading, and is dropped.
+const queueLength = 256
+
+// errFallenBehind is what Send reports when the client is no longer reading.
+var errFallenBehind = errors.New("network: client fell behind")
 
 // maxAcceptDelay caps the pause between retries when accepting fails, for example while
 // the process is out of file descriptors.
@@ -108,12 +116,17 @@ func Serve(ctx context.Context, ln net.Listener, newSession NewSession, limits T
 	}
 }
 
-// Conn is one client connection.
+// Conn is one client connection. Any goroutine may send on it; its own reads the packets.
 type Conn struct {
 	raw   net.Conn
 	log   *slog.Logger
 	once  sync.Once
 	write time.Duration
+
+	queue   chan []byte   // sends waiting for the writer, each written whole
+	closed  chan struct{} // closed by Close: the writer stops at once
+	ending  chan struct{} // closed as the session ends: the writer sends what waits, then stops
+	stopped chan struct{} // closed by the writer as it stops
 }
 
 func newConn(raw net.Conn, limits Timeouts, log *slog.Logger) *Conn {
@@ -121,40 +134,97 @@ func newConn(raw net.Conn, limits Timeouts, log *slog.Logger) *Conn {
 	if limits.Login > 0 {
 		_ = raw.SetReadDeadline(time.Now().Add(limits.Login))
 	}
-	return &Conn{raw: raw, write: limits.Write, log: log.With("remote", raw.RemoteAddr().String())}
+	return &Conn{
+		raw:     raw,
+		write:   limits.Write,
+		log:     log.With("remote", raw.RemoteAddr().String()),
+		queue:   make(chan []byte, queueLength),
+		closed:  make(chan struct{}),
+		ending:  make(chan struct{}),
+		stopped: make(chan struct{}),
+	}
 }
 
 // Log is this connection's logger, tagged with the remote address.
 func (c *Conn) Log() *slog.Logger { return c.log }
 
-// Send writes packets in order. Only the connection's own goroutine sends, so writes
-// never interleave.
+// Send queues packets to be written together, after everything sent before them. It never
+// waits for the client: one too far behind is closed instead.
 func (c *Conn) Send(packets ...[]byte) error {
-	if c.write > 0 {
-		if err := c.raw.SetWriteDeadline(time.Now().Add(c.write)); err != nil {
-			return err
-		}
+	select {
+	case <-c.closed:
+		return net.ErrClosed
+	default:
 	}
-	for _, p := range packets {
-		if _, err := c.raw.Write(p); err != nil {
-			return err
-		}
+	select {
+	case c.queue <- bytes.Join(packets, nil):
+		return nil
+	default:
+		c.Close()
+		return errFallenBehind
 	}
-	return nil
 }
 
 // KeepOpen lifts the login deadline. A session calls it once the client has proved who it
 // is; the player may then stay as long as they like.
 func (c *Conn) KeepOpen() { _ = c.raw.SetReadDeadline(time.Time{}) }
 
-// Close ends the connection; the read loop then returns and the Session is closed.
+// Close ends the connection at once; the read loop then returns and the Session is closed.
 func (c *Conn) Close() {
-	c.once.Do(func() { _ = c.raw.Close() })
+	c.once.Do(func() {
+		close(c.closed)
+		_ = c.raw.Close()
+	})
+}
+
+// writeQueued writes each send in turn. Once the session has ended it writes what is still
+// waiting, so a last packet like Logout's reaches the client, and stops.
+func (c *Conn) writeQueued() {
+	defer close(c.stopped)
+	for {
+		select {
+		case p := <-c.queue:
+			if !c.writeOne(p) {
+				return
+			}
+		case <-c.closed:
+			return
+		case <-c.ending:
+			for {
+				select {
+				case p := <-c.queue:
+					if !c.writeOne(p) {
+						return
+					}
+				default:
+					return
+				}
+			}
+		}
+	}
+}
+
+// writeOne writes p within the write timeout, closing the connection if it cannot.
+func (c *Conn) writeOne(p []byte) bool {
+	if c.write > 0 {
+		_ = c.raw.SetWriteDeadline(time.Now().Add(c.write)) // fails only once closed, as Write then does
+	}
+	if _, err := c.raw.Write(p); err != nil {
+		c.log.Debug("write failed", "err", err)
+		c.Close()
+		return false
+	}
+	return true
 }
 
 func (c *Conn) serve(ctx context.Context, s Session) {
+	go c.writeQueued()
 	defer s.Close()
 	defer c.Close()
+	defer func() {
+		close(c.ending)
+		<-c.stopped
+	}()
 
 	if err := s.Open(); err != nil {
 		c.log.Warn("open failed", "err", err)

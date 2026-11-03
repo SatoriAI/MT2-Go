@@ -62,7 +62,7 @@ docs/mechanics/     how each mechanic works
 docs/decisions/     why the rules here are what they are
 ```
 
-A connection's goroutine is the only one that touches its session, so session state needs no lock. A connection that has not logged in 30 seconds after connecting is closed, and every send gives up after 10; a session returns `network.ErrHangUp` to end its connection without logging a warning. State shared between connections (`account.Keys`) locks itself.
+A connection's goroutine is the only one that touches its session, so session state needs no lock; any goroutine may `Send` on a connection, which queues (`docs/decisions/connections.md`). A connection that has not logged in 30 seconds after connecting is closed, and every send gives up after 10; a session returns `network.ErrHangUp` to end its connection without logging a warning. State shared between connections (`account.Keys`) locks itself.
 
 ## Decisions worth not relitigating
 
@@ -78,6 +78,7 @@ A connection's goroutine is the only one that touches its session, so session st
 | Working on | Read |
 |---|---|
 | Process layout, database, migrations, dependencies | `architecture.md` |
+| Sending to a connection from elsewhere | `connections.md` |
 | Converting between names and the original client's numbers | `client-adapter.md` |
 | The comment length guard | `comment-blocks.md` |
 | The size of this file | `instructions-budget.md` |
