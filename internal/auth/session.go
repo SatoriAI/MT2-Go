@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"runtime"
+	"sync"
 	"unicode/utf8"
 
 	"golang.org/x/crypto/bcrypt"
@@ -35,16 +36,17 @@ type Service struct {
 	// instead of taking every CPU.
 	checks chan struct{}
 	// decoy is checked for names that do not exist, so they take as long to refuse as a
-	// wrong password and the response time does not reveal which accounts exist.
-	decoy []byte
+	// wrong password and the response time does not reveal which accounts exist. It is
+	// made on the first unknown name rather than at start, as most servers built in the
+	// tests never meet one.
+	decoy func() ([]byte, error)
 }
 
-func NewService(store Accounts, keys *account.Keys, clock handshake.Clock) (*Service, error) {
-	decoy, err := bcrypt.GenerateFromPassword([]byte("decoy"), bcrypt.DefaultCost)
-	if err != nil {
-		return nil, err
-	}
-	return &Service{store: store, keys: keys, clock: clock, checks: make(chan struct{}, runtime.NumCPU()), decoy: decoy}, nil
+func NewService(store Accounts, keys *account.Keys, clock handshake.Clock) *Service {
+	decoy := sync.OnceValues(func() ([]byte, error) {
+		return bcrypt.GenerateFromPassword([]byte("decoy"), bcrypt.DefaultCost)
+	})
+	return &Service{store: store, keys: keys, clock: clock, checks: make(chan struct{}, runtime.NumCPU()), decoy: decoy}
 }
 
 func (s *Service) NewSession(conn *network.Conn) network.Session {
@@ -96,7 +98,9 @@ func (s *session) onLogin(ctx context.Context, body []byte) error {
 	}
 	hash := acc.PasswordHash
 	if hash == nil {
-		hash = s.svc.decoy
+		if hash, err = s.svc.decoy(); err != nil {
+			return err
+		}
 	}
 	ok, err := s.checkPassword(ctx, hash, login.Password)
 	if err != nil {

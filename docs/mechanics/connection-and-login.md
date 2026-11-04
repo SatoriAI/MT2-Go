@@ -58,7 +58,7 @@ The id never contains the byte `D2`: the channel check reads the same socket byt
 
 ### LOGIN_FAILURE — server, `07`, 10 bytes
 
-`07`, then char[9] status. The client shows a message for each known status; this server uses `WRONGPWD` (unknown name or wrong password, deliberately the same answer) and `ALREADY` (the account is in the game). An unknown name is checked against a decoy password hash, so it takes as long to refuse as a wrong password and the response time does not reveal which accounts exist. After three refusals on one connection the server closes it. The client knows others, such as `BLOCK`, `FULL` and `SHUTDOWN`; an unknown string is shown as an unknown error.
+`07`, then char[9] status. The client shows a message for each known status; this server uses `WRONGPWD` (unknown name or wrong password, deliberately the same answer) and `ALREADY` (the account is in the game). An unknown name is checked against a decoy password hash, so it takes as long to refuse as a wrong password and the response time does not reveal which accounts exist. The decoy is made on the first unknown name rather than at start, so that one refusal, once per server run, takes a hash longer; the end-to-end tests, which start a server each, no longer pay for it. After three refusals on one connection the server closes it. The client knows others, such as `BLOCK`, `FULL` and `SHUTDOWN`; an unknown string is shown as an unknown error.
 
 ### LOGIN2 — client, `6D`, 52 bytes, sequenced
 
