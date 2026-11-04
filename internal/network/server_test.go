@@ -246,6 +246,32 @@ func TestAClientThatStopsReadingIsDisconnected(t *testing.T) {
 	}
 }
 
+// A client that stops reading and hangs up still has its session closed at once: the
+// player leaves the world without waiting for the write timeout on what is queued.
+func TestAHangUpClosesTheSessionWithoutWaitingForQueuedWrites(t *testing.T) {
+	ln := listen(t)
+	closed := make(chan struct{})
+	stop := serve(t, ln, Timeouts{Write: 3 * time.Second}, func(c *Conn) Session {
+		return &flooder{conn: c, closed: closed}
+	})
+	defer func() { _ = stop() }()
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = conn.Close() }()
+
+	if err := conn.(*net.TCPConn).CloseWrite(); err != nil {
+		t.Fatal(err)
+	}
+
+	select {
+	case <-closed:
+	case <-time.After(time.Second):
+		t.Fatal("the session waited on the queued writes")
+	}
+}
+
 // Send never waits for the client, so a sender holding a lock others need is never held
 // up; a client too far behind is dropped instead.
 func TestSendingToAClientFarBehindDropsItRatherThanWaiting(t *testing.T) {

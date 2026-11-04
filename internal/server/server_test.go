@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net"
 	"net/netip"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -947,6 +948,20 @@ func TestMovesChatAndWhispersInFlightAfterChangeCharacterAreIgnored(t *testing.T
 	game.whisper("Kira", "hi")
 
 	game.expectOpen()
+}
+
+// The client refuses to send 512 bytes or more: the longest it sends is passed on, and
+// anything longer is not the client's.
+func TestALineLongerThanTheClientSendsEndsTheConnection(t *testing.T) {
+	h := start(t)
+	game := h.inWorld()
+	longest := strings.Repeat("x", 511)
+	game.say(longest)
+	game.expect(protocol.EncodeChat(protocol.ChatNormal, 1, 3, "Hendra : "+longest))
+
+	game.say(longest + "x")
+
+	game.expectClosed()
 }
 
 func TestAnEmptyLineIsIgnored(t *testing.T) {

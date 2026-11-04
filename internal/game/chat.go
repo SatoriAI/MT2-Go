@@ -1,6 +1,7 @@
 package game
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -8,6 +9,11 @@ import (
 	"github.com/SatoriAI/MT2-Go/internal/network"
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
 )
+
+// maxChat is the longest line the client sends: it refuses 512 bytes or more.
+const maxChat = 511
+
+var errChatTooLong = errors.New("game: chat line longer than the client sends")
 
 // onChat answers a line typed in the world, or a command a button or menu sent as one. A
 // line goes to its speaker and everyone who sees them; the client shows nothing it types
@@ -18,6 +24,9 @@ func (s *session) onChat(body []byte) error {
 		return err
 	}
 	s.conn.Log().Debug("chat", "type", c.Type, "text", c.Text, "bytes", fmt.Sprintf("% x", c.Text))
+	if len(c.Text) > maxChat {
+		return errChatTooLong
+	}
 	if command, ok := strings.CutPrefix(c.Text, "/"); ok {
 		return s.onCommand(command)
 	}

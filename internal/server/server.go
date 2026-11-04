@@ -54,10 +54,7 @@ func Serve(ctx context.Context, ports Ports, pool *pgxpool.Pool, cfg config.Conf
 	accounts := store.Accounts{Pool: pool}
 	keys := account.NewKeys(time.Now)
 	clock := handshake.NewClock()
-	authSvc, err := auth.NewService(accounts, keys, clock)
-	if err != nil {
-		return err
-	}
+	authSvc := auth.NewService(accounts, keys, clock)
 	gameSvc := game.NewService(accounts, store.Whispers{Pool: pool}, keys, clock, cfg.GamePublic)
 
 	log.Info("listening", "auth", ports.Auth.Addr().String(), "game", ports.Game.Addr().String(),

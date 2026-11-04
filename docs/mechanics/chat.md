@@ -46,6 +46,7 @@ The phase packet with `0`: the connection is ending.
 `internal/game/chat.go`, in the game phase only. Chat anywhere else closes the connection, like any packet out of its phase.
 
 - **A line** goes back to its speaker, and to everyone in their view, as "Name : text", type normal, with their vid and kingdom. The client doesn't draw its own line itself: with no reply, nothing appears. With the speaker's vid, the line appears once and in a bubble over the speaker. With vid 0, it appears only in the chat window. The bytes are kept as the client sent them, so Polish letters survive; open-mt2 decodes them as ASCII and garbles them. Party, guild and shout are answered as normal for now. An empty line gets no answer.
+- **A line of 512 bytes or more** is not the client's, which refuses to send one (`PythonNetworkStreamPhaseGame.cpp`, `SendChatPacket`), and ends the connection, as an over-long whisper does. The bound keeps a modified client from pushing lines into others that the original can't produce; "Name : " plus 511 bytes always fits the 1024-byte buffer a client receives a line into (`RecvChatPacket`).
 - **Talking too fast:** a player may say 10 lines, chat and whispers together, in any 5 seconds (`internal/game/flood.go`); a line over that is dropped without a reply and logged at debug level. The numbers are open-mt2's: no one types that fast, and the spam tools that send dozens of lines a second are stopped. Dropping rather than disconnecting doesn't punish a burst of real typing, and a spam tool gains nothing either way. A refused line isn't counted, so a flood doesn't keep its own block going. Commands aren't counted, so leaving always works; the one exception is `/setblockmode`, which writes to the database, so a spam tool could otherwise turn it into thousands of writes a second. A change dropped leaves the buttons as they were. The count belongs to the connection, so Change character followed by Start begins a fresh one; that takes a full reload of the world, which is no way to flood.
 - **`/quit`:** the server replies with chat of type command and the text `quit`, which tells the client to close itself. With the real client, it closed.
 - **`/logout`:** phase close, then the connection ends. With the real client, it went back to the login screen.
@@ -69,6 +70,7 @@ The phase packet with `0`: the connection is ending.
   - chat out, byte for byte.
 - `internal/server/server_test.go`:
   - a line coming back to its speaker, and an empty one getting no answer;
+  - 511 bytes passed on, 512 ending the connection;
   - Polish bytes unchanged;
   - an unknown command ignored;
   - `/quit` answered;
