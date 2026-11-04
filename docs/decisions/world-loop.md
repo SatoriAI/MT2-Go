@@ -35,6 +35,8 @@ Experience changed none of these by more than 4%. A first version slowed the idl
 
 Experience events, which added the running event to the record and a look at it on entering, changed none of these by more than 2%.
 
+The periodic save gave each world entry a mutex, ordering a player's saves. As a first version it grew the entry from 160 to 168 bytes, into the allocator's 176-byte class, which monsters use too; entries and monsters then shared spans, and an idle tick, which walks only monsters, was 17% slower at 16,000 of them. The entry kept the character's id twice, once beside its character; dropping the copy brought it back to 160 bytes, and every figure to within 3% of before. A field added to `present` should keep it at 160 bytes, or be measured.
+
 A move costs about 20 ns per character in the world, as the scan predicts. The world lock is held for every move, so the share of each second it is held is the moves per second times their cost:
 
 - **Today:** 100 player moves and 11 strolls a second hold the lock for 0.4 ms of each second: 0.04%.

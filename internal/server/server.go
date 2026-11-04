@@ -29,6 +29,10 @@ var timeouts = network.Timeouts{Login: 30 * time.Second, Write: 10 * time.Second
 // switched on or off at most this late, and one created on the command line is seen.
 const eventCheck = 10 * time.Second
 
+// saveEvery is how often every player in the world is saved: a crash loses at most this
+// much of their play.
+const saveEvery = time.Minute
+
 // Run serves both ports until ctx ends or one of them fails.
 func Run(ctx context.Context, cfg config.Config, log *slog.Logger) error {
 	pool, err := store.Open(ctx, cfg.DatabaseURL)
@@ -75,5 +79,6 @@ func Serve(ctx context.Context, ports Ports, pool *pgxpool.Pool, spawns []world.
 	})
 	g.Go(func() error { return gameSvc.Run(ctx) })
 	g.Go(func() error { return gameSvc.WatchEvents(ctx, store.Events{Pool: pool}, eventCheck, log) })
+	g.Go(func() error { return gameSvc.SavePlayers(ctx, saveEvery, log) })
 	return g.Wait()
 }
