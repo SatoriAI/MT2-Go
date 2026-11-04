@@ -35,8 +35,7 @@ func TestBlockingIsToldBackAndKeptForTheNextEntry(t *testing.T) {
 	game.say("/setblockmode 8")
 
 	game.expect(blockMode(1, "setblockmode 8"))
-	game.say("/phase_select")
-	game.expect(protocol.EncodePhase(protocol.PhaseSelect))
+	game.changeCharacter()
 	h.reenterHendra(key).expect(blockMode(2, "setblockmode 8"))
 	kira, _ := h.enterWorld("bob", "Kira", 3, 0)
 	kira.read(appearanceSize) // Hendra, standing there

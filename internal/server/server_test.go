@@ -240,6 +240,18 @@ func (c *client) expectOpen() {
 	c.expect(protocol.EncodeChannelStatus([]protocol.ChannelStatus{{Port: port, Status: protocol.ChannelNormal}}))
 }
 
+// listSize is the character list's: four slots, their guilds and the guild mark's keys.
+const listSize = 329
+
+// changeCharacter presses Change character and returns the character list that follows
+// the select phase, which the character screen then shows.
+func (c *client) changeCharacter() []byte {
+	c.t.Helper()
+	c.say("/phase_select")
+	c.expect(protocol.EncodePhase(protocol.PhaseSelect))
+	return c.read(listSize)
+}
+
 // expectWaiting checks the server neither answers nor closes while a packet is incomplete;
 // expectOpen cannot, as its probe would become part of that packet.
 func (c *client) expectWaiting() {
@@ -937,7 +949,7 @@ func TestLogoutEndsTheConnectionAndKeepsWhereThePlayerStood(t *testing.T) {
 	}
 }
 
-// Change character returns to the character screen with the phase alone: the client,
+// Change character returns to the character screen with the phase first: the client,
 // still in its game window, ignores anything sent ahead of it. It then logs in again on a
 // new connection, where Start loads the position the character was left at.
 func TestChangeCharacterReturnsToTheCharacterScreen(t *testing.T) {
@@ -948,6 +960,7 @@ func TestChangeCharacterReturnsToTheCharacterScreen(t *testing.T) {
 	game.say("/phase_select")
 
 	game.expect(protocol.EncodePhase(protocol.PhaseSelect))
+	game.read(listSize)
 	if x, y := h.startHendra(key); x != 963500 || y != 278300 {
 		t.Fatalf("loaded at (%d, %d), want where she was left", x, y)
 	}
@@ -959,8 +972,7 @@ func TestChangeCharacterReturnsToTheCharacterScreen(t *testing.T) {
 func TestMovesChatAndWhispersInFlightAfterChangeCharacterAreIgnored(t *testing.T) {
 	h := start(t)
 	game, _ := h.hendraInWorld()
-	game.say("/phase_select")
-	game.expect(protocol.EncodePhase(protocol.PhaseSelect))
+	game.changeCharacter()
 
 	game.send(moveTo(963600, 278400))
 	game.say("hi")
