@@ -6,8 +6,8 @@ import (
 )
 
 // shareExp gives out a dead monster's experience, multiplied by the running event: each
-// player who hurt it and is still in the world gets the share of it that matches the
-// share of its hit points they took, less or more by the gap between its level and
+// player who hurt it and is still in the world, alive, gets the share of it that matches
+// the share of its hit points they took, less or more by the gap between its level and
 // theirs. What rounding leaves goes to the killer. Called under the lock.
 func (w *presence) shareExp(f *fight, killer *present) {
 	exp := uint64(f.exp)
@@ -20,7 +20,7 @@ func (w *presence) shareExp(f *fight, killer *present) {
 	for p, damage := range f.damageBy {
 		share := exp * uint64(damage) / total //nolint:gosec // damage is positive
 		given += share
-		if w.all[p.add.VID] == p {
+		if w.all[p.add.VID] == p && !p.dead() {
 			gains[p] += share
 		}
 	}
@@ -46,6 +46,7 @@ func (w *presence) gainExp(p *present, gain uint32) {
 	p.info.Level = uint32(c.Level)
 	gained := int32(levels) //nolint:gosec // at most the 98 levels there are
 	points, _ := c.Points()
+	c.HP, c.SP = points.MaxHP, points.MaxSP
 	p.send(
 		protocol.EncodePointChange(vid, protocol.PointLevel, gained, int32(c.Level)),
 		protocol.EncodePointChange(vid, protocol.PointNextExp, 0, int32(points.NextExp)), //nolint:gosec // under 2^31

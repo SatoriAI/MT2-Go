@@ -112,6 +112,10 @@ func DecodeAttack(body []byte) (Attack, error) {
 // (the client's FUNC_WAIT).
 const MoveWait uint8 = 0
 
+// MoveAttack plays the character's normal attack where the move puts it, facing its
+// rotation (the client's FUNC_ATTACK); its arg is ignored.
+const MoveAttack uint8 = 2
+
 func DecodeMove(body []byte) (Move, error) {
 	r := NewReader(body)
 	m := Move{Type: r.U8(), Arg: r.U8(), Rotation: r.U8(), X: r.I32(), Y: r.I32(), Time: r.U32()}

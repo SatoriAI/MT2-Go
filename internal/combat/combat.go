@@ -20,11 +20,30 @@ type Attacker struct {
 	account.Stats
 }
 
-// Defender is what a monster sets against a blow.
+// Defender is what is set against a blow: a monster's, from its mob_proto, or a player's,
+// their level and vitality, with armour once they wear it.
 type Defender struct {
 	Level    uint8
-	Vitality uint8 // the mob_proto's HT
-	Armour   uint8 // the mob_proto's DEF
+	Vitality uint8 // a monster's HT
+	Armour   uint8 // a monster's DEF
+}
+
+// Biter is what a monster's bite is made of: its level and strength, as the original
+// counts a monster's attack, and the dice of its mob_proto damage.
+type Biter struct {
+	Level     uint8
+	Strength  uint8
+	DamageMin uint16
+	DamageMax uint16
+}
+
+// Bite is what one of b's bites takes from d: twice its level and strength and a roll of
+// its dice, close to the original's monster, less the share d's defence takes, rounded
+// and never under 1. The roll is the bite's spread, so nothing is added to it.
+func Bite(b Biter, d Defender, r *rand.Rand) int {
+	roll := int(b.DamageMin) + r.IntN(int(b.DamageMax)-int(b.DamageMin)+1)
+	attack := 2*float64(b.Level) + 2*float64(b.Strength) + float64(roll)
+	return max(1, int(math.Round(attack*100/(100+d.Defence()))))
 }
 
 // spread is how far a blow's damage strays either way from its mean, as a share of it.

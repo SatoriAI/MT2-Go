@@ -33,7 +33,7 @@ var (
 // stats, which the player keeps from their first blow on.
 func (s *Service) hit(victim uint32, a combat.Attacker, gap time.Duration, now time.Time) blow {
 	if p := s.presence.all[1000]; p.char == nil {
-		p.char = &account.Character{Level: a.Level, Class: a.Class, Stats: a.Stats}
+		p.char = &account.Character{HP: 1000, Level: a.Level, Class: a.Class, Stats: a.Stats}
 	}
 	return s.presence.attack(1000, victim, gap, someRand, now)
 }

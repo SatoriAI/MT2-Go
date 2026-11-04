@@ -35,7 +35,13 @@ type fight struct {
 	exp      uint32
 }
 
-func (p *present) dead() bool { return p.fight != nil && !p.fight.diedAt.IsZero() }
+// dead is whether p lies dead: a monster since its death, a player at no hit points.
+func (p *present) dead() bool {
+	if p.fight != nil {
+		return !p.fight.diedAt.IsZero()
+	}
+	return p.char != nil && p.char.HP == 0
+}
 
 // hpPercent is the share of its hit points the monster has left, as the target window
 // draws it.
@@ -52,7 +58,8 @@ func untarget(p, t *present) {
 }
 
 // target makes the monster vid the player's target and tells them its hit points; a vid
-// that is not a living monster they see, 0 included, leaves them with none.
+// that is not a living monster they see, 0 included, leaves them with none, as does being
+// dead.
 func (w *presence) target(playerVID, vid uint32) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -61,7 +68,7 @@ func (w *presence) target(playerVID, vid uint32) {
 		untarget(p, p.target)
 	}
 	t, seen := p.sees[vid]
-	if !seen || t.fight == nil || t.dead() {
+	if p.dead() || !seen || t.fight == nil || t.dead() {
 		return
 	}
 	p.target = t
@@ -87,7 +94,7 @@ func (w *presence) attack(playerVID, vid uint32, gap time.Duration, r *rand.Rand
 	defer w.mu.Unlock()
 	p := w.all[playerVID]
 	v, seen := p.sees[vid]
-	if !seen || v.fight == nil || v.dead() || !within(p, v, attackReach) {
+	if p.dead() || !seen || v.fight == nil || v.dead() || !within(p, v, attackReach) {
 		return blowRefused
 	}
 	f := v.fight
@@ -104,6 +111,7 @@ func (w *presence) attack(playerVID, vid uint32, gap time.Duration, r *rand.Rand
 		t.send(protocol.EncodeTarget(vid, f.hpPercent()))
 	}
 	if f.hp > 0 {
+		w.provoked = append(w.provoked, provocation{v, p})
 		return blowLanded
 	}
 	f.diedAt = now
@@ -122,14 +130,15 @@ type death struct {
 	at time.Time
 }
 
-// takeFallen hands the world loop the monsters that died since it last asked, so the loop
-// learns of deaths without looking at every monster under the lock.
-func (w *presence) takeFallen() []death {
+// takeNews hands the world loop what happened to monsters since it last asked: those that
+// died, and the blows that landed on living ones. The loop learns of them without looking
+// at every monster under the lock, and with one lock a tick.
+func (w *presence) takeNews() ([]death, []provocation) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	fallen := w.fallen
-	w.fallen = nil
-	return fallen
+	fallen, provoked := w.fallen, w.provoked
+	w.fallen, w.provoked = nil, nil
+	return fallen, provoked
 }
 
 func within(p, o *present, reach int64) bool {

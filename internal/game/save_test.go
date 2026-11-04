@@ -66,7 +66,7 @@ func playing(t *testing.T) (*Service, *saves, *character, *present) {
 	store := newSaves()
 	s := worldWith(t)
 	s.store = store
-	c := &character{vid: 1000, Character: account.Character{ID: 7, Name: "Hendra", Level: 3, Exp: 40,
+	c := &character{vid: 1000, Character: account.Character{HP: 1000, ID: 7, Name: "Hendra", Level: 3, Exp: 40,
 		StatPoints: 2, Stats: account.Stats{Strength: 8}, X: homeX, Y: homeY}}
 	conn, _ := watcher(t)
 	p := &present{out: conn, char: &c.Character,
@@ -115,7 +115,7 @@ func TestTheSaveOnLeavingLandsAfterOneUnderWay(t *testing.T) {
 	c.Exp = 55 // a kill, under the lock as in play
 	s.presence.mu.Unlock()
 	leaving := make(chan struct{})
-	go func() { s.leaveAndSave(c, quiet); close(leaving) }()
+	go func() { s.leaveAndSave(c, account.EmpireNone, quiet); close(leaving) }()
 	select {
 	case <-leaving:
 		t.Fatal("the save on leaving did not wait for the one under way")
@@ -176,7 +176,7 @@ func TestLeavingSavesWhereTheWorldRecordHasThePlayer(t *testing.T) {
 	s, store, c, _ := playing(t)
 	c.X = homeX + 900 // the connection's copy, moved where the record did not follow
 
-	s.leaveAndSave(c, quiet)
+	s.leaveAndSave(c, account.EmpireNone, quiet)
 
 	if _, at, _ := store.ofHendra(); at != [2]int32{homeX, homeY} {
 		t.Fatalf("saved at %v, want where the record has her", at)
@@ -188,7 +188,7 @@ func TestLeavingSavesWhereTheWorldRecordHasThePlayer(t *testing.T) {
 func TestStoppingEndsARoundOfSaves(t *testing.T) {
 	s, store, _, _ := playing(t)
 	conn, _ := watcher(t)
-	kira := account.Character{ID: 8, Name: "Kira"}
+	kira := account.Character{ID: 8, Name: "Kira", HP: 1000}
 	s.presence.enter(&present{out: conn, char: &kira,
 		add: protocol.CharacterAdd{VID: 1001, X: homeX, Y: homeY}, info: protocol.CharacterInfo{Name: kira.Name}})
 	release := make(chan struct{})
@@ -208,5 +208,19 @@ func TestStoppingEndsARoundOfSaves(t *testing.T) {
 	defer store.mu.Unlock()
 	if len(store.progress) != 1 {
 		t.Fatalf("saved %d players after stopping mid-round, want only the one under way", len(store.progress))
+	}
+}
+
+// A player who leaves dead is kept at their kingdom's start, as a restart in town puts
+// them, since they come back with all their hit points.
+func TestAPlayerWhoLeavesDeadIsKeptAtTheStart(t *testing.T) {
+	s, store, c, _ := playing(t)
+	c.HP = 0
+
+	s.leaveAndSave(c, account.EmpireShinsoo, quiet)
+
+	x, y, _ := account.EmpireShinsoo.StartPosition()
+	if _, at, _ := store.ofHendra(); at != [2]int32{x, y} {
+		t.Fatalf("saved at %v, want the start at (%d, %d)", at, x, y)
 	}
 }

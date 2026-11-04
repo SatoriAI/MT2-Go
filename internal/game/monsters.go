@@ -35,8 +35,12 @@ const (
 // monster is one the world loop walks, if it wanders, and brings back after it dies. Only the loop moves
 // it, so where it stands here is where the world record has it.
 type monster struct {
-	proto      mob.Proto
+	// proto is its kind, shared by the monsters of its spawn: a copy in each would make the
+	// monster too big for the allocator's 176-byte class, and the tick, which walks them
+	// all, slower (docs/decisions/world-loop.md).
+	proto      *mob.Proto
 	wanders    bool // the proto's, kept here: the tick asks it of every monster ten times a second
+	gone       bool // its body has been taken away
 	spawn      world.Spawn
 	p          *present
 	homeX      int32
@@ -44,7 +48,7 @@ type monster struct {
 	x, y       int32
 	nextStroll time.Time
 	diedAt     time.Time // zero while alive
-	gone       bool      // its body has been taken away
+	chase      *chase    // its fight with a player who hit it; nil when it is not fighting
 }
 
 // Run puts the world's mobs in it, then walks the monsters until ctx ends.
@@ -72,16 +76,16 @@ func (s *Service) spawn(now time.Time) error {
 			return fmt.Errorf("game: spawn of %d, which has no proto", sp.VNum)
 		}
 		for range sp.Count {
-			s.spawnOne(proto, sp, now)
+			s.spawnOne(&proto, sp, now)
 		}
 	}
 	return nil
 }
 
-func (s *Service) spawnOne(proto mob.Proto, sp world.Spawn, now time.Time) {
+func (s *Service) spawnOne(proto *mob.Proto, sp world.Spawn, now time.Time) {
 	// Whatever can be killed is the loop's to take away and bring back, wandering or not.
 	if !proto.Fightable() {
-		s.presence.enter(s.newMob(proto, sp.X+s.spread(sp.Spread), sp.Y+s.spread(sp.Spread), 0))
+		s.presence.enter(s.newMob(*proto, sp.X+s.spread(sp.Spread), sp.Y+s.spread(sp.Spread), 0))
 		return
 	}
 	m := &monster{proto: proto, spawn: sp, wanders: proto.Wanders()}
@@ -95,7 +99,7 @@ func (s *Service) place(m *monster, now time.Time) {
 	m.homeX, m.homeY = m.spawn.X+s.spread(m.spawn.Spread), m.spawn.Y+s.spread(m.spawn.Spread)
 	m.x, m.y = m.homeX, m.homeY
 	delete(s.byPresent, m.p)
-	m.p = s.newMob(m.proto, m.x, m.y, float32(s.rand.IntN(8)*45))
+	m.p = s.newMob(*m.proto, m.x, m.y, float32(s.rand.IntN(8)*45))
 	m.nextStroll, m.diedAt, m.gone = now.Add(s.strollWait()), time.Time{}, false
 	s.byPresent[m.p] = m
 	s.presence.enter(m.p)
@@ -117,12 +121,15 @@ func (s *Service) newMob(proto mob.Proto, x, y int32, facing float32) *present {
 	return p
 }
 
-// tick takes away the bodies whose time has come, brings back the monsters whose has, and
-// walks every living monster whose stroll is due.
+// tick takes away the bodies whose time has come, brings back the monsters whose has,
+// walks every living monster whose stroll is due, and has those that were hit fight back.
 func (s *Service) tick(now time.Time) {
-	for _, d := range s.presence.takeFallen() {
-		s.byPresent[d.p].diedAt = d.at
+	fallen, provoked := s.presence.takeNews()
+	for _, d := range fallen {
+		m := s.byPresent[d.p]
+		m.diedAt, m.chase = d.at, nil
 	}
+	s.engage(provoked, now)
 	for _, m := range s.monsters {
 		switch {
 		case !m.diedAt.IsZero() && !m.gone && !now.Before(m.diedAt.Add(corpseTime)):
@@ -130,10 +137,11 @@ func (s *Service) tick(now time.Time) {
 			m.gone = true
 		case m.gone && !now.Before(m.diedAt.Add(respawnAfter)):
 			s.place(m, now)
-		case m.diedAt.IsZero() && m.wanders && !now.Before(m.nextStroll):
+		case m.diedAt.IsZero() && m.wanders && m.chase == nil && !now.Before(m.nextStroll):
 			s.stroll(m, now)
 		}
 	}
+	s.fightOn(now)
 }
 
 func (s *Service) stroll(m *monster, now time.Time) {

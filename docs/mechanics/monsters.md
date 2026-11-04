@@ -2,7 +2,7 @@
 
 ## What the player sees
 
-Each first village has its villagers: the weapon and armour dealers, the general store, the storekeeper, the old lady, and fishermen along the water, each standing where the minimap marks them, with their name over their head. In the fields around the village are wild dogs, wolves, alpha wolves and boars. Every few seconds a monster strolls a few steps and stops, facing where it went. Walking away, they fade out like other players; walking back, they are there again. Monsters can be fought ([combat.md](combat.md)); NPCs cannot.
+Each first village has its villagers: the weapon and armour dealers, the general store, the storekeeper, the old lady, and fishermen along the water, each standing where the minimap marks them, with their name over their head. In the fields around the village are wild dogs, wolves, alpha wolves and boars. Every few seconds a monster strolls a few steps and stops, facing where it went. Walking away, they fade out like other players; walking back, they are there again. Monsters can be fought, and fight back when hit ([combat.md](combat.md)); NPCs cannot.
 
 ## What the client does
 
@@ -31,7 +31,7 @@ The packets are the ones on [other-players.md](other-players.md) and [entering-t
 
 - **What each kind is** (`internal/mob`): only the kinds the world spawns, with the client's `mob_proto` move and attack speeds. NPCs never move. The names are the Polish client's own, in UTF-8, turned into cp1250 for the INFO (`internal/game/wire.go`).
 - **Where they stand** (`internal/world/spawns.go`): a table per first village. The NPCs are at the client's minimap marks for them (`locale/pl/map/metin2_map_*_point.txt`). The monster areas are this server's own: open-mt2's spawn files come from the original server's data, which this repository keeps out. Each village has five, 10000 to 30000 from its start and at least 7000 from its shops, chosen by a throwaway script over the client's own terrain: no cell the attribute map (`attr.atr`) marks blocked or water within the area's spread plus a stroll, and no step steeper than 60 height units per 200 in the height map (`height.raw`). The first guess, placed by eye on the minimap, put one Jinno area on a cliff: 69% of it blocked. Each area puts its count of monsters at random points within its spread.
-- **The world loop** (`internal/game/monsters.go`, `docs/decisions/world-loop.md`) starts with the server. It puts every mob in the world record, then every 100 ms walks each monster whose stroll is due: a random point within 600 of where it was spawned, every 5 to 25 seconds, open-mt2's numbers for an idle monster.
+- **The world loop** (`internal/game/monsters.go`, `docs/decisions/world-loop.md`) starts with the server. It puts every mob in the world record, then every 100 ms walks each monster whose stroll is due: a random point within 600 of where it was spawned, every 5 to 25 seconds, open-mt2's numbers for an idle monster. A monster fighting a player does not stroll; it walks home when it gives up and strolls again from there ([combat.md](combat.md)).
 - **Seeing:** mobs are on the same world record as players, under the same view rule and order (`internal/game/presence.go`). A player sees mobs within 8000 on the same map, and a mob walking into view appears before its move, already where it was heading, as a player does. Where a character stands and the way it last faced are kept, so someone meeting a monster after a stroll sees it facing the way it went. Mobs never see each other. A player entering sees the mobs in view in the same single send as the players.
 - **Names are players' only:** a whisper to an NPC's name finds nobody.
 
@@ -64,7 +64,6 @@ The packets are the ones on [other-players.md](other-players.md) and [entering-t
 
 ## Not done yet
 
-- Experience, and monsters fighting back; picking, hitting, death and return are on [combat.md](combat.md).
 - Aggressive monsters noticing players.
 - Metin stones, bosses and groups of monsters.
 - Warps, and the other maps.

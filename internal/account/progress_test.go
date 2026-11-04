@@ -88,3 +88,27 @@ func TestNoStatPointNoSpending(t *testing.T) {
 		t.Fatalf("spent a point it did not have: dexterity %d", c.Dexterity)
 	}
 }
+
+// Dying costs 2% of what the level needs: 6 of the 300 a level-1 character needs.
+func TestDyingCostsTwoPercentOfTheLevelsNeed(t *testing.T) {
+	c := Character{Level: 1, Exp: 100}
+	if lost := c.LoseExpOnDeath(); lost != 6 || c.Exp != 94 {
+		t.Fatalf("lost %d, left %d; want 6 and 94", lost, c.Exp)
+	}
+}
+
+// The penalty never takes a level: it stops at no experience.
+func TestDyingNeverTakesALevel(t *testing.T) {
+	c := Character{Level: 2, Exp: 3}
+	if lost := c.LoseExpOnDeath(); lost != 3 || c.Exp != 0 || c.Level != 2 {
+		t.Fatalf("lost %d, left level %d with %d", lost, c.Level, c.Exp)
+	}
+}
+
+// At the top level, with nothing to gain, nothing is lost.
+func TestDyingAtTheTopLevelCostsNothing(t *testing.T) {
+	c := Character{Level: MaxLevel}
+	if lost := c.LoseExpOnDeath(); lost != 0 {
+		t.Fatalf("lost %d", lost)
+	}
+}
