@@ -7,7 +7,6 @@ type Spawn struct {
 	X, Y   int32 // world coordinates
 	Spread int32
 	Count  int
-	Facing float32 // degrees; NPCs keep it, monsters turn as they walk
 }
 
 // spawnAt is a spawn written in the map's own coordinates, as the client's map files and
@@ -17,7 +16,6 @@ type spawnAt struct {
 	x, y   int32
 	spread int32
 	count  int
-	facing float32
 }
 
 // The village NPCs stand at the client's own minimap marks for them
@@ -66,7 +64,7 @@ func Spawns() []Spawn {
 	for _, m := range maps {
 		for _, s := range spawnsByMap[m.Name] {
 			count := max(s.count, 1)
-			all = append(all, Spawn{VNum: s.vnum, X: m.X + s.x, Y: m.Y + s.y, Spread: s.spread, Count: count, Facing: s.facing})
+			all = append(all, Spawn{VNum: s.vnum, X: m.X + s.x, Y: m.Y + s.y, Spread: s.spread, Count: count})
 		}
 	}
 	return all

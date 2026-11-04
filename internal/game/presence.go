@@ -106,7 +106,9 @@ func (w *presence) move(vid uint32, m protocol.Move) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	p := w.all[vid]
-	p.add.X, p.add.Y = m.X, m.Y
+	// Kept as the client draws it, so whoever meets the character later sees it where it
+	// went and facing the way it last moved: the move counts in steps of 5 degrees.
+	p.add.X, p.add.Y, p.add.Rotation = m.X, m.Y, float32(m.Rotation)*5
 	var mine [][]byte
 	for _, other := range w.all {
 		if other == p {

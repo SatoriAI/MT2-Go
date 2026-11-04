@@ -10,7 +10,7 @@ Each monster schedules its next act with `time.AfterFunc`. It needs no loop, but
 
 `game.Service.Run` is one goroutine, started by `internal/server` beside the two ports and stopped with them. It puts the mobs in the world, then every 100 ms walks the monsters whose stroll is due. Only it touches the monsters' own state (where each stands, when it next strolls, the randomness), so that state needs no lock; what others see goes through the world record, under its lock, as a player's move does, and sending only queues (`connections.md`).
 
-- **One goroutine** orders every monster's acts, and a test calls `tick(now)` with the time it chooses and a fixed seed, so no test sleeps.
+- **One goroutine** orders every monster's acts, and a test calls `tick(now)` with the time it chooses and a fixed seed, so no test waits for a stroll. (Checking that nothing arrives still waits 100 ms.) The end-to-end tests run the real loop: a monster in their view would first stroll 5 s after the server starts, and each test finishes in well under one.
 - **100 ms** is far finer than anything a monster does yet: the shortest wait between strolls is 5 s. A stroll starts at most 100 ms late, which nobody sees.
 - **The cost** is a scan of the monsters each tick. A few hundred monsters is nothing; a server with many thousands would keep them ordered by when they next act.
 

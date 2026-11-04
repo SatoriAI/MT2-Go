@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"math"
 	"math/rand/v2"
 	"net"
 	"net/netip"
@@ -205,6 +206,36 @@ func TestMobsDoNotSeeEachOther(t *testing.T) {
 	for vid, p := range s.presence.all {
 		if len(p.sees) != 0 {
 			t.Errorf("mob %d sees %d others", vid, len(p.sees))
+		}
+	}
+}
+
+// Someone meeting a monster after its stroll sees it facing the way it went.
+func TestAMonsterMetLaterFacesTheWayItLastWalked(t *testing.T) {
+	s := worldWith(t, world.Spawn{VNum: 101, X: homeX, Y: homeY, Count: 1})
+	s.tick(noon.Add(wanderMax))
+	w := s.wanderers[0]
+
+	client := s.playerAt(t, w.x, 0)
+
+	add := protocol.NewReader(read(t, client, addSize)[5:]) // after the header and vid
+	want := float32(rotationTowards(w.x-homeX, w.y-homeY)) * 5
+	if got := math.Float32frombits(add.U32()); got != want {
+		t.Fatalf("shown facing %v degrees, want %v", got, want)
+	}
+}
+
+// However far a monster strolls, it stays on its spawn's map: the spawn's spread and a
+// stroll together lie on the map the spawn is on.
+func TestNoStrollLeavesTheMapOfItsSpawn(t *testing.T) {
+	reach := int32(wanderRange)
+	for _, sp := range world.Spawns() {
+		home, _ := world.MapAt(sp.X, sp.Y)
+		r := sp.Spread + reach
+		for _, c := range [][2]int32{{-r, -r}, {r, r}, {-r, r}, {r, -r}} {
+			if m, ok := world.MapAt(sp.X+c[0], sp.Y+c[1]); !ok || m.Name != home.Name {
+				t.Errorf("%d at (%d, %d) can stroll to (%d, %d), off %s", sp.VNum, sp.X, sp.Y, sp.X+c[0], sp.Y+c[1], home.Name)
+			}
 		}
 	}
 }

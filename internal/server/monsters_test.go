@@ -11,7 +11,7 @@ import (
 // Near the Jinno start: the weapon dealer and a wild dog in view, a wolf well out of it.
 // None is spread, so each stands where written.
 var nearTheStart = []world.Spawn{
-	{VNum: 9001, X: startX + 1000, Y: startY, Count: 1, Facing: 90},
+	{VNum: 9001, X: startX + 1000, Y: startY, Count: 1},
 	{VNum: 101, X: startX - 1000, Y: startY, Count: 1},
 	{VNum: 102, X: startX + 20000, Y: startY, Count: 1},
 }

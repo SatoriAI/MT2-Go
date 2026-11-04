@@ -67,7 +67,7 @@ func (s *Service) spawn(now time.Time) error {
 func (s *Service) spawnOne(proto mob.Proto, sp world.Spawn, now time.Time) {
 	x, y := sp.X+s.spread(sp.Spread), sp.Y+s.spread(sp.Spread)
 	vid := s.lastVID.Add(1)
-	facing := sp.Facing
+	var facing float32 // an NPC faces the way its model was made to
 	if proto.Wanders() {
 		facing = float32(s.rand.IntN(8) * 45)
 	}
