@@ -1,6 +1,6 @@
 # Every command this project has. CI invokes these targets rather than restating their
 # commands, so the two cannot drift.
-.PHONY: help hooks structure comment-blocks fmt-check lint test check db stop run account
+.PHONY: help hooks structure comment-blocks fmt-check lint test check bench db stop run account
 
 # .env is optional; when present, every target sees its variables.
 -include .env
@@ -37,6 +37,9 @@ test: ## The test suite; it needs `make db` (go test -short ./... skips the Post
 # red; never pass --no-verify. Cheapest first, so the fast answers come back before the
 # slow ones are paid for.
 check: structure comment-blocks fmt-check lint test ## Everything that decides whether this is green
+
+bench: ## The world's benchmarks, at today's size and ten and a hundred times it, six runs each: compare medians
+	go test -run '^$$' -bench . -benchmem -count 6 ./internal/game/
 
 db: ## Start PostgreSQL and create the test database
 	docker compose up -d --wait db

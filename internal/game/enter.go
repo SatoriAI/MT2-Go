@@ -103,7 +103,7 @@ func (s *session) onVersion(body []byte) error {
 func (s *session) onEnterGame() error {
 	p := s.playing
 	me := &present{
-		conn:      s.conn,
+		out:       s.conn,
 		character: p.ID,
 		add: protocol.CharacterAdd{
 			VID:         p.vid,

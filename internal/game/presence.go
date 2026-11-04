@@ -5,7 +5,6 @@ import (
 	"sync"
 
 	"github.com/SatoriAI/MT2-Go/internal/account"
-	"github.com/SatoriAI/MT2-Go/internal/network"
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
 	"github.com/SatoriAI/MT2-Go/internal/world"
 )
@@ -26,11 +25,16 @@ type presence struct {
 	byName map[string]*present // players, by lower-cased name: unique regardless of case
 }
 
+// sender is where a player's packets go: their connection, which only queues them.
+type sender interface {
+	Send(packets ...[]byte) error
+}
+
 // present is one character in the world, as the players who see it see it.
 type present struct {
-	conn      *network.Conn // nil for a mob
-	character uint32        // the stored character's id; the vid lasts one login
-	world     string        // the map's name; "" for a position on no known map, which those share
+	out       sender // the player's connection; nil for a mob
+	character uint32 // the stored character's id; the vid lasts one login
+	world     string // the map's name; "" for a position on no known map, which those share
 	add       protocol.CharacterAdd
 	info      protocol.CharacterInfo
 	blocks    account.Blocks // what they refuse from others, as they last chose
@@ -49,12 +53,12 @@ func (p *present) appearance() [][]byte {
 	return [][]byte{protocol.EncodeCharacterAdd(p.add), protocol.EncodeCharacterInfo(p.info)}
 }
 
-func (p *present) isPlayer() bool { return p.conn != nil }
+func (p *present) isPlayer() bool { return p.out != nil }
 
 // send queues packets for the player; a mob has nobody to tell.
 func (p *present) send(packets ...[]byte) {
 	if p.isPlayer() && len(packets) > 0 {
-		_ = p.conn.Send(packets...)
+		_ = p.out.Send(packets...)
 	}
 }
 
@@ -171,7 +175,7 @@ func (w *presence) whisper(name string, packet []byte) (uint32, whisperOutcome) 
 	case p.blocks.Has(account.BlockWhisper):
 		return p.character, whisperRefused
 	}
-	_ = p.conn.Send(packet)
+	_ = p.out.Send(packet)
 	return p.character, whisperDelivered
 }
 
