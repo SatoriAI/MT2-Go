@@ -49,7 +49,7 @@ Every game mechanic has a page in `docs/mechanics/`: what the client does, the e
 ## Structure
 
 ```text
-cmd/mt2go/          the binary: `serve`, and `account create` while there is no registration
+cmd/mt2go/          the binary: `serve`, and `account create` and `event` while there is no website
 internal/config/    environment -> Config
 internal/protocol/  packet layouts, framing, byte reading and writing
 internal/network/   TCP: one goroutine per connection, cutting the stream into packets
@@ -61,6 +61,7 @@ internal/store/     PostgreSQL: pool, embedded migrations, queries
 internal/world/     the game world: which maps exist and where, and where mobs are spawned
 internal/mob/       what each kind of monster and NPC is
 internal/combat/    how much a blow takes: attack, defence, damage
+internal/event/     scheduled events: what one is, and its multiplier
 internal/server/    wires everything and runs both ports; the end-to-end tests live here
 docs/mechanics/     how each mechanic works
 docs/decisions/     why the rules here are what they are

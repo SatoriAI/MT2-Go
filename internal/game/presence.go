@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/SatoriAI/MT2-Go/internal/account"
+	"github.com/SatoriAI/MT2-Go/internal/event"
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
 	"github.com/SatoriAI/MT2-Go/internal/world"
 )
@@ -24,6 +25,7 @@ type presence struct {
 	all    map[uint32]*present // by vid
 	byName map[string]*present // players, by lower-cased name: unique regardless of case
 	fallen []death             // monsters killed since the world loop last asked
+	event  *event.Event        // the event running; nil for none
 }
 
 // sender is where a player's packets go: their connection, which only queues them.
@@ -105,6 +107,9 @@ func (w *presence) enter(p *present) {
 			other.send(p.appearance()...)
 			others = append(others, other.appearance()...)
 		}
+	}
+	if w.event != nil && p.isPlayer() {
+		others = append(others, eventNotice(*w.event))
 	}
 	p.send(others...)
 	w.all[p.add.VID] = p

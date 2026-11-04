@@ -54,6 +54,13 @@ func start(t *testing.T) *harness {
 // startWith runs a server whose world holds the mobs of spawns.
 func startWith(t *testing.T, spawns []world.Spawn) *harness {
 	t.Helper()
+	return launch(t, spawns, "")
+}
+
+// launch runs a server whose world holds the mobs of spawns, after running seed, SQL the
+// server must find as it starts.
+func launch(t *testing.T, spawns []world.Spawn, seed string) *harness {
+	t.Helper()
 	if testing.Short() {
 		t.Skip("needs PostgreSQL; run without -short")
 	}
@@ -66,7 +73,10 @@ func startWith(t *testing.T, spawns []world.Spawn) *harness {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := pool.Exec(ctx, `TRUNCATE accounts, characters RESTART IDENTITY CASCADE`); err != nil {
+	if _, err := pool.Exec(ctx, `TRUNCATE accounts, characters, events RESTART IDENTITY CASCADE`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, seed); err != nil {
 		t.Fatal(err)
 	}
 	authLn := listen(t)

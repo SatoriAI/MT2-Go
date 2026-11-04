@@ -5,26 +5,30 @@ import (
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
 )
 
-// shareExp gives out a dead monster's experience: each player who hurt it and is still in
-// the world gets the share of it that matches the share of its hit points they took, less
-// or more by the gap between its level and theirs. What rounding leaves goes to the
-// killer. Called under the lock.
+// shareExp gives out a dead monster's experience, multiplied by the running event: each
+// player who hurt it and is still in the world gets the share of it that matches the
+// share of its hit points they took, less or more by the gap between its level and
+// theirs. What rounding leaves goes to the killer. Called under the lock.
 func (w *presence) shareExp(f *fight, killer *present) {
+	exp := uint64(f.exp)
+	if w.event != nil {
+		exp = w.event.Exp(exp)
+	}
 	total := uint64(f.maxHP) //nolint:gosec // hit points are positive
 	gains := map[*present]uint64{}
 	var given uint64
 	for p, damage := range f.damageBy {
-		share := uint64(f.exp) * uint64(damage) / total //nolint:gosec // damage is positive
+		share := exp * uint64(damage) / total //nolint:gosec // damage is positive
 		given += share
 		if w.all[p.add.VID] == p {
 			gains[p] += share
 		}
 	}
-	gains[killer] += uint64(f.exp) - given
+	gains[killer] += exp - given
 	for p, share := range gains {
 		gain := share * uint64(account.GapPercent(f.defender.Level, p.char.Level)) / 100
 		if gain > 0 {
-			w.gainExp(p, uint32(gain)) //nolint:gosec // at most 180% of a monster's experience, far under 2^32
+			w.gainExp(p, uint32(gain)) //nolint:gosec // at most 18 times a monster's experience, far under 2^32
 		}
 	}
 }

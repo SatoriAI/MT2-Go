@@ -32,7 +32,7 @@ Most client packets have one size per header. Some vary, chat among them. Right 
 |---|---|---|
 | 0 | u8 header | `04` |
 | 1 | u16 size | the total |
-| 3 | u8 type | |
+| 3 | u8 type | 0 a player's line, 2 a notice from the server ([events.md](events.md)), 5 a command to the client |
 | 4 | u32 vid | whose line it is; the client drops a line whose vid is a character it does not know |
 | 8 | u8 kingdom | |
 | 9 | text, then `00` | the whole line, already as "Name : text" |
