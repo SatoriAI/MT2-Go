@@ -124,6 +124,7 @@ type ChatType uint8
 
 const (
 	ChatNormal  ChatType = 0
+	ChatNotice  ChatType = 2 // from vid 0, scrolls over the top of the screen and stays in chat
 	ChatCommand ChatType = 5 // an instruction to the client itself, such as "quit"
 )
 

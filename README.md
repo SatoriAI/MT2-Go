@@ -23,6 +23,8 @@ make account NAME=admin  # asks for a password (at most 16 characters, the clien
 make run                 # auth on 127.0.0.1:11002, game on 127.0.0.1:13001
 ```
 
+An experience event, such as double experience over Christmas, is scheduled with `go run ./cmd/mt2go event create "Boże Narodzenie" 2 2026-12-24T00:00 2026-12-27T00:00`; see [`docs/mechanics/events.md`](docs/mechanics/events.md).
+
 Point the client's `serverinfo.py` at `127.0.0.1`, auth port `11002`, channel port `13001`, and log in with the account you created. **The client is not part of this repository** and is not provided here.
 
 ## Configuration

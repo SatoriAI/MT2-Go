@@ -25,6 +25,10 @@ import (
 // give up on a client that stops reading; a real client answers the server within a second.
 var timeouts = network.Timeouts{Login: 30 * time.Second, Write: 10 * time.Second}
 
+// eventCheck is how often the server looks for an event starting or ending: one is
+// switched on or off at most this late, and one created on the command line is seen.
+const eventCheck = 10 * time.Second
+
 // Run serves both ports until ctx ends or one of them fails.
 func Run(ctx context.Context, cfg config.Config, log *slog.Logger) error {
 	pool, err := store.Open(ctx, cfg.DatabaseURL)
@@ -70,5 +74,6 @@ func Serve(ctx context.Context, ports Ports, pool *pgxpool.Pool, spawns []world.
 		return network.Serve(ctx, ports.Game, gameSvc.NewSession, timeouts, log.With("port", "game"))
 	})
 	g.Go(func() error { return gameSvc.Run(ctx) })
+	g.Go(func() error { return gameSvc.WatchEvents(ctx, store.Events{Pool: pool}, eventCheck, log) })
 	return g.Wait()
 }

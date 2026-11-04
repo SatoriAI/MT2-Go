@@ -1,8 +1,9 @@
-// Command mt2go runs the server, and creates accounts while there is no website to
-// register on.
+// Command mt2go runs the server, and creates accounts and schedules events while there is
+// no website for either (docs/mechanics/events.md):
 //
 //	mt2go serve
 //	mt2go account create <name>   (password read from standard input)
+//	mt2go event create <name> <multiplier> <start> <end> | event list | event delete <id>
 package main
 
 import (
@@ -24,7 +25,8 @@ import (
 	"github.com/SatoriAI/MT2-Go/internal/store"
 )
 
-const usage = "usage: mt2go serve | mt2go account create <name>"
+const usage = "usage: mt2go serve | mt2go account create <name> | mt2go event create <name> <multiplier> <start> <end> | " +
+	"mt2go event list | mt2go event delete <id>"
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -47,6 +49,8 @@ func run(ctx context.Context, log *slog.Logger, args []string) error {
 		return server.Run(ctx, cfg, log)
 	case len(args) == 3 && args[0] == "account" && args[1] == "create":
 		return createAccount(ctx, cfg, args[2])
+	case len(args) >= 2 && args[0] == "event":
+		return runEvent(ctx, cfg, args[1:])
 	}
 	return errors.New(usage)
 }
