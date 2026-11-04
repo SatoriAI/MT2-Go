@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
 )
@@ -29,6 +30,12 @@ func (s *session) onWhisper(body []byte) error {
 	}
 	p := s.playing
 	if w.Text == "" || strings.EqualFold(w.To, p.Name) {
+		return nil
+	}
+	// A whisper over the limit gets no reply at all, so a flood cannot be turned into
+	// replies.
+	if !s.flood.allow(time.Now()) {
+		s.conn.Log().Debug("whisper dropped: talking too fast", "character", p.Name)
 		return nil
 	}
 	recipient, ok := s.svc.presence.whisper(w.To, protocol.EncodeWhisper(protocol.WhisperLine, p.Name, w.Text))
