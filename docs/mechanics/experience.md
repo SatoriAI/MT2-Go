@@ -32,7 +32,7 @@ Unspent stat points sit at index 26 of POINTS; experience at 3, as before.
 `internal/account/progress.go` holds the rules; `internal/game/experience.go` applies them.
 
 - **The needs:** each level needs the original game's experience to reach the next: 300 from 1, 800 from 2, 33,000 from 10, 472,000 from 20, 2,122,000 from 30, on to 2,029,047,116 from 98. Level 99 is the top and gains nothing more.
-- **The level gap:** a player gets a share of a monster's experience by the monster's level less theirs: 1% at 15 or more below, then 5, 10, 20, 30, 50, 70, 80, 85, 90, 92, 94, 96 and 98% up to 1 below, 100% level with them, then 105% rising by 5 to 170% at 14 above and 180% at 15 or more.
+- **The level gap:** a player gets a share of a monster's experience by the monster's level less theirs: 1% at 15 or more below, then 5, 10, 20, 30, 50, 70, 80, 85, 90, 92, 94, 96 and 98% at 2 below, 100% at 1 below and level with them, then 105% rising by 5 to 170% at 14 above and 180% at 15 or more.
 - **Events** multiply a monster's experience before it is shared ([events.md](events.md)).
 - **Sharing:** when a monster dies, each player who hurt it and is still in the world gets the share of its experience that matches the share of its hit points they took, rounded down, then scaled by their own level gap. What rounding leaves goes to the killer; the share of a player who left is lost. A share of nothing is not sent.
 - **Levelling:** experience past a level's need carries into the next, and one kill can raise several levels. Each level brings 3 stat points. The player is told their experience, new level, next need, stat points, and their new maximum hit points and mana, refilled; everyone who sees them, their new level, which later arrivals see too.
