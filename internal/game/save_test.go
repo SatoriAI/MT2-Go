@@ -69,7 +69,7 @@ func playing(t *testing.T) (*Service, *saves, *character, *present) {
 	c := &character{vid: 1000, Character: account.Character{ID: 7, Name: "Hendra", Level: 3, Exp: 40,
 		StatPoints: 2, Stats: account.Stats{Strength: 8}, X: homeX, Y: homeY}}
 	conn, _ := watcher(t)
-	p := &present{out: conn, char: &c.Character, character: c.ID,
+	p := &present{out: conn, char: &c.Character,
 		add: protocol.CharacterAdd{VID: c.vid, X: homeX, Y: homeY}, info: protocol.CharacterInfo{Name: c.Name}}
 	s.presence.enter(p)
 	return s, store, c, p
@@ -189,7 +189,7 @@ func TestStoppingEndsARoundOfSaves(t *testing.T) {
 	s, store, _, _ := playing(t)
 	conn, _ := watcher(t)
 	kira := account.Character{ID: 8, Name: "Kira"}
-	s.presence.enter(&present{out: conn, char: &kira, character: kira.ID,
+	s.presence.enter(&present{out: conn, char: &kira,
 		add: protocol.CharacterAdd{VID: 1001, X: homeX, Y: homeY}, info: protocol.CharacterInfo{Name: kira.Name}})
 	release := make(chan struct{})
 	store.held, store.hold = make(chan struct{}), release

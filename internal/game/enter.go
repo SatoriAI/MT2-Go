@@ -98,9 +98,8 @@ func (s *session) onVersion(body []byte) error {
 func (s *session) onEnterGame() error {
 	p := s.playing
 	me := &present{
-		out:       s.conn,
-		char:      &p.Character,
-		character: p.ID,
+		out:  s.conn,
+		char: &p.Character,
 		add: protocol.CharacterAdd{
 			VID:         p.vid,
 			X:           p.X,

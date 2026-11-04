@@ -35,16 +35,16 @@ type sender interface {
 
 // present is one character in the world, as the players who see it see it.
 type present struct {
-	out       sender     // the player's connection; nil for a mob
-	saving    sync.Mutex // held while the player is saved, so their saves land in order
-	character uint32     // the stored character's id; the vid lasts one login
-	world     string     // the map's name; "" for a position on no known map, which those share
-	add       protocol.CharacterAdd
-	info      protocol.CharacterInfo
-	blocks    account.Blocks // what they refuse from others, as they last chose
-	target    *present       // the monster the player has picked, while they see it
-	// char is the player's character. While the player is in the world, its level,
-	// experience and stats change only under the record's lock: others' kills raise them.
+	out    sender     // the player's connection; nil for a mob
+	saving sync.Mutex // held while the player is saved, so their saves land in order
+	world  string     // the map's name; "" for a position on no known map, which those share
+	add    protocol.CharacterAdd
+	info   protocol.CharacterInfo
+	blocks account.Blocks // what they refuse from others, as they last chose
+	target *present       // the monster the player has picked, while they see it
+	// char is the player's character, stored under ID; the vid lasts one login. While the
+	// player is in the world, its level, experience and stats change only under the
+	// record's lock: others' kills raise them.
 	char  *account.Character
 	fight *fight // a monster's hit points; nil for those that cannot be fought
 	// sees is who this player has been shown, by vid. Seeing is mutual, so both sides
@@ -221,10 +221,10 @@ func (w *presence) whisper(name string, packet []byte) (uint32, whisperOutcome) 
 	case !ok:
 		return 0, whisperNotFound
 	case p.blocks.Has(account.BlockWhisper):
-		return p.character, whisperRefused
+		return p.char.ID, whisperRefused
 	}
 	_ = p.out.Send(packet)
-	return p.character, whisperDelivered
+	return p.char.ID, whisperDelivered
 }
 
 // setBlocks records what the player now refuses, for whispers sent to them.
