@@ -35,8 +35,9 @@ func (s *session) onChat(body []byte) error {
 }
 
 // onCommand carries out the commands the system menu sends: exit, log out and change
-// character, and what the options window blocks. They act at once; the original's countdown guards against leaving a fight,
-// and there is no fighting yet. Every other command, and the buttons send many, is ignored.
+// character, and what the options window blocks. Leaving acts at once; the original's
+// countdown guards against leaving a fight, and there is no fighting yet. Every other
+// command, and the buttons send many, is ignored.
 func (s *session) onCommand(command string) error {
 	switch name, arg, _ := strings.Cut(command, " "); name {
 	case "quit":

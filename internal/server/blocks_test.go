@@ -26,6 +26,8 @@ func (h *harness) reenterHendra(key uint32) *client {
 	return game
 }
 
+// The choice outlives the login: told again on the next entry, and still refusing
+// whispers.
 func TestBlockingIsToldBackAndKeptForTheNextEntry(t *testing.T) {
 	h := start(t)
 	game, key := h.hendraInWorld()
@@ -36,6 +38,10 @@ func TestBlockingIsToldBackAndKeptForTheNextEntry(t *testing.T) {
 	game.say("/phase_select")
 	game.expect(protocol.EncodePhase(protocol.PhaseSelect))
 	h.reenterHendra(key).expect(blockMode(2, "setblockmode 8"))
+	kira, _ := h.enterWorld("bob", "Kira", 3, 0)
+	kira.read(appearanceSize) // Hendra, standing there
+	kira.whisper("Hendra", "hi")
+	kira.expect(protocol.EncodeWhisper(protocol.WhisperTargetBlocked, "Hendra", ""))
 }
 
 // The client sends its whole mask; bits it does not name, and a mask that is not a
@@ -95,4 +101,21 @@ func TestOtherBlocksLetWhispersThrough(t *testing.T) {
 	hendra.whisper("Kira", "hi")
 
 	kira.expect(protocol.EncodeWhisper(protocol.WhisperLine, "Hendra", "hi"))
+}
+
+// Choosing what to block writes to the database, so unlike leaving it counts against the
+// flood limit; a change dropped gets no reply, and nothing is kept.
+func TestABlockChangeOverTheFloodLimitIsDropped(t *testing.T) {
+	h := start(t)
+	hendra, kira := h.hendraAndKira()
+	sayUpToTheLimit(hendra, kira)
+
+	hendra.say("/setblockmode 8")
+
+	hendra.expectOpen()
+	var blocks []string
+	if err := h.accounts.Pool.QueryRow(context.Background(),
+		`SELECT blocks FROM characters WHERE name = 'Hendra'`).Scan(&blocks); err != nil || len(blocks) != 0 {
+		t.Fatalf("stored %v, err %v; want nothing", blocks, err)
+	}
 }

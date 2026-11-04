@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
 )
@@ -15,6 +16,12 @@ func (s *session) onSetBlockMode(arg string) error {
 	mask, err := strconv.ParseUint(arg, 10, 32)
 	if err != nil {
 		s.conn.Log().Debug("block mode ignored", "arg", arg)
+		return nil
+	}
+	// Unlike leaving, this writes to the database, so it counts against the flood limit;
+	// a change dropped leaves the buttons as they were.
+	if !s.flood.allow(time.Now()) {
+		s.conn.Log().Debug("block mode dropped: too fast", "character", s.playing.Name)
 		return nil
 	}
 	p := s.playing
