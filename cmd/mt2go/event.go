@@ -9,6 +9,7 @@ import (
 
 	"github.com/SatoriAI/MT2-Go/internal/config"
 	"github.com/SatoriAI/MT2-Go/internal/event"
+	"github.com/SatoriAI/MT2-Go/internal/game"
 	"github.com/SatoriAI/MT2-Go/internal/store"
 )
 
@@ -37,6 +38,9 @@ func runEvent(ctx context.Context, cfg config.Config, args []string) error {
 }
 
 func createEvent(ctx context.Context, events store.Events, args []string) error {
+	if !game.ClientCanShow(args[0]) {
+		return errors.New("the name has characters the game client cannot show")
+	}
 	percent, err := event.ParseMultiplier(args[1])
 	if err != nil {
 		return err

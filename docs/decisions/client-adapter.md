@@ -10,7 +10,7 @@ So the database and `internal/account` hold names (`'sura'`, `'female'`, `'jinno
 
 ## When it goes
 
-While both clients exist, the server speaks both: our client gets its own protocol, with separate class and sex and names rather than numbers, and needs no such table. When the original client is no longer supported, `wire.go` and the TMP4 layouts in `internal/protocol` are deleted, and nothing else should have to change.
+While both clients exist, the server speaks both: our client gets its own protocol, with separate class and sex and names rather than numbers, and needs no such table. When the original client is no longer supported, `wire.go` and the TMP4 layouts in `internal/protocol` are deleted, and nothing else should have to change but `cmd/mt2go`, which refuses event names the old client cannot show (`ClientCanShow`) and drops that check with it.
 
 ## The lesson that came with it
 
