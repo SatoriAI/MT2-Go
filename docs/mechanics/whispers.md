@@ -48,6 +48,11 @@ The original client keeps its whisper windows only until logout. The server keep
 
 - **The layouts, the type numbers and what the client shows:** the client's own source, in `open-mt2/work/client-review/ClientVS22/source` (`Packet.h`, `PythonChat.h`, `PythonNetworkStreamPhaseGame.cpp`), and its `uiwhisper.py`, `game.py` and `localeInfo.py`.
 - **No echo:** `uiwhisper.py` shows the sender's line as it sends it.
+- **Seen with the real client,** logged in as Szepta against a scripted player, Botka:
+  - Botka's whisper made a button with its name appear at the right of the screen (its icon did not draw, the label did); the window it opened showed the line with every Polish letter intact;
+  - Szepta's reply reached Botka, and showed once in her window;
+  - once Botka had logged out, a further line showed "Botka nie jest zalogowany." (not logged on);
+  - the table held the two delivered whispers, in UTF-8, and nothing for the third.
 
 ## What proves it
 
