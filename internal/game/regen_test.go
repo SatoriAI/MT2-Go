@@ -174,3 +174,23 @@ func TestABlowAndABiteMarkTheFight(t *testing.T) {
 		t.Fatalf("the bite left her last fight at %v", c.LastFought)
 	}
 }
+
+// A restart ends the fight that ended in death, so healing goes on as usual; a blow that
+// lands nowhere starts none.
+func TestARestartEndsTheFightAndARefusedBlowStartsNone(t *testing.T) {
+	s, dog, _, c := suraHits(t, 100)
+	c.HP = 0
+
+	s.presence.revive(1000, false, 0, 0)
+
+	if !c.LastFought.IsZero() {
+		t.Fatalf("still fighting since %v after a restart", c.LastFought)
+	}
+	s.presence.move(1000, protocol.Move{X: homeX + 2000, Y: homeY})
+	if got := s.presence.attack(1000, dog.p.add.VID, 0, someRand, noon.Add(time.Second)); got != blowRefused {
+		t.Fatalf("a blow from 2000 away came to %v", got)
+	}
+	if !c.LastFought.IsZero() {
+		t.Fatalf("a refused blow started a fight at %v", c.LastFought)
+	}
+}

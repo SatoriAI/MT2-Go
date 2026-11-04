@@ -338,13 +338,13 @@ func TestBlowsFromItsTargetKeepAMonsterFighting(t *testing.T) {
 	later := noon.Add(9 * time.Second)
 
 	s.engage([]provocation{{dog.p, &present{}}}, later)
-	if !dog.chase.lastFought.Equal(noon) {
+	if !dog.chase.lastExchange.Equal(noon) {
 		t.Fatal("another's blow counted")
 	}
 	s.engage([]provocation{{dog.p, s.presence.all[1000]}}, later)
 
-	if !dog.chase.lastFought.Equal(later) {
-		t.Fatalf("last fought at %v, want her blow at %v", dog.chase.lastFought, later)
+	if !dog.chase.lastExchange.Equal(later) {
+		t.Fatalf("last fought at %v, want her blow at %v", dog.chase.lastExchange, later)
 	}
 }
 

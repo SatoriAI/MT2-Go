@@ -96,16 +96,18 @@ func (b Blocks) Has(block Block) bool { return slices.Contains(b, block) }
 
 // Character is one of an account's characters, as far as the game knows it so far.
 type Character struct {
-	ID          uint32
-	Slot        int
-	Name        string
-	Class       Class
-	Sex         Sex
-	Level       uint8
-	Exp         uint32    // towards the next level
-	StatPoints  uint16    // earned by levelling, not yet spent
-	HP, SP      uint32    // in play only: a character enters with both full
-	LastFought  time.Time // in play only: when it last landed a blow or took a bite
+	ID         uint32
+	Slot       int
+	Name       string
+	Class      Class
+	Sex        Sex
+	Level      uint8
+	Exp        uint32 // towards the next level
+	StatPoints uint16 // earned by levelling, not yet spent
+	HP, SP     uint32 // in play only: a character enters with both full
+	// LastFought is in play only, like HP and SP: when it last landed a blow or took a bite.
+	// It lives here, not on the world record's entry, which must stay small (world-loop.md).
+	LastFought  time.Time
 	PlayMinutes uint32
 	Stats
 	Shape      uint8 // which of the class's two looks the player picked: 0 or 1

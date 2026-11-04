@@ -1,6 +1,8 @@
 package game
 
 import (
+	"time"
+
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
 )
 
@@ -34,6 +36,7 @@ func (w *presence) revive(vid uint32, town bool, x, y int32) bool {
 	c := p.char
 	points, _ := c.Points()
 	c.HP, c.SP = max(points.MaxHP/2, 1), points.MaxSP/2
+	c.LastFought = time.Time{} // the fight ended with the death; healing goes on as usual
 	if town {
 		c.HP, c.SP = points.MaxHP, points.MaxSP
 	}

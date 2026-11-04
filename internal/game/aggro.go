@@ -32,7 +32,7 @@ type chase struct {
 	target       *present
 	nextStep     time.Time
 	nextBite     time.Time
-	lastFought   time.Time // when it last bit, or its target last hit it
+	lastExchange time.Time // when it last bit, or its target last hit it
 	fromX, fromY int32     // where it last bit, or was first hit
 }
 
@@ -49,11 +49,11 @@ func (s *Service) engage(provoked []provocation, now time.Time) {
 		s.hurt(m, now)
 		if m.chase != nil {
 			if m.chase.target == pr.by {
-				m.chase.lastFought = now
+				m.chase.lastExchange = now
 			}
 			continue
 		}
-		m.chase = &chase{target: pr.by, nextStep: now, nextBite: now, lastFought: now, fromX: m.x, fromY: m.y}
+		m.chase = &chase{target: pr.by, nextStep: now, nextBite: now, lastExchange: now, fromX: m.x, fromY: m.y}
 		s.fighting = append(s.fighting, m)
 	}
 }
@@ -96,7 +96,7 @@ func (w *presence) fightStep(m *monster, now time.Time, clock uint32, r *rand.Ra
 	defer w.mu.Unlock()
 	c, me := m.chase, m.p
 	t := c.target
-	if me.dead() || w.all[t.add.VID] != t || t.dead() || now.Sub(c.lastFought) >= giveUpAfter ||
+	if me.dead() || w.all[t.add.VID] != t || t.dead() || now.Sub(c.lastExchange) >= giveUpAfter ||
 		!near(me.add.X, me.add.Y, c.fromX, c.fromY, leash) {
 		return false
 	}
@@ -131,7 +131,7 @@ func (w *presence) bite(m *monster, t *present, now time.Time, clock uint32, r *
 	vid := t.add.VID
 	t.send(protocol.EncodeDamage(vid, protocol.DamageNormal, int32(damage)), //nolint:gosec // at most the hit points
 		protocol.EncodePointChange(vid, protocol.PointHP, -int32(damage), int32(ch.HP))) //nolint:gosec // small
-	c.lastFought, c.fromX, c.fromY, c.nextBite = now, me.add.X, me.add.Y, now.Add(biteGap(m.proto.AttackSpeed))
+	c.lastExchange, c.fromX, c.fromY, c.nextBite = now, me.add.X, me.add.Y, now.Add(biteGap(m.proto.AttackSpeed))
 	if ch.HP == 0 {
 		w.die(t)
 	}
