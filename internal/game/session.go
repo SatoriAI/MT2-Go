@@ -141,7 +141,7 @@ func (s *session) Handle(ctx context.Context, f protocol.Frame) error {
 	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientMove:
 		return s.onMove(f.Body)
 	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientChat:
-		return s.onChat(f.Body)
+		return s.onChat(ctx, f.Body)
 	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientWhisper:
 		return s.onWhisper(f.Body)
 	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientTarget:

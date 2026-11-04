@@ -1,6 +1,7 @@
 package game
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -18,7 +19,7 @@ var errChatTooLong = errors.New("game: chat line longer than the client sends")
 // onChat answers a line typed in the world, or a command a button or menu sent as one. A
 // line goes to its speaker and everyone who sees them; the client shows nothing it types
 // until the server sends it back.
-func (s *session) onChat(body []byte) error {
+func (s *session) onChat(ctx context.Context, body []byte) error {
 	c, err := protocol.DecodeChat(body)
 	if err != nil {
 		return err
@@ -28,7 +29,7 @@ func (s *session) onChat(body []byte) error {
 		return errChatTooLong
 	}
 	if command, ok := strings.CutPrefix(c.Text, "/"); ok {
-		return s.onCommand(command)
+		return s.onCommand(ctx, command)
 	}
 	if c.Text == "" {
 		return nil
@@ -47,7 +48,7 @@ func (s *session) onChat(body []byte) error {
 // character, and what the options window blocks. Leaving acts at once; the original's
 // countdown guards against leaving a fight, and there is no fighting yet. Every other
 // command, and the buttons send many, is ignored.
-func (s *session) onCommand(command string) error {
+func (s *session) onCommand(ctx context.Context, command string) error {
 	switch name, arg, _ := strings.Cut(command, " "); name {
 	case "quit":
 		// The client closes itself when told; the session saves as the connection ends.
@@ -63,12 +64,18 @@ func (s *session) onCommand(command string) error {
 		s.svc.presence.spendStatPoint(s.playing.vid, arg)
 		return nil
 	case "phase_select":
-		// The phase alone: the client, still in its game window, ignores a kingdom and
-		// list sent ahead of it, and keeps the list it has.
+		// The phase first: the client, still in its game window, ignores a list sent ahead
+		// of it. The list after it, read once the character is saved, replaces the one the
+		// character screen had from login, so it shows the level the character has now.
 		s.leaveWorld()
 		s.leftWorld = true
 		s.phase = protocol.PhaseSelect
-		return s.conn.Send(protocol.EncodePhase(protocol.PhaseSelect))
+		characters, err := s.svc.store.Characters(ctx, s.accountID)
+		if err != nil {
+			return err
+		}
+		return s.conn.Send(protocol.EncodePhase(protocol.PhaseSelect),
+			protocol.EncodeCharacterList(slots(characters), s.svc.public))
 	default:
 		s.conn.Log().Debug("command ignored", "command", name)
 		return nil

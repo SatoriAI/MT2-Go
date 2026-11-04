@@ -83,8 +83,7 @@ func TestAWhisperToNobodyInTheGameTellsTheSenderWithTheNameTheyTyped(t *testing.
 func TestAWhisperToSomeoneChoosingACharacterFindsNobody(t *testing.T) {
 	h := start(t)
 	hendra, kira := h.hendraAndKira()
-	kira.say("/phase_select")
-	kira.expect(protocol.EncodePhase(protocol.PhaseSelect))
+	kira.changeCharacter()
 	hendra.expect(protocol.EncodeCharacterDelete(2))
 
 	hendra.whisper("Kira", "hi")

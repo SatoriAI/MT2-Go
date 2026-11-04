@@ -81,8 +81,7 @@ func TestBlowsInFlightAfterChangeCharacterAreIgnored(t *testing.T) {
 	h := startWith(t, aDogAtTheStart)
 	hendra, _ := h.enterWorld("admin", "Hendra", 3, 6)
 	hendra.read(35)
-	hendra.say("/phase_select")
-	hendra.expect(protocol.EncodePhase(protocol.PhaseSelect))
+	hendra.changeCharacter()
 
 	hendra.hitTheDog()
 	hendra.target(dogVID)

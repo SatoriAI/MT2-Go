@@ -52,11 +52,10 @@ Unspent stat points sit at index 26 of POINTS; experience at 3, as before.
 - `internal/account/progress_test.go`: the needs; the level gap, both ends and past them; experience short of a need, filling it with the rest carried, several levels at once, the top level; a stat point up to the cap, and none to spend.
 - `internal/protocol/protocol_test.go`: POINT_CHANGE byte for byte; stat points at their index in POINTS.
 - `internal/game/experience_test.go`: a lone kill's whole experience; a monster far below giving nothing worth sending; one above giving more; a level-up's packets to the player and the onlooker, and the level later arrivals see; sharing by damage with the rounding to the killer; a player who left getting nothing; spending a point, and vitality's maximum; no point or an unknown stat changing nothing.
-- `internal/server/experience_test.go`: Hendra killing a dog over real sockets and its 15 kept; the + button spending a point, kept; without points doing nothing; entering again showing the experience and points kept.
+- `internal/server/experience_test.go`: Hendra killing a dog over real sockets and its 15 kept; the + button spending a point, kept; without points doing nothing; entering again showing the experience and points kept; the character screen after Change character showing a point spent in the world.
 
 ## Not done yet
 
 - Losing experience on death, which comes with monsters fighting back.
 - Skill points, parties sharing experience, and items or premium bonuses.
 - Taking stat points back (`/stat-`).
-- The character screen after Change character still lists the level and stats the character had at login, since the client keeps the list it got then; entering again loads the right values.

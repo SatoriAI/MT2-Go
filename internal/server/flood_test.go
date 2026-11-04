@@ -58,4 +58,5 @@ func TestACommandStillWorksOnceTheLimitIsReached(t *testing.T) {
 	hendra.say("/phase_select")
 
 	hendra.expect(protocol.EncodePhase(protocol.PhaseSelect))
+	hendra.read(listSize)
 }
