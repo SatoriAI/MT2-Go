@@ -71,13 +71,13 @@ A level-1 sura without a weapon takes about 10 to 12 off a wild dog a blow, so a
 
 `internal/game/aggro.go`, with the bite in `internal/combat`.
 
-- **Provoked:** every blow that lands on a living monster is kept for the world loop, which, at its next tick, has a monster that is not already fighting take that player as its target. The loop steps only fighting monsters, so idle ticks cost no more.
+- **Provoked:** every blow that lands on a living monster is kept for the world loop, which takes them with the deaths, under one lock a tick, and has a monster that is not already fighting take that player as its target. The loop steps only fighting monsters, so idle ticks cost no more.
 - **A step,** every half second, under the world record's lock:
   - **in reach,** the attack range from `mob_proto` (175 for the four field monsters) and 15% more, with its bite due: everyone who sees the monster gets its attack, facing the player, and the player gets the damage and their hit points left;
   - **out of reach:** it walks towards the player, to nine tenths of its range from them, at most 400 a second at move speed 100 (this server's estimate of the client's walk), with a MOVE of func WAIT.
 - **Bites** come every two seconds at attack speed 100, 2,000 × 100 ÷ attack speed in ms and never under one second: two and a half for the boar. The first comes as soon as the player is in reach.
 - **A bite** is twice the monster's level, twice its strength (`mob_proto` ST), and a roll of its damage dice (`DAMAGE_MIN` to `DAMAGE_MAX`), close to the original's monster attack, of which the player's defence, level + vitality + armour, takes its share as for a blow: attack × 100 ÷ (100 + defence), rounded, never under 1. A wild dog bites a level-1 sura for 27 to 31 of her 950 hit points, the boar for 69 to 76.
-- **Giving up:** the monster stops when its target has left the world or is dead, when it has not bitten for ten seconds, or when it is 5,000 from where it last bit (or was first hit); it walks straight home and strolls again from there. Going home does not heal it.
+- **Giving up:** the monster stops when it died, when its target has left the world or is dead, when it has neither bitten nor been hit by its target for ten seconds, or when it is 5,000 from where it last bit (or was first hit). It walks straight home and strolls again from there, once the client can have walked it home at 400 a second. The world record has it home at once, so until the client's walk ends, a blow on it lands only within reach of its home. Going home does not heal it. While it fights, blows from other players are not answered.
 - **While fighting** a monster does not stroll. A monster killed mid-fight stops.
 - **Hit points** are the character's, kept under the world record's lock as experience is; a character enters the world with all of them, as they are not saved.
 
@@ -123,7 +123,9 @@ The original takes the defence off the attack and scales the stat part by a hit 
   - bites every two seconds, not between;
   - a monster out of reach walking to nine tenths of its range, then biting;
   - a chase step no longer than the monster walks;
-  - giving up after ten seconds without a bite, or 5,000 from where it last bit, and walking home;
+  - giving up after ten seconds without a bite, or 5,000 from where it last bit, and walking home, strolling only once the client can have walked it there;
+  - its target's blows keeping it fighting, others' not;
+  - a monster killed after the loop last looked for deaths not biting from its body;
   - giving up on a target who left;
   - a monster killed mid-fight, or fighting, not strolling;
   - a bite that kills, a dead player who can neither hit nor pick, and restarts (on [dying.md](dying.md)).

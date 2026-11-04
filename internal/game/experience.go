@@ -6,8 +6,8 @@ import (
 )
 
 // shareExp gives out a dead monster's experience, multiplied by the running event: each
-// player who hurt it and is still in the world gets the share of it that matches the
-// share of its hit points they took, less or more by the gap between its level and
+// player who hurt it and is still in the world, alive, gets the share of it that matches
+// the share of its hit points they took, less or more by the gap between its level and
 // theirs. What rounding leaves goes to the killer. Called under the lock.
 func (w *presence) shareExp(f *fight, killer *present) {
 	exp := uint64(f.exp)
@@ -20,7 +20,7 @@ func (w *presence) shareExp(f *fight, killer *present) {
 	for p, damage := range f.damageBy {
 		share := exp * uint64(damage) / total //nolint:gosec // damage is positive
 		given += share
-		if w.all[p.add.VID] == p {
+		if w.all[p.add.VID] == p && !p.dead() {
 			gains[p] += share
 		}
 	}

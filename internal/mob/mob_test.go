@@ -40,3 +40,12 @@ func TestEveryMonsterCanBeFoughtAndNoNPC(t *testing.T) {
 		}
 	}
 }
+
+// Every monster can bite: dice that run upwards and a reach.
+func TestEveryMonsterCanBite(t *testing.T) {
+	for _, s := range world.Spawns() {
+		if p, _ := Lookup(s.VNum); p.Fightable() && (p.DamageMin == 0 || p.DamageMax < p.DamageMin || p.AttackRange == 0) {
+			t.Errorf("%d: dice %d to %d, reach %d", s.VNum, p.DamageMin, p.DamageMax, p.AttackRange)
+		}
+	}
+}

@@ -130,14 +130,15 @@ type death struct {
 	at time.Time
 }
 
-// takeFallen hands the world loop the monsters that died since it last asked, so the loop
-// learns of deaths without looking at every monster under the lock.
-func (w *presence) takeFallen() []death {
+// takeNews hands the world loop what happened to monsters since it last asked: those that
+// died, and the blows that landed on living ones. The loop learns of them without looking
+// at every monster under the lock, and with one lock a tick.
+func (w *presence) takeNews() ([]death, []provocation) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	fallen := w.fallen
-	w.fallen = nil
-	return fallen
+	fallen, provoked := w.fallen, w.provoked
+	w.fallen, w.provoked = nil, nil
+	return fallen, provoked
 }
 
 func within(p, o *present, reach int64) bool {

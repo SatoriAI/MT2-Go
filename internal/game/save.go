@@ -46,13 +46,18 @@ func (s *Service) saveInWorld(p *present, log *slog.Logger) {
 
 // leaveAndSave takes the player out of the world, after which nobody else touches the
 // character, and saves it once any save of it already under way has landed. The position
-// is the world record's, as the periodic save's is, so the two never disagree.
-func (s *Service) leaveAndSave(c *character, log *slog.Logger) {
+// is the world record's, as the periodic save's is, so the two never disagree. A player
+// who leaves dead is kept at their kingdom's start, as a restart in town would put them,
+// since they come back with all their hit points.
+func (s *Service) leaveAndSave(c *character, empire account.Empire, log *slog.Logger) {
 	p := s.presence.leave(c.vid)
 	p.saving.Lock()
 	defer p.saving.Unlock()
 	saved := c.Character
 	saved.X, saved.Y = p.add.X, p.add.Y
+	if x, y, ok := empire.StartPosition(); ok && p.dead() {
+		saved.X, saved.Y = x, y
+	}
 	s.save(saved, log, slog.LevelWarn)
 }
 

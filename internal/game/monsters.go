@@ -121,11 +121,12 @@ func (s *Service) newMob(proto mob.Proto, x, y int32, facing float32) *present {
 // tick takes away the bodies whose time has come, brings back the monsters whose has,
 // walks every living monster whose stroll is due, and has those that were hit fight back.
 func (s *Service) tick(now time.Time) {
-	for _, d := range s.presence.takeFallen() {
+	fallen, provoked := s.presence.takeNews()
+	for _, d := range fallen {
 		m := s.byPresent[d.p]
 		m.diedAt, m.chase = d.at, nil
 	}
-	s.engage(now)
+	s.engage(provoked, now)
 	for _, m := range s.monsters {
 		switch {
 		case !m.diedAt.IsZero() && !m.gone && !now.Before(m.diedAt.Add(corpseTime)):

@@ -115,7 +115,7 @@ func TestTheSaveOnLeavingLandsAfterOneUnderWay(t *testing.T) {
 	c.Exp = 55 // a kill, under the lock as in play
 	s.presence.mu.Unlock()
 	leaving := make(chan struct{})
-	go func() { s.leaveAndSave(c, quiet); close(leaving) }()
+	go func() { s.leaveAndSave(c, account.EmpireNone, quiet); close(leaving) }()
 	select {
 	case <-leaving:
 		t.Fatal("the save on leaving did not wait for the one under way")
@@ -176,7 +176,7 @@ func TestLeavingSavesWhereTheWorldRecordHasThePlayer(t *testing.T) {
 	s, store, c, _ := playing(t)
 	c.X = homeX + 900 // the connection's copy, moved where the record did not follow
 
-	s.leaveAndSave(c, quiet)
+	s.leaveAndSave(c, account.EmpireNone, quiet)
 
 	if _, at, _ := store.ofHendra(); at != [2]int32{homeX, homeY} {
 		t.Fatalf("saved at %v, want where the record has her", at)
@@ -208,5 +208,19 @@ func TestStoppingEndsARoundOfSaves(t *testing.T) {
 	defer store.mu.Unlock()
 	if len(store.progress) != 1 {
 		t.Fatalf("saved %d players after stopping mid-round, want only the one under way", len(store.progress))
+	}
+}
+
+// A player who leaves dead is kept at their kingdom's start, as a restart in town puts
+// them, since they come back with all their hit points.
+func TestAPlayerWhoLeavesDeadIsKeptAtTheStart(t *testing.T) {
+	s, store, c, _ := playing(t)
+	c.HP = 0
+
+	s.leaveAndSave(c, account.EmpireShinsoo, quiet)
+
+	x, y, _ := account.EmpireShinsoo.StartPosition()
+	if _, at, _ := store.ofHendra(); at != [2]int32{x, y} {
+		t.Fatalf("saved at %v, want the start at (%d, %d)", at, x, y)
 	}
 }

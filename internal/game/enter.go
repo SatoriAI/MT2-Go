@@ -179,7 +179,7 @@ func (s *session) leaveWorld() {
 		return
 	}
 	if s.phase == protocol.PhaseGame {
-		s.svc.leaveAndSave(s.playing, s.conn.Log())
+		s.svc.leaveAndSave(s.playing, s.empire, s.conn.Log())
 	}
 	s.svc.release(s.claim)
 	s.claim = nil

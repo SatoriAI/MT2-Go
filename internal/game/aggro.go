@@ -11,8 +11,8 @@ import (
 
 // A monster that is hit fights back, with open-mt2's numbers: it takes a step every
 // chaseStep, bites within its attack range and 15% more, and walks to nine tenths of
-// its range when it is further. It gives up after giveUpAfter without a bite, or once it
-// is leash from where it last bit.
+// its range when it is further. It gives up after giveUpAfter without a bite or a blow
+// from its target, or once it is leash from where it last bit.
 const (
 	chaseStep   = 500 * time.Millisecond
 	giveUpAfter = 10 * time.Second
@@ -32,29 +32,26 @@ type chase struct {
 	target       *present
 	nextStep     time.Time
 	nextBite     time.Time
-	lastBite     time.Time // or when the monster was first hit
+	lastFought   time.Time // when it last bit, or its target last hit it
 	fromX, fromY int32     // where it last bit, or was first hit
 }
 
-// takeProvoked hands the world loop the blows on living monsters since it last asked, as
-// takeFallen does the deaths.
-func (w *presence) takeProvoked() []provocation {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	provoked := w.provoked
-	w.provoked = nil
-	return provoked
-}
-
 // engage answers the blows landed since the last tick: a monster that is not fighting
-// takes the player who hit it as its target.
-func (s *Service) engage(now time.Time) {
-	for _, pr := range s.presence.takeProvoked() {
+// takes the player who hit it as its target, and one fighting them fights on, however
+// long since its last bite. Blows from others are ignored while it fights.
+func (s *Service) engage(provoked []provocation, now time.Time) {
+	for _, pr := range provoked {
 		m := s.byPresent[pr.monster]
-		if m == nil || m.chase != nil || !m.diedAt.IsZero() {
-			continue // gone since, or already fighting
+		switch {
+		case m == nil || !m.diedAt.IsZero(): // gone since
+			continue
+		case m.chase != nil:
+			if m.chase.target == pr.by {
+				m.chase.lastFought = now
+			}
+			continue
 		}
-		m.chase = &chase{target: pr.by, nextStep: now, nextBite: now, lastBite: now, fromX: m.x, fromY: m.y}
+		m.chase = &chase{target: pr.by, nextStep: now, nextBite: now, lastFought: now, fromX: m.x, fromY: m.y}
 		s.fighting = append(s.fighting, m)
 	}
 }
@@ -77,25 +74,27 @@ func (s *Service) fightOn(now time.Time) {
 }
 
 // goHome ends the monster's fight and walks it back to where it was spawned, where it
-// strolls again.
+// strolls again. The world record has it home at once, while the client walks it there.
 func (s *Service) goHome(m *monster, now time.Time) {
 	m.chase = nil
 	s.presence.move(m.p.add.VID, protocol.Move{Type: protocol.MoveWait, Rotation: rotationTowards(m.homeX-m.x, m.homeY-m.y),
 		X: m.homeX, Y: m.homeY, Time: s.clock.Now()})
+	walk := time.Duration(math.Hypot(float64(m.homeX-m.x), float64(m.homeY-m.y)) /
+		(walkPerSecond * float64(max(m.proto.MoveSpeed, 1)) / 100) * float64(time.Second))
 	m.x, m.y = m.homeX, m.homeY
-	m.nextStroll = now.Add(s.strollWait())
+	m.nextStroll = now.Add(walk + s.strollWait()) // not before the client has walked it home
 }
 
 // fightStep takes one step of the monster's fight: a bite if its target is in reach and
-// its bite is due, otherwise a walk towards it. It reports false when the monster gives
-// up: its target left the world or died, it has not bitten for too long, or it strayed too
-// far. Called from the world loop, which owns m.
+// its bite is due, otherwise a walk towards it. It reports false when the monster stops:
+// it died, its target left the world or died, it has not fought for too long, or it
+// strayed too far. Called from the world loop, which owns m.
 func (w *presence) fightStep(m *monster, now time.Time, clock uint32, r *rand.Rand) bool {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	c, me := m.chase, m.p
 	t := c.target
-	if w.all[t.add.VID] != t || t.dead() || now.Sub(c.lastBite) >= giveUpAfter ||
+	if me.dead() || w.all[t.add.VID] != t || t.dead() || now.Sub(c.lastFought) >= giveUpAfter ||
 		!near(me.add.X, me.add.Y, c.fromX, c.fromY, leash) {
 		return false
 	}
@@ -129,7 +128,7 @@ func (w *presence) bite(m *monster, t *present, now time.Time, clock uint32, r *
 	vid := t.add.VID
 	t.send(protocol.EncodeDamage(vid, protocol.DamageNormal, int32(damage)), //nolint:gosec // at most the hit points
 		protocol.EncodePointChange(vid, protocol.PointHP, -int32(damage), int32(ch.HP))) //nolint:gosec // small
-	c.lastBite, c.fromX, c.fromY, c.nextBite = now, me.add.X, me.add.Y, now.Add(biteGap(m.proto.AttackSpeed))
+	c.lastFought, c.fromX, c.fromY, c.nextBite = now, me.add.X, me.add.Y, now.Add(biteGap(m.proto.AttackSpeed))
 	if ch.HP == 0 {
 		w.die(t)
 	}

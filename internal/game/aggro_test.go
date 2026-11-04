@@ -295,3 +295,68 @@ func TestAFightingMonsterDoesNotStroll(t *testing.T) {
 
 	expectNothing(t, client)
 }
+
+// A player who died before the monster did gets no share of it, so no level-up brings
+// them back behind the client's back.
+func TestADeadPlayerGetsNoShare(t *testing.T) {
+	s, dog, client, c := suraHits(t, 100)
+	c.HP = 0
+	killer, _ := watcher(t)
+	strong := &account.Character{HP: 1000, Level: 1, Class: account.Warrior, Stats: account.Stats{Strength: 90}}
+	s.presence.enter(&present{out: killer, add: protocol.CharacterAdd{VID: 2000, X: homeX + 150, Y: homeY}, char: strong})
+	read(t, client, addSize) // the killer
+
+	s.presence.attack(2000, dog.p.add.VID, 0, someRand, noon)
+
+	read(t, client, deadSize) // the dog
+	expectNothing(t, client)
+	if c.Exp != 0 || c.HP != 0 {
+		t.Fatalf("the dead sura got %d exp and %d hit points", c.Exp, c.HP)
+	}
+}
+
+// A monster killed after the loop last looked for deaths does not bite from its body.
+func TestAMonsterKilledBeforeItsStepDoesNotBite(t *testing.T) {
+	s, dog, _, c := suraHits(t, 100)
+	s.engage([]provocation{{dog.p, s.presence.all[1000]}}, noon)
+	c.Strength, c.Class = 90, account.Warrior
+	s.presence.attack(1000, dog.p.add.VID, 0, someRand, noon)
+	hp := c.HP
+
+	s.fightOn(noon)
+
+	if c.HP != hp || dog.chase != nil {
+		t.Fatalf("hit points %d of %d, still fighting %v", c.HP, hp, dog.chase != nil)
+	}
+}
+
+// Its target's blows keep a monster fighting however long since it last bit; others'
+// blows do not.
+func TestBlowsFromItsTargetKeepAMonsterFighting(t *testing.T) {
+	s, dog, _, _ := suraHits(t, 280)
+	s.tick(noon)
+	later := noon.Add(9 * time.Second)
+
+	s.engage([]provocation{{dog.p, &present{}}}, later)
+	if !dog.chase.lastFought.Equal(noon) {
+		t.Fatal("another's blow counted")
+	}
+	s.engage([]provocation{{dog.p, s.presence.all[1000]}}, later)
+
+	if !dog.chase.lastFought.Equal(later) {
+		t.Fatalf("last fought at %v, want her blow at %v", dog.chase.lastFought, later)
+	}
+}
+
+// A monster sent home does not stroll before the client has walked it there: 8,000 at
+// 400 a second is 20 seconds, then its usual rest of at least five.
+func TestAMonsterSentHomeStrollsOnlyOnceItCanBeThere(t *testing.T) {
+	s, dog, _, _ := suraHits(t, 100)
+	dog.x = dog.homeX + 8000
+
+	s.goHome(dog, noon)
+
+	if earliest := noon.Add(20*time.Second + wanderMin); dog.nextStroll.Before(earliest) {
+		t.Fatalf("strolls at %v, before %v", dog.nextStroll, earliest)
+	}
+}
