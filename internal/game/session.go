@@ -11,6 +11,7 @@ import (
 	"net/netip"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/SatoriAI/MT2-Go/internal/account"
 	"github.com/SatoriAI/MT2-Go/internal/handshake"
@@ -58,9 +59,9 @@ type Service struct {
 	presence presence
 
 	// The world loop's own: only Run's goroutine touches them.
-	spawns    []world.Spawn
-	rand      *rand.Rand
-	wanderers []*wanderer
+	spawns   []world.Spawn
+	rand     *rand.Rand
+	monsters []*monster
 }
 
 // NewService makes the game port's shared state; Run puts spawns' mobs in the world.
@@ -71,7 +72,7 @@ func NewService(store Accounts, whispers Whispers, keys *account.Keys, clock han
 }
 
 func (s *Service) NewSession(conn *network.Conn) network.Session {
-	return &session{svc: s, conn: conn, sync: handshake.NewSync(s.clock), phase: protocol.PhaseHandshake}
+	return &session{svc: s, conn: conn, sync: handshake.NewSync(s.clock), phase: protocol.PhaseHandshake, rand: newRand()}
 }
 
 type session struct {
@@ -87,6 +88,17 @@ type session struct {
 	// leftWorld is set from change character until the next Start: the client may still
 	// send moves and chat it wrote before it took in the select phase.
 	leftWorld bool
+	// The player's last blow, for the time a blow on the same victim must wait.
+	lastVictim uint32
+	lastBlow   time.Time
+	rand       *rand.Rand // this connection's own, for its blows' damage
+}
+
+// inFlightAfterLeaving are what the client may still send from its game window after
+// Change character, dropped rather than taken as out of their phase.
+var inFlightAfterLeaving = map[protocol.ClientHeader]bool{
+	protocol.ClientMove: true, protocol.ClientChat: true, protocol.ClientWhisper: true,
+	protocol.ClientAttack: true, protocol.ClientTarget: true, protocol.ClientOnClick: true,
 }
 
 func (s *session) Open() error { return s.conn.Send(s.sync.Greeting()...) }
@@ -129,9 +141,13 @@ func (s *session) Handle(ctx context.Context, f protocol.Frame) error {
 		return s.onChat(f.Body)
 	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientWhisper:
 		return s.onWhisper(f.Body)
-	case s.phase == protocol.PhaseGame && (f.Header == protocol.ClientTarget || f.Header == protocol.ClientOnClick):
-		return nil // picking or clicking a character; nothing answers it yet
-	case s.leftWorld && (f.Header == protocol.ClientMove || f.Header == protocol.ClientChat || f.Header == protocol.ClientWhisper):
+	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientTarget:
+		return s.onTarget(f.Body)
+	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientAttack:
+		return s.onAttack(f.Body)
+	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientOnClick:
+		return nil // clicking a character, to talk to it; nothing answers it yet
+	case s.leftWorld && inFlightAfterLeaving[f.Header]:
 		return nil
 	}
 	return unexpected(f, s.phase)

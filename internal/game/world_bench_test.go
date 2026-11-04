@@ -95,7 +95,7 @@ func BenchmarkMonsterStroll(b *testing.B) {
 			b.ReportAllocs()
 			i := 0
 			for b.Loop() {
-				w := s.wanderers[i%len(s.wanderers)]
+				w := s.monsters[i%len(s.monsters)]
 				w.nextStroll = time.Time{}
 				s.tick(noon) // walks w alone: every other monster is due later
 				w.nextStroll = noon.Add(time.Hour)
@@ -110,7 +110,7 @@ func BenchmarkTickIdle(b *testing.B) {
 	for _, n := range worldSizes {
 		b.Run(size(n.players, n.monsters), func(b *testing.B) {
 			s, _, _ := benchWorld(b, n.players, n.monsters)
-			for _, w := range s.wanderers {
+			for _, w := range s.monsters {
 				w.nextStroll = noon.Add(time.Hour)
 			}
 			b.ReportAllocs()

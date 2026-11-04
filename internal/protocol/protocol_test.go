@@ -392,3 +392,41 @@ func TestNotOnlineIsSentWithTheNameAndNoText(t *testing.T) {
 		t.Errorf("got  %x\nwant %x", got, want)
 	}
 }
+
+func TestDecodeAttackReadsTheSkillAndVictim(t *testing.T) {
+	a, err := DecodeAttack([]byte{0, 0x2A, 0, 0, 0, 0x11, 0x22})
+
+	if err != nil || a != (Attack{Skill: 0, Victim: 42}) {
+		t.Fatalf("got %+v %v", a, err)
+	}
+}
+
+func TestDecodeAttackRefusesAShortBody(t *testing.T) {
+	if _, err := DecodeAttack([]byte{0, 1, 0, 0, 0}); !errors.Is(err, ErrShort) {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestDecodeTargetReadsTheVid(t *testing.T) {
+	if vid, err := DecodeTarget([]byte{7, 0, 0, 0}); err != nil || vid != 7 {
+		t.Fatalf("got %d %v", vid, err)
+	}
+}
+
+func TestTheTargetsHitPointsAreSentAsAPercentage(t *testing.T) {
+	if got, want := EncodeTarget(7, 64), mustHex(t, "3f"+"07000000"+"40"); !bytes.Equal(got, want) {
+		t.Errorf("got  %x\nwant %x", got, want)
+	}
+}
+
+func TestDamageIsSentWithItsVictimFlagsAndAmount(t *testing.T) {
+	if got, want := EncodeDamage(7, DamageNormal, 13), mustHex(t, "87"+"07000000"+"01"+"0d000000"); !bytes.Equal(got, want) {
+		t.Errorf("got  %x\nwant %x", got, want)
+	}
+}
+
+func TestDeathNamesTheCharacter(t *testing.T) {
+	if got, want := EncodeDead(7), mustHex(t, "0e"+"07000000"); !bytes.Equal(got, want) {
+		t.Errorf("got  %x\nwant %x", got, want)
+	}
+}

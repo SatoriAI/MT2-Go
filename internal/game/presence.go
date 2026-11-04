@@ -38,6 +38,8 @@ type present struct {
 	add       protocol.CharacterAdd
 	info      protocol.CharacterInfo
 	blocks    account.Blocks // what they refuse from others, as they last chose
+	target    *present       // the monster the player has picked, while they see it
+	fight     *fight         // a monster's hit points; nil for those that cannot be fought
 	// sees is who this player has been shown, by vid. Seeing is mutual, so both sides
 	// change together, and leaving tells exactly these.
 	sees map[uint32]*present
@@ -73,9 +75,12 @@ func link(a, b *present) {
 	b.sees[a.add.VID] = a
 }
 
+// unlink parts a and b, and a player stops targeting what they no longer see.
 func unlink(a, b *present) {
 	delete(a.sees, b.add.VID)
 	delete(b.sees, a.add.VID)
+	untarget(a, b)
+	untarget(b, a)
 }
 
 // enter puts p in the world, and shows p and the others in its view to each other. The
@@ -110,6 +115,9 @@ func (w *presence) move(vid uint32, m protocol.Move) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	p := w.all[vid]
+	if p.dead() {
+		return // a body lies where it fell
+	}
 	// Kept as the client draws it, so whoever meets the character later sees it where it
 	// went and facing the way it last moved: the move counts in steps of 5 degrees.
 	p.add.X, p.add.Y, p.add.Rotation = m.X, m.Y, float32(m.Rotation)*5
@@ -147,7 +155,9 @@ func (w *presence) leave(vid uint32) {
 	defer w.mu.Unlock()
 	p := w.all[vid]
 	delete(w.all, vid)
-	delete(w.byName, strings.ToLower(p.info.Name))
+	if p.isPlayer() {
+		delete(w.byName, strings.ToLower(p.info.Name)) // a mob's name may be a player's too
+	}
 	toViewers(p, protocol.EncodeCharacterDelete(vid))
 	for _, other := range p.sees {
 		unlink(p, other)
