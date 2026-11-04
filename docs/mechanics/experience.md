@@ -60,3 +60,4 @@ Unspent stat points sit at index 26 of POINTS; experience at 3, as before.
 - Skill points, parties sharing experience, and items or premium bonuses.
 - Taking stat points back (`/stat-`).
 - Saving progress while the character stays in the world, against a crash.
+- The character screen after Change character still lists the level and stats the character had at login, since the client keeps the list it got then; entering again loads the right values.

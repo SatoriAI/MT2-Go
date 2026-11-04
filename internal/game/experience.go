@@ -24,7 +24,7 @@ func (w *presence) shareExp(f *fight, killer *present) {
 	for p, share := range gains {
 		gain := share * uint64(account.GapPercent(f.defender.Level, p.char.Level)) / 100
 		if gain > 0 {
-			w.gainExp(p, uint32(gain)) //nolint:gosec // at most a monster's experience
+			w.gainExp(p, uint32(gain)) //nolint:gosec // at most 180% of a monster's experience, far under 2^32
 		}
 	}
 }

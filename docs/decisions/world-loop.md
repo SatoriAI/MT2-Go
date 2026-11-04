@@ -31,6 +31,8 @@ The world record links a player with anyone in view; two mobs never link. Mobs o
 
 Combat added a monster's hit points and pickers to the record and bodies and returns to the loop. Moves, strolls and entering stayed within 4% of the figures before it; an idle tick, which now also looks for bodies to take away and monsters to bring back, costs a quarter to two fifths more. A first version, which read every monster's death under the world lock each tick, tripled the idle tick and held the lock 97 µs of each tick at 16,000 monsters; the record now keeps a short list of the monsters killed since the loop last asked, so the loop's work under the lock grows with deaths, not with monsters.
 
+Experience changed none of these by more than 4%. A first version slowed the idle tick by two fifths at 16,000 monsters: adding a field to a monster's kind made the tick's copy of it, to ask whether it wanders, cross into another cache line; the loop now keeps that answer on the monster itself.
+
 A move costs about 20 ns per character in the world, as the scan predicts. The world lock is held for every move, so the share of each second it is held is the moves per second times their cost:
 
 - **Today:** 100 player moves and 11 strolls a second hold the lock for 0.4 ms of each second: 0.04%.
