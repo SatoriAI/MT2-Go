@@ -59,16 +59,18 @@ type Service struct {
 	presence presence
 
 	// The world loop's own: only Run's goroutine touches them.
-	spawns   []world.Spawn
-	rand     *rand.Rand
-	monsters []*monster
+	spawns    []world.Spawn
+	rand      *rand.Rand
+	monsters  []*monster
+	byPresent map[*present]*monster // the same monsters, by what the world record holds of them
 }
 
 // NewService makes the game port's shared state; Run puts spawns' mobs in the world.
 func NewService(store Accounts, whispers Whispers, keys *account.Keys, clock handshake.Clock, public netip.AddrPort,
 	spawns []world.Spawn) *Service {
 	return &Service{store: store, whispers: whispers, keys: keys, clock: clock, public: public, claims: map[uint32]*claim{},
-		presence: presence{all: map[uint32]*present{}, byName: map[string]*present{}}, spawns: spawns, rand: newRand()}
+		presence: presence{all: map[uint32]*present{}, byName: map[string]*present{}}, spawns: spawns, rand: newRand(),
+		byPresent: map[*present]*monster{}}
 }
 
 func (s *Service) NewSession(conn *network.Conn) network.Session {

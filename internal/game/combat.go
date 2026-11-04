@@ -92,6 +92,7 @@ func (w *presence) attack(playerVID, vid uint32, a combat.Attacker, r *rand.Rand
 		return blowLanded
 	}
 	f.diedAt = now
+	w.fallen = append(w.fallen, death{v, now})
 	for t := range f.targetedBy {
 		untarget(t, v)
 	}
@@ -99,13 +100,20 @@ func (w *presence) attack(playerVID, vid uint32, a combat.Attacker, r *rand.Rand
 	return blowKilled
 }
 
-// deaths copies into each monster when it died, under one lock for the whole tick.
-func (w *presence) deaths(monsters []*monster) {
+// death is a monster that died, for the world loop to take away and bring back.
+type death struct {
+	p  *present
+	at time.Time
+}
+
+// takeFallen hands the world loop the monsters that died since it last asked, so the loop
+// learns of deaths without looking at every monster under the lock.
+func (w *presence) takeFallen() []death {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	for _, m := range monsters {
-		m.diedAt = m.p.fight.diedAt
-	}
+	fallen := w.fallen
+	w.fallen = nil
+	return fallen
 }
 
 func within(p, o *present, reach int64) bool {

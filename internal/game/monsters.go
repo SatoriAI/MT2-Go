@@ -42,7 +42,7 @@ type monster struct {
 	homeY      int32
 	x, y       int32
 	nextStroll time.Time
-	diedAt     time.Time // read from the world record each tick; zero while alive
+	diedAt     time.Time // zero while alive
 	gone       bool      // its body has been taken away
 }
 
@@ -92,8 +92,10 @@ func (s *Service) spawnOne(proto mob.Proto, sp world.Spawn, now time.Time) {
 func (s *Service) place(m *monster, now time.Time) {
 	m.homeX, m.homeY = m.spawn.X+s.spread(m.spawn.Spread), m.spawn.Y+s.spread(m.spawn.Spread)
 	m.x, m.y = m.homeX, m.homeY
+	delete(s.byPresent, m.p)
 	m.p = s.newMob(m.proto, m.x, m.y, float32(s.rand.IntN(8)*45))
 	m.nextStroll, m.diedAt, m.gone = now.Add(s.strollWait()), time.Time{}, false
+	s.byPresent[m.p] = m
 	s.presence.enter(m.p)
 }
 
@@ -115,7 +117,9 @@ func (s *Service) newMob(proto mob.Proto, x, y int32, facing float32) *present {
 // tick takes away the bodies whose time has come, brings back the monsters whose has, and
 // walks every living monster whose stroll is due.
 func (s *Service) tick(now time.Time) {
-	s.presence.deaths(s.monsters)
+	for _, d := range s.presence.takeFallen() {
+		s.byPresent[d.p].diedAt = d.at
+	}
 	for _, m := range s.monsters {
 		switch {
 		case !m.diedAt.IsZero() && !m.gone && !now.Before(m.diedAt.Add(corpseTime)):

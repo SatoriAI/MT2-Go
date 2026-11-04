@@ -23,6 +23,7 @@ type presence struct {
 	mu     sync.Mutex
 	all    map[uint32]*present // by vid
 	byName map[string]*present // players, by lower-cased name: unique regardless of case
+	fallen []death             // monsters killed since the world loop last asked
 }
 
 // sender is where a player's packets go: their connection, which only queues them.
