@@ -2,9 +2,9 @@
 
 ## What the player sees
 
-Everyone on the same map sees everyone else there. A player entering a village sees whoever already stands in it, where they stand now, and they see the newcomer appear. When someone walks, the others watch them walk. A line said in chat appears for everyone on the map, in the chat window and in a bubble over the speaker. When a player leaves, by Logout, Change character, Exit or a dropped connection, they vanish for the others.
+A player sees the other players near them: on the same map and within 8000 units, about the distance the camera shows. A player entering a village sees whoever already stands near them, where they stand now, and they see the newcomer appear. When someone walks, those near watch them walk; walking away, a character vanishes for the others and they for it, and walking back, both reappear. A line said in chat appears for everyone near the speaker, in the chat window and in a bubble over the speaker. When a player leaves, by Logout, Change character, Exit or a dropped connection, they vanish for the others.
 
-There is no view range yet: a map is the range. The three starting villages are separate maps, so a player in Jinno's village never hears of one in Shinsoo's.
+The three starting villages are separate maps, so a player in Jinno's village never hears of one in Shinsoo's, whatever the distance.
 
 ## What the client does
 
@@ -51,12 +51,14 @@ Another player's ADD (`01`) and INFO (`88`) are the ones on [entering-the-world.
 
 ## What the server does
 
-`internal/game/presence.go` keeps who is in the world, by vid, with the map each stands on (from `internal/world`) and where they are. Players on no known map share one map with each other; only bad data puts a character there.
+`internal/game/presence.go` keeps who is in the world, by vid, with the map each stands on (from `internal/world`), where they are, and whom each has been shown. Two players see each other when they are on the same map and at most 8000 apart, the edge included; seeing is always mutual, so both sides change together. Players on no known map share one map with each other; only bad data puts a character there.
 
-- **Entering:** after the player's own packets, the server sends the player everyone else's ADD and INFO, all in one send, and sends theirs to each of the others, then records the player. Only then is the session in the game phase, so a connection that closed while entering never leaves a world it never joined.
-- **Moving:** the position is kept, so a later arrival sees the character where it stands. The move goes to everyone else on the map, with the fields as the mover's client sent them. It is not sent back to the mover.
-- **Chat:** a line goes to the speaker and to everyone else on the map, with the speaker's vid, so the bubble shows. Commands stay the speaker's.
-- **Leaving:** every way out of the world goes through `leaveWorld`, which takes the player out and sends the others DELETE. A character taken over by a new login leaves before the new connection's claim is granted, so the old vid disappears before the new one appears.
+The range is open-mt2's choice; the client takes any, and draws characters up to 20000 away, so everyone in range is drawn. Who sees whom changes only when someone enters, moves or leaves, as in open-mt2.
+
+- **Entering:** after the player's own packets, the server sends the player the ADD and INFO of everyone in range, all in one send, and sends theirs to each of them, then records the player. Only then is the session in the game phase, so a connection that closed while entering never leaves a world it never joined.
+- **Moving:** the position is kept, so a later arrival sees the character where it stands. Then, against everyone else on the map: those who came into range and the mover are shown to each other, and those who left it and the mover get each other's DELETE; the mover gets all of that in one send. Last, the move goes to everyone in range, with the fields as the mover's client sent them, so someone just met has the character before its move. It is not sent back to the mover.
+- **Chat:** a line goes to the speaker and to everyone in range, with the speaker's vid, so the bubble shows. Commands stay the speaker's.
+- **Leaving:** every way out of the world goes through `leaveWorld`, which takes the player out and sends DELETE to everyone who had them in view: the record of whom each has been shown, rather than the range at that moment, so nobody is left holding a character that is gone. A character taken over by a new login leaves before the new connection's claim is granted, so the old vid disappears before the new one appears.
 - **ON_CLICK and TARGET** are accepted and ignored in the world.
 
 **Order.** Every packet about other players is sent while the record is locked, so everyone is told of the same things in the same order, and nobody receives a move for a character before the character. Sending only queues: each connection has its own queue and writer (see `docs/decisions/connections.md`), so a slow client never holds the lock.
@@ -64,8 +66,9 @@ Another player's ADD (`01`) and INFO (`88`) are the ones on [entering-the-world.
 ## How we know
 
 - **The ordering rules, the layouts, and what the client ignores:** the client's own source, in `open-mt2/work/client-review/ClientVS22/source`: `Packet.h`, `NetworkActorManager.cpp`, `PythonNetworkStreamPhaseGameActor.cpp`, `InstanceBase.cpp`.
-- **The fields passed through, and sending moves to others only:** open-mt2.
+- **The fields passed through, sending moves to others only, the range and the order on a move:** open-mt2.
 - **Seen with the real client,** with two windows side by side: Hendra and Kira saw each other in Jinno's village, each watched the other walk, a line appeared in both windows, and Logout made the character vanish from the other. The move's duration of 0 caused no visible problem: the other character walked as it should.
+- **The range, seen with the real client** against a scripted second player walking east and back: the scripted player vanished from the real client's window once about 8000 away and reappeared on coming back, and the script received DELETE past the range, then ADD and INFO before the next MOVE on returning, at 7983 apart.
 
 ## What proves it
 
@@ -77,13 +80,21 @@ Another player's ADD (`01`) and INFO (`88`) are the ones on [entering-the-world.
   - a line reaching both;
   - Logout, Change character and a dropped connection each sending DELETE;
   - a player on another map seeing nothing;
-  - ON_CLICK and TARGET ignored.
+  - ON_CLICK and TARGET ignored;
+  - walking out of range hiding both from each other, with no move after;
+  - walking back showing both again, and the onlooker the move after the character;
+  - the edge of the range, 8000, in view, and the range measured in a straight line;
+  - players entering out of range meeting by walking;
+  - a line out of range not heard;
+  - leaving telling those who saw the player, and not a third player on the map out of range.
 - `internal/game/presence_test.go`: a player whose connection closed while entering leaving without disturbing the others; someone entering a map of 20,000 players getting them all without filling their queue.
 - `internal/network/server_test.go`: sends from several goroutines arriving whole and in order; what was sent before a hang-up reaching the client; a client that stops reading being disconnected; a sender to a client far behind being refused at once rather than made to wait.
 
 ## Not done yet
 
-- A view range, rather than the whole map.
+- A spatial grid, so a move is checked against those nearby rather than everyone on the map; a measurement should ask for it first.
+- A margin against flickering, for two players walking along the edge of each other's range.
+- Changing map. A player's map is taken on entering only, which holds while the only way to another map is entering it; a warp must update it, or the player stays visible on the old map.
 - CHARACTER_UPDATE (`13`), which open-mt2 sends after another player's INFO, for equipment and guild.
 - SYNC_POSITION (`08`), which the client sends once it hits things.
 - The move's duration. With 0, a walk looked right with the real client; what the client uses it for is not confirmed in its source here.
