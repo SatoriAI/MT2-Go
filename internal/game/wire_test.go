@@ -54,3 +54,34 @@ func TestEveryKingdomNumberLeadsBackToItsKingdom(t *testing.T) {
 		t.Error("0 is not a kingdom")
 	}
 }
+
+// The bits are the client's BLOCK_* constants in Packet.h.
+func TestEveryBlockBitIsTheClientsAndLeadsBack(t *testing.T) {
+	all := account.Blocks{account.BlockExchange, account.BlockParty, account.BlockGuild,
+		account.BlockWhisper, account.BlockFriend, account.BlockPartyRequest}
+	for i, block := range all {
+		mask := uint32(1) << i
+		if got := blocksFromMask(mask); len(got) != 1 || got[0] != block {
+			t.Errorf("%d: got %v, want %s", mask, got, block)
+		}
+		if got := blockMask(account.Blocks{block}); got != mask {
+			t.Errorf("%s: got %d, want %d", block, got, mask)
+		}
+	}
+	if got := blockMask(blocksFromMask(63)); got != 63 {
+		t.Errorf("all six: got %d", got)
+	}
+}
+
+func TestBitsTheClientDoesNotNameAreDropped(t *testing.T) {
+	if got := blocksFromMask(1<<3 | 1<<6 | 1<<31); len(got) != 1 || got[0] != account.BlockWhisper {
+		t.Fatalf("got %v, want whisper only", got)
+	}
+}
+
+// No block is an empty list, not nil, which the database would store as NULL.
+func TestNoBlocksIsAnEmptyList(t *testing.T) {
+	if got := blocksFromMask(0); got == nil || len(got) != 0 {
+		t.Fatalf("got %#v", got)
+	}
+}

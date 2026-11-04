@@ -29,6 +29,10 @@ const sequenceByte = 0xAF // the first entry of the client's sequence table
 
 const password = "secret" // every test account's
 
+// noBlocksSize is the block mode a new character enters the world with, "setblockmode 0"
+// as a command chat.
+const noBlocksSize = 1 + 2 + 1 + 4 + 1 + len("setblockmode 0") + 1
+
 type harness struct {
 	t        *testing.T
 	accounts store.Accounts
@@ -637,6 +641,7 @@ func TestStartLoadsTheWorldAndEnteringPutsThePlayerInIt(t *testing.T) {
 		Type: protocol.EntityPlayer, Race: 6, MoveSpeed: 150, AttackSpeed: 150}))
 	game.expect(protocol.EncodeCharacterInfo(protocol.CharacterInfo{VID: 1, Name: "Hendra", BodyPart: 1,
 		Empire: 3, Level: 1}))
+	game.expect(protocol.EncodeChat(protocol.ChatCommand, 1, 3, "setblockmode 0"))
 	game.expectOpen()
 }
 
@@ -717,7 +722,7 @@ func (h *harness) inWorld() *client {
 	game.selectCharacter(0)
 	game.expectLoading()
 	game.enterGame()
-	game.read(2 + 5 + 2 + 35 + 54) // phase, time, channel, the player and their info
+	game.read(2 + 5 + 2 + 35 + 54 + noBlocksSize) // phase, time, channel, the player, their info and blocks
 	return game
 }
 
@@ -774,7 +779,7 @@ func (h *harness) hendraInWorld() (*client, uint32) {
 	game.selectCharacter(0)
 	game.expectLoading()
 	game.enterGame()
-	game.read(2 + 5 + 2 + 35 + 54) // phase, time, channel, the player and their info
+	game.read(2 + 5 + 2 + 35 + 54 + noBlocksSize) // phase, time, channel, the player, their info and blocks
 	return game, key
 }
 

@@ -115,12 +115,12 @@ func (a Accounts) withAccount(ctx context.Context, id int64, fn func(pgx.Tx, acc
 
 // characterColumns are what account.Character holds, in the order scanCharacter reads them.
 const characterColumns = `id, slot, name, class, sex, shape, level, play_minutes,
-	vitality, intelligence, strength, dexterity, hair, x, y, coalesce(skill_group, '')`
+	vitality, intelligence, strength, dexterity, hair, x, y, coalesce(skill_group, ''), blocks`
 
 func scanCharacter(row pgx.Row) (account.Character, error) {
 	var c account.Character
 	err := row.Scan(&c.ID, &c.Slot, &c.Name, &c.Class, &c.Sex, &c.Shape, &c.Level, &c.PlayMinutes,
-		&c.Vitality, &c.Intelligence, &c.Strength, &c.Dexterity, &c.Hair, &c.X, &c.Y, &c.SkillGroup)
+		&c.Vitality, &c.Intelligence, &c.Strength, &c.Dexterity, &c.Hair, &c.X, &c.Y, &c.SkillGroup, &c.Blocks)
 	return c, err
 }
 
@@ -146,5 +146,11 @@ func (a Accounts) Character(ctx context.Context, accountID int64, slot int) (acc
 // SavePosition keeps where the character stands for its next login.
 func (a Accounts) SavePosition(ctx context.Context, characterID uint32, x, y int32) error {
 	_, err := a.Pool.Exec(ctx, `UPDATE characters SET x = $2, y = $3 WHERE id = $1`, characterID, x, y)
+	return err
+}
+
+// SaveBlocks keeps what the character refuses from other players.
+func (a Accounts) SaveBlocks(ctx context.Context, characterID uint32, blocks account.Blocks) error {
+	_, err := a.Pool.Exec(ctx, `UPDATE characters SET blocks = $2 WHERE id = $1`, characterID, blocks)
 	return err
 }

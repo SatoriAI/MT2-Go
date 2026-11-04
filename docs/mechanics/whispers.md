@@ -41,12 +41,15 @@ The original client keeps its whisper windows only until logout. The server keep
 - **A line delivered** goes to the recipient as type line with the sender's name, the bytes as the client sent them. Nothing goes back to the sender.
 - **Nobody of that name in the game:** the sender gets type not-online with the name as they typed it, and nothing is kept.
 - **An empty line** is ignored, and so is **a line to oneself**: the client has already shown it, and sending it back would show it twice. **A line over 254 bytes** is not the client's, and ends the connection.
+- **Blocking whispers:** a player who blocks whispers in the options window ([chat.md](chat.md), `/setblockmode`) gets none: the sender gets type 2 with the name, which the client shows as "%s zablokował możliwość szeptania.", and nothing is delivered or kept. A player who blocks whispers may not send them either: they get type 3, "Nie możesz pisać do innych gdy masz zablokowane szeptanie." The recipient's choice is read under the world's lock, so it is the one they last made.
 - **Talking too fast:** whispers count against the same limit as chat, 10 lines in any 5 seconds ([chat.md](chat.md)). A whisper over it gets no reply at all, not even "not online", so a flood can't be turned into replies.
 - **Keeping it:** a delivered whisper is stored in `whispers`, with the two characters' ids, the time, and the text decoded from cp1250 to UTF-8 (`internal/game/wire.go`), so the table reads plainly and a client of our own needs no knowledge of the code page. Bytes cp1250 leaves undefined become U+FFFD. The save has its own few seconds rather than the connection's, so a line delivered as the server stops is still kept. Whispers are kept with no limit for now.
 - **A whisper that could not be stored** has already reached its recipient. The error is logged, the sender gets type error with "Not saved.", and the connection stays up.
 
 ## How we know
 
+- **What the blocked replies show:** the Polish client's `locale_game.txt`, `CANNOT_WHISPER_DEST_REFUSE` and `CANNOT_WHISPER_SELF_REFUSE`.
+- **Blocking, checked against the running server** with two scripted players: Szepta's `/setblockmode 8` came back as `setblockmode 8`, Botka's whisper to her got type 2, hers to Botka got type 3, and on entering again she was told `setblockmode 8`. How the client draws the options buttons and the two messages was not looked at.
 - **The layouts, the type numbers and what the client shows:** the client's own source, in `open-mt2/work/client-review/ClientVS22/source` (`Packet.h`, `PythonChat.h`, `PythonNetworkStreamPhaseGame.cpp`), and its `uiwhisper.py`, `game.py` and `localeInfo.py`.
 - **No echo:** `uiwhisper.py` shows the sender's line as it sends it.
 - **The client's own limit:** it formats a received line as "Name : text" into a buffer of 256 bytes, so the longest lines it sends, 254 bytes, are cut short when shown, possibly without their end; the original server passes them on the same way.
@@ -67,12 +70,13 @@ The original client keeps its whisper windows only until logout. The server keep
   - an empty whisper, and one to oneself whatever the case of the name, ignored;
   - a whisper that could not be stored delivered, the sender told, the connection kept;
   - 254 bytes passed on, 255 ending the connection.
+- `internal/server/blocks_test.go`: a whisper to a player blocking whispers refused with nothing delivered or kept, a player blocking whispers unable to send one, and other blocks letting whispers through.
 - `internal/server/flood_test.go`: a whisper after ten lines of chat dropped without a reply.
 - `internal/server/server_test.go`: whispers in flight after Change character ignored.
 
 ## Not done yet
 
 - Reading a conversation back, for our own client: its packet is that client's to design.
-- Blocking whispers (types 2 and 3), and GM whispers.
+- GM whispers.
 - A limit on how long whispers are kept.
 - Deleting a character: its whispers reference it, so the deletion is refused until what happens to the other side's conversation is decided.

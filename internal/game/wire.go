@@ -98,6 +98,40 @@ func summary(c account.Character) protocol.CharacterSummary {
 	}
 }
 
+// blockBits are the client's bits for what a character blocks (Packet.h, BLOCK_*).
+var blockBits = []struct {
+	block account.Block
+	bit   uint32
+}{
+	{account.BlockExchange, 1 << 0},
+	{account.BlockParty, 1 << 1},
+	{account.BlockGuild, 1 << 2},
+	{account.BlockWhisper, 1 << 3},
+	{account.BlockFriend, 1 << 4},
+	{account.BlockPartyRequest, 1 << 5},
+}
+
+// blocksFromMask reads the client's mask; bits it does not name are dropped.
+func blocksFromMask(mask uint32) account.Blocks {
+	blocks := account.Blocks{}
+	for _, b := range blockBits {
+		if mask&b.bit != 0 {
+			blocks = append(blocks, b.block)
+		}
+	}
+	return blocks
+}
+
+func blockMask(blocks account.Blocks) uint32 {
+	var mask uint32
+	for _, b := range blockBits {
+		if blocks.Has(b.block) {
+			mask |= b.bit
+		}
+	}
+	return mask
+}
+
 // textFromClient turns text the client typed into UTF-8. The client writes in its Windows
 // code page, cp1250 for Polish (docs/mechanics/chat.md). The few bytes cp1250 leaves
 // undefined become U+FFFD; decoding never fails.

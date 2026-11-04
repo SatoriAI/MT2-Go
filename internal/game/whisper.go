@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/SatoriAI/MT2-Go/internal/account"
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
 )
 
@@ -38,9 +39,15 @@ func (s *session) onWhisper(body []byte) error {
 		s.conn.Log().Debug("whisper dropped: talking too fast", "character", p.Name)
 		return nil
 	}
-	recipient, ok := s.svc.presence.whisper(w.To, protocol.EncodeWhisper(protocol.WhisperLine, p.Name, w.Text))
-	if !ok {
+	if p.Blocks.Has(account.BlockWhisper) {
+		return s.conn.Send(protocol.EncodeWhisper(protocol.WhisperSenderBlocked, w.To, ""))
+	}
+	recipient, outcome := s.svc.presence.whisper(w.To, protocol.EncodeWhisper(protocol.WhisperLine, p.Name, w.Text))
+	switch outcome {
+	case whisperNotFound:
 		return s.conn.Send(protocol.EncodeWhisper(protocol.WhisperNotOnline, w.To, ""))
+	case whisperRefused:
+		return s.conn.Send(protocol.EncodeWhisper(protocol.WhisperTargetBlocked, w.To, ""))
 	}
 	// The line is delivered, so it is kept even if the server is stopping: the save has
 	// its own time, as a position's does.

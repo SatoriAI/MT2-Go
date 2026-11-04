@@ -3,7 +3,10 @@
 // port. These are the game's own types; how they look on the wire is the sessions' job.
 package account
 
-import "errors"
+import (
+	"errors"
+	"slices"
+)
 
 // Limits the client's login fields impose, in bytes.
 const (
@@ -73,6 +76,23 @@ const (
 // SkillGroup is the path of skills a character follows; "" until it chooses one.
 type SkillGroup string
 
+// Block is something a character refuses from other players, chosen in the options.
+type Block string
+
+const (
+	BlockExchange     Block = "exchange"
+	BlockParty        Block = "party"
+	BlockGuild        Block = "guild"
+	BlockWhisper      Block = "whisper"
+	BlockFriend       Block = "friend"
+	BlockPartyRequest Block = "party_request"
+)
+
+// Blocks is what a character refuses, each at most once.
+type Blocks []Block
+
+func (b Blocks) Has(block Block) bool { return slices.Contains(b, block) }
+
 // Character is one of an account's characters, as far as the game knows it so far.
 type Character struct {
 	ID          uint32
@@ -87,4 +107,5 @@ type Character struct {
 	Hair       uint16
 	X, Y       int32
 	SkillGroup SkillGroup
+	Blocks     Blocks
 }
