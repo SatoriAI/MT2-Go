@@ -59,7 +59,7 @@ func conns(t *testing.T, n int) []*network.Conn {
 func TestAPlayerWhoseEntryFailedLeavesWithoutDisturbingTheOthers(t *testing.T) {
 	c := conns(t, 2)
 	svc := NewService(nil, nil, nil, handshake.NewClock(), netip.AddrPort{}, nil)
-	svc.presence.enter(&present{conn: c[0], add: protocol.CharacterAdd{VID: 1}})
+	svc.presence.enter(&present{out: c[0], add: protocol.CharacterAdd{VID: 1}})
 	c[1].Close()
 	s := &session{svc: svc, conn: c[1], phase: protocol.PhaseLoading,
 		playing: &character{vid: 2}, claim: &claim{character: 2, done: make(chan struct{})}}
@@ -81,10 +81,10 @@ func TestEnteringABusyMapDoesNotOverflowTheNewcomersQueue(t *testing.T) {
 	var w presence
 	w.all, w.byName = map[uint32]*present{}, map[string]*present{}
 	for vid := range uint32(20000) {
-		w.all[vid+1] = &present{conn: c[0], add: protocol.CharacterAdd{VID: vid + 1}, sees: map[uint32]*present{}}
+		w.all[vid+1] = &present{out: c[0], add: protocol.CharacterAdd{VID: vid + 1}, sees: map[uint32]*present{}}
 	}
 
-	w.enter(&present{conn: c[1], add: protocol.CharacterAdd{VID: 30000}})
+	w.enter(&present{out: c[1], add: protocol.CharacterAdd{VID: 30000}})
 
 	if err := c[1].Send([]byte{0}); err != nil {
 		t.Fatalf("the newcomer's connection: %v", err)

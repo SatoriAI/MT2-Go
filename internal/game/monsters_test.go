@@ -68,7 +68,7 @@ func worldWith(t *testing.T, spawns ...world.Spawn) *Service {
 func (s *Service) playerAt(t *testing.T, x int32, shown int) net.Conn {
 	t.Helper()
 	conn, client := watcher(t)
-	s.presence.enter(&present{conn: conn, add: protocol.CharacterAdd{VID: 1000, X: x, Y: homeY}})
+	s.presence.enter(&present{out: conn, add: protocol.CharacterAdd{VID: 1000, X: x, Y: homeY}})
 	read(t, client, shown)
 	return client
 }

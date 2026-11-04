@@ -21,6 +21,8 @@ A Metin2 server written from scratch in Go, compatible with the original TMP4 ga
 
 `make check` is the definition of done, and a pre-commit hook runs it: structure (including this file's 10,000-character budget), comment blocks, gofmt, `go vet`, golangci-lint, `go test -race`. No commit lands red; never `--no-verify`. CI invokes the same targets.
 
+`make bench` measures the world record and loop; run it before and after changing either, and update the baseline in `docs/decisions/world-loop.md`. The gate compiles the benchmarks but does not run them.
+
 The tests that need PostgreSQL fail when `TEST_DATABASE_URL` is unset, so a green gate always means they ran; copy `.env.example` to `.env` and start the database with `make db`. They wipe the test database, never the development one. `go test -short ./...` skips them for a quick loop, never as the gate.
 
 PostgreSQL listens on host port 15432 so this project coexists with others running locally. The game ports, 11002 (auth) and 13001 (game), are the ones the client is configured for; open-mt2 uses the same, so run one server at a time.
