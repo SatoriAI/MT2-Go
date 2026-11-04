@@ -85,3 +85,21 @@ func TestNoBlocksIsAnEmptyList(t *testing.T) {
 		t.Fatalf("got %#v", got)
 	}
 }
+
+func TestPolishTextWithItsQuotesAndTimesSignIsShownByTheClient(t *testing.T) {
+	text := "Wydarzenie „Święta” ×2: zażółć gęślą jaźń"
+	if !ClientCanShow(text) {
+		t.Fatal("cp1250 has every one of these characters")
+	}
+	if got := textFromClient(textToClient(text)); got != text {
+		t.Fatalf("sent as %q", got)
+	}
+}
+
+func TestAnEmojiOrChineseCharacterIsNotShownByTheClient(t *testing.T) {
+	for _, text := range []string{"Święta 🎄", "春节"} {
+		if ClientCanShow(text) {
+			t.Errorf("%q: cp1250 lacks it", text)
+		}
+	}
+}
