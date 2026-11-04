@@ -26,7 +26,9 @@ func (h *harness) enterWorld(account, name string, kingdom byte, race uint16) (*
 	game.read(46 + 1021 + 1531) // the main character, points and skills
 	game.enterGame()
 	game.read(2 + 5 + 2) // phase, time, channel
-	return game, game.read(appearanceSize)
+	look := game.read(appearanceSize)
+	game.read(noBlocksSize)
+	return game, look
 }
 
 // Hendra and Kira enter Jinno's first village, Hendra first; each sees the other.

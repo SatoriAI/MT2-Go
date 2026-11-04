@@ -315,9 +315,11 @@ func EncodeChat(t ChatType, vid uint32, empire uint8, text string) []byte {
 type WhisperType uint8
 
 const (
-	WhisperLine      WhisperType = 0 // a line from the named player
-	WhisperNotOnline WhisperType = 1 // the named player is not in the game
-	WhisperError     WhisperType = 4 // the text is shown as it is
+	WhisperLine          WhisperType = 0 // a line from the named player
+	WhisperNotOnline     WhisperType = 1 // the named player is not in the game
+	WhisperTargetBlocked WhisperType = 2 // the named player blocks whispers
+	WhisperSenderBlocked WhisperType = 3 // the sender blocks whispers, so may not send them
+	WhisperError         WhisperType = 4 // the text is shown as it is
 )
 
 // EncodeWhisper sends a whisper about the named player: their line, or what became of a

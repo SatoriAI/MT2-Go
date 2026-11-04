@@ -4,6 +4,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/SatoriAI/MT2-Go/internal/account"
 	"github.com/SatoriAI/MT2-Go/internal/network"
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
 	"github.com/SatoriAI/MT2-Go/internal/world"
@@ -31,6 +32,7 @@ type present struct {
 	world     string // the map's name; "" for a position on no known map, which those share
 	add       protocol.CharacterAdd
 	info      protocol.CharacterInfo
+	blocks    account.Blocks // what they refuse from others, as they last chose
 	// sees is who this player has been shown, by vid. Seeing is mutual, so both sides
 	// change together, and leaving tells exactly these.
 	sees map[uint32]*present
@@ -132,17 +134,36 @@ func (w *presence) leave(vid uint32) {
 	}
 }
 
-// whisper sends the player named a packet, wherever they are in the world, and returns
-// their character's id: false if nobody of that name is in the world.
-func (w *presence) whisper(name string, packet []byte) (uint32, bool) {
+// whisperOutcome is what became of a whisper.
+type whisperOutcome int
+
+const (
+	whisperDelivered whisperOutcome = iota
+	whisperNotFound                 // nobody of that name is in the world
+	whisperRefused                  // they block whispers
+)
+
+// whisper sends the player named a packet, wherever they are in the world, unless they
+// block whispers, and returns their character's id with what became of it.
+func (w *presence) whisper(name string, packet []byte) (uint32, whisperOutcome) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	p, ok := w.byName[strings.ToLower(name)]
-	if !ok {
-		return 0, false
+	switch {
+	case !ok:
+		return 0, whisperNotFound
+	case p.blocks.Has(account.BlockWhisper):
+		return p.character, whisperRefused
 	}
 	_ = p.conn.Send(packet)
-	return p.character, true
+	return p.character, whisperDelivered
+}
+
+// setBlocks records what the player now refuses, for whispers sent to them.
+func (w *presence) setBlocks(vid uint32, blocks account.Blocks) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.players[vid].blocks = blocks
 }
 
 func toViewers(p *present, packet []byte) {

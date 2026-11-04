@@ -50,6 +50,7 @@ The phase packet with `0`: the connection is ending.
 - **`/quit`:** the server replies with chat of type command and the text `quit`, which tells the client to close itself. With the real client, it closed.
 - **`/logout`:** phase close, then the connection ends. With the real client, it went back to the login screen.
 - **`/phase_select`:** the character leaves the world (saved, and its claim released), then the server sends phase select **alone**. The client, still in its game window, ignores a kingdom and list sent ahead of the phase: tried first, it stayed in the game and went on sending moves. With the phase alone it shows the character screen. When the player then presses Start, it reconnects and logs in with its key again, getting a fresh list. Moves, chat and whispers the client sent before it took in the phase are dropped on the old connection until the next Start, rather than ending it as out of their phase.
+- **`/setblockmode N`:** what the options window blocks. N is the client's whole mask after the button pressed: exchange 1, party 2, guild 4, whisper 8, friend 16, party request 32 (`Packet.h`, `BLOCK_*`). The server keeps it per character, by name, in `characters.blocks`, dropping bits the client doesn't name, and replies with a command chat `setblockmode N`. The client shows the buttons pressed only from that reply (`PythonNetworkStreamCommand.cpp`, `OnBlockMode`). The same reply goes out on entering the world, so the choice survives logging out, which the client alone doesn't keep. A mask that isn't a number is ignored. Only whispers are refused so far ([whispers.md](whispers.md)); the other blocks wait for their mechanics. open-mt2 keeps the mask in memory only and enforces none of it.
 - **Every other command** is logged and ignored.
 - **When they act:** the original game counts down before leaving, so nobody escapes a fight. With no fighting yet, these act at once.
 - **Saving:** in every case the position is saved, through the same path as a dropped connection.
@@ -76,6 +77,8 @@ The phase packet with `0`: the connection is ending.
   - moves, chat and whispers in flight after `/phase_select` ignored;
   - chat before entering the world held while incomplete, which shows it was framed, then closing the connection;
   - an eleventh line within five seconds reaching nobody, with the speaker kept in the game, and a command still working after it.
+- `internal/server/blocks_test.go`: `/setblockmode` answered and kept for the next entry, unknown bits dropped and a non-number ignored.
+- `internal/game/wire_test.go`: each block's bit is the client's and leads back, and no blocks is an empty list, not NULL.
 - `internal/game/flood_test.go`: ten lines passing and the eleventh not, the window rolling at exactly five seconds, and refused lines not counted.
 - `internal/game/session_test.go`: the error for a packet out of its phase shows at most 64 bytes of its body, and none of a login packet's.
 

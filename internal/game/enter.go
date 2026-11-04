@@ -97,8 +97,9 @@ func (s *session) onVersion(body []byte) error {
 }
 
 // onEnterGame puts the player in the world once the client has loaded the map: the game
-// phase, the clock and channel, then the player's own character, then the others on the
-// map. The client drops every other character when its own is added, so it goes first.
+// phase, the clock and channel, then the player's own character and what they block, then
+// the others in view. The client drops every other character when its own is added, so
+// it goes first.
 func (s *session) onEnterGame() error {
 	p := s.playing
 	me := &present{
@@ -113,6 +114,7 @@ func (s *session) onEnterGame() error {
 			MoveSpeed:   p.points.MoveSpeed,
 			AttackSpeed: p.points.AttackSpeed,
 		},
+		blocks: p.Blocks,
 		info: protocol.CharacterInfo{
 			VID:      p.vid,
 			Name:     p.Name,
@@ -126,7 +128,7 @@ func (s *session) onEnterGame() error {
 		protocol.EncodePhase(protocol.PhaseGame),
 		protocol.EncodeTime(s.svc.clock.Now()),
 		protocol.EncodeChannel(1),
-	}, me.appearance()...)...)
+	}, append(me.appearance(), s.blockMode())...)...)
 	if err != nil {
 		return err
 	}
