@@ -33,6 +33,8 @@ Combat added a monster's hit points and pickers to the record and bodies and ret
 
 Experience changed none of these by more than 4%. A first version slowed the idle tick by two fifths at 16,000 monsters: adding a field to a monster's kind made the tick's copy of it, to ask whether it wanders, cross into another cache line; the loop now keeps that answer on the monster itself.
 
+Experience events, which added the running event to the record and a look at it on entering, changed none of these by more than 2%.
+
 A move costs about 20 ns per character in the world, as the scan predicts. The world lock is held for every move, so the share of each second it is held is the moves per second times their cost:
 
 - **Today:** 100 player moves and 11 strolls a second hold the lock for 0.4 ms of each second: 0.04%.
