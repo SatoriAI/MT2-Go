@@ -49,6 +49,7 @@ The original client keeps its whisper windows only until logout. The server keep
 ## How we know
 
 - **What the blocked replies show:** the Polish client's `locale_game.txt`, `CANNOT_WHISPER_DEST_REFUSE` and `CANNOT_WHISPER_SELF_REFUSE`.
+- **Blocking, checked against the running server** with two scripted players: Szepta's `/setblockmode 8` came back as `setblockmode 8`, Botka's whisper to her got type 2, hers to Botka got type 3, and on entering again she was told `setblockmode 8`. How the client draws the options buttons and the two messages was not looked at.
 - **The layouts, the type numbers and what the client shows:** the client's own source, in `open-mt2/work/client-review/ClientVS22/source` (`Packet.h`, `PythonChat.h`, `PythonNetworkStreamPhaseGame.cpp`), and its `uiwhisper.py`, `game.py` and `localeInfo.py`.
 - **No echo:** `uiwhisper.py` shows the sender's line as it sends it.
 - **The client's own limit:** it formats a received line as "Name : text" into a buffer of 256 bytes, so the longest lines it sends, 254 bytes, are cut short when shown, possibly without their end; the original server passes them on the same way.
