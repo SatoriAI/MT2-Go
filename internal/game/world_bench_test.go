@@ -156,7 +156,7 @@ func BenchmarkPlayerRegeneration(b *testing.B) {
 				for _, p := range everyone {
 					p.char.HP, p.char.SP = 1, 0
 				}
-				s.presence.regenPlayers()
+				s.presence.regenPlayers(noon)
 			}
 		})
 	}

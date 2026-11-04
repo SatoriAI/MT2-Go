@@ -6,23 +6,26 @@ import (
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
 )
 
-// Players regain hit points and mana every playerRegenEvery while alive: playerRegenFlat
-// hit points and playerRegenPercent of their maximum, and that share of their mana.
-// open-mt2's numbers, without its 1% in the first step after moving.
+// Players regain hit points and mana every playerRegenEvery while alive and out of a
+// fight: playerRegenFlat hit points and playerRegenPercent of their maximum, and that
+// share of their mana. open-mt2's numbers, without its 1% in the first step after moving.
+// A player is in a fight until outOfFight after their last blow or bite: healing during
+// one would outpace a wild dog, and nobody could die to it.
 const (
 	playerRegenEvery   = 3 * time.Second
 	playerRegenFlat    = 15
 	playerRegenPercent = 5
+	outOfFight         = 5 * time.Second
 )
 
-// regenPlayers heals every living player who is short of hit points or mana, and tells
-// them what they have now.
-func (w *presence) regenPlayers() {
+// regenPlayers heals every living player out of a fight who is short of hit points or
+// mana, and tells them what they have now.
+func (w *presence) regenPlayers(now time.Time) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	for _, p := range w.byName {
 		c := p.char
-		if c == nil || p.dead() {
+		if c == nil || p.dead() || now.Sub(c.LastFought) < outOfFight {
 			continue
 		}
 		points, _ := c.Points()

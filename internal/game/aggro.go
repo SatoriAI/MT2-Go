@@ -127,6 +127,7 @@ func (w *presence) bite(m *monster, t *present, now time.Time, clock uint32, r *
 		DamageMax: m.proto.DamageMax}
 	damage := min(uint32(combat.Bite(b, combat.Defender{Level: ch.Level, Vitality: ch.Vitality}, r)), ch.HP) //nolint:gosec // at least 1
 	ch.HP -= damage
+	ch.LastFought = now
 	vid := t.add.VID
 	t.send(protocol.EncodeDamage(vid, protocol.DamageNormal, int32(damage)), //nolint:gosec // at most the hit points
 		protocol.EncodePointChange(vid, protocol.PointHP, -int32(damage), int32(ch.HP))) //nolint:gosec // small

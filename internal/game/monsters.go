@@ -149,7 +149,7 @@ func (s *Service) tick(now time.Time) {
 	case s.nextPlayerRegen.IsZero():
 		s.nextPlayerRegen = now.Add(playerRegenEvery)
 	case !now.Before(s.nextPlayerRegen):
-		s.presence.regenPlayers()
+		s.presence.regenPlayers(now)
 		s.nextPlayerRegen = now.Add(playerRegenEvery)
 	}
 }

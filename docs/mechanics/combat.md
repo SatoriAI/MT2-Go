@@ -85,7 +85,7 @@ A level-1 sura without a weapon takes about 10 to 12 off a wild dog a blow, so a
 
 `internal/game/regen.go`, run by the world loop.
 
-- **Players** regain, every three seconds while alive, 15 hit points and 5% of their maximum (62 a round for a level-1 sura's 950), and 5% of their mana, up to their maximums, fighting or not, and are told each that changed. The first round comes three seconds after the loop starts. The dead do not heal. A round holds the world lock over every player: 0.7 ms at 10,000.
+- **Players** regain, every three seconds while alive and out of a fight, 15 hit points and 5% of their maximum (62 a round for a level-1 sura's 950), and 5% of their mana, up to their maximums, and are told each that changed. A player is in a fight until five seconds after their last blow that landed or bite they took. Healing in a fight, as open-mt2 does, outpaced a wild dog's bites in the first live test, so nobody could die to one; Dawid chose to heal out of a fight only. The first round comes three seconds after the loop starts. The dead do not heal. A round holds the world lock over every player: 0.7 ms at 10,000.
 - **Monsters** heal 7% of their hit points every six seconds (`mob_proto` `REGEN_PERCENT` and `REGEN_CYCLE`, the same for the four field kinds), at least 1, from their first blow on, fighting or not, as open-mt2's do, rather than only out of a fight, as this page once planned; everyone who picked one sees its bar fill. One that dies leaves the list; the monster that comes back in its place is whole. The loop keeps a list of the hurt and walks only those, so idle ticks cost no more; a monster leaves the list when whole or dead.
 
 ## Why not the original's formula
@@ -136,7 +136,7 @@ The original takes the defence off the attack and scales the stat part by a hit 
   - giving up on a target who left;
   - a monster killed mid-fight, or fighting, not strolling;
   - a bite that kills, a dead player who can neither hit nor pick, and restarts (on [dying.md](dying.md)).
-- `internal/game/regen_test.go`: a player regaining 62 hit points and 42 mana three seconds on, not before; healing stopping at the maximum, telling nothing once whole; the dead not healing; a hurt dog healing 8 a round until whole, its picker seeing the bar fill, and leaving the list; a dead or whole monster not healed; a blow putting a monster on the list once.
+- `internal/game/regen_test.go`: a player regaining 62 hit points and 42 mana three seconds on, not before; not in a fight, only five seconds after it; her blow and the dog's bite each marking the fight; healing stopping at the maximum, telling nothing once whole; the dead not healing; a hurt dog healing 8 a round until whole, its picker seeing the bar fill, and leaving the list; a dead or whole monster not healed; a blow putting a monster on the list once.
 - `internal/server/combat_test.go`: a bare-handed sura picking and hitting a dog for 10 to 12 over real sockets, its bar dropping; a blow too soon dropped and one after the gap landing; blows and picks in flight after Change character dropped; the dog she hits biting back with its attack, 27 to 31, and her hit points.
 
 ## Not done yet

@@ -146,3 +146,31 @@ func TestAMonsterThatCameBackHealsOnlyFromItsOwnBlow(t *testing.T) {
 			len(s.healing), dog.healing)
 	}
 }
+
+// A player in a fight does not heal: only five seconds after their last blow or bite.
+func TestAPlayerHealsOnlyOutOfAFight(t *testing.T) {
+	s, client, c := hurtSura(t, 500, 100)
+	c.LastFought = noon.Add(time.Second)
+
+	s.tick(noon.Add(playerRegenEvery))
+	expectNothing(t, client)
+	s.tick(noon.Add(2 * playerRegenEvery))
+
+	expectPoint(t, client, protocol.PointHP, 62, 562)
+}
+
+// Her blow and the dog's bite both count as fighting.
+func TestABlowAndABiteMarkTheFight(t *testing.T) {
+	s, dog, client, c := suraHits(t, 100)
+	if !c.LastFought.Equal(noon) {
+		t.Fatalf("her blow at noon left her last fight at %v", c.LastFought)
+	}
+	c.LastFought = time.Time{}
+
+	s.tick(noon.Add(time.Second))
+	expectBite(t, client, dog, c)
+
+	if !c.LastFought.Equal(noon.Add(time.Second)) {
+		t.Fatalf("the bite left her last fight at %v", c.LastFought)
+	}
+}
