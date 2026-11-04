@@ -66,7 +66,7 @@ A level-1 sura without a weapon takes about 10 to 12 off a wild dog a blow, so a
 
 ## Why not the original's formula
 
-The original takes the defence off the attack and scales the stat part by a hit rate of about two thirds, less the victim's dodging: a level-1 sura's attack of 8 against a wild dog's defence of 10 leaves nothing, and every blow grazes for 1 to 5, about 42 blows a dog; ten points of strength jump that to 12. Subtraction also lets high defence wall off a weaker character entirely. This server takes a share instead, so every blow and every point of strength counts and armour matters at every level, and it drops the hit rate. Characters hit harder than in the original, about a third at low levels and far more against armoured monsters; monsters will use the same formula against players, and their health and the experience tables can be tuned once it has been played.
+The original takes the defence off the attack and scales the stat part by a hit rate of about two thirds, less the victim's dodging: a level-1 sura's attack of 8 against a wild dog's defence of 10 leaves nothing, and every blow grazes for 1 to 5, about 42 blows a dog; ten points of strength jump that to 12. Subtraction also lets high defence wall off a weaker character entirely. This server takes a share instead, so every blow and every point of strength counts and armour matters at every level, and it drops the hit rate. Characters hit harder than in the original: at low levels the attack is about half again as high, and against a wild dog a blow takes about three times as much (2.6 times with strength 15), and far more against armoured monsters; monsters will use the same formula against players, and their health and the experience tables can be tuned once it has been played.
 
 **The TMP4 client's character window** still shows its own attack value, computed by the original formula, so it differs from the damage dealt. Our own client can show this server's.
 
@@ -99,7 +99,7 @@ The original takes the defence off the attack and scales the stat part by a hit 
   - taking a boar called Dzik away keeping a player called dzik findable;
   - the gap between blows following attack speed, and switching between two victims not getting round it;
   - a body shown lying to someone arriving.
-- `internal/server/combat_test.go`: a bare-handed sura picking and grazing a dog over real sockets, its bar dropping; a blow too soon dropped and one after the gap landing; blows and picks in flight after Change character dropped.
+- `internal/server/combat_test.go`: a bare-handed sura picking and hitting a dog for 10 to 12 over real sockets, its bar dropping; a blow too soon dropped and one after the gap landing; blows and picks in flight after Change character dropped.
 
 ## Not done yet
 

@@ -38,7 +38,7 @@ func Lookup(vnum uint16) (Proto, bool) {
 }
 
 // protos are the client's mob_proto values (its --dump_proto--/mob_proto.txt): speeds,
-// and a monster's level, hit points, DX, HT and DEF. The names are the Polish client's own, from its locale mob_proto
+// and a monster's level, hit points, HT and DEF. The names are the Polish client's own, from its locale mob_proto
 // (docs/mechanics/monsters.md says how they were read), in UTF-8.
 var protos = map[uint16]Proto{
 	101: {VNum: 101, Name: "Dziki Pies", Kind: Monster, MoveSpeed: 100, AttackSpeed: 100,
