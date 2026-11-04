@@ -41,6 +41,7 @@ type monster struct {
 	proto      *mob.Proto
 	wanders    bool // the proto's, kept here: the tick asks it of every monster ten times a second
 	gone       bool // its body has been taken away
+	healing    bool // it is on the loop's list of the hurt
 	spawn      world.Spawn
 	p          *present
 	homeX      int32
@@ -100,7 +101,7 @@ func (s *Service) place(m *monster, now time.Time) {
 	m.x, m.y = m.homeX, m.homeY
 	delete(s.byPresent, m.p)
 	m.p = s.newMob(*m.proto, m.x, m.y, float32(s.rand.IntN(8)*45))
-	m.nextStroll, m.diedAt, m.gone = now.Add(s.strollWait()), time.Time{}, false
+	m.nextStroll, m.diedAt, m.gone, m.healing = now.Add(s.strollWait()), time.Time{}, false, false
 	s.byPresent[m.p] = m
 	s.presence.enter(m.p)
 }
@@ -122,7 +123,8 @@ func (s *Service) newMob(proto mob.Proto, x, y int32, facing float32) *present {
 }
 
 // tick takes away the bodies whose time has come, brings back the monsters whose has,
-// walks every living monster whose stroll is due, and has those that were hit fight back.
+// walks every living monster whose stroll is due, has those that were hit fight back, and
+// heals the hurt.
 func (s *Service) tick(now time.Time) {
 	fallen, provoked := s.presence.takeNews()
 	for _, d := range fallen {
@@ -142,6 +144,14 @@ func (s *Service) tick(now time.Time) {
 		}
 	}
 	s.fightOn(now)
+	s.healMonsters(now)
+	switch {
+	case s.nextPlayerRegen.IsZero():
+		s.nextPlayerRegen = now.Add(playerRegenEvery)
+	case !now.Before(s.nextPlayerRegen):
+		s.presence.regenPlayers(now)
+		s.nextPlayerRegen = now.Add(playerRegenEvery)
+	}
 }
 
 func (s *Service) stroll(m *monster, now time.Time) {

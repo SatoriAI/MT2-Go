@@ -2,7 +2,7 @@
 
 ## What the player sees
 
-When a monster's bite takes the last of a player's hit points, the character falls, everyone near sees the body, and the restart dialog opens with two buttons. **Restart here** brings the character back where it fell with half its hit points and mana; **Restart in town** brings it back at the kingdom's start with all of them. Dying costs a little experience, never a level. The monster that killed the player loses interest and walks home.
+When a monster's bite takes the last of a player's hit points, the character falls, everyone near sees the body, and the restart dialog opens with two buttons. **Restart here** brings the character back where it fell with half its hit points and mana; **Restart in town** brings it back at the kingdom's start with all of them. Dying costs a little experience, never a level. The monster that killed the player loses interest and walks home. Back on their feet, a player's hit points and mana fill again over time ([combat.md](combat.md), healing); the dead do not heal.
 
 ## What the client does
 
@@ -44,7 +44,6 @@ No new packets: DEAD, CHAT (type 5, a command, from the player's vid), CHARACTER
 
 ## Not done yet
 
-- Regenerating hit points and mana after a fight.
 - Keeping hit points between logins; a character enters with all of them.
 - Dying to other players, and duels.
 - A pause before the buttons work, and a short protection after restarting here.

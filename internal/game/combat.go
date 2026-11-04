@@ -101,7 +101,7 @@ func (w *presence) attack(playerVID, vid uint32, gap time.Duration, r *rand.Rand
 	if f.lastAttacker == p && now.Sub(f.lastBlowAt) < gap {
 		return blowTooSoon
 	}
-	f.lastAttacker, f.lastBlowAt = p, now
+	f.lastAttacker, f.lastBlowAt, p.char.LastFought = p, now, now
 	a := combat.Attacker{Level: p.char.Level, Class: p.char.Class, Stats: p.char.Stats}
 	damage := min(combat.Damage(a, f.defender, r), f.hp)
 	f.hp -= damage

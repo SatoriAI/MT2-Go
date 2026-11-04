@@ -302,7 +302,7 @@ func TestADeadPlayerGetsNoShare(t *testing.T) {
 	s, dog, client, c := suraHits(t, 100)
 	c.HP = 0
 	killer, _ := watcher(t)
-	strong := &account.Character{HP: 1000, Level: 1, Class: account.Warrior, Stats: account.Stats{Strength: 90}}
+	strong := &account.Character{HP: 1000, SP: 1000, Level: 1, Class: account.Warrior, Stats: account.Stats{Strength: 90}}
 	s.presence.enter(&present{out: killer, add: protocol.CharacterAdd{VID: 2000, X: homeX + 150, Y: homeY}, char: strong})
 	read(t, client, addSize) // the killer
 
@@ -338,13 +338,13 @@ func TestBlowsFromItsTargetKeepAMonsterFighting(t *testing.T) {
 	later := noon.Add(9 * time.Second)
 
 	s.engage([]provocation{{dog.p, &present{}}}, later)
-	if !dog.chase.lastFought.Equal(noon) {
+	if !dog.chase.lastExchange.Equal(noon) {
 		t.Fatal("another's blow counted")
 	}
 	s.engage([]provocation{{dog.p, s.presence.all[1000]}}, later)
 
-	if !dog.chase.lastFought.Equal(later) {
-		t.Fatalf("last fought at %v, want her blow at %v", dog.chase.lastFought, later)
+	if !dog.chase.lastExchange.Equal(later) {
+		t.Fatalf("last fought at %v, want her blow at %v", dog.chase.lastExchange, later)
 	}
 }
 

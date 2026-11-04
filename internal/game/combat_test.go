@@ -30,10 +30,13 @@ var (
 )
 
 // hit lands a blow of player 1000 on the victim, as a character with a's level, class and
-// stats, which the player keeps from their first blow on.
+// stats and all its hit points, which the player keeps from their first blow on.
 func (s *Service) hit(victim uint32, a combat.Attacker, gap time.Duration, now time.Time) blow {
 	if p := s.presence.all[1000]; p.char == nil {
-		p.char = &account.Character{HP: 1000, Level: a.Level, Class: a.Class, Stats: a.Stats}
+		c := &account.Character{Level: a.Level, Class: a.Class, Stats: a.Stats}
+		points, _ := c.Points()
+		c.HP, c.SP = points.MaxHP, points.MaxSP // whole, so nothing heals
+		p.char = c
 	}
 	return s.presence.attack(1000, victim, gap, someRand, now)
 }
