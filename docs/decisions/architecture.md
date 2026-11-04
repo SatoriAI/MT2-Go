@@ -24,4 +24,4 @@ open-mt2 and the original game use MySQL with a schema shaped by twenty years of
 
 ## Dependency budget
 
-Three modules outside the standard library: `pgx` (PostgreSQL), `golang.org/x/crypto` (bcrypt), `golang.org/x/sync` (errgroup, to run both ports and stop them together). golangci-lint is a `tool` in `go.mod`, so its version is pinned with the code and nothing is installed globally. A new dependency needs a reason a reader would accept, written here.
+Four modules outside the standard library: `pgx` (PostgreSQL), `golang.org/x/crypto` (bcrypt), `golang.org/x/sync` (errgroup, to run both ports and stop them together), `golang.org/x/text` (cp1250, to store what the client types as UTF-8; a table of 128 characters written here would be one more thing to check, for a module the toolchain already pulls in). golangci-lint is a `tool` in `go.mod`, so its version is pinned with the code and nothing is installed globally. A new dependency needs a reason a reader would accept, written here.

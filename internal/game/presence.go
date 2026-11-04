@@ -1,6 +1,7 @@
 package game
 
 import (
+	"strings"
 	"sync"
 
 	"github.com/SatoriAI/MT2-Go/internal/network"
@@ -20,14 +21,16 @@ const viewRange = 8000
 type presence struct {
 	mu      sync.Mutex
 	players map[uint32]*present // by vid
+	byName  map[string]*present // by lower-cased name: names are unique regardless of case
 }
 
 // present is one player in the world, as the others see them.
 type present struct {
-	conn  *network.Conn
-	world string // the map's name; "" for a position on no known map, which those share
-	add   protocol.CharacterAdd
-	info  protocol.CharacterInfo
+	conn      *network.Conn
+	character uint32 // the stored character's id; the vid lasts one login
+	world     string // the map's name; "" for a position on no known map, which those share
+	add       protocol.CharacterAdd
+	info      protocol.CharacterInfo
 	// sees is who this player has been shown, by vid. Seeing is mutual, so both sides
 	// change together, and leaving tells exactly these.
 	sees map[uint32]*present
@@ -75,6 +78,7 @@ func (w *presence) enter(p *present) {
 		_ = p.conn.Send(others...)
 	}
 	w.players[p.add.VID] = p
+	w.byName[strings.ToLower(p.info.Name)] = p
 }
 
 // move keeps where the player stands, brings those who came into view and drops those who
@@ -121,10 +125,24 @@ func (w *presence) leave(vid uint32) {
 	defer w.mu.Unlock()
 	p := w.players[vid]
 	delete(w.players, vid)
+	delete(w.byName, strings.ToLower(p.info.Name))
 	toViewers(p, protocol.EncodeCharacterDelete(vid))
 	for _, other := range p.sees {
 		unlink(p, other)
 	}
+}
+
+// whisper sends the player named a packet, wherever they are in the world, and returns
+// their character's id: false if nobody of that name is in the world.
+func (w *presence) whisper(name string, packet []byte) (uint32, bool) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	p, ok := w.byName[strings.ToLower(name)]
+	if !ok {
+		return 0, false
+	}
+	_ = p.conn.Send(packet)
+	return p.character, true
 }
 
 func toViewers(p *present, packet []byte) {

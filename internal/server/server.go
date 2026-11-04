@@ -8,6 +8,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/SatoriAI/MT2-Go/internal/account"
@@ -40,7 +41,7 @@ func Run(ctx context.Context, cfg config.Config, log *slog.Logger) error {
 		_ = authLn.Close()
 		return err
 	}
-	return Serve(ctx, Ports{Auth: authLn, Game: gameLn}, store.Accounts{Pool: pool}, cfg, log)
+	return Serve(ctx, Ports{Auth: authLn, Game: gameLn}, pool, cfg, log)
 }
 
 // Ports are the two listeners; tests pass listeners on free ports.
@@ -49,14 +50,15 @@ type Ports struct {
 }
 
 // Serve runs both ports on listeners that are already open.
-func Serve(ctx context.Context, ports Ports, accounts store.Accounts, cfg config.Config, log *slog.Logger) error {
+func Serve(ctx context.Context, ports Ports, pool *pgxpool.Pool, cfg config.Config, log *slog.Logger) error {
+	accounts := store.Accounts{Pool: pool}
 	keys := account.NewKeys(time.Now)
 	clock := handshake.NewClock()
 	authSvc, err := auth.NewService(accounts, keys, clock)
 	if err != nil {
 		return err
 	}
-	gameSvc := game.NewService(accounts, keys, clock, cfg.GamePublic)
+	gameSvc := game.NewService(accounts, store.Whispers{Pool: pool}, keys, clock, cfg.GamePublic)
 
 	log.Info("listening", "auth", ports.Auth.Addr().String(), "game", ports.Game.Addr().String(),
 		"game_public", cfg.GamePublic.String())

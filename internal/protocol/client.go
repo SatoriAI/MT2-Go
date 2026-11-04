@@ -119,11 +119,34 @@ func DecodeChat(body []byte) (Chat, error) {
 	if err := r.Err(); err != nil {
 		return Chat{}, err
 	}
-	text, _, found := bytes.Cut(body[1:], []byte{0})
-	if !found {
-		return Chat{}, ErrNoTerminator
+	text, err := terminated(body[1:])
+	return Chat{Type: t, Text: text}, err
+}
+
+// Whisper is a line for one player, by name. The text stays the client's bytes, as in
+// Chat.
+type Whisper struct {
+	To   string
+	Text string
+}
+
+func DecodeWhisper(body []byte) (Whisper, error) {
+	r := NewReader(body)
+	to := r.String(characterNameSize)
+	if err := r.Err(); err != nil {
+		return Whisper{}, err
 	}
-	return Chat{Type: t, Text: string(text)}, nil
+	text, err := terminated(body[characterNameSize:])
+	return Whisper{To: to, Text: text}, err
+}
+
+// terminated reads text that runs to a NUL, as the client ends a line it typed.
+func terminated(b []byte) (string, error) {
+	text, _, found := bytes.Cut(b, []byte{0})
+	if !found {
+		return "", ErrNoTerminator
+	}
+	return string(text), nil
 }
 
 // Version is the build the client reports while it loads the world.

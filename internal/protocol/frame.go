@@ -44,6 +44,7 @@ var clientFrames = map[ClientHeader]frameSpec{
 	ClientTarget:          {size: 5, sequenced: true},
 	ClientMove:            {size: 16, sequenced: true},
 	ClientChat:            {sized: true, sequenced: true},
+	ClientWhisper:         {sized: true, sequenced: true},
 	ClientVersion:         {size: 67, sequenced: true},
 }
 
