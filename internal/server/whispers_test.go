@@ -112,6 +112,20 @@ func TestAWhisperIsKeptBetweenTheTwoCharactersInUTF8(t *testing.T) {
 	}
 }
 
+// The client shows the sender's line itself, so a whisper to oneself is left at that:
+// nothing comes back, whatever the case of the name, and nothing is kept.
+func TestAWhisperToOneselfIsIgnored(t *testing.T) {
+	h := start(t)
+	hendra, _ := h.enterWorld("admin", "Hendra", 3, 6)
+
+	hendra.whisper("hENDRA", "hi")
+
+	hendra.expectOpen()
+	if got := h.whispers(); len(got) != 0 {
+		t.Fatalf("stored %v, want nothing", got)
+	}
+}
+
 func TestAnEmptyWhisperIsIgnored(t *testing.T) {
 	h := start(t)
 	hendra, kira := h.hendraAndKira()

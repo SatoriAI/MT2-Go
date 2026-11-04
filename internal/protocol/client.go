@@ -130,9 +130,12 @@ type Whisper struct {
 	Text string
 }
 
+// DecodeWhisper reads the name from the first 24 bytes of its field only: the client
+// copies at most 24 and leaves the 25th as whatever its memory held.
 func DecodeWhisper(body []byte) (Whisper, error) {
 	r := NewReader(body)
-	to := r.String(characterNameSize)
+	to := r.String(characterNameSize - 1)
+	r.Skip(1)
 	if err := r.Err(); err != nil {
 		return Whisper{}, err
 	}

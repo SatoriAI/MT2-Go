@@ -117,7 +117,7 @@ func (s *session) Handle(ctx context.Context, f protocol.Frame) error {
 	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientChat:
 		return s.onChat(f.Body)
 	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientWhisper:
-		return s.onWhisper(ctx, f.Body)
+		return s.onWhisper(f.Body)
 	case s.phase == protocol.PhaseGame && (f.Header == protocol.ClientTarget || f.Header == protocol.ClientOnClick):
 		return nil // picking or clicking a character; nothing answers it yet
 	case s.leftWorld && (f.Header == protocol.ClientMove || f.Header == protocol.ClientChat || f.Header == protocol.ClientWhisper):

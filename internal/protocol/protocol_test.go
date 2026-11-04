@@ -347,13 +347,14 @@ func TestDecodeWhisperReadsTheNameAndKeepsTheClientsBytes(t *testing.T) {
 	}
 }
 
-// A name with no NUL in its field is read to the field's end, and the text after it.
-func TestDecodeWhisperReadsANameThatFillsItsField(t *testing.T) {
-	body := append(bytes.Repeat([]byte{'a'}, characterNameSize), 'h', 'i', 0)
+// The client copies at most 24 bytes of the name and leaves the 25th as it was in its
+// memory, so that byte is never part of the name.
+func TestDecodeWhisperIgnoresTheLastByteOfTheNameField(t *testing.T) {
+	body := append(bytes.Repeat([]byte{'a'}, characterNameSize-1), 0x7F, 'h', 'i', 0)
 
 	w, err := DecodeWhisper(body)
 
-	if err != nil || w != (Whisper{To: strings.Repeat("a", characterNameSize), Text: "hi"}) {
+	if err != nil || w != (Whisper{To: strings.Repeat("a", characterNameSize-1), Text: "hi"}) {
 		t.Fatalf("got %+q %v", w, err)
 	}
 }
