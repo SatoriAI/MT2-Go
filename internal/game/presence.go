@@ -14,22 +14,23 @@ import (
 // client takes any. It draws characters up to 20000 away, so all of these are drawn.
 const viewRange = 8000
 
-// presence is who stands in the world, and who sees whom: two characters on the same map
-// within viewRange of each other. Packets go out under the lock, so every player is told
-// of the same things in the same order: a character always appears before its moves.
-// Sending only queues, so the lock is never held across a slow client. A send that fails
-// is left: that connection closes itself.
+// presence is who stands in the world, players and mobs, and who sees whom: a player and
+// anything else on the same map within viewRange of each other. Mobs see no mobs, so the
+// many standing in the fields cost nothing between themselves. Packets go out under the
+// lock, so every player is told of the same things in the same order: a character always
+// appears before its moves. Sending only queues, so the lock is never held across a slow
+// client. A send that fails is left: that connection closes itself.
 type presence struct {
-	mu      sync.Mutex
-	players map[uint32]*present // by vid
-	byName  map[string]*present // by lower-cased name: names are unique regardless of case
+	mu     sync.Mutex
+	all    map[uint32]*present // by vid
+	byName map[string]*present // players, by lower-cased name: unique regardless of case
 }
 
-// present is one player in the world, as the others see them.
+// present is one character in the world, as the players who see it see it.
 type present struct {
-	conn      *network.Conn
-	character uint32 // the stored character's id; the vid lasts one login
-	world     string // the map's name; "" for a position on no known map, which those share
+	conn      *network.Conn // nil for a mob
+	character uint32        // the stored character's id; the vid lasts one login
+	world     string        // the map's name; "" for a position on no known map, which those share
 	add       protocol.CharacterAdd
 	info      protocol.CharacterInfo
 	blocks    account.Blocks // what they refuse from others, as they last chose
@@ -39,14 +40,28 @@ type present struct {
 }
 
 // appearance is what shows the character to another client. The client builds a player
-// only when its info follows its add, so the two go out as one send.
+// or an NPC only when its info follows its add, so the two go out as one send; it builds
+// a monster from the add alone, naming it from its own mob data, and drops an info for one.
 func (p *present) appearance() [][]byte {
+	if p.add.Type == protocol.EntityMonster {
+		return [][]byte{protocol.EncodeCharacterAdd(p.add)}
+	}
 	return [][]byte{protocol.EncodeCharacterAdd(p.add), protocol.EncodeCharacterInfo(p.info)}
 }
 
+func (p *present) isPlayer() bool { return p.conn != nil }
+
+// send queues packets for the player; a mob has nobody to tell.
+func (p *present) send(packets ...[]byte) {
+	if p.isPlayer() && len(packets) > 0 {
+		_ = p.conn.Send(packets...)
+	}
+}
+
+// inView is whether p and o see each other: a player, and on the same map within range.
 func (p *present) inView(o *present) bool {
 	dx, dy := int64(p.add.X)-int64(o.add.X), int64(p.add.Y)-int64(o.add.Y)
-	return p.world == o.world && dx*dx+dy*dy <= viewRange*viewRange
+	return (p.isPlayer() || o.isPlayer()) && p.world == o.world && dx*dx+dy*dy <= viewRange*viewRange
 }
 
 func link(a, b *present) {
@@ -69,30 +84,31 @@ func (w *presence) enter(p *present) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	var others [][]byte
-	for _, other := range w.players {
+	for _, other := range w.all {
 		if p.inView(other) {
 			link(p, other)
-			_ = other.conn.Send(p.appearance()...)
+			other.send(p.appearance()...)
 			others = append(others, other.appearance()...)
 		}
 	}
-	if others != nil {
-		_ = p.conn.Send(others...)
+	p.send(others...)
+	w.all[p.add.VID] = p
+	if p.isPlayer() {
+		w.byName[strings.ToLower(p.info.Name)] = p
 	}
-	w.players[p.add.VID] = p
-	w.byName[strings.ToLower(p.info.Name)] = p
 }
 
-// move keeps where the player stands, brings those who came into view and drops those who
-// left it, on both sides, then shows the move to everyone in view: someone just met gets
-// the character before its move. The mover gets all its changes in one send.
+// move keeps where the character stands, brings those who came into view and drops those
+// who left it, on both sides, then shows the move to every player in view: someone just
+// met gets the character before its move. A moving player gets all its changes in one
+// send.
 func (w *presence) move(vid uint32, m protocol.Move) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	p := w.players[vid]
+	p := w.all[vid]
 	p.add.X, p.add.Y = m.X, m.Y
 	var mine [][]byte
-	for _, other := range w.players {
+	for _, other := range w.all {
 		if other == p {
 			continue
 		}
@@ -100,17 +116,15 @@ func (w *presence) move(vid uint32, m protocol.Move) {
 		switch near := p.inView(other); {
 		case near && !seen:
 			link(p, other)
-			_ = other.conn.Send(p.appearance()...)
+			other.send(p.appearance()...)
 			mine = append(mine, other.appearance()...)
 		case !near && seen:
 			unlink(p, other)
-			_ = other.conn.Send(protocol.EncodeCharacterDelete(vid))
+			other.send(protocol.EncodeCharacterDelete(vid))
 			mine = append(mine, protocol.EncodeCharacterDelete(other.add.VID))
 		}
 	}
-	if mine != nil {
-		_ = p.conn.Send(mine...)
-	}
+	p.send(mine...)
 	toViewers(p, protocol.EncodeMove(vid, m))
 }
 
@@ -118,15 +132,15 @@ func (w *presence) move(vid uint32, m protocol.Move) {
 func (w *presence) say(vid uint32, packet []byte) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	toViewers(w.players[vid], packet)
+	toViewers(w.all[vid], packet)
 }
 
 // leave takes the player out of the world, and out of the view of everyone who sees them.
 func (w *presence) leave(vid uint32) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	p := w.players[vid]
-	delete(w.players, vid)
+	p := w.all[vid]
+	delete(w.all, vid)
 	delete(w.byName, strings.ToLower(p.info.Name))
 	toViewers(p, protocol.EncodeCharacterDelete(vid))
 	for _, other := range p.sees {
@@ -163,11 +177,11 @@ func (w *presence) whisper(name string, packet []byte) (uint32, whisperOutcome) 
 func (w *presence) setBlocks(vid uint32, blocks account.Blocks) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	w.players[vid].blocks = blocks
+	w.all[vid].blocks = blocks
 }
 
 func toViewers(p *present, packet []byte) {
 	for _, other := range p.sees {
-		_ = other.conn.Send(packet)
+		other.send(packet)
 	}
 }

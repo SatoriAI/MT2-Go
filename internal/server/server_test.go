@@ -21,6 +21,7 @@ import (
 	"github.com/SatoriAI/MT2-Go/internal/config"
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
 	"github.com/SatoriAI/MT2-Go/internal/store"
+	"github.com/SatoriAI/MT2-Go/internal/world"
 )
 
 // These tests drive both ports over real sockets with the bytes the game client sends,
@@ -43,7 +44,15 @@ type harness struct {
 	stop func() error
 }
 
+// start runs a server with no mobs in its world, so every test sees only the players it
+// makes.
 func start(t *testing.T) *harness {
+	t.Helper()
+	return startWith(t, nil)
+}
+
+// startWith runs a server whose world holds the mobs of spawns.
+func startWith(t *testing.T, spawns []world.Spawn) *harness {
 	t.Helper()
 	if testing.Short() {
 		t.Skip("needs PostgreSQL; run without -short")
@@ -66,7 +75,7 @@ func start(t *testing.T) *harness {
 	accounts := store.Accounts{Pool: pool}
 	done := make(chan error, 1)
 	go func() {
-		done <- Serve(ctx, Ports{Auth: authLn, Game: gameLn}, pool, cfg, slog.New(slog.DiscardHandler))
+		done <- Serve(ctx, Ports{Auth: authLn, Game: gameLn}, pool, spawns, cfg, slog.New(slog.DiscardHandler))
 	}()
 	stop := sync.OnceValue(func() error {
 		cancel()

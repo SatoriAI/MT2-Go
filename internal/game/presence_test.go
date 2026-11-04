@@ -58,7 +58,7 @@ func conns(t *testing.T, n int) []*network.Conn {
 // it must not touch the others.
 func TestAPlayerWhoseEntryFailedLeavesWithoutDisturbingTheOthers(t *testing.T) {
 	c := conns(t, 2)
-	svc := NewService(nil, nil, nil, handshake.NewClock(), netip.AddrPort{})
+	svc := NewService(nil, nil, nil, handshake.NewClock(), netip.AddrPort{}, nil)
 	svc.presence.enter(&present{conn: c[0], add: protocol.CharacterAdd{VID: 1}})
 	c[1].Close()
 	s := &session{svc: svc, conn: c[1], phase: protocol.PhaseLoading,
@@ -69,8 +69,8 @@ func TestAPlayerWhoseEntryFailedLeavesWithoutDisturbingTheOthers(t *testing.T) {
 	}
 	s.leaveWorld()
 
-	if len(svc.presence.players) != 1 {
-		t.Fatalf("%d players in the world, want the other one only", len(svc.presence.players))
+	if len(svc.presence.all) != 1 {
+		t.Fatalf("%d players in the world, want the other one only", len(svc.presence.all))
 	}
 }
 
@@ -79,9 +79,9 @@ func TestAPlayerWhoseEntryFailedLeavesWithoutDisturbingTheOthers(t *testing.T) {
 func TestEnteringABusyMapDoesNotOverflowTheNewcomersQueue(t *testing.T) {
 	c := conns(t, 2)
 	var w presence
-	w.players, w.byName = map[uint32]*present{}, map[string]*present{}
+	w.all, w.byName = map[uint32]*present{}, map[string]*present{}
 	for vid := range uint32(20000) {
-		w.players[vid+1] = &present{conn: c[0], add: protocol.CharacterAdd{VID: vid + 1}, sees: map[uint32]*present{}}
+		w.all[vid+1] = &present{conn: c[0], add: protocol.CharacterAdd{VID: vid + 1}, sees: map[uint32]*present{}}
 	}
 
 	w.enter(&present{conn: c[1], add: protocol.CharacterAdd{VID: 30000}})

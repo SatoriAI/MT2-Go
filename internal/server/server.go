@@ -18,6 +18,7 @@ import (
 	"github.com/SatoriAI/MT2-Go/internal/handshake"
 	"github.com/SatoriAI/MT2-Go/internal/network"
 	"github.com/SatoriAI/MT2-Go/internal/store"
+	"github.com/SatoriAI/MT2-Go/internal/world"
 )
 
 // timeouts close a connection that has not logged in 30 seconds after connecting, and
@@ -41,7 +42,7 @@ func Run(ctx context.Context, cfg config.Config, log *slog.Logger) error {
 		_ = authLn.Close()
 		return err
 	}
-	return Serve(ctx, Ports{Auth: authLn, Game: gameLn}, pool, cfg, log)
+	return Serve(ctx, Ports{Auth: authLn, Game: gameLn}, pool, world.Spawns(), cfg, log)
 }
 
 // Ports are the two listeners; tests pass listeners on free ports.
@@ -49,13 +50,15 @@ type Ports struct {
 	Auth, Game net.Listener
 }
 
-// Serve runs both ports on listeners that are already open.
-func Serve(ctx context.Context, ports Ports, pool *pgxpool.Pool, cfg config.Config, log *slog.Logger) error {
+// Serve runs both ports on listeners that are already open, and the world loop with the
+// mobs of spawns in it.
+func Serve(ctx context.Context, ports Ports, pool *pgxpool.Pool, spawns []world.Spawn, cfg config.Config,
+	log *slog.Logger) error {
 	accounts := store.Accounts{Pool: pool}
 	keys := account.NewKeys(time.Now)
 	clock := handshake.NewClock()
 	authSvc := auth.NewService(accounts, keys, clock)
-	gameSvc := game.NewService(accounts, store.Whispers{Pool: pool}, keys, clock, cfg.GamePublic)
+	gameSvc := game.NewService(accounts, store.Whispers{Pool: pool}, keys, clock, cfg.GamePublic, spawns)
 
 	log.Info("listening", "auth", ports.Auth.Addr().String(), "game", ports.Game.Addr().String(),
 		"game_public", cfg.GamePublic.String())
@@ -66,5 +69,6 @@ func Serve(ctx context.Context, ports Ports, pool *pgxpool.Pool, cfg config.Conf
 	g.Go(func() error {
 		return network.Serve(ctx, ports.Game, gameSvc.NewSession, timeouts, log.With("port", "game"))
 	})
+	g.Go(func() error { return gameSvc.Run(ctx) })
 	return g.Wait()
 }

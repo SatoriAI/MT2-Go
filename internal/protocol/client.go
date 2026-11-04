@@ -87,6 +87,10 @@ type Move struct {
 	Time     uint32 // the client's clock, as the handshake set it
 }
 
+// MoveWait is the move a server sends to walk a character to a point, where it stops
+// (the client's FUNC_WAIT).
+const MoveWait uint8 = 0
+
 func DecodeMove(body []byte) (Move, error) {
 	r := NewReader(body)
 	m := Move{Type: r.U8(), Arg: r.U8(), Rotation: r.U8(), X: r.I32(), Y: r.I32(), Time: r.U32()}

@@ -213,8 +213,12 @@ func EncodeChannel(channel uint8) []byte {
 	return w.Bytes()
 }
 
-// EntityPlayer is the entity type of a player character (open-mt2's EntityTypeEnum).
-const EntityPlayer uint8 = 6
+// The kinds of character the client builds differently (its ActorInstance.h).
+const (
+	EntityMonster uint8 = 0
+	EntityNPC     uint8 = 1
+	EntityPlayer  uint8 = 6
+)
 
 // CharacterAdd is a character appearing in the client's view, the player included.
 type CharacterAdd struct {

@@ -56,7 +56,8 @@ internal/auth/      the login port: password check, login key
 internal/game/      the game port: login by key, kingdom, characters, entering the world
 internal/account/   the game's types for accounts and characters, starting and derived values, login keys
 internal/store/     PostgreSQL: pool, embedded migrations, queries
-internal/world/     the game world: which maps exist and where
+internal/world/     the game world: which maps exist and where, and where mobs are spawned
+internal/mob/       what each kind of monster and NPC is
 internal/server/    wires everything and runs both ports; the end-to-end tests live here
 docs/mechanics/     how each mechanic works
 docs/decisions/     why the rules here are what they are
@@ -79,6 +80,7 @@ A connection's goroutine is the only one that touches its session, so session st
 |---|---|
 | Process layout, database, migrations, dependencies | `architecture.md` |
 | Sending to a connection from elsewhere | `connections.md` |
+| Anything on a timer: the world loop | `world-loop.md` |
 | Converting between names and the original client's numbers | `client-adapter.md` |
 | The comment length guard | `comment-blocks.md` |
 | The size of this file | `instructions-budget.md` |

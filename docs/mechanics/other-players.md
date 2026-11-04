@@ -2,7 +2,7 @@
 
 ## What the player sees
 
-A player sees the other players near them: on the same map and within 8000 units, about the distance the camera shows. A player entering a village sees whoever already stands near them, where they stand now, and they see the newcomer appear. When someone walks, those near watch them walk; walking away, a character vanishes for the others and they for it, and walking back, both reappear. A line said in chat appears for everyone near the speaker, in the chat window and in a bubble over the speaker. When a player leaves, by Logout, Change character, Exit or a dropped connection, they vanish for the others.
+A player sees the other players near them: on the same map and within 8000 units, about the distance the camera shows. Monsters and NPCs follow the same rule ([monsters.md](monsters.md)). A player entering a village sees whoever already stands near them, where they stand now, and they see the newcomer appear. When someone walks, those near watch them walk; walking away, a character vanishes for the others and they for it, and walking back, both reappear. A line said in chat appears for everyone near the speaker, in the chat window and in a bubble over the speaker. When a player leaves, by Logout, Change character, Exit or a dropped connection, they vanish for the others.
 
 The three starting villages are separate maps, so a player in Jinno's village never hears of one in Shinsoo's, whatever the distance.
 
