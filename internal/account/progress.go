@@ -35,6 +35,18 @@ func NextExp(level uint8) uint32 {
 	return levelNeeds[level-1]
 }
 
+// DeathPenaltyPercent is the share of the current level's need a character loses on
+// dying: this server's choice, since the original's rule is not recorded.
+const DeathPenaltyPercent = 2
+
+// LoseExpOnDeath takes the death penalty from the character's experience, never below 0,
+// so a level is never lost, and returns how much went.
+func (c *Character) LoseExpOnDeath() uint32 {
+	lost := min(c.Exp, NextExp(c.Level)*DeathPenaltyPercent/100)
+	c.Exp -= lost
+	return lost
+}
+
 // gapPercents is the share of a monster's experience a player gets, by the monster's level
 // less the player's, from 15 or more below to 15 or more above.
 var gapPercents = [31]uint32{

@@ -2,7 +2,7 @@
 
 ## What the player sees
 
-Clicking a monster picks it: its name, level and a hit-point bar appear at the top of the screen. Attacking it swings at it, and each blow that lands shows its damage over the monster and lowers the bar. At zero the monster plays its death, lies a moment, and fades away; twenty seconds later another of its kind stands somewhere in its field. NPCs cannot be fought. Monsters do not fight back yet. Killing gives experience ([experience.md](experience.md)).
+Clicking a monster picks it: its name, level and a hit-point bar appear at the top of the screen. Attacking it swings at it, and each blow that lands shows its damage over the monster and lowers the bar. At zero the monster plays its death, lies a moment, and fades away; twenty seconds later another of its kind stands somewhere in its field. NPCs cannot be fought. A monster that is hit fights back: it turns on its attacker, follows them, and bites every two seconds or so, and the player's hit-point bar drops with each bite. Run far enough, or keep out of reach for ten seconds, and it gives up and walks home. A player whose hit points run out dies ([dying.md](dying.md)). Killing gives experience ([experience.md](experience.md)).
 
 A level-1 sura without a weapon takes about 10 to 12 off a wild dog a blow, so a dog takes about twelve; with 10 more points of strength, about five. The damage is this server's own formula, not the original's: see below.
 
@@ -12,6 +12,9 @@ A level-1 sura without a weapon takes about 10 to 12 off a wild dog a blow, so a
 - **Swinging:** each swing of a combo sends a MOVE with func COMBO (3) and the motion in its arg, which the server already passes to the others, so they see the swing. The client works out for itself which characters the swing touched, plays their being-hit motion, and for each one sends ATTACK (`02`) once per hit (`ActorInstanceBattle.cpp`, `PythonPlayerEventHandler.cpp` `OnHit`). Before sending it, it makes the victim its target.
 - **Damage:** DAMAGE_INFO (`87`) draws the number over the victim, but only over the player or the player's current target (`InstanceBaseEffect.cpp`, `ProcessDamage`); flags 1 normal, 2 poison, 4 dodge, 8 block, 16 penetrate, 32 critical.
 - **Death:** DEAD (`0E`) plays the death motion once; the body stays until the character is deleted, which fades it out. A new character, the returning monster, is a fresh ADD with a new vid.
+- **A monster's attack:** a MOVE (`03`) for the monster with func ATTACK (2) plays its normal attack where the move puts it, facing the move's rotation; the client never turns it towards anyone itself, and ignores the arg (`InstanceBase.cpp`, `RunNormalAttack`). Closer than 50 to the point it attacks at once; further, it walks there first.
+- **A chase:** a visible monster walks a MOVE of func WAIT (0) at its own pace and stops at the point; the move's duration is ignored. A MOVE of func MOVE (1) would walk on past it, so it is not used.
+- **Taking damage:** DAMAGE_INFO with the player's own vid draws the numbers over them; their hit-point bar follows POINT_CHANGE of hit points (5) for their own vid only (`PythonNetworkStreamPhaseGame.cpp`, `uitaskbar.py`). Nobody else sees another player's hit points.
 - **Attack value:** the character window computes the player's attack itself from level, strength, dexterity and the class's stat (`PythonPlayer.cpp`, `__UpdateBattleStatus`): 2 × level + (4 × strength + 2 × the class's stat) / 3 × the hit rate, where the hit rate is (rating + 210) / 300 and the rating is min(90, (4 × dexterity + 2 × level) / 6). The class's stat is strength for warriors and suras, dexterity for ninjas, intelligence for shamans.
 
 ## The bytes
@@ -64,6 +67,20 @@ A level-1 sura without a weapon takes about 10 to 12 off a wild dog a blow, so a
 - **The world loop** owns every monster that can be killed, wandering or not, and takes the body away two seconds after the death, with DELETE to those who see it, as open-mt2 does, and twenty seconds after the death puts a new monster of the kind at a random point of its spawn's area, with a new vid and all its hit points: this server's pause, chosen for the village fields.
 - **Skills** (an ATTACK with a skill) are dropped. Blows and picks the client sent before it took in Change character are dropped, as moves and chat are.
 
+### Monsters fighting back
+
+`internal/game/aggro.go`, with the bite in `internal/combat`.
+
+- **Provoked:** every blow that lands on a living monster is kept for the world loop, which, at its next tick, has a monster that is not already fighting take that player as its target. The loop steps only fighting monsters, so idle ticks cost no more.
+- **A step,** every half second, under the world record's lock:
+  - **in reach,** the attack range from `mob_proto` (175 for the four field monsters) and 15% more, with its bite due: everyone who sees the monster gets its attack, facing the player, and the player gets the damage and their hit points left;
+  - **out of reach:** it walks towards the player, to nine tenths of its range from them, at most 400 a second at move speed 100 (this server's estimate of the client's walk), with a MOVE of func WAIT.
+- **Bites** come every two seconds at attack speed 100, 2,000 × 100 ÷ attack speed in ms and never under one second: two and a half for the boar. The first comes as soon as the player is in reach.
+- **A bite** is twice the monster's level, twice its strength (`mob_proto` ST), and a roll of its damage dice (`DAMAGE_MIN` to `DAMAGE_MAX`), close to the original's monster attack, of which the player's defence, level + vitality + armour, takes its share as for a blow: attack × 100 ÷ (100 + defence), rounded, never under 1. A wild dog bites a level-1 sura for 27 to 31 of her 950 hit points, the boar for 69 to 76.
+- **Giving up:** the monster stops when its target has left the world or is dead, when it has not bitten for ten seconds, or when it is 5,000 from where it last bit (or was first hit); it walks straight home and strolls again from there. Going home does not heal it.
+- **While fighting** a monster does not stroll. A monster killed mid-fight stops.
+- **Hit points** are the character's, kept under the world record's lock as experience is; a character enters the world with all of them, as they are not saved.
+
 ## Why not the original's formula
 
 The original takes the defence off the attack and scales the stat part by a hit rate of about two thirds, less the victim's dodging: a level-1 sura's attack of 8 against a wild dog's defence of 10 leaves nothing, and every blow grazes for 1 to 5, about 42 blows a dog; ten points of strength jump that to 12. Subtraction also lets high defence wall off a weaker character entirely. This server takes a share instead, so every blow and every point of strength counts and armour matters at every level, and it drops the hit rate. Characters hit harder than in the original: at low levels the attack is about half again as high, and against a wild dog a blow takes about three times as much (2.6 times with strength 15), and far more against armoured monsters; monsters will use the same formula against players, and their health and the experience tables can be tuned once it has been played.
@@ -82,6 +99,7 @@ The original takes the defence off the attack and scales the stat part by a hit 
 - **The packets and what the client does with them:** the client's source, `Packet.h`, `PythonNetworkStreamPhaseGame.cpp`, `InstanceBaseEffect.cpp`, `ActorInstanceBattle.cpp`, `PythonPlayerEventHandler.cpp`, `PythonPlayer.cpp`, and `uitarget.py`.
 - **The attack's stat part and a monster's defence:** the client's character window and open-mt2's `MobPoints.ts`. **The reach and the speed rule:** open-mt2 (`PlayerBattleAgainstMobStrategy.ts`, `Player.ts`), read for facts. The monsters' values: the client's `mob_proto` dump.
 - **The body's two seconds:** open-mt2. **The twenty-second return:** this server's.
+- **A monster's attack and chase as the client shows them:** `InstanceBase.cpp` (`PushTCPState`, the FUNC_ATTACK and FUNC_WAIT branches), `NetworkActorManager.cpp`. **The fight's numbers,** a hit monster targeting its attacker, its reach and 15%, its bite every 2,000 × 100 ÷ attack speed ms, its step each half second towards nine tenths of its range, and giving up after ten seconds or 5,000: open-mt2's `Behavior.ts` and `Monster.ts`, read for facts. **The bite:** the original's monster attack (open-mt2's `MobPoints.ts`, `MonsterBattle.ts`) of twice level and strength and the dice, without its hit rate, under this server's mitigation, as Dawid chose. **The walk of 400 a second:** this server's estimate.
 
 ## What proves it
 
@@ -99,11 +117,21 @@ The original takes the defence off the attack and scales the stat part by a hit 
   - taking a boar called Dzik away keeping a player called dzik findable;
   - the gap between blows following attack speed, and switching between two victims not getting round it;
   - a body shown lying to someone arriving.
-- `internal/server/combat_test.go`: a bare-handed sura picking and hitting a dog for 10 to 12 over real sockets, its bar dropping; a blow too soon dropped and one after the gap landing; blows and picks in flight after Change character dropped.
+- `internal/combat/combat_test.go`, bites: a wild dog's on a level-1 sura, 27 to 31, every value seen; a boar's harder; defence taking its share.
+- `internal/game/aggro_test.go`, with a fixed seed and the time given:
+  - a hit monster biting back at once in reach, and the sura losing as much;
+  - bites every two seconds, not between;
+  - a monster out of reach walking to nine tenths of its range, then biting;
+  - a chase step no longer than the monster walks;
+  - giving up after ten seconds without a bite, or 5,000 from where it last bit, and walking home;
+  - giving up on a target who left;
+  - a monster killed mid-fight, or fighting, not strolling;
+  - a bite that kills, a dead player who can neither hit nor pick, and restarts (on [dying.md](dying.md)).
+- `internal/server/combat_test.go`: a bare-handed sura picking and hitting a dog for 10 to 12 over real sockets, its bar dropping; a blow too soon dropped and one after the gap landing; blows and picks in flight after Change character dropped; the dog she hits biting back with its attack, 27 to 31, and her hit points.
 
 ## Not done yet
 
-- Monsters fighting back, and aggressive monsters.
+- Aggressive monsters, which attack on sight (the `AGGR` AI flag; none of the four field kinds has it), and a group of monsters joining a fight.
 - Drops.
 - Skills, bows, critical and penetrating blows, and every bonus that comes with items.
 - Monsters regaining hit points out of a fight.

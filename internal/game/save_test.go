@@ -66,7 +66,7 @@ func playing(t *testing.T) (*Service, *saves, *character, *present) {
 	store := newSaves()
 	s := worldWith(t)
 	s.store = store
-	c := &character{vid: 1000, Character: account.Character{ID: 7, Name: "Hendra", Level: 3, Exp: 40,
+	c := &character{vid: 1000, Character: account.Character{HP: 1000, ID: 7, Name: "Hendra", Level: 3, Exp: 40,
 		StatPoints: 2, Stats: account.Stats{Strength: 8}, X: homeX, Y: homeY}}
 	conn, _ := watcher(t)
 	p := &present{out: conn, char: &c.Character,
@@ -188,7 +188,7 @@ func TestLeavingSavesWhereTheWorldRecordHasThePlayer(t *testing.T) {
 func TestStoppingEndsARoundOfSaves(t *testing.T) {
 	s, store, _, _ := playing(t)
 	conn, _ := watcher(t)
-	kira := account.Character{ID: 8, Name: "Kira"}
+	kira := account.Character{ID: 8, Name: "Kira", HP: 1000}
 	s.presence.enter(&present{out: conn, char: &kira,
 		add: protocol.CharacterAdd{VID: 1001, X: homeX, Y: homeY}, info: protocol.CharacterInfo{Name: kira.Name}})
 	release := make(chan struct{})

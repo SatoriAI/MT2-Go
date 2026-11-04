@@ -1,7 +1,9 @@
 package server
 
 import (
+	"bytes"
 	"encoding/binary"
+	"net/netip"
 	"testing"
 	"time"
 
@@ -27,10 +29,40 @@ func (c *client) hitTheDog() {
 	c.send(binary.LittleEndian.AppendUint32([]byte{byte(protocol.ClientAttack), 0}, dogVID), []byte{0x5A, 0xA5, sequenceByte})
 }
 
+// moveSize is a MOVE's; damageSize and pointChangeSize the two packets a bite costs.
+const moveSize, damageSize, pointChangeSize = 24, 10, 17
+
+// nextPastBites reads the next packet, of n bytes, passing over what the dog does
+// meanwhile: its moves, and its bites with the damage and hit points each costs Hendra.
+// The tests that use it are about her blows, not its.
+func (c *client) nextPastBites(n int) []byte {
+	c.t.Helper()
+	for {
+		header := c.read(1)
+		if header[0] != byte(protocol.ServerMove) {
+			return append(header, c.read(n-1)...)
+		}
+		if move := c.read(moveSize - 1); move[0] == protocol.MoveAttack {
+			c.read(damageSize + pointChangeSize)
+		}
+	}
+}
+
+// expectOpenPastBites is expectOpen, passing over what the dog does meanwhile.
+func (c *client) expectOpenPastBites() {
+	c.t.Helper()
+	port := netip.MustParseAddrPort(c.conn.RemoteAddr().String()).Port()
+	c.send([]byte{byte(protocol.ClientStateChecker)})
+	want := protocol.EncodeChannelStatus([]protocol.ChannelStatus{{Port: port, Status: protocol.ChannelNormal}})
+	if got := c.nextPastBites(len(want)); !bytes.Equal(got, want) {
+		c.t.Fatalf("got %x, want %x", got, want)
+	}
+}
+
 // expectDamageOnTheDog reads the damage of a blow on the dog and returns it.
 func (c *client) expectDamageOnTheDog() int32 {
 	c.t.Helper()
-	r := protocol.NewReader(c.read(10))
+	r := protocol.NewReader(c.nextPastBites(damageSize))
 	if header, victim, flags, damage := r.U8(), r.U32(), r.U8(), r.I32(); header != byte(protocol.ServerDamage) ||
 		victim != dogVID || flags != protocol.DamageNormal {
 		c.t.Fatalf("got damage packet %02x on %d, flags %d", header, victim, flags)
@@ -69,7 +101,7 @@ func TestABlowTooSoonAfterTheLastIsDropped(t *testing.T) {
 	hendra.expectDamageOnTheDog()
 
 	hendra.hitTheDog()
-	hendra.expectOpen()
+	hendra.expectOpenPastBites()
 	time.Sleep(150 * time.Millisecond) // a level-1 character's attack speed allows a blow each 100 ms
 	hendra.hitTheDog()
 
@@ -87,4 +119,30 @@ func TestBlowsInFlightAfterChangeCharacterAreIgnored(t *testing.T) {
 	hendra.target(dogVID)
 
 	hendra.expectOpen()
+}
+
+// The dog Hendra hits bites back: everyone who sees it sees its attack, and she is told the
+// damage, 27 to 31 for a wild dog on a level-1 sura, and her hit points left.
+func TestADogThatIsHitBitesBack(t *testing.T) {
+	h := startWith(t, aDogAtTheStart)
+	hendra, _ := h.enterWorld("admin", "Hendra", 3, 6)
+	hendra.read(35)
+	hendra.hitTheDog()
+	hendra.read(damageSize)
+
+	move := protocol.NewReader(hendra.read(moveSize))
+	if header, kind, _, _, vid := move.U8(), move.U8(), move.U8(), move.U8(), move.U32(); header != byte(protocol.ServerMove) ||
+		kind != protocol.MoveAttack || vid != dogVID {
+		t.Fatalf("got %02x of type %d for %d, want the dog's attack", header, kind, vid)
+	}
+	d := protocol.NewReader(hendra.read(damageSize))
+	header, victim, _, damage := d.U8(), d.U32(), d.U8(), d.I32()
+	if header != byte(protocol.ServerDamage) || victim != 2 || damage < 27 || damage > 31 {
+		t.Fatalf("got %02x: %d on %d, want 27 to 31 on Hendra", header, damage, victim)
+	}
+	p := protocol.NewReader(hendra.read(pointChangeSize)[4:])
+	if vid, point, amount, value := p.U32(), protocol.Point(p.U8()), p.I32(), p.I32(); vid != 2 ||
+		point != protocol.PointHP || amount != -damage || value <= 0 {
+		t.Fatalf("got point %d of %d %+d to %d, want her hit points down %d", point, vid, amount, value, damage)
+	}
 }

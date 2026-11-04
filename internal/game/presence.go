@@ -21,11 +21,12 @@ const viewRange = 8000
 // appears before its moves. Sending only queues, so the lock is never held across a slow
 // client. A send that fails is left: that connection closes itself.
 type presence struct {
-	mu     sync.Mutex
-	all    map[uint32]*present // by vid
-	byName map[string]*present // players, by lower-cased name: unique regardless of case
-	fallen []death             // monsters killed since the world loop last asked
-	event  *event.Event        // the event running; nil for none
+	mu       sync.Mutex
+	all      map[uint32]*present // by vid
+	byName   map[string]*present // players, by lower-cased name: unique regardless of case
+	fallen   []death             // monsters killed since the world loop last asked
+	provoked []provocation       // blows on living monsters since the world loop last asked
+	event    *event.Event        // the event running; nil for none
 }
 
 // sender is where a player's packets go: their connection, which only queues them.
@@ -95,12 +96,22 @@ func unlink(a, b *present) {
 // enter puts p in the world, and shows p and the others in its view to each other. The
 // newcomer gets everyone in one send, so a crowd does not fill their queue.
 func (w *presence) enter(p *present) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.enterLocked(p)
+	if w.event != nil && p.isPlayer() {
+		p.send(eventNotice(*w.event))
+	}
+}
+
+// enterLocked puts p in the world: everyone in view and p are shown to each other. Called
+// under the lock.
+func (w *presence) enterLocked(p *present) {
+	p.world = ""
 	if m, ok := world.MapAt(p.add.X, p.add.Y); ok {
 		p.world = m.Name
 	}
 	p.sees = map[uint32]*present{}
-	w.mu.Lock()
-	defer w.mu.Unlock()
 	var others [][]byte
 	for _, other := range w.all {
 		if p.inView(other) {
@@ -108,9 +119,6 @@ func (w *presence) enter(p *present) {
 			other.send(p.appearance()...)
 			others = append(others, other.appearance()...)
 		}
-	}
-	if w.event != nil && p.isPlayer() {
-		others = append(others, eventNotice(*w.event))
 	}
 	p.send(others...)
 	w.all[p.add.VID] = p
@@ -126,7 +134,12 @@ func (w *presence) enter(p *present) {
 func (w *presence) move(vid uint32, m protocol.Move) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	p := w.all[vid]
+	w.moveLocked(w.all[vid], m)
+}
+
+// moveLocked is move, under the lock.
+func (w *presence) moveLocked(p *present, m protocol.Move) {
+	vid := p.add.VID
 	if p.dead() {
 		return // a body lies where it fell
 	}
@@ -166,6 +179,13 @@ func (w *presence) leave(vid uint32) *present {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	p := w.all[vid]
+	w.leaveLocked(p)
+	return p
+}
+
+// leaveLocked takes p out of the world, telling those who saw it. Called under the lock.
+func (w *presence) leaveLocked(p *present) {
+	vid := p.add.VID
 	delete(w.all, vid)
 	if p.isPlayer() {
 		delete(w.byName, strings.ToLower(p.info.Name)) // a mob's name may be a player's too
@@ -174,7 +194,6 @@ func (w *presence) leave(vid uint32) *present {
 	for _, other := range p.sees {
 		unlink(p, other)
 	}
-	return p
 }
 
 // players returns everyone playing in the world now.

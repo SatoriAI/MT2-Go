@@ -36,7 +36,7 @@ func killAlone(t *testing.T, c *account.Character) (*Service, net.Conn) {
 // A player who kills a monster alone gets all its experience: a wild dog's 15, at level 1
 // level with it.
 func TestKillingAloneGivesAllTheExperience(t *testing.T) {
-	c := &account.Character{Level: 1}
+	c := &account.Character{HP: 1000, Level: 1}
 	_, client := killAlone(t, c)
 
 	if point, amount, value := pointChange(t, client, 1000); point != protocol.PointExp || amount != 15 || value != 15 {
@@ -50,7 +50,7 @@ func TestKillingAloneGivesAllTheExperience(t *testing.T) {
 // Far above a monster, a player gets almost nothing of it: a level-30 player's 1% of a
 // dog's 15 rounds to nothing, and nothing is sent.
 func TestAMonsterFarBelowGivesNothingWorthSending(t *testing.T) {
-	c := &account.Character{Level: 30}
+	c := &account.Character{HP: 1000, Level: 30}
 	_, client := killAlone(t, c)
 
 	expectNothing(t, client)
@@ -64,7 +64,7 @@ func TestAMonsterFarBelowGivesNothingWorthSending(t *testing.T) {
 func TestAMonsterAboveGivesMore(t *testing.T) {
 	s := worldWith(t, world.Spawn{VNum: 108, X: homeX, Y: homeY, Count: 1})
 	client := s.playerAt(t, homeX+100, addSize)
-	c := &account.Character{Level: 1, Class: account.Warrior, Stats: account.Stats{Strength: 90}}
+	c := &account.Character{HP: 1000, Level: 1, Class: account.Warrior, Stats: account.Stats{Strength: 90}}
 	s.presence.all[1000].char = c
 	boar := s.monsters[0].p.add.VID
 	s.presence.attack(1000, boar, 0, someRand, noon) // a boar's 248 hit points take two blows
@@ -81,7 +81,7 @@ func TestAMonsterAboveGivesMore(t *testing.T) {
 // next need, stat points and refilled maximums; an onlooker, their new level.
 func TestFillingTheNeedRaisesTheLevelForTheirClientAndOnlookers(t *testing.T) {
 	s, dog, client := aDog(t, homeX+100)
-	c := &account.Character{Level: 1, Exp: 290, Class: account.Warrior, Stats: account.Stats{Strength: 90}}
+	c := &account.Character{HP: 1000, Level: 1, Exp: 290, Class: account.Warrior, Stats: account.Stats{Strength: 90}}
 	s.presence.all[1000].char = c
 	conn, onlooker := watcher(t)
 	s.presence.enter(&present{out: conn, add: protocol.CharacterAdd{VID: 2000, X: homeX + 200, Y: homeY}})
@@ -122,8 +122,8 @@ func TestExperienceIsSharedByTheDamageEachDealt(t *testing.T) {
 	s.presence.enter(&present{out: conn, add: protocol.CharacterAdd{VID: 2000, X: homeX + 150, Y: homeY}})
 	read(t, second, addSize+addSize)
 	read(t, first, addSize)
-	weak := &account.Character{Level: 1, Class: account.Warrior, Stats: account.Stats{Strength: 30}}
-	strong := &account.Character{Level: 1, Class: account.Warrior, Stats: account.Stats{Strength: 90}}
+	weak := &account.Character{HP: 1000, Level: 1, Class: account.Warrior, Stats: account.Stats{Strength: 30}}
+	strong := &account.Character{HP: 1000, Level: 1, Class: account.Warrior, Stats: account.Stats{Strength: 90}}
 	s.presence.all[1000].char, s.presence.all[2000].char = weak, strong
 	vid := dog.p.add.VID
 
@@ -149,9 +149,9 @@ func TestAPlayerWhoLeftGetsNoShare(t *testing.T) {
 	conn, _ := watcher(t)
 	s.presence.enter(&present{out: conn, add: protocol.CharacterAdd{VID: 2000, X: homeX + 150, Y: homeY}})
 	read(t, killer, addSize)
-	gone := &account.Character{Level: 1, Class: account.Warrior, Stats: account.Stats{Strength: 30}}
+	gone := &account.Character{HP: 1000, Level: 1, Class: account.Warrior, Stats: account.Stats{Strength: 30}}
 	s.presence.all[2000].char = gone
-	s.presence.all[1000].char = &account.Character{Level: 1, Class: account.Warrior, Stats: account.Stats{Strength: 90}}
+	s.presence.all[1000].char = &account.Character{HP: 1000, Level: 1, Class: account.Warrior, Stats: account.Stats{Strength: 90}}
 	vid := dog.p.add.VID
 	s.presence.attack(2000, vid, 0, someRand, noon)
 	dealt := 126 - dog.p.fight.hp
@@ -173,7 +173,7 @@ func TestAPlayerWhoLeftGetsNoShare(t *testing.T) {
 // points left, and for vitality their new maximum hit points.
 func TestSpendingAStatPointRaisesTheStat(t *testing.T) {
 	s, _, client := aDog(t, homeX+100)
-	c := &account.Character{Level: 2, StatPoints: 2, Class: account.Warrior, Stats: account.Stats{Strength: 6, Vitality: 4}}
+	c := &account.Character{HP: 1000, Level: 2, StatPoints: 2, Class: account.Warrior, Stats: account.Stats{Strength: 6, Vitality: 4}}
 	s.presence.all[1000].char = c
 
 	s.presence.spendStatPoint(1000, "st")
@@ -195,7 +195,7 @@ func TestSpendingAStatPointRaisesTheStat(t *testing.T) {
 // With no point to spend, or a name the buttons never send, nothing changes.
 func TestNoPointOrAnUnknownStatChangesNothing(t *testing.T) {
 	s, _, client := aDog(t, homeX+100)
-	c := &account.Character{Level: 1, Stats: account.Stats{Strength: 6}}
+	c := &account.Character{HP: 1000, Level: 1, Stats: account.Stats{Strength: 6}}
 	s.presence.all[1000].char = c
 
 	s.presence.spendStatPoint(1000, "st")

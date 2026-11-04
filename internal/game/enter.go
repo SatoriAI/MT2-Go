@@ -48,6 +48,7 @@ func (s *session) onSelectCharacter(ctx context.Context, body []byte) error {
 	if !ok {
 		return fmt.Errorf("game: no points for class %q", c.Class)
 	}
+	c.HP, c.SP = points.MaxHP, points.MaxSP
 	s.playing = &character{Character: c, vid: s.svc.lastVID.Add(1), points: points}
 	s.phase = protocol.PhaseLoading
 	s.conn.Log().Info("loading", "character", c.Name, "vid", s.playing.vid)
@@ -148,17 +149,17 @@ func (s *session) onMove(body []byte) error {
 	return nil
 }
 
-// pointsOf fills the client's points array for the character, at full hit points and
-// mana.
+// pointsOf fills the client's points array for the character, with the hit points and
+// mana it has now.
 func pointsOf(p *character) protocol.CharacterPoints {
 	return protocol.CharacterPoints{
 		Level:       uint32(p.Level),
 		Exp:         p.Exp,
 		NextExp:     p.points.NextExp,
 		StatPoints:  uint32(p.StatPoints),
-		HP:          p.points.MaxHP,
+		HP:          p.HP,
 		MaxHP:       p.points.MaxHP,
-		SP:          p.points.MaxSP,
+		SP:          p.SP,
 		MaxSP:       p.points.MaxSP,
 		Stamina:     p.points.MaxStamina,
 		MaxStamina:  p.points.MaxStamina,

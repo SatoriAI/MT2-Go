@@ -64,6 +64,7 @@ type Service struct {
 	rand      *rand.Rand
 	monsters  []*monster
 	byPresent map[*present]*monster // the same monsters, by what the world record holds of them
+	fighting  []*monster            // the monsters fighting a player, which the loop steps
 }
 
 // NewService makes the game port's shared state; Run puts spawns' mobs in the world.

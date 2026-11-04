@@ -46,6 +46,7 @@ func (w *presence) gainExp(p *present, gain uint32) {
 	p.info.Level = uint32(c.Level)
 	gained := int32(levels) //nolint:gosec // at most the 98 levels there are
 	points, _ := c.Points()
+	c.HP, c.SP = points.MaxHP, points.MaxSP
 	p.send(
 		protocol.EncodePointChange(vid, protocol.PointLevel, gained, int32(c.Level)),
 		protocol.EncodePointChange(vid, protocol.PointNextExp, 0, int32(points.NextExp)), //nolint:gosec // under 2^31

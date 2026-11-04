@@ -36,6 +36,7 @@ Unspent stat points sit at index 26 of POINTS; experience at 3, as before.
 - **Events** multiply a monster's experience before it is shared ([events.md](events.md)).
 - **Sharing:** when a monster dies, each player who hurt it and is still in the world gets the share of its experience that matches the share of its hit points they took, rounded down, then scaled by their own level gap. What rounding leaves goes to the killer; the share of a player who left is lost. A share of nothing is not sent.
 - **Levelling:** experience past a level's need carries into the next, and one kill can raise several levels. Each level brings 3 stat points. The player is told their experience, new level, next need, stat points, and their new maximum hit points and mana, refilled; everyone who sees them, their new level, which later arrivals see too.
+- **Dying** costs 2% of the level's need, never a level ([dying.md](dying.md)).
 - **Spending:** `/stat st|ht|dx|iq` moves one point into the stat, up to 90 a stat, and tells the player the stat, their points left, and for vitality or intelligence their new maximum hit points or mana. With no point to spend, at the cap, or for any other name, nothing happens. Attack follows the new stats on the next blow.
 - **While in the world** a player's level, experience and stats live in the world record and change only under its lock, since others' kills raise them; the blow's attack is read there too.
 - **Kept** with the position when the character leaves the world, by any way out: level, experience, unspent stat points and the four stats (`characters.exp`, `stat_points`). They are also saved every minute while the character stays in the world (`internal/game/save.go`, as [entering-the-world.md](entering-the-world.md) describes), so a crash loses at most a minute of play.
@@ -56,6 +57,5 @@ Unspent stat points sit at index 26 of POINTS; experience at 3, as before.
 
 ## Not done yet
 
-- Losing experience on death, which comes with monsters fighting back.
 - Skill points, parties sharing experience, and items or premium bonuses.
 - Taking stat points back (`/stat-`).

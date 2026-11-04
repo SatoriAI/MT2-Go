@@ -45,6 +45,7 @@ type monster struct {
 	nextStroll time.Time
 	diedAt     time.Time // zero while alive
 	gone       bool      // its body has been taken away
+	chase      *chase    // its fight with a player who hit it; nil when it is not fighting
 }
 
 // Run puts the world's mobs in it, then walks the monsters until ctx ends.
@@ -117,12 +118,14 @@ func (s *Service) newMob(proto mob.Proto, x, y int32, facing float32) *present {
 	return p
 }
 
-// tick takes away the bodies whose time has come, brings back the monsters whose has, and
-// walks every living monster whose stroll is due.
+// tick takes away the bodies whose time has come, brings back the monsters whose has,
+// walks every living monster whose stroll is due, and has those that were hit fight back.
 func (s *Service) tick(now time.Time) {
 	for _, d := range s.presence.takeFallen() {
-		s.byPresent[d.p].diedAt = d.at
+		m := s.byPresent[d.p]
+		m.diedAt, m.chase = d.at, nil
 	}
+	s.engage(now)
 	for _, m := range s.monsters {
 		switch {
 		case !m.diedAt.IsZero() && !m.gone && !now.Before(m.diedAt.Add(corpseTime)):
@@ -130,10 +133,11 @@ func (s *Service) tick(now time.Time) {
 			m.gone = true
 		case m.gone && !now.Before(m.diedAt.Add(respawnAfter)):
 			s.place(m, now)
-		case m.diedAt.IsZero() && m.wanders && !now.Before(m.nextStroll):
+		case m.diedAt.IsZero() && m.wanders && m.chase == nil && !now.Before(m.nextStroll):
 			s.stroll(m, now)
 		}
 	}
+	s.fightOn(now)
 }
 
 func (s *Service) stroll(m *monster, now time.Time) {

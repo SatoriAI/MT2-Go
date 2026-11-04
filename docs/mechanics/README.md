@@ -19,6 +19,7 @@ Pages state facts in our own words. They never paste code from another server or
 | [chat.md](chat.md) | Packets with their own length, chat, and leaving the world through the game menu |
 | [other-players.md](other-players.md) | Seeing the others in range: arriving, moving, talking, leaving, and the view range |
 | [combat.md](combat.md) | Picking a monster, hitting it, its bar, its death and its return |
+| [dying.md](dying.md) | A player's death to a monster, the restart dialog, and the experience it costs |
 | [experience.md](experience.md) | Experience from kills, shared by damage; levels, stat points and their buttons |
 | [events.md](events.md) | Scheduled events multiplying experience, their command line and their notices |
 | [monsters.md](monsters.md) | Village NPCs and monsters: where they stand, how they appear, and their strolls |

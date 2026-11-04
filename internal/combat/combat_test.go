@@ -84,3 +84,41 @@ func TestABlowTakesAtLeastOne(t *testing.T) {
 		}
 	}
 }
+
+// A wild dog's bite (mob_proto 101: level 1, ST 3, damage 20–24): 2 + 6 and its roll, 28 to
+// 32, of which a level-1 sura's defence of 1 + 3 takes a share, ×100/104: 27 to 31.
+var wildDogBite = Biter{Level: 1, Strength: 3, DamageMin: 20, DamageMax: 24}
+
+var levelOneSuraDefence = Defender{Level: 1, Vitality: 3}
+
+func TestAWildDogBitesALevelOneSuraForTwentySevenToThirtyOne(t *testing.T) {
+	r := fixedRand()
+	seen := map[int]bool{}
+	for range 1000 {
+		got := Bite(wildDogBite, levelOneSuraDefence, r)
+		if got < 27 || got > 31 {
+			t.Fatalf("bit for %d, want 27 to 31", got)
+		}
+		seen[got] = true
+	}
+	if len(seen) != 5 {
+		t.Fatalf("bit for %v over 1000 bites, want every one of 27 to 31", seen)
+	}
+}
+
+// A boar (level 7, ST 14, damage 30–37) bites harder than a dog: 14 + 28 and its roll.
+func TestAStrongerMonsterBitesHarder(t *testing.T) {
+	boar := Biter{Level: 7, Strength: 14, DamageMin: 30, DamageMax: 37}
+	if got := Bite(boar, levelOneSuraDefence, fixedRand()); got < 69 || got > 76 {
+		t.Fatalf("a boar bit for %d, want 72 to 79 less the share defence takes, 69 to 76", got)
+	}
+}
+
+// Defence takes its share of a bite too: a level-30 player with vitality 60 takes about
+// half of a dog's.
+func TestDefenceTakesAShareOfABite(t *testing.T) {
+	sturdy := Defender{Level: 30, Vitality: 60}
+	if got := Bite(wildDogBite, sturdy, fixedRand()); got < 15 || got > 17 {
+		t.Fatalf("got %d, want 28 to 32 × 100/190", got)
+	}
+}
