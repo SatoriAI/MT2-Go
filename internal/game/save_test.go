@@ -150,3 +150,63 @@ func TestTheSaverSavesEveryPlayerUntilStopped(t *testing.T) {
 		t.Fatalf("the saver ended with %v", err)
 	}
 }
+
+// The periodic save reads nothing the player's connection writes without the lock: the
+// connection keeps its own copy of where the player is, while the race detector watches.
+func TestSavingInTheWorldReadsNothingTheConnectionWritesUnlocked(t *testing.T) {
+	s, _, c, p := playing(t)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for i := range int32(100) {
+			c.X, c.Y = homeX+i, homeY // as onMove does, on the connection's goroutine
+			s.presence.move(1000, protocol.Move{X: homeX + i, Y: homeY})
+		}
+	}()
+	for range 100 {
+		s.saveInWorld(p, quiet)
+	}
+	<-done
+}
+
+// Leaving saves where the world record has the player, as the periodic save does, so a
+// move the record did not take, such as one while dead, is not kept by one and not the
+// other.
+func TestLeavingSavesWhereTheWorldRecordHasThePlayer(t *testing.T) {
+	s, store, c, _ := playing(t)
+	c.X = homeX + 900 // the connection's copy, moved where the record did not follow
+
+	s.leaveAndSave(c, quiet)
+
+	if _, at, _ := store.ofHendra(); at != [2]int32{homeX, homeY} {
+		t.Fatalf("saved at %v, want where the record has her", at)
+	}
+}
+
+// Stopping in the middle of a round ends it: each player is saved on leaving anyway, so a
+// slow database does not hold up shutdown by a save per player.
+func TestStoppingEndsARoundOfSaves(t *testing.T) {
+	s, store, _, _ := playing(t)
+	conn, _ := watcher(t)
+	kira := account.Character{ID: 8, Name: "Kira"}
+	s.presence.enter(&present{out: conn, char: &kira, character: kira.ID,
+		add: protocol.CharacterAdd{VID: 1001, X: homeX, Y: homeY}, info: protocol.CharacterInfo{Name: kira.Name}})
+	release := make(chan struct{})
+	store.held, store.hold = make(chan struct{}), release
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- s.SavePlayers(ctx, time.Millisecond, quiet) }()
+
+	<-store.held // the round's first save is writing
+	cancel()
+	close(release)
+	if err := <-done; err != nil {
+		t.Fatalf("the saver ended with %v", err)
+	}
+
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	if len(store.progress) != 1 {
+		t.Fatalf("saved %d players after stopping mid-round, want only the one under way", len(store.progress))
+	}
+}

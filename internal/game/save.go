@@ -24,6 +24,9 @@ func (s *Service) SavePlayers(ctx context.Context, every time.Duration, log *slo
 			return nil
 		case <-t.C:
 			for _, p := range s.presence.players() {
+				if ctx.Err() != nil {
+					return nil // at shutdown each player is saved on leaving, without waiting on this round
+				}
 				s.saveInWorld(p, log)
 			}
 		}
@@ -37,27 +40,30 @@ func (s *Service) saveInWorld(p *present, log *slog.Logger) {
 	p.saving.Lock()
 	defer p.saving.Unlock()
 	if c, ok := s.presence.snapshot(p); ok {
-		s.save(c, log)
+		s.save(c, log, slog.LevelDebug) // warned once, on leaving, not every minute
 	}
 }
 
 // leaveAndSave takes the player out of the world, after which nobody else touches the
-// character, and saves it once any save of it already under way has landed.
+// character, and saves it once any save of it already under way has landed. The position
+// is the world record's, as the periodic save's is, so the two never disagree.
 func (s *Service) leaveAndSave(c *character, log *slog.Logger) {
 	p := s.presence.leave(c.vid)
 	p.saving.Lock()
 	defer p.saving.Unlock()
-	s.save(c.Character, log)
+	saved := c.Character
+	saved.X, saved.Y = p.add.X, p.add.Y
+	s.save(saved, log, slog.LevelWarn)
 }
 
 // save keeps the character's progress, and where it stands if that is on a map the server
-// knows; otherwise the last good position stays. It has its own context, since at
-// shutdown it runs after the server's is cancelled.
-func (s *Service) save(c account.Character, log *slog.Logger) {
+// knows; otherwise the last good position stays, logged at offMap. It has its own
+// context, since at shutdown it runs after the server's is cancelled.
+func (s *Service) save(c account.Character, log *slog.Logger, offMap slog.Level) {
 	ctx, cancel := context.WithTimeout(context.Background(), saveTimeout)
 	defer cancel()
 	if _, ok := world.MapAt(c.X, c.Y); !ok {
-		log.Warn("position not saved: on no known map", "character", c.Name, "x", c.X, "y", c.Y)
+		log.Log(ctx, offMap, "position not saved: on no known map", "character", c.Name, "x", c.X, "y", c.Y)
 	} else if err := s.store.SavePosition(ctx, c.ID, c.X, c.Y); err != nil {
 		log.Error("position not saved", "character", c.Name, "err", err)
 	}
