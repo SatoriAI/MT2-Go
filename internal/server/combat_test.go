@@ -40,8 +40,9 @@ func (c *client) expectDamage(vid uint32) int32 {
 	return 0
 }
 
-// Hendra, a level-1 sura bare-handed, picks the dog and hits it: the dog's defence stops
-// the blow, which grazes it for 1 to 5, and its bar drops by as much.
+// Hendra, a level-1 sura bare-handed, picks the dog and hits it: an attack of 12, of which
+// the dog's defence of 10 takes a share, 12 × 100 / 110, give or take a tenth; its bar
+// drops by as much.
 func TestHittingAPickedMonsterShowsTheDamageAndItsBar(t *testing.T) {
 	h := startWith(t, aDogAtTheStart)
 	hendra, _ := h.enterWorld("admin", "Hendra", 3, 6)
@@ -52,8 +53,8 @@ func TestHittingAPickedMonsterShowsTheDamageAndItsBar(t *testing.T) {
 	hendra.hitTheDog()
 
 	damage := hendra.expectDamage(dogVID)
-	if damage < 1 || damage > 5 {
-		t.Fatalf("a bare-handed sura did %d to a wild dog, want a graze of 1 to 5", damage)
+	if damage < 10 || damage > 12 {
+		t.Fatalf("a bare-handed sura did %d to a wild dog, want 10 to 12", damage)
 	}
 	hendra.expect(protocol.EncodeTarget(dogVID, uint8((126*100-int(damage)*100+63)/126))) //nolint:gosec // 0 to 100
 }

@@ -1,6 +1,7 @@
 package game
 
 import (
+	"math"
 	"math/rand/v2"
 	"net"
 	"strings"
@@ -21,17 +22,17 @@ const (
 	deleteSize = 5
 )
 
-// A blow of 31 on a wild dog, never grazing: level 1, strength 30.
+// A brawler takes about 56 off a wild dog a blow; a slayer kills it in one.
 var (
 	brawler  = combat.Attacker{Level: 1, Class: account.Warrior, Stats: account.Stats{Strength: 30, Dexterity: 3}}
 	slayer   = combat.Attacker{Level: 50, Class: account.Warrior, Stats: account.Stats{Strength: 90, Dexterity: 60}}
-	someRand = rand.New(rand.NewPCG(3, 4)) //nolint:gosec // damage only grazes at random, which these blows never do
+	someRand = rand.New(rand.NewPCG(3, 4)) //nolint:gosec // a fixed seed for each blow's spread
 )
 
 func dogDefender(t *testing.T) combat.Defender {
 	t.Helper()
 	p, _ := mob.Lookup(101)
-	return combat.Defender{Level: p.Level, Dexterity: p.Dexterity, Vitality: p.Vitality, Armour: p.Armour}
+	return combat.Defender{Level: p.Level, Vitality: p.Vitality, Armour: p.Armour}
 }
 
 // aDog is a world with one wild dog at home, and the player at playerX east of it, with
@@ -63,15 +64,20 @@ func TestABlowTakesHitPointsAndTellsTheAttacker(t *testing.T) {
 	vid := dog.p.add.VID
 	s.presence.target(1000, vid)
 	read(t, client, targetSize)
-	damage := combat.Attack(brawler, dogDefender(t)) - dogDefender(t).Defence()
+	mean := combat.Mean(brawler, dogDefender(t))
 
 	if got := s.presence.attack(1000, vid, brawler, 0, someRand, noon); got != blowLanded {
 		t.Fatalf("got %v", got)
 	}
 
+	got := read(t, client, damageSize+targetSize)
+	damage := int(protocol.NewReader(got[6:]).I32())
+	if float64(damage) < math.Round(mean*0.9) || float64(damage) > math.Round(mean*1.1) {
+		t.Fatalf("a blow took %d, want within a tenth of %v", damage, mean)
+	}
 	want := string(protocol.EncodeDamage(vid, protocol.DamageNormal, int32(damage))) + //nolint:gosec // small
 		string(protocol.EncodeTarget(vid, dog.p.fight.hpPercent()))
-	if got := read(t, client, damageSize+targetSize); string(got) != want || dog.p.fight.hp != 126-damage {
+	if string(got) != want || dog.p.fight.hp != 126-damage {
 		t.Fatalf("got %x and %d hit points, want %x and %d", got, dog.p.fight.hp, want, 126-damage)
 	}
 }

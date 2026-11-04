@@ -4,7 +4,7 @@
 
 Clicking a monster picks it: its name, level and a hit-point bar appear at the top of the screen. Attacking it swings at it, and each blow that lands shows its damage over the monster and lowers the bar. At zero the monster plays its death, lies a moment, and fades away; twenty seconds later another of its kind stands somewhere in its field. NPCs cannot be fought. Monsters do not fight back yet, and killing gives no experience yet.
 
-A level-1 character without a weapon barely scratches a wild dog: its blows graze for 1 to 5, so a dog takes about forty. That is the formula, not a shortcut; weapons will change it once characters carry them.
+A level-1 sura without a weapon takes about 10 to 12 off a wild dog a blow, so a dog takes about twelve; with 10 more points of strength, about five. The damage is this server's own formula, not the original's: see below.
 
 ## What the client does
 
@@ -52,10 +52,10 @@ A level-1 character without a weapon barely scratches a wild dog: its blows graz
 
 - **Hit points** are the world record's, under its lock: each monster starts with its `mob_proto` hit points, and a blow can never take more than it has left.
 - **Picking** a living monster the player sees answers with its hit points and records the pick; picking anything else, 0, a player or an NPC, ends the pick. A pick ends too when the player walks out of sight of it, picks another, or it dies. The server sends nothing when a pick ends this way, and the client keeps its target window open until the player closes it or picks again; open-mt2 does the same.
-- **A blow** lands only on a living monster the player sees, within 300 of the player's last known position (open-mt2's reach; the edge counts). Its damage is the attack against the monster less the monster's defence:
-  - **attack:** the client's attack value above, with the monster's evasion taken off the hit rate: (2 × its rating + 5) / (its rating + 95) × 0.3, rounded down;
-  - **defence:** the monster's level + HT + DEF from `mob_proto`;
-  - **a blow its defence stops** still grazes, for 1 to 5 at random.
+- **A blow** lands only on a living monster the player sees, within 300 of the player's last known position (open-mt2's reach; the edge counts). Its damage is this server's own formula (`internal/combat`):
+  - **attack:** 2 × level + (4 × strength + 2 × the class's stat) ÷ 3: the client's attack value without its hit rate. A weapon will add twice its attack value;
+  - **defence:** the monster's level + HT + DEF from `mob_proto`, 10 for a wild dog;
+  - **damage:** attack × 100 ÷ (100 + defence), a tenth more or less at random, rounded, never under 1. Defence takes a share of every blow, never all of it.
 
   The attacker gets the damage; everyone who has picked the monster gets its new hit points.
 - **Speed:** a blow sooner than 15000 ms divided by the player's attack speed (at least 80 ms; 100 ms at a new character's 150) after their last on the same victim is dropped without a word: open-mt2's rule, after the original's, against tools that send blows faster than the client swings. It is checked on both sides: the attacker's last victim, and the victim's last attacker, which catches a player switching between two victims to double up.
@@ -64,15 +64,28 @@ A level-1 character without a weapon barely scratches a wild dog: its blows graz
 - **The world loop** owns every monster that can be killed, wandering or not, and takes the body away two seconds after the death, with DELETE to those who see it, as open-mt2 does, and twenty seconds after the death puts a new monster of the kind at a random point of its spawn's area, with a new vid and all its hit points: this server's pause, chosen for the village fields.
 - **Skills** (an ATTACK with a skill) are dropped. Blows and picks the client sent before it took in Change character are dropped, as moves and chat are.
 
+## Why not the original's formula
+
+The original takes the defence off the attack and scales the stat part by a hit rate of about two thirds, less the victim's dodging: a level-1 sura's attack of 8 against a wild dog's defence of 10 leaves nothing, and every blow grazes for 1 to 5, about 42 blows a dog; ten points of strength jump that to 12. Subtraction also lets high defence wall off a weaker character entirely. This server takes a share instead, so every blow and every point of strength counts and armour matters at every level, and it drops the hit rate. Characters hit harder than in the original, about a third at low levels and far more against armoured monsters; monsters will use the same formula against players, and their health and the experience tables can be tuned once it has been played.
+
+**The TMP4 client's character window** still shows its own attack value, computed by the original formula, so it differs from the damage dealt. Our own client can show this server's.
+
+| Character | Formula | Attack | On a wild dog | Blows to kill |
+|---|---|---|---|---|
+| Level-1 sura | this server's | 12 | 10–12 | about 12 |
+| Same, strength 15 | this server's | 32 | 26–32 | about 5 |
+| Level-1 sura | the original | 8 | 1–5 | about 42 |
+| Same, strength 15 | the original | 21 | 11 | 12 |
+
 ## How we know
 
 - **The packets and what the client does with them:** the client's source, `Packet.h`, `PythonNetworkStreamPhaseGame.cpp`, `InstanceBaseEffect.cpp`, `ActorInstanceBattle.cpp`, `PythonPlayerEventHandler.cpp`, `PythonPlayer.cpp`, and `uitarget.py`.
-- **The attack value:** the client's own, as above. **Evasion, a monster's defence, the graze, the reach and the speed rule:** open-mt2 (`PlayerBattleStrategy.ts`, `MobPoints.ts`, `PlayerBattleAgainstMobStrategy.ts`, `Player.ts`), read for facts. The monsters' values: the client's `mob_proto` dump.
+- **The attack's stat part and a monster's defence:** the client's character window and open-mt2's `MobPoints.ts`. **The reach and the speed rule:** open-mt2 (`PlayerBattleAgainstMobStrategy.ts`, `Player.ts`), read for facts. The monsters' values: the client's `mob_proto` dump.
 - **The body's two seconds:** open-mt2. **The twenty-second return:** this server's.
 
 ## What proves it
 
-- `internal/combat/combat_test.go`: a wild dog's defence; a level-1 sura's attack on it, worked through; each class's own stat; a blow above the defence taking the difference; a stopped blow grazing for each of 1 to 5; the rating's cap.
+- `internal/combat/combat_test.go`: a wild dog's defence; a level-1 sura's attack; each class's own stat; defence taking a share; no defence stopping a blow whole; a blow straying a tenth either way across that range; a blow taking at least 1.
 - `internal/protocol/protocol_test.go`: ATTACK and TARGET in; TARGET, DAMAGE_INFO and DEAD out, byte for byte.
 - `internal/game/combat_test.go`:
   - picking a monster showing its hit points;
