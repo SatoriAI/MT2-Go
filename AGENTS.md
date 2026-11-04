@@ -21,7 +21,7 @@ A Metin2 server written from scratch in Go, compatible with the original TMP4 ga
 
 `make check` is the definition of done, and a pre-commit hook runs it: structure (including this file's 10,000-character budget), comment blocks, gofmt, `go vet`, golangci-lint, `go test -race`. No commit lands red; never `--no-verify`. CI invokes the same targets.
 
-`make bench` measures the world record and loop; run it before and after changing either, and update the baseline in `docs/decisions/world-loop.md`. The gate compiles the benchmarks but does not run them.
+`make bench` measures the world record and loop, six runs each; run it before and after changing either, compare medians rather than single runs, and update the baseline in `docs/decisions/world-loop.md`. The gate compiles the benchmarks but does not run them.
 
 The tests that need PostgreSQL fail when `TEST_DATABASE_URL` is unset, so a green gate always means they ran; copy `.env.example` to `.env` and start the database with `make db`. They wipe the test database, never the development one. `go test -short ./...` skips them for a quick loop, never as the gate.
 
