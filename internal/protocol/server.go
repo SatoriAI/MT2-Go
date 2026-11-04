@@ -138,6 +138,7 @@ type CharacterPoints struct {
 	Stamina, MaxStamina uint32
 	Gold                uint32
 	ST, HT, DX, IQ      uint32
+	StatPoints          uint32
 	AttackSpeed         uint32
 	MoveSpeed           uint32
 }
@@ -153,8 +154,8 @@ func EncodePoints(p CharacterPoints) []byte {
 	for index, v := range map[int]uint32{
 		1: p.Level, 3: p.Exp, 4: p.NextExp,
 		5: p.HP, 6: p.MaxHP, 7: p.SP, 8: p.MaxSP, 9: p.Stamina, 10: p.MaxStamina,
-		11: p.Gold, 12: p.ST, 13: p.HT, 14: p.DX, 15: p.IQ,
-		17: p.AttackSpeed, 19: p.MoveSpeed,
+		11: p.Gold, PointST: p.ST, PointHT: p.HT, PointDX: p.DX, PointIQ: p.IQ,
+		17: p.AttackSpeed, 19: p.MoveSpeed, PointStatPoints: p.StatPoints,
 	} {
 		points[index] = v
 	}
@@ -162,6 +163,38 @@ func EncodePoints(p CharacterPoints) []byte {
 	for _, v := range points {
 		w.U32(v)
 	}
+	return w.Bytes()
+}
+
+// Point is an index in the client's points array, which POINT_CHANGE names one by one.
+type Point = int
+
+const (
+	PointLevel      Point = 1
+	PointExp        Point = 3
+	PointNextExp    Point = 4
+	PointHP         Point = 5
+	PointMaxHP      Point = 6
+	PointSP         Point = 7
+	PointMaxSP      Point = 8
+	PointST         Point = 12
+	PointHT         Point = 13
+	PointDX         Point = 14
+	PointIQ         Point = 15
+	PointStatPoints Point = 26 // earned and not yet spent; the character window's + buttons show while above 0
+)
+
+// EncodePointChange sets one of a character's points to value, amount being how much it
+// changed. For the player's own vid the client takes the value into its points; for
+// another's it takes only the level, shown over their head. A change of the level plays
+// the level-up effect. The header is a 4-byte int in the client's struct.
+func EncodePointChange(vid uint32, point Point, amount, value int32) []byte {
+	w := NewWriter(byte(ServerPointChange), 17)
+	w.Raw(make([]byte, 3))
+	w.U32(vid)
+	w.U8(uint8(point)) //nolint:gosec // the client's indices are under 255
+	w.I32(amount)
+	w.I32(value)
 	return w.Bytes()
 }
 

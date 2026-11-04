@@ -59,6 +59,9 @@ func (s *session) onCommand(command string) error {
 		return network.ErrHangUp
 	case "setblockmode":
 		return s.onSetBlockMode(arg)
+	case "stat":
+		s.svc.presence.spendStatPoint(s.playing.vid, arg)
+		return nil
 	case "phase_select":
 		// The phase alone: the client, still in its game window, ignores a kingdom and
 		// list sent ahead of it, and keeps the list it has.

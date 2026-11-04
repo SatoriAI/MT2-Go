@@ -104,6 +104,7 @@ func (s *session) onEnterGame() error {
 	p := s.playing
 	me := &present{
 		out:       s.conn,
+		char:      &p.Character,
 		character: p.ID,
 		add: protocol.CharacterAdd{
 			VID:         p.vid,
@@ -158,7 +159,9 @@ func (s *session) onMove(body []byte) error {
 func pointsOf(p *character) protocol.CharacterPoints {
 	return protocol.CharacterPoints{
 		Level:       uint32(p.Level),
+		Exp:         p.Exp,
 		NextExp:     p.points.NextExp,
+		StatPoints:  uint32(p.StatPoints),
 		HP:          p.points.MaxHP,
 		MaxHP:       p.points.MaxHP,
 		SP:          p.points.MaxSP,
@@ -190,6 +193,15 @@ func (s *session) savePosition() {
 	}
 }
 
+// saveProgress keeps the character's level, experience, stat points and stats.
+func (s *session) saveProgress() {
+	ctx, cancel := context.WithTimeout(context.Background(), saveTimeout)
+	defer cancel()
+	if err := s.svc.store.SaveProgress(ctx, s.playing.Character); err != nil {
+		s.conn.Log().Error("progress not saved", "character", s.playing.Name, "err", err)
+	}
+}
+
 // leaveWorld takes the character in play out of the others' view and saves it, if it
 // entered the world, and lets go of it.
 func (s *session) leaveWorld() {
@@ -197,8 +209,9 @@ func (s *session) leaveWorld() {
 		return
 	}
 	if s.phase == protocol.PhaseGame {
-		s.svc.presence.leave(s.playing.vid)
+		s.svc.presence.leave(s.playing.vid) // after this, nobody else touches the character
 		s.savePosition()
+		s.saveProgress()
 	}
 	s.svc.release(s.claim)
 	s.claim = nil

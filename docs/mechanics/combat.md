@@ -2,7 +2,7 @@
 
 ## What the player sees
 
-Clicking a monster picks it: its name, level and a hit-point bar appear at the top of the screen. Attacking it swings at it, and each blow that lands shows its damage over the monster and lowers the bar. At zero the monster plays its death, lies a moment, and fades away; twenty seconds later another of its kind stands somewhere in its field. NPCs cannot be fought. Monsters do not fight back yet, and killing gives no experience yet.
+Clicking a monster picks it: its name, level and a hit-point bar appear at the top of the screen. Attacking it swings at it, and each blow that lands shows its damage over the monster and lowers the bar. At zero the monster plays its death, lies a moment, and fades away; twenty seconds later another of its kind stands somewhere in its field. NPCs cannot be fought. Monsters do not fight back yet. Killing gives experience ([experience.md](experience.md)).
 
 A level-1 sura without a weapon takes about 10 to 12 off a wild dog a blow, so a dog takes about twelve; with 10 more points of strength, about five. The damage is this server's own formula, not the original's: see below.
 
@@ -104,8 +104,7 @@ The original takes the defence off the attack and scales the stat part by a hit 
 ## Not done yet
 
 - Monsters fighting back, and aggressive monsters.
-- Experience, levels and drops.
+- Drops.
 - Skills, bows, critical and penetrating blows, and every bonus that comes with items.
 - Monsters regaining hit points out of a fight.
 - Players fighting players.
-- Who dealt how much, which experience will need.

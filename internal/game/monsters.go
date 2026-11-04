@@ -36,6 +36,7 @@ const (
 // it, so where it stands here is where the world record has it.
 type monster struct {
 	proto      mob.Proto
+	wanders    bool // the proto's, kept here: the tick asks it of every monster ten times a second
 	spawn      world.Spawn
 	p          *present
 	homeX      int32
@@ -83,7 +84,7 @@ func (s *Service) spawnOne(proto mob.Proto, sp world.Spawn, now time.Time) {
 		s.presence.enter(s.newMob(proto, sp.X+s.spread(sp.Spread), sp.Y+s.spread(sp.Spread), 0))
 		return
 	}
-	m := &monster{proto: proto, spawn: sp}
+	m := &monster{proto: proto, spawn: sp, wanders: proto.Wanders()}
 	s.place(m, now)
 	s.monsters = append(s.monsters, m)
 }
@@ -109,6 +110,7 @@ func (s *Service) newMob(proto mob.Proto, x, y int32, facing float32) *present {
 	}
 	if proto.Fightable() {
 		p.fight = &fight{hp: int(proto.MaxHP), maxHP: int(proto.MaxHP), targetedBy: map[*present]struct{}{},
+			damageBy: map[*present]int{}, exp: proto.Exp,
 			defender: combat.Defender{Level: proto.Level, Vitality: proto.Vitality,
 				Armour: proto.Armour}}
 	}
@@ -128,7 +130,7 @@ func (s *Service) tick(now time.Time) {
 			m.gone = true
 		case m.gone && !now.Before(m.diedAt.Add(respawnAfter)):
 			s.place(m, now)
-		case m.diedAt.IsZero() && m.proto.Wanders() && !now.Before(m.nextStroll):
+		case m.diedAt.IsZero() && m.wanders && !now.Before(m.nextStroll):
 			s.stroll(m, now)
 		}
 	}

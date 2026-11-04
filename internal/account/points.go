@@ -11,7 +11,7 @@ type Points struct {
 	MaxStamina  uint32
 	AttackSpeed uint8
 	MoveSpeed   uint8
-	// NextExp is the experience the next level needs; 0 where it is not known yet.
+	// NextExp is the experience the next level needs; 0 at the top level.
 	NextExp uint32
 }
 
@@ -28,10 +28,6 @@ var growths = map[Class]growth{
 	Shaman:  {hp: 700, hpPerVitality: 50, hpPerLevel: 100, sp: 700, spPerIntelligence: 20, spPerLevel: 50},
 }
 
-// nextExp is the experience each level needs to reach the next, from open-mt2's exp
-// table; only the levels a character can have so far are listed.
-var nextExp = map[uint8]uint32{1: 300}
-
 // Points works out the character's derived values; false for a class the game does not
 // have.
 func (c Character) Points() (Points, bool) {
@@ -46,6 +42,6 @@ func (c Character) Points() (Points, bool) {
 		MaxStamina:  1000,
 		AttackSpeed: 150,
 		MoveSpeed:   150,
-		NextExp:     nextExp[c.Level],
+		NextExp:     NextExp(c.Level),
 	}, true
 }

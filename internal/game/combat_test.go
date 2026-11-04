@@ -29,6 +29,15 @@ var (
 	someRand = rand.New(rand.NewPCG(3, 4)) //nolint:gosec // a fixed seed for each blow's spread
 )
 
+// hit lands a blow of player 1000 on the victim, as a character with a's level, class and
+// stats, which the player keeps from their first blow on.
+func (s *Service) hit(victim uint32, a combat.Attacker, gap time.Duration, now time.Time) blow {
+	if p := s.presence.all[1000]; p.char == nil {
+		p.char = &account.Character{Level: a.Level, Class: a.Class, Stats: a.Stats}
+	}
+	return s.presence.attack(1000, victim, gap, someRand, now)
+}
+
 func dogDefender(t *testing.T) combat.Defender {
 	t.Helper()
 	p, _ := mob.Lookup(101)
@@ -66,7 +75,7 @@ func TestABlowTakesHitPointsAndTellsTheAttacker(t *testing.T) {
 	read(t, client, targetSize)
 	mean := combat.Mean(brawler, dogDefender(t))
 
-	if got := s.presence.attack(1000, vid, brawler, 0, someRand, noon); got != blowLanded {
+	if got := s.hit(vid, brawler, 0, noon); got != blowLanded {
 		t.Fatalf("got %v", got)
 	}
 
@@ -85,7 +94,7 @@ func TestABlowTakesHitPointsAndTellsTheAttacker(t *testing.T) {
 func TestABlowOutOfReachLandsNowhere(t *testing.T) {
 	s, dog, client := aDog(t, homeX+attackReach+1)
 
-	if got := s.presence.attack(1000, dog.p.add.VID, brawler, 0, someRand, noon); got != blowRefused {
+	if got := s.hit(dog.p.add.VID, brawler, 0, noon); got != blowRefused {
 		t.Fatalf("got %v", got)
 	}
 	expectNothing(t, client)
@@ -98,7 +107,7 @@ func TestABlowOutOfReachLandsNowhere(t *testing.T) {
 func TestABlowAtTheEdgeOfReachLands(t *testing.T) {
 	s, dog, _ := aDog(t, homeX+attackReach)
 
-	if got := s.presence.attack(1000, dog.p.add.VID, brawler, 0, someRand, noon); got != blowLanded {
+	if got := s.hit(dog.p.add.VID, brawler, 0, noon); got != blowLanded {
 		t.Fatalf("got %v", got)
 	}
 }
@@ -114,7 +123,7 @@ func TestAnNPCCannotBeFoughtOrTargeted(t *testing.T) {
 	}
 
 	s.presence.target(1000, npc)
-	if got := s.presence.attack(1000, npc, slayer, 0, someRand, noon); got != blowRefused {
+	if got := s.hit(npc, slayer, 0, noon); got != blowRefused {
 		t.Fatalf("got %v", got)
 	}
 	expectNothing(t, client)
@@ -131,7 +140,7 @@ func TestAKillTellsEveryoneWhoSeesItAndEndsTheirTargets(t *testing.T) {
 	s.presence.target(1000, vid)
 	read(t, attacker, addSize+targetSize) // the onlooker arriving, then the dog's hit points
 
-	if got := s.presence.attack(1000, vid, slayer, 0, someRand, noon); got != blowKilled {
+	if got := s.hit(vid, slayer, 0, noon); got != blowKilled {
 		t.Fatalf("got %v", got)
 	}
 
@@ -152,10 +161,10 @@ func TestAKillTellsEveryoneWhoSeesItAndEndsTheirTargets(t *testing.T) {
 func TestADeadMonsterCannotBeHitTargetedOrMoved(t *testing.T) {
 	s, dog, client := aDog(t, homeX+100)
 	vid := dog.p.add.VID
-	s.presence.attack(1000, vid, slayer, 0, someRand, noon)
+	s.hit(vid, slayer, 0, noon)
 	read(t, client, damageSize+deadSize)
 
-	if got := s.presence.attack(1000, vid, slayer, 0, someRand, noon); got != blowRefused {
+	if got := s.hit(vid, slayer, 0, noon); got != blowRefused {
 		t.Fatalf("hit a body: %v", got)
 	}
 	s.presence.target(1000, vid)
@@ -170,7 +179,7 @@ func TestADeadMonsterCannotBeHitTargetedOrMoved(t *testing.T) {
 func TestABodyIsTakenAwayAndAMonsterReturns(t *testing.T) {
 	s, dog, client := aDog(t, homeX+100)
 	old := dog.p.add.VID
-	s.presence.attack(1000, old, slayer, 0, someRand, noon)
+	s.hit(old, slayer, 0, noon)
 	read(t, client, damageSize+deadSize)
 	for _, m := range s.monsters {
 		m.nextStroll = noon.Add(time.Hour) // nothing but the death in these ticks
@@ -214,7 +223,7 @@ func TestTakingAwayAMobKeepsAPlayerOfTheSameName(t *testing.T) {
 	s.presence.enter(&present{out: conn, info: protocol.CharacterInfo{Name: "dzik"},
 		add: protocol.CharacterAdd{VID: 1000, X: homeX + 100, Y: homeY}})
 	boar := s.monsters[0].p.add.VID
-	s.presence.attack(1000, boar, slayer, 0, someRand, noon)
+	s.hit(boar, slayer, 0, noon)
 
 	s.presence.leave(boar)
 
@@ -256,13 +265,13 @@ func TestSwitchingVictimsDoesNotGetRoundTheBlowGap(t *testing.T) {
 	a, b := s.monsters[0].p.add.VID, s.monsters[1].p.add.VID
 	const gap = 100 * time.Millisecond
 
-	s.presence.attack(1000, a, brawler, gap, someRand, noon)
-	s.presence.attack(1000, b, brawler, gap, someRand, noon.Add(time.Millisecond))
+	s.hit(a, brawler, gap, noon)
+	s.hit(b, brawler, gap, noon.Add(time.Millisecond))
 
-	if got := s.presence.attack(1000, a, brawler, gap, someRand, noon.Add(2*time.Millisecond)); got != blowTooSoon {
+	if got := s.hit(a, brawler, gap, noon.Add(2*time.Millisecond)); got != blowTooSoon {
 		t.Fatalf("a third blow, back on the first dog, got %v", got)
 	}
-	if got := s.presence.attack(1000, a, brawler, gap, someRand, noon.Add(gap)); got != blowLanded {
+	if got := s.hit(a, brawler, gap, noon.Add(gap)); got != blowLanded {
 		t.Fatalf("a blow after the gap got %v", got)
 	}
 }
@@ -270,7 +279,7 @@ func TestSwitchingVictimsDoesNotGetRoundTheBlowGap(t *testing.T) {
 // A player arriving while a body lies sees it lying, not standing.
 func TestABodyIsShownLyingToSomeoneArriving(t *testing.T) {
 	s, dog, _ := aDog(t, homeX+100)
-	s.presence.attack(1000, dog.p.add.VID, slayer, 0, someRand, noon)
+	s.hit(dog.p.add.VID, slayer, 0, noon)
 	conn, newcomer := watcher(t)
 
 	s.presence.enter(&present{out: conn, add: protocol.CharacterAdd{VID: 2000, X: homeX - 100, Y: homeY}})

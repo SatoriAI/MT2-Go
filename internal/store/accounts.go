@@ -114,12 +114,12 @@ func (a Accounts) withAccount(ctx context.Context, id int64, fn func(pgx.Tx, acc
 }
 
 // characterColumns are what account.Character holds, in the order scanCharacter reads them.
-const characterColumns = `id, slot, name, class, sex, shape, level, play_minutes,
+const characterColumns = `id, slot, name, class, sex, shape, level, exp, stat_points, play_minutes,
 	vitality, intelligence, strength, dexterity, hair, x, y, coalesce(skill_group, ''), blocks`
 
 func scanCharacter(row pgx.Row) (account.Character, error) {
 	var c account.Character
-	err := row.Scan(&c.ID, &c.Slot, &c.Name, &c.Class, &c.Sex, &c.Shape, &c.Level, &c.PlayMinutes,
+	err := row.Scan(&c.ID, &c.Slot, &c.Name, &c.Class, &c.Sex, &c.Shape, &c.Level, &c.Exp, &c.StatPoints, &c.PlayMinutes,
 		&c.Vitality, &c.Intelligence, &c.Strength, &c.Dexterity, &c.Hair, &c.X, &c.Y, &c.SkillGroup, &c.Blocks)
 	return c, err
 }
@@ -141,6 +141,16 @@ func (a Accounts) Character(ctx context.Context, accountID int64, slot int) (acc
 		return c, account.ErrNotFound
 	}
 	return c, err
+}
+
+// SaveProgress keeps the character's level, experience, unspent stat points and stats.
+func (a Accounts) SaveProgress(ctx context.Context, c account.Character) error {
+	_, err := a.Pool.Exec(ctx, `
+		UPDATE characters SET level = $2, exp = $3, stat_points = $4,
+		                      strength = $5, vitality = $6, dexterity = $7, intelligence = $8
+		WHERE id = $1`,
+		c.ID, c.Level, c.Exp, c.StatPoints, c.Strength, c.Vitality, c.Dexterity, c.Intelligence)
+	return err
 }
 
 // SavePosition keeps where the character stands for its next login.

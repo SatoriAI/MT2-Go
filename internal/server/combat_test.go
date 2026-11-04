@@ -27,12 +27,12 @@ func (c *client) hitTheDog() {
 	c.send(binary.LittleEndian.AppendUint32([]byte{byte(protocol.ClientAttack), 0}, dogVID), []byte{0x5A, 0xA5, sequenceByte})
 }
 
-// expectDamage reads the damage of a blow on vid and returns it.
-func (c *client) expectDamage(vid uint32) int32 {
+// expectDamageOnTheDog reads the damage of a blow on the dog and returns it.
+func (c *client) expectDamageOnTheDog() int32 {
 	c.t.Helper()
 	r := protocol.NewReader(c.read(10))
 	if header, victim, flags, damage := r.U8(), r.U32(), r.U8(), r.I32(); header != byte(protocol.ServerDamage) ||
-		victim != vid || flags != protocol.DamageNormal {
+		victim != dogVID || flags != protocol.DamageNormal {
 		c.t.Fatalf("got damage packet %02x on %d, flags %d", header, victim, flags)
 	} else {
 		return damage
@@ -52,7 +52,7 @@ func TestHittingAPickedMonsterShowsTheDamageAndItsBar(t *testing.T) {
 	hendra.expect(protocol.EncodeTarget(dogVID, 100))
 	hendra.hitTheDog()
 
-	damage := hendra.expectDamage(dogVID)
+	damage := hendra.expectDamageOnTheDog()
 	if damage < 10 || damage > 12 {
 		t.Fatalf("a bare-handed sura did %d to a wild dog, want 10 to 12", damage)
 	}
@@ -66,14 +66,14 @@ func TestABlowTooSoonAfterTheLastIsDropped(t *testing.T) {
 	hendra, _ := h.enterWorld("admin", "Hendra", 3, 6)
 	hendra.read(35)
 	hendra.hitTheDog()
-	hendra.expectDamage(dogVID)
+	hendra.expectDamageOnTheDog()
 
 	hendra.hitTheDog()
 	hendra.expectOpen()
 	time.Sleep(150 * time.Millisecond) // a level-1 character's attack speed allows a blow each 100 ms
 	hendra.hitTheDog()
 
-	hendra.expectDamage(dogVID)
+	hendra.expectDamageOnTheDog()
 }
 
 // Blows and picks the client sent before it took in Change character are dropped.

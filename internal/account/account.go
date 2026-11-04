@@ -101,6 +101,8 @@ type Character struct {
 	Class       Class
 	Sex         Sex
 	Level       uint8
+	Exp         uint32 // towards the next level
+	StatPoints  uint16 // earned by levelling, not yet spent
 	PlayMinutes uint32
 	Stats
 	Shape      uint8 // which of the class's two looks the player picked: 0 or 1

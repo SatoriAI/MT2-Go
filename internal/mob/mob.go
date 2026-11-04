@@ -21,8 +21,9 @@ type Proto struct {
 	// What a monster fights with; NPCs cannot be fought.
 	Level    uint8
 	MaxHP    uint32
-	Vitality uint8 // HT: defence
-	Armour   uint8 // DEF
+	Vitality uint8  // HT: defence
+	Armour   uint8  // DEF
+	Exp      uint32 // shared among those who killed it, by the damage each dealt
 }
 
 // Fightable reports whether a player can attack the mob.
@@ -42,13 +43,13 @@ func Lookup(vnum uint16) (Proto, bool) {
 // (docs/mechanics/monsters.md says how they were read), in UTF-8.
 var protos = map[uint16]Proto{
 	101: {VNum: 101, Name: "Dziki Pies", Kind: Monster, MoveSpeed: 100, AttackSpeed: 100,
-		Level: 1, MaxHP: 126, Vitality: 5, Armour: 4},
+		Level: 1, MaxHP: 126, Vitality: 5, Armour: 4, Exp: 15},
 	102: {VNum: 102, Name: "Wilk", Kind: Monster, MoveSpeed: 100, AttackSpeed: 100,
-		Level: 3, MaxHP: 162, Vitality: 7, Armour: 6},
+		Level: 3, MaxHP: 162, Vitality: 7, Armour: 6, Exp: 39},
 	103: {VNum: 103, Name: "Alfa Wilk", Kind: Monster, MoveSpeed: 130, AttackSpeed: 100,
-		Level: 4, MaxHP: 182, Vitality: 10, Armour: 7},
+		Level: 4, MaxHP: 182, Vitality: 10, Armour: 7, Exp: 51},
 	108: {VNum: 108, Name: "Dzik", Kind: Monster, MoveSpeed: 100, AttackSpeed: 80,
-		Level: 7, MaxHP: 248, Vitality: 10, Armour: 11},
+		Level: 7, MaxHP: 248, Vitality: 10, Armour: 11, Exp: 87},
 
 	9001: {VNum: 9001, Name: "Handlarz Bronią", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100},
 	9002: {VNum: 9002, Name: "Handlarz Zbrojami", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100},
