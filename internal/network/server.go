@@ -220,12 +220,14 @@ func (c *Conn) writeOne(p []byte) bool {
 
 func (c *Conn) serve(ctx context.Context, s Session) {
 	go c.writeQueued()
-	defer s.Close()
+	// On the way out the session closes first, so its player leaves the world even when
+	// what is still queued for them takes the whole write timeout to fail.
 	defer c.Close()
 	defer func() {
 		close(c.ending)
 		<-c.stopped
 	}()
+	defer s.Close()
 
 	if err := s.Open(); err != nil {
 		c.log.Warn("open failed", "err", err)
