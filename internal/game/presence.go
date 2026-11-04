@@ -35,15 +35,16 @@ type sender interface {
 
 // present is one character in the world, as the players who see it see it.
 type present struct {
-	out       sender // the player's connection; nil for a mob
-	character uint32 // the stored character's id; the vid lasts one login
-	world     string // the map's name; "" for a position on no known map, which those share
-	add       protocol.CharacterAdd
-	info      protocol.CharacterInfo
-	blocks    account.Blocks // what they refuse from others, as they last chose
-	target    *present       // the monster the player has picked, while they see it
-	// char is the player's character. While the player is in the world, its level,
-	// experience and stats change only under the record's lock: others' kills raise them.
+	out    sender     // the player's connection; nil for a mob
+	saving sync.Mutex // held while the player is saved, so their saves land in order
+	world  string     // the map's name; "" for a position on no known map, which those share
+	add    protocol.CharacterAdd
+	info   protocol.CharacterInfo
+	blocks account.Blocks // what they refuse from others, as they last chose
+	target *present       // the monster the player has picked, while they see it
+	// char is the player's character, stored under ID; the vid lasts one login. While the
+	// player is in the world, its level, experience and stats change only under the
+	// record's lock: others' kills raise them.
 	char  *account.Character
 	fight *fight // a monster's hit points; nil for those that cannot be fought
 	// sees is who this player has been shown, by vid. Seeing is mutual, so both sides
@@ -161,7 +162,7 @@ func (w *presence) say(vid uint32, packet []byte) {
 }
 
 // leave takes the player out of the world, and out of the view of everyone who sees them.
-func (w *presence) leave(vid uint32) {
+func (w *presence) leave(vid uint32) *present {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	p := w.all[vid]
@@ -173,6 +174,32 @@ func (w *presence) leave(vid uint32) {
 	for _, other := range p.sees {
 		unlink(p, other)
 	}
+	return p
+}
+
+// players returns everyone playing in the world now.
+func (w *presence) players() []*present {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	all := make([]*present, 0, len(w.byName))
+	for _, p := range w.byName {
+		all = append(all, p)
+	}
+	return all
+}
+
+// snapshot copies what is saved of a player, if they are still in the world: their
+// progress, which changes only under the lock, and where the world record has them. The
+// rest of their character is their connection's, so it is not read here.
+func (w *presence) snapshot(p *present) (account.Character, bool) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.all[p.add.VID] != p {
+		return account.Character{}, false
+	}
+	c := p.char
+	return account.Character{ID: c.ID, Name: c.Name, Level: c.Level, Exp: c.Exp, StatPoints: c.StatPoints,
+		Stats: c.Stats, X: p.add.X, Y: p.add.Y}, true
 }
 
 // whisperOutcome is what became of a whisper.
@@ -194,10 +221,10 @@ func (w *presence) whisper(name string, packet []byte) (uint32, whisperOutcome) 
 	case !ok:
 		return 0, whisperNotFound
 	case p.blocks.Has(account.BlockWhisper):
-		return p.character, whisperRefused
+		return p.char.ID, whisperRefused
 	}
 	_ = p.out.Send(packet)
-	return p.character, whisperDelivered
+	return p.char.ID, whisperDelivered
 }
 
 // setBlocks records what the player now refuses, for whispers sent to them.

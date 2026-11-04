@@ -7,9 +7,9 @@ import (
 )
 
 // releaseWait bounds how long Start waits for a displaced connection to save and let go.
-// That connection only starts saving once it is closed, so the wait must outlast the
-// save's own timeout.
-const releaseWait = saveTimeout + time.Second
+// That connection only starts saving once it is closed, and may first wait for a periodic
+// save of the character under way, so the wait must outlast two saves.
+const releaseWait = 2*saveTimeout + time.Second
 
 // claim is one connection's hold on a character in play. done closes once that connection
 // has let go of the character, and never before every claim it displaced has: a closed

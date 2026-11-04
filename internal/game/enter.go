@@ -4,15 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/SatoriAI/MT2-Go/internal/account"
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
-	"github.com/SatoriAI/MT2-Go/internal/world"
 )
-
-// saveTimeout bounds saving a character when its connection closes.
-const saveTimeout = 5 * time.Second
 
 // character is the one this connection plays, once Start was pressed.
 type character struct {
@@ -103,9 +98,8 @@ func (s *session) onVersion(body []byte) error {
 func (s *session) onEnterGame() error {
 	p := s.playing
 	me := &present{
-		out:       s.conn,
-		char:      &p.Character,
-		character: p.ID,
+		out:  s.conn,
+		char: &p.Character,
 		add: protocol.CharacterAdd{
 			VID:         p.vid,
 			X:           p.X,
@@ -177,31 +171,6 @@ func pointsOf(p *character) protocol.CharacterPoints {
 	}
 }
 
-// savePosition keeps where the character stood for its next login, if that is on a map the
-// server knows; otherwise the last good position stays. It runs as the connection closes,
-// which at shutdown is after the server's context is cancelled, so the save has its own.
-func (s *session) savePosition() {
-	p := s.playing
-	if _, ok := world.MapAt(p.X, p.Y); !ok {
-		s.conn.Log().Warn("position not saved: on no known map", "character", p.Name, "x", p.X, "y", p.Y)
-		return
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), saveTimeout)
-	defer cancel()
-	if err := s.svc.store.SavePosition(ctx, p.ID, p.X, p.Y); err != nil {
-		s.conn.Log().Error("position not saved", "character", p.Name, "err", err)
-	}
-}
-
-// saveProgress keeps the character's level, experience, stat points and stats.
-func (s *session) saveProgress() {
-	ctx, cancel := context.WithTimeout(context.Background(), saveTimeout)
-	defer cancel()
-	if err := s.svc.store.SaveProgress(ctx, s.playing.Character); err != nil {
-		s.conn.Log().Error("progress not saved", "character", s.playing.Name, "err", err)
-	}
-}
-
 // leaveWorld takes the character in play out of the others' view and saves it, if it
 // entered the world, and lets go of it.
 func (s *session) leaveWorld() {
@@ -209,9 +178,7 @@ func (s *session) leaveWorld() {
 		return
 	}
 	if s.phase == protocol.PhaseGame {
-		s.svc.presence.leave(s.playing.vid) // after this, nobody else touches the character
-		s.savePosition()
-		s.saveProgress()
+		s.svc.leaveAndSave(s.playing, s.conn.Log())
 	}
 	s.svc.release(s.claim)
 	s.claim = nil
