@@ -101,7 +101,7 @@ func (s *Service) place(m *monster, now time.Time) {
 	m.x, m.y = m.homeX, m.homeY
 	delete(s.byPresent, m.p)
 	m.p = s.newMob(*m.proto, m.x, m.y, float32(s.rand.IntN(8)*45))
-	m.nextStroll, m.diedAt, m.gone = now.Add(s.strollWait()), time.Time{}, false
+	m.nextStroll, m.diedAt, m.gone, m.healing = now.Add(s.strollWait()), time.Time{}, false, false
 	s.byPresent[m.p] = m
 	s.presence.enter(m.p)
 }

@@ -29,12 +29,14 @@ func (w *presence) regenPlayers() {
 		hp := regained(c.HP, points.MaxHP, playerRegenFlat+points.MaxHP*playerRegenPercent/100)
 		sp := regained(c.SP, points.MaxSP, points.MaxSP*playerRegenPercent/100)
 		vid := p.add.VID
+		var told [][]byte
 		if hp != c.HP {
-			p.send(protocol.EncodePointChange(vid, protocol.PointHP, int32(hp-c.HP), int32(hp))) //nolint:gosec // small
+			told = append(told, protocol.EncodePointChange(vid, protocol.PointHP, int32(hp-c.HP), int32(hp))) //nolint:gosec // small
 		}
 		if sp != c.SP {
-			p.send(protocol.EncodePointChange(vid, protocol.PointSP, int32(sp-c.SP), int32(sp))) //nolint:gosec // small
+			told = append(told, protocol.EncodePointChange(vid, protocol.PointSP, int32(sp-c.SP), int32(sp))) //nolint:gosec // small
 		}
+		p.send(told...)
 		c.HP, c.SP = hp, sp
 	}
 }
@@ -47,9 +49,11 @@ func regained(have, most, gain uint32) uint32 {
 	return min(most, have+gain)
 }
 
-// healing is a hurt monster the world loop heals, and when it heals next.
+// healing is a hurt monster the world loop heals, as it was when hurt, and when it heals
+// next. A monster that died and came back is another present, which this does not heal.
 type healing struct {
 	m    *monster
+	p    *present
 	next time.Time
 }
 
@@ -59,7 +63,7 @@ func (s *Service) hurt(m *monster, now time.Time) {
 		return
 	}
 	m.healing = true
-	s.healing = append(s.healing, healing{m, now.Add(time.Duration(m.proto.RegenCycle) * time.Second)})
+	s.healing = append(s.healing, healing{m, m.p, now.Add(time.Duration(m.proto.RegenCycle) * time.Second)})
 }
 
 // healMonsters heals each hurt monster whose cycle has come, and drops from the list those
@@ -72,12 +76,14 @@ func (s *Service) healMonsters(now time.Time) {
 			kept = append(kept, h)
 			continue
 		}
-		if s.presence.heal(h.m.p, h.m.proto.RegenPercent) {
-			h.next = h.next.Add(time.Duration(h.m.proto.RegenCycle) * time.Second)
+		if h.m.p == h.p && s.presence.heal(h.p, h.m.proto.RegenPercent) {
+			h.next = now.Add(time.Duration(h.m.proto.RegenCycle) * time.Second)
 			kept = append(kept, h)
 			continue
 		}
-		h.m.healing = false
+		if h.m.p == h.p {
+			h.m.healing = false
+		}
 	}
 	clear(s.healing[len(kept):])
 	s.healing = kept

@@ -86,7 +86,7 @@ A level-1 sura without a weapon takes about 10 to 12 off a wild dog a blow, so a
 `internal/game/regen.go`, run by the world loop.
 
 - **Players** regain, every three seconds while alive, 15 hit points and 5% of their maximum (62 a round for a level-1 sura's 950), and 5% of their mana, up to their maximums, fighting or not, and are told each that changed. The first round comes three seconds after the loop starts. The dead do not heal. A round holds the world lock over every player: 0.7 ms at 10,000.
-- **Monsters** heal 7% of their hit points every six seconds (`mob_proto` `REGEN_PERCENT` and `REGEN_CYCLE`, the same for the four field kinds), at least 1, from their first blow on, fighting or not, and everyone who picked one sees its bar fill. The loop keeps a list of the hurt and walks only those, so idle ticks cost no more; a monster leaves the list when whole or dead.
+- **Monsters** heal 7% of their hit points every six seconds (`mob_proto` `REGEN_PERCENT` and `REGEN_CYCLE`, the same for the four field kinds), at least 1, from their first blow on, fighting or not, as open-mt2's do, rather than only out of a fight, as this page once planned; everyone who picked one sees its bar fill. One that dies leaves the list; the monster that comes back in its place is whole. The loop keeps a list of the hurt and walks only those, so idle ticks cost no more; a monster leaves the list when whole or dead.
 
 ## Why not the original's formula
 

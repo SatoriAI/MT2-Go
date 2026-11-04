@@ -127,3 +127,22 @@ func TestABlowPutsAMonsterOnTheListOfTheHurtOnce(t *testing.T) {
 		t.Fatalf("%d on the list of the hurt, want the dog once", len(s.healing))
 	}
 }
+
+// A monster that died with healing to come, and came back, is healed only from its own
+// first blow: the old entry drops, and the newcomer keeps its own.
+func TestAMonsterThatCameBackHealsOnlyFromItsOwnBlow(t *testing.T) {
+	s, dog, _ := aDog(t, homeX+100)
+	dog.p.fight.hp = 100
+	s.hurt(dog, noon)
+	dog.p.fight.diedAt, dog.diedAt, dog.gone = noon, noon, true
+	s.place(dog, noon.Add(respawnAfter))
+	dog.p.fight.hp = 100
+	s.hurt(dog, noon.Add(respawnAfter))
+
+	s.healMonsters(noon.Add(respawnAfter)) // the old entry's time has long come
+
+	if dog.p.fight.hp != 100 || len(s.healing) != 1 || !dog.healing {
+		t.Fatalf("at %d hit points with %d on the list, healing %v; want 100, its own entry, healing", dog.p.fight.hp,
+			len(s.healing), dog.healing)
+	}
+}
