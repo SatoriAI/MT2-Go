@@ -3,6 +3,7 @@ package game
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/SatoriAI/MT2-Go/internal/network"
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
@@ -21,6 +22,10 @@ func (s *session) onChat(body []byte) error {
 		return s.onCommand(command)
 	}
 	if c.Text == "" {
+		return nil
+	}
+	if !s.flood.allow(time.Now()) {
+		s.conn.Log().Debug("line dropped: talking too fast", "character", s.playing.Name)
 		return nil
 	}
 	p := s.playing

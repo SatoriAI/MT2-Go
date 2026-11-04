@@ -46,6 +46,7 @@ The phase packet with `0`: the connection is ending.
 `internal/game/chat.go`, in the game phase only. Chat anywhere else closes the connection, like any packet out of its phase.
 
 - **A line** goes back to its speaker, and to everyone in their view, as "Name : text", type normal, with their vid and kingdom. The client doesn't draw its own line itself: with no reply, nothing appears. With the speaker's vid, the line appears once and in a bubble over the speaker. With vid 0, it appears only in the chat window. The bytes are kept as the client sent them, so Polish letters survive; open-mt2 decodes them as ASCII and garbles them. Party, guild and shout are answered as normal for now. An empty line gets no answer.
+- **Talking too fast:** a player may say 10 lines, chat and whispers together, in any 5 seconds (`internal/game/flood.go`); a line over that is dropped without a reply and logged at debug level. The numbers are open-mt2's: no one types that fast, and the spam tools that send dozens of lines a second are stopped. Dropping rather than disconnecting doesn't punish a burst of real typing, and a spam tool gains nothing either way. A refused line isn't counted, so a flood doesn't keep its own block going. Commands aren't counted: they act on the player alone, and leaving must always work. The count belongs to the connection, so Change character followed by Start begins a fresh one; that takes a full reload of the world, which is no way to flood.
 - **`/quit`:** the server replies with chat of type command and the text `quit`, which tells the client to close itself. With the real client, it closed.
 - **`/logout`:** phase close, then the connection ends. With the real client, it went back to the login screen.
 - **`/phase_select`:** the character leaves the world (saved, and its claim released), then the server sends phase select **alone**. The client, still in its game window, ignores a kingdom and list sent ahead of the phase: tried first, it stayed in the game and went on sending moves. With the phase alone it shows the character screen. When the player then presses Start, it reconnects and logs in with its key again, getting a fresh list. Moves, chat and whispers the client sent before it took in the phase are dropped on the old connection until the next Start, rather than ending it as out of their phase.
@@ -56,7 +57,8 @@ The phase packet with `0`: the connection is ending.
 ## How we know
 
 - **The client side:** the client's `uichat.py`, `uisystem.py`, `uigameoption.py` and `game.py`.
-- **The layouts, type numbers and leave commands:** open-mt2. What the client expects back for each leave command is only in the client's compiled code. The behaviour above was seen with the real client.
+- **The layouts, type numbers and leave commands:** open-mt2.
+- **The flood limit:** open-mt2's numbers and its reasoning for dropping silently. The original instead scores banned words per address, which needs a word list. Checked against the running server with two scripted players: of 20 lines sent at once, the other player got the first 10, a whisper right after them got nothing back and was not stored, and a line six seconds later went through. What the client expects back for each leave command is only in the client's compiled code. The behaviour above was seen with the real client.
 
 ## What proves it
 
@@ -72,11 +74,13 @@ The phase packet with `0`: the connection is ending.
   - `/logout` closing and keeping the position;
   - `/phase_select` answered with the phase alone, and Start on a new connection then loading the character where it was left;
   - moves, chat and whispers in flight after `/phase_select` ignored;
-  - chat before entering the world held while incomplete, which shows it was framed, then closing the connection.
+  - chat before entering the world held while incomplete, which shows it was framed, then closing the connection;
+  - an eleventh line within five seconds reaching nobody, with the speaker kept in the game, and a command still working after it.
+- `internal/game/flood_test.go`: ten lines passing and the eleventh not, the window rolling at exactly five seconds, and refused lines not counted.
 - `internal/game/session_test.go`: the error for a packet out of its phase shows at most 64 bytes of its body, and none of a login packet's.
 
 ## Not done yet
 
 - The leave countdown.
-- A limit on how fast a player may talk.
-- The GM and insult filters.
+- GM commands.
+- A server-side insult filter. The client already refuses lines with banned words before sending, in chat (`uichat.py`) and whispers (`uiwhisper.py`); the original's own filter needs a banned-word list we don't have.
