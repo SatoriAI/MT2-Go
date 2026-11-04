@@ -229,6 +229,14 @@ type CharacterAdd struct {
 	Race        uint16
 	MoveSpeed   uint8
 	AttackSpeed uint8
+	Dead        bool // shown lying, as a body: the client's ADD_CHARACTER_STATE_DEAD
+}
+
+func state(dead bool) uint8 {
+	if dead {
+		return 1
+	}
+	return 0
 }
 
 // EncodeCharacterAdd sends a character standing still with no effects on it.
@@ -243,7 +251,7 @@ func EncodeCharacterAdd(c CharacterAdd) []byte {
 	w.U16(c.Race)
 	w.U8(c.MoveSpeed)
 	w.U8(c.AttackSpeed)
-	w.U8(0)                // state
+	w.U8(state(c.Dead))
 	w.Raw(make([]byte, 8)) // effects
 	return w.Bytes()
 }

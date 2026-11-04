@@ -51,16 +51,17 @@ A level-1 character without a weapon barely scratches a wild dog: its blows graz
 `internal/game/combat.go`, with the formulas in `internal/combat`.
 
 - **Hit points** are the world record's, under its lock: each monster starts with its `mob_proto` hit points, and a blow can never take more than it has left.
-- **Picking** a living monster the player sees answers with its hit points and records the pick; picking anything else, 0, a player or an NPC, ends the pick. A pick ends too when the player walks out of sight of it, picks another, or it dies.
+- **Picking** a living monster the player sees answers with its hit points and records the pick; picking anything else, 0, a player or an NPC, ends the pick. A pick ends too when the player walks out of sight of it, picks another, or it dies. The server sends nothing when a pick ends this way, and the client keeps its target window open until the player closes it or picks again; open-mt2 does the same.
 - **A blow** lands only on a living monster the player sees, within 300 of the player's last known position (open-mt2's reach; the edge counts). Its damage is the attack against the monster less the monster's defence:
   - **attack:** the client's attack value above, with the monster's evasion taken off the hit rate: (2 × its rating + 5) / (its rating + 95) × 0.3, rounded down;
   - **defence:** the monster's level + HT + DEF from `mob_proto`;
   - **a blow its defence stops** still grazes, for 1 to 5 at random.
 
   The attacker gets the damage; everyone who has picked the monster gets its new hit points.
-- **Speed:** a second blow of a player on the same victim sooner than 15000 ms divided by their attack speed (at least 80 ms; 100 ms at a new character's 150) is dropped without a word: open-mt2's rule against tools that send blows faster than the client swings.
+- **Speed:** a blow sooner than 15000 ms divided by the player's attack speed (at least 80 ms; 100 ms at a new character's 150) after their last on the same victim is dropped without a word: open-mt2's rule, after the original's, against tools that send blows faster than the client swings. It is checked on both sides: the attacker's last victim, and the victim's last attacker, which catches a player switching between two victims to double up.
 - **Death:** a blow that takes the last hit point sends the attacker its damage, everyone who picked the monster its 0%, and everyone who sees it its death; the picks end. The body cannot be hit, picked or moved.
-- **The world loop** takes the body away two seconds after the death, with DELETE to those who see it, as open-mt2 does, and twenty seconds after the death puts a new monster of the kind at a random point of its spawn's area, with a new vid and all its hit points: this server's pause, chosen for the village fields.
+- **A body** is shown lying, with the client's dead state in its ADD, to anyone who arrives while it lies there.
+- **The world loop** owns every monster that can be killed, wandering or not, and takes the body away two seconds after the death, with DELETE to those who see it, as open-mt2 does, and twenty seconds after the death puts a new monster of the kind at a random point of its spawn's area, with a new vid and all its hit points: this server's pause, chosen for the village fields.
 - **Skills** (an ATTACK with a skill) are dropped. Blows and picks the client sent before it took in Change character are dropped, as moves and chat are.
 
 ## How we know
@@ -83,7 +84,8 @@ A level-1 character without a weapon barely scratches a wild dog: its blows graz
   - the body taken away after two seconds and a new monster returning after twenty, with a new vid and full hit points;
   - walking out of sight, and picking another, ending a pick;
   - taking a boar called Dzik away keeping a player called dzik findable;
-  - the gap between blows following attack speed.
+  - the gap between blows following attack speed, and switching between two victims not getting round it;
+  - a body shown lying to someone arriving.
 - `internal/server/combat_test.go`: a bare-handed sura picking and grazing a dog over real sockets, its bar dropping; a blow too soon dropped and one after the gap landing; blows and picks in flight after Change character dropped.
 
 ## Not done yet

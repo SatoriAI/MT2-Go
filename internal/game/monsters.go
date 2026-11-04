@@ -32,7 +32,7 @@ const (
 	respawnAfter = 20 * time.Second
 )
 
-// monster is one the world loop walks, and brings back after it dies. Only the loop moves
+// monster is one the world loop walks, if it wanders, and brings back after it dies. Only the loop moves
 // it, so where it stands here is where the world record has it.
 type monster struct {
 	proto      mob.Proto
@@ -78,7 +78,8 @@ func (s *Service) spawn(now time.Time) error {
 }
 
 func (s *Service) spawnOne(proto mob.Proto, sp world.Spawn, now time.Time) {
-	if !proto.Wanders() {
+	// Whatever can be killed is the loop's to take away and bring back, wandering or not.
+	if !proto.Fightable() {
 		s.presence.enter(s.newMob(proto, sp.X+s.spread(sp.Spread), sp.Y+s.spread(sp.Spread), 0))
 		return
 	}
@@ -127,7 +128,7 @@ func (s *Service) tick(now time.Time) {
 			m.gone = true
 		case m.gone && !now.Before(m.diedAt.Add(respawnAfter)):
 			s.place(m, now)
-		case m.diedAt.IsZero() && !now.Before(m.nextStroll):
+		case m.diedAt.IsZero() && m.proto.Wanders() && !now.Before(m.nextStroll):
 			s.stroll(m, now)
 		}
 	}

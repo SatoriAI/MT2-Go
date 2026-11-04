@@ -50,10 +50,12 @@ type present struct {
 // or an NPC only when its info follows its add, so the two go out as one send; it builds
 // a monster from the add alone, naming it from its own mob data, and drops an info for one.
 func (p *present) appearance() [][]byte {
-	if p.add.Type == protocol.EntityMonster {
-		return [][]byte{protocol.EncodeCharacterAdd(p.add)}
+	add := p.add
+	add.Dead = p.dead() // a body is shown lying until it is taken away
+	if add.Type == protocol.EntityMonster {
+		return [][]byte{protocol.EncodeCharacterAdd(add)}
 	}
-	return [][]byte{protocol.EncodeCharacterAdd(p.add), protocol.EncodeCharacterInfo(p.info)}
+	return [][]byte{protocol.EncodeCharacterAdd(add), protocol.EncodeCharacterInfo(p.info)}
 }
 
 func (p *present) isPlayer() bool { return p.out != nil }

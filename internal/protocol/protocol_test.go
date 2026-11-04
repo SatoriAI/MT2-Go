@@ -430,3 +430,10 @@ func TestDeathNamesTheCharacter(t *testing.T) {
 		t.Errorf("got  %x\nwant %x", got, want)
 	}
 }
+
+// A body is sent with the client's dead state, so it is drawn lying.
+func TestABodyIsAddedWithTheDeadState(t *testing.T) {
+	if got := EncodeCharacterAdd(CharacterAdd{VID: 7, Dead: true})[26]; got != 1 {
+		t.Fatalf("state %d, want 1", got)
+	}
+}

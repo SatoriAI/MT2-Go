@@ -13,8 +13,8 @@ import (
 // the client's own swing reaches, since positions arrive late.
 const attackReach = 300
 
-// minBlowGap is the shortest time between two blows of a player on one victim at attack
-// speed 100: open-mt2's 15000 ms divided by the speed, never under 80 ms.
+// The shortest time between two blows of a player on one victim is blowGapAtSpeed divided
+// by their attack speed, never under minBlowGap: open-mt2's 15000 ms and 80 ms.
 const (
 	blowGapAtSpeed = 15000 * time.Millisecond
 	minBlowGap     = 80 * time.Millisecond
@@ -26,6 +26,10 @@ type fight struct {
 	hp, maxHP  int
 	diedAt     time.Time // zero while alive
 	targetedBy map[*present]struct{}
+	// The last player to land a blow, and when: the victim's side of the blow gap, which a
+	// player switching between victims cannot get round.
+	lastAttacker *present
+	lastBlowAt   time.Time
 }
 
 func (p *present) dead() bool { return p.fight != nil && !p.fight.diedAt.IsZero() }
@@ -69,11 +73,13 @@ const (
 	blowLanded blow = iota
 	blowKilled
 	blowRefused // nothing to hit there: out of sight or reach, not a monster, or dead
+	blowTooSoon // the victim took a blow from the player less than their blow gap ago
 )
 
 // attack lands a blow of the player on the monster vid: the attacker is told the damage,
-// whoever targets it its hit points, and, if it dies, everyone who sees it its death.
-func (w *presence) attack(playerVID, vid uint32, a combat.Attacker, r *rand.Rand, now time.Time) blow {
+// whoever targets it its hit points, and, if it dies, everyone who sees it its death. A
+// blow sooner than gap after the player's last on the same victim is dropped.
+func (w *presence) attack(playerVID, vid uint32, a combat.Attacker, gap time.Duration, r *rand.Rand, now time.Time) blow {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	p := w.all[playerVID]
@@ -82,6 +88,10 @@ func (w *presence) attack(playerVID, vid uint32, a combat.Attacker, r *rand.Rand
 		return blowRefused
 	}
 	f := v.fight
+	if f.lastAttacker == p && now.Sub(f.lastBlowAt) < gap {
+		return blowTooSoon
+	}
+	f.lastAttacker, f.lastBlowAt = p, now
 	damage := min(combat.Damage(a, f.defender, r), f.hp)
 	f.hp -= damage
 	p.send(protocol.EncodeDamage(vid, protocol.DamageNormal, int32(damage))) //nolint:gosec // at most the hit points
@@ -136,8 +146,10 @@ func (s *session) onTarget(body []byte) error {
 	return nil
 }
 
-// onAttack lands a blow the player's client saw hit. Skills are not handled yet; a blow
-// faster than the player's attack speed allows on the same victim is dropped.
+// onAttack lands a blow the player's client saw hit. Skills are not handled yet. A blow
+// faster than the player's attack speed allows on the same victim is dropped, checked on
+// both sides, as the original does: the attacker's last victim here, and the victim's last
+// attacker in the world record, which catches a player switching between victims.
 func (s *session) onAttack(body []byte) error {
 	a, err := protocol.DecodeAttack(body)
 	if err != nil {
@@ -150,7 +162,7 @@ func (s *session) onAttack(body []byte) error {
 	}
 	s.lastVictim, s.lastBlow = a.Victim, now
 	attacker := combat.Attacker{Level: p.Level, Class: p.Class, Stats: p.Stats}
-	if s.svc.presence.attack(p.vid, a.Victim, attacker, s.rand, now) == blowKilled {
+	if s.svc.presence.attack(p.vid, a.Victim, attacker, blowGap(p.points.AttackSpeed), s.rand, now) == blowKilled {
 		s.conn.Log().Debug("killed", "character", p.Name, "victim", a.Victim)
 	}
 	return nil
