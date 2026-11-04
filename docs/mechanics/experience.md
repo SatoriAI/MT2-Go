@@ -38,7 +38,7 @@ Unspent stat points sit at index 26 of POINTS; experience at 3, as before.
 - **Levelling:** experience past a level's need carries into the next, and one kill can raise several levels. Each level brings 3 stat points. The player is told their experience, new level, next need, stat points, and their new maximum hit points and mana, refilled; everyone who sees them, their new level, which later arrivals see too.
 - **Spending:** `/stat st|ht|dx|iq` moves one point into the stat, up to 90 a stat, and tells the player the stat, their points left, and for vitality or intelligence their new maximum hit points or mana. With no point to spend, at the cap, or for any other name, nothing happens. Attack follows the new stats on the next blow.
 - **While in the world** a player's level, experience and stats live in the world record and change only under its lock, since others' kills raise them; the blow's attack is read there too.
-- **Kept** with the position when the character leaves the world, by any way out: level, experience, unspent stat points and the four stats (`characters.exp`, `stat_points`). A crash loses what was earned since the character entered.
+- **Kept** with the position when the character leaves the world, by any way out: level, experience, unspent stat points and the four stats (`characters.exp`, `stat_points`). They are also saved every minute while the character stays in the world (`internal/game/save.go`, as [entering-the-world.md](entering-the-world.md) describes), so a crash loses at most a minute of play.
 
 ## How we know
 
@@ -59,5 +59,4 @@ Unspent stat points sit at index 26 of POINTS; experience at 3, as before.
 - Losing experience on death, which comes with monsters fighting back.
 - Skill points, parties sharing experience, and items or premium bonuses.
 - Taking stat points back (`/stat-`).
-- Saving progress while the character stays in the world, against a crash.
 - The character screen after Change character still lists the level and stats the character had at login, since the client keeps the list it got then; entering again loads the right values.
