@@ -11,6 +11,7 @@ Why the rules in `AGENTS.md` are what they are: the reasoning, the measurements,
 | `client-adapter.md` | Why the server models the game rather than the original client's protocol, and when `internal/game/wire.go` goes |
 | `comment-blocks.md` | The comment length guard, and how Go was added to it |
 | `connections.md` | Why each connection has a send queue and a writer, so other connections can send to it |
+| `world-loop.md` | Why monsters are driven by one ticking loop, and why mobs see no mobs |
 
 How a game mechanic works is not a decision and does not live here: see `docs/mechanics/`.
 

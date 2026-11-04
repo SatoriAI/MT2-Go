@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand/v2"
 	"net/netip"
 	"sync"
 	"sync/atomic"
@@ -15,6 +16,7 @@ import (
 	"github.com/SatoriAI/MT2-Go/internal/handshake"
 	"github.com/SatoriAI/MT2-Go/internal/network"
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
+	"github.com/SatoriAI/MT2-Go/internal/world"
 )
 
 // Accounts is what the game port needs from storage.
@@ -54,11 +56,18 @@ type Service struct {
 	claims map[uint32]*claim // the characters in play, by id
 
 	presence presence
+
+	// The world loop's own: only Run's goroutine touches them.
+	spawns    []world.Spawn
+	rand      *rand.Rand
+	wanderers []*wanderer
 }
 
-func NewService(store Accounts, whispers Whispers, keys *account.Keys, clock handshake.Clock, public netip.AddrPort) *Service {
+// NewService makes the game port's shared state; Run puts spawns' mobs in the world.
+func NewService(store Accounts, whispers Whispers, keys *account.Keys, clock handshake.Clock, public netip.AddrPort,
+	spawns []world.Spawn) *Service {
 	return &Service{store: store, whispers: whispers, keys: keys, clock: clock, public: public, claims: map[uint32]*claim{},
-		presence: presence{players: map[uint32]*present{}, byName: map[string]*present{}}}
+		presence: presence{all: map[uint32]*present{}, byName: map[string]*present{}}, spawns: spawns, rand: newRand()}
 }
 
 func (s *Service) NewSession(conn *network.Conn) network.Session {

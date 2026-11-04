@@ -5,9 +5,12 @@
 package game
 
 import (
+	"strings"
+
 	"golang.org/x/text/encoding/charmap"
 
 	"github.com/SatoriAI/MT2-Go/internal/account"
+	"github.com/SatoriAI/MT2-Go/internal/mob"
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
 )
 
@@ -130,6 +133,27 @@ func blockMask(blocks account.Blocks) uint32 {
 		}
 	}
 	return mask
+}
+
+// entityType is the client's number for the kind of mob.
+func entityType(k mob.Kind) uint8 {
+	if k == mob.NPC {
+		return protocol.EntityNPC
+	}
+	return protocol.EntityMonster
+}
+
+// textToClient turns UTF-8 into the client's code page, cp1250, as textFromClient reads
+// it. A character cp1250 lacks becomes "?", so encoding never fails.
+func textToClient(text string) string {
+	known := strings.Map(func(r rune) rune {
+		if _, ok := charmap.Windows1250.EncodeRune(r); ok {
+			return r
+		}
+		return '?'
+	}, text)
+	cp, _ := charmap.Windows1250.NewEncoder().String(known)
+	return cp
 }
 
 // textFromClient turns text the client typed into UTF-8. The client writes in its Windows

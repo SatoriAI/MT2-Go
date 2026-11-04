@@ -18,4 +18,4 @@ Every move, line and arrival goes to a single goroutine that owns the world and 
 - **A hang-up** (Logout's phase close, then `ErrHangUp`) lets the writer send what is queued before the socket closes. **`Close`** (a takeover, shutdown) cuts at once, so a displaced connection's save is never held up by its client.
 - **On the way out, the session closes before the queue drains.** Draining can take the whole write timeout when the client has stopped reading; closing the session first takes the player out of the world, saves them and lets go of their character meanwhile, so nobody sees a ghost for ten seconds and a new login is not refused. Nothing is lost: the session sends nothing to its own connection as it closes, and what it queued before is still written.
 
-A world goroutine may still come, for things that run on a timer, such as monsters. It would send through the same queues.
+A world goroutine came with monsters (`world-loop.md`): it sends through the same queues, under the same lock.
