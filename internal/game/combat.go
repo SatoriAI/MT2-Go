@@ -30,6 +30,9 @@ type fight struct {
 	// player switching between victims cannot get round.
 	lastAttacker *present
 	lastBlowAt   time.Time
+	// damageBy is what each player took off it, which shares its experience out.
+	damageBy map[*present]int
+	exp      uint32
 }
 
 func (p *present) dead() bool { return p.fight != nil && !p.fight.diedAt.IsZero() }
@@ -79,7 +82,7 @@ const (
 // attack lands a blow of the player on the monster vid: the attacker is told the damage,
 // whoever targets it its hit points, and, if it dies, everyone who sees it its death. A
 // blow sooner than gap after the player's last on the same victim is dropped.
-func (w *presence) attack(playerVID, vid uint32, a combat.Attacker, gap time.Duration, r *rand.Rand, now time.Time) blow {
+func (w *presence) attack(playerVID, vid uint32, gap time.Duration, r *rand.Rand, now time.Time) blow {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	p := w.all[playerVID]
@@ -92,8 +95,10 @@ func (w *presence) attack(playerVID, vid uint32, a combat.Attacker, gap time.Dur
 		return blowTooSoon
 	}
 	f.lastAttacker, f.lastBlowAt = p, now
+	a := combat.Attacker{Level: p.char.Level, Class: p.char.Class, Stats: p.char.Stats}
 	damage := min(combat.Damage(a, f.defender, r), f.hp)
 	f.hp -= damage
+	f.damageBy[p] += damage
 	p.send(protocol.EncodeDamage(vid, protocol.DamageNormal, int32(damage))) //nolint:gosec // at most the hit points
 	for t := range f.targetedBy {
 		t.send(protocol.EncodeTarget(vid, f.hpPercent()))
@@ -107,6 +112,7 @@ func (w *presence) attack(playerVID, vid uint32, a combat.Attacker, gap time.Dur
 		untarget(t, v)
 	}
 	toViewers(v, protocol.EncodeDead(vid))
+	w.shareExp(f, p)
 	return blowKilled
 }
 
@@ -161,8 +167,7 @@ func (s *session) onAttack(body []byte) error {
 		return nil
 	}
 	s.lastVictim, s.lastBlow = a.Victim, now
-	attacker := combat.Attacker{Level: p.Level, Class: p.Class, Stats: p.Stats}
-	if s.svc.presence.attack(p.vid, a.Victim, attacker, blowGap(p.points.AttackSpeed), s.rand, now) == blowKilled {
+	if s.svc.presence.attack(p.vid, a.Victim, blowGap(p.points.AttackSpeed), s.rand, now) == blowKilled {
 		s.conn.Log().Debug("killed", "character", p.Name, "victim", a.Victim)
 	}
 	return nil

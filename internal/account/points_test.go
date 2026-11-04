@@ -33,8 +33,8 @@ func TestPointsGrowWithLevel(t *testing.T) {
 	if high.MaxHP-low.MaxHP != 100 || high.MaxSP-low.MaxSP != 50 {
 		t.Errorf("level 2 adds %d HP and %d SP", high.MaxHP-low.MaxHP, high.MaxSP-low.MaxSP)
 	}
-	if high.NextExp != 0 {
-		t.Errorf("level 2's next exp is not known yet, got %d", high.NextExp)
+	if high.NextExp != 800 {
+		t.Errorf("level 2 needs %d to reach 3, want 800", high.NextExp)
 	}
 }
 

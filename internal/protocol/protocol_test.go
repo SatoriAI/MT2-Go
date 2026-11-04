@@ -437,3 +437,21 @@ func TestABodyIsAddedWithTheDeadState(t *testing.T) {
 		t.Fatalf("state %d, want 1", got)
 	}
 }
+
+// The header is an int in the client's struct: its byte, three zeros, then the rest.
+func TestAPointChangeNamesTheCharacterPointAmountAndValue(t *testing.T) {
+	got := EncodePointChange(7, PointExp, 15, 305)
+
+	want := mustHex(t, "11000000"+"07000000"+"03"+"0f000000"+"31010000")
+	if !bytes.Equal(got, want) {
+		t.Errorf("got  %x\nwant %x", got, want)
+	}
+}
+
+func TestUnspentStatPointsGoWhereTheCharacterWindowReadsThem(t *testing.T) {
+	got := EncodePoints(CharacterPoints{StatPoints: 6})
+
+	if v := binary.LittleEndian.Uint32(got[1+4*PointStatPoints:]); v != 6 {
+		t.Fatalf("stat points %d at index %d", v, PointStatPoints)
+	}
+}

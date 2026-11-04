@@ -40,7 +40,10 @@ type present struct {
 	info      protocol.CharacterInfo
 	blocks    account.Blocks // what they refuse from others, as they last chose
 	target    *present       // the monster the player has picked, while they see it
-	fight     *fight         // a monster's hit points; nil for those that cannot be fought
+	// char is the player's character. While the player is in the world, its level,
+	// experience and stats change only under the record's lock: others' kills raise them.
+	char  *account.Character
+	fight *fight // a monster's hit points; nil for those that cannot be fought
 	// sees is who this player has been shown, by vid. Seeing is mutual, so both sides
 	// change together, and leaving tells exactly these.
 	sees map[uint32]*present

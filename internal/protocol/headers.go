@@ -38,6 +38,7 @@ const (
 	ServerMove             ServerHeader = 0x03 // another character moves
 	ServerChat             ServerHeader = 0x04
 	ServerPoints           ServerHeader = 0x10
+	ServerPointChange      ServerHeader = 0x11 // one of a character's points changes
 	ServerWhisper          ServerHeader = 0x22
 	ServerTime             ServerHeader = 0x6A
 	ServerMainCharacter    ServerHeader = 0x71 // who the player is and where

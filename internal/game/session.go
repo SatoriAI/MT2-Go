@@ -33,6 +33,7 @@ type Accounts interface {
 	// Character reads the account's character in slot, or returns account.ErrNotFound.
 	Character(ctx context.Context, accountID int64, slot int) (account.Character, error)
 	SavePosition(ctx context.Context, characterID uint32, x, y int32) error
+	SaveProgress(ctx context.Context, c account.Character) error
 	SaveBlocks(ctx context.Context, characterID uint32, blocks account.Blocks) error
 }
 
