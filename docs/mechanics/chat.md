@@ -58,7 +58,7 @@ The phase packet with `0`: the connection is ending.
 
 - **The client side:** the client's `uichat.py`, `uisystem.py`, `uigameoption.py` and `game.py`.
 - **The layouts, type numbers and leave commands:** open-mt2.
-- **The flood limit:** open-mt2's numbers and its reasoning for dropping silently. The original instead scores banned words per address, which needs a word list. What the client expects back for each leave command is only in the client's compiled code. The behaviour above was seen with the real client.
+- **The flood limit:** open-mt2's numbers and its reasoning for dropping silently. The original instead scores banned words per address, which needs a word list. Checked against the running server with two scripted players: of 20 lines sent at once, the other player got the first 10, a whisper right after them got nothing back and was not stored, and a line six seconds later went through. What the client expects back for each leave command is only in the client's compiled code. The behaviour above was seen with the real client.
 
 ## What proves it
 
