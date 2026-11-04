@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/SatoriAI/MT2-Go/internal/account"
 	"github.com/SatoriAI/MT2-Go/internal/handshake"
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
 	"github.com/SatoriAI/MT2-Go/internal/world"
@@ -133,6 +134,29 @@ func BenchmarkPlayerEnter(b *testing.B) {
 					add: protocol.CharacterAdd{VID: 1 << 30, X: at.X, Y: at.Y}}
 				s.presence.enter(p)
 				s.presence.leave(p.add.VID)
+			}
+		})
+	}
+}
+
+// BenchmarkPlayerRegeneration is one round of healing the players, every three seconds,
+// which holds the world lock over all of them: each a level-1 sura short of her hit points
+// by more than a round restores, so every round sends to each.
+func BenchmarkPlayerRegeneration(b *testing.B) {
+	for _, n := range worldSizes {
+		b.Run(size(n.players, n.monsters), func(b *testing.B) {
+			s, everyone, _ := benchWorld(b, n.players, n.monsters)
+			for _, p := range everyone {
+				p.char = &account.Character{Level: 1, Class: account.Sura, Stats: account.Stats{Vitality: 3, Intelligence: 5}}
+				p.info.Name = fmt.Sprint(p.add.VID)
+				s.presence.byName[p.info.Name] = p
+			}
+			b.ReportAllocs()
+			for b.Loop() {
+				for _, p := range everyone {
+					p.char.HP, p.char.SP = 1, 0
+				}
+				s.presence.regenPlayers()
 			}
 		})
 	}

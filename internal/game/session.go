@@ -65,6 +65,9 @@ type Service struct {
 	monsters  []*monster
 	byPresent map[*present]*monster // the same monsters, by what the world record holds of them
 	fighting  []*monster            // the monsters fighting a player, which the loop steps
+	healing   []healing             // the hurt monsters, which the loop heals
+	// nextPlayerRegen is when the loop next heals the players.
+	nextPlayerRegen time.Time
 }
 
 // NewService makes the game port's shared state; Run puts spawns' mobs in the world.

@@ -81,6 +81,13 @@ A level-1 sura without a weapon takes about 10 to 12 off a wild dog a blow, so a
 - **While fighting** a monster does not stroll. A monster killed mid-fight stops.
 - **Hit points** are the character's, kept under the world record's lock as experience is; a character enters the world with all of them, as they are not saved.
 
+### Healing
+
+`internal/game/regen.go`, run by the world loop.
+
+- **Players** regain, every three seconds while alive, 15 hit points and 5% of their maximum (62 a round for a level-1 sura's 950), and 5% of their mana, up to their maximums, fighting or not, and are told each that changed. The first round comes three seconds after the loop starts. The dead do not heal. A round holds the world lock over every player: 0.7 ms at 10,000.
+- **Monsters** heal 7% of their hit points every six seconds (`mob_proto` `REGEN_PERCENT` and `REGEN_CYCLE`, the same for the four field kinds), at least 1, from their first blow on, fighting or not, and everyone who picked one sees its bar fill. The loop keeps a list of the hurt and walks only those, so idle ticks cost no more; a monster leaves the list when whole or dead.
+
 ## Why not the original's formula
 
 The original takes the defence off the attack and scales the stat part by a hit rate of about two thirds, less the victim's dodging: a level-1 sura's attack of 8 against a wild dog's defence of 10 leaves nothing, and every blow grazes for 1 to 5, about 42 blows a dog; ten points of strength jump that to 12. Subtraction also lets high defence wall off a weaker character entirely. This server takes a share instead, so every blow and every point of strength counts and armour matters at every level, and it drops the hit rate. Characters hit harder than in the original: at low levels the attack is about half again as high, and against a wild dog a blow takes about three times as much (2.6 times with strength 15), and far more against armoured monsters; monsters will use the same formula against players, and their health and the experience tables can be tuned once it has been played.
@@ -129,6 +136,7 @@ The original takes the defence off the attack and scales the stat part by a hit 
   - giving up on a target who left;
   - a monster killed mid-fight, or fighting, not strolling;
   - a bite that kills, a dead player who can neither hit nor pick, and restarts (on [dying.md](dying.md)).
+- `internal/game/regen_test.go`: a player regaining 62 hit points and 42 mana three seconds on, not before; healing stopping at the maximum, telling nothing once whole; the dead not healing; a hurt dog healing 8 a round until whole, its picker seeing the bar fill, and leaving the list; a dead or whole monster not healed; a blow putting a monster on the list once.
 - `internal/server/combat_test.go`: a bare-handed sura picking and hitting a dog for 10 to 12 over real sockets, its bar dropping; a blow too soon dropped and one after the gap landing; blows and picks in flight after Change character dropped; the dog she hits biting back with its attack, 27 to 31, and her hit points.
 
 ## Not done yet
@@ -136,5 +144,4 @@ The original takes the defence off the attack and scales the stat part by a hit 
 - Aggressive monsters, which attack on sight (the `AGGR` AI flag; none of the four field kinds has it), and a group of monsters joining a fight.
 - Drops.
 - Skills, bows, critical and penetrating blows, and every bonus that comes with items.
-- Monsters regaining hit points out of a fight.
 - Players fighting players.

@@ -93,7 +93,7 @@ func TestAnEventMultipliesWhatAKillGives(t *testing.T) {
 	s, dog, client := aDog(t, homeX+100)
 	s.presence.switchEvent(christmas, true)
 	expectBytes(t, client, christmasRuns)
-	c := &account.Character{HP: 1000, Level: 1, Class: account.Warrior, Stats: account.Stats{Strength: 90}}
+	c := &account.Character{HP: 1000, SP: 1000, Level: 1, Class: account.Warrior, Stats: account.Stats{Strength: 90}}
 	s.presence.all[1000].char = c
 
 	s.presence.attack(1000, dog.p.add.VID, 0, someRand, noon)

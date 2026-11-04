@@ -36,16 +36,18 @@ type chase struct {
 	fromX, fromY int32     // where it last bit, or was first hit
 }
 
-// engage answers the blows landed since the last tick: a monster that is not fighting
-// takes the player who hit it as its target, and one fighting them fights on, however
-// long since its last bite. Blows from others are ignored while it fights.
+// engage answers the blows landed since the last tick: the monster is hurt, so it heals
+// from then on, and one that is not fighting takes the player who hit it as its target;
+// one fighting them fights on, however long since its last bite. Blows from others are
+// not answered while it fights.
 func (s *Service) engage(provoked []provocation, now time.Time) {
 	for _, pr := range provoked {
 		m := s.byPresent[pr.monster]
-		switch {
-		case m == nil || !m.diedAt.IsZero(): // gone since
-			continue
-		case m.chase != nil:
+		if m == nil || !m.diedAt.IsZero() {
+			continue // gone since
+		}
+		s.hurt(m, now)
+		if m.chase != nil {
 			if m.chase.target == pr.by {
 				m.chase.lastFought = now
 			}

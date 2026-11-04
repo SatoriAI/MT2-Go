@@ -302,7 +302,7 @@ func TestADeadPlayerGetsNoShare(t *testing.T) {
 	s, dog, client, c := suraHits(t, 100)
 	c.HP = 0
 	killer, _ := watcher(t)
-	strong := &account.Character{HP: 1000, Level: 1, Class: account.Warrior, Stats: account.Stats{Strength: 90}}
+	strong := &account.Character{HP: 1000, SP: 1000, Level: 1, Class: account.Warrior, Stats: account.Stats{Strength: 90}}
 	s.presence.enter(&present{out: killer, add: protocol.CharacterAdd{VID: 2000, X: homeX + 150, Y: homeY}, char: strong})
 	read(t, client, addSize) // the killer
 
