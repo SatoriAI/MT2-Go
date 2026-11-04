@@ -5,12 +5,25 @@ package event
 import (
 	"errors"
 	"fmt"
-	"math"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
+	_ "time/tzdata" // so the zone loads on a machine without a zone database
 	"unicode/utf8"
 )
+
+// Zone is the time events are written and announced in: the players' own, Polish time,
+// whatever zone the server or the command line's machine is set to. It is read-only.
+var Zone = mustLoad("Europe/Warsaw")
+
+func mustLoad(name string) *time.Location {
+	z, err := time.LoadLocation(name)
+	if err != nil {
+		panic(err) // the zone is embedded, so this cannot fail
+	}
+	return z
+}
 
 // Event is a span of time in which every kill's experience is multiplied. Only experience
 // is, for now: drops and gold become further multipliers once they exist.
@@ -49,13 +62,21 @@ func (e Event) Check() error {
 	return nil
 }
 
-// ParseMultiplier reads a multiplier as a person writes it, "2" or "1.5" or "1,5", into
-// percent, to two decimals.
+// multiplier is a multiplier as a person writes it: a whole number, or one with up to two
+// decimals after a point or a comma.
+var multiplier = regexp.MustCompile(`^([0-9]{1,2})(?:[.,]([0-9]{1,2}))?$`)
+
+// ParseMultiplier reads a multiplier, "2" or "1.5" or "1,5", into percent.
 func ParseMultiplier(s string) (uint32, error) {
-	f, err := strconv.ParseFloat(strings.Replace(s, ",", ".", 1), 64)
-	p := math.Round(f * 100)
-	if err != nil || !(p >= MinPercent && p <= MaxPercent) { // NaN fails both comparisons
-		return 0, fmt.Errorf("event: the multiplier %q is not a number above 1 and at most 10", s)
+	m := multiplier.FindStringSubmatch(s)
+	if m == nil {
+		return 0, fmt.Errorf("event: the multiplier %q is not a number with at most two decimals", s)
+	}
+	whole, _ := strconv.Atoi(m[1])
+	cents, _ := strconv.Atoi((m[2] + "00")[:2]) // "5" is 50 hundredths; "" is none
+	p := whole*100 + cents
+	if p < MinPercent || p > MaxPercent {
+		return 0, fmt.Errorf("event: the multiplier %q is not above 1 and at most 10", s)
 	}
 	return uint32(p), nil
 }

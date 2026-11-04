@@ -17,12 +17,13 @@ type Events interface {
 
 // WatchEvents looks for the running event every so often until ctx ends, and switches it
 // on and off. Events are created from the command line, another process, so the server
-// reads them rather than being told. A failed read keeps what runs until the next look.
+// reads them rather than being told. A failed read keeps what runs until the next look,
+// and a look takes at most until the next, so a database that stops answering is noticed.
 func (s *Service) WatchEvents(ctx context.Context, events Events, every time.Duration, log *slog.Logger) error {
 	t := time.NewTicker(every)
 	defer t.Stop()
 	for {
-		e, running, err := events.Running(ctx, time.Now())
+		e, running, err := lookForEvent(ctx, events, every)
 		switch {
 		case ctx.Err() != nil:
 			return nil
@@ -37,6 +38,12 @@ func (s *Service) WatchEvents(ctx context.Context, events Events, every time.Dur
 		case <-t.C:
 		}
 	}
+}
+
+func lookForEvent(ctx context.Context, events Events, within time.Duration) (event.Event, bool, error) {
+	ctx, cancel := context.WithTimeout(ctx, within)
+	defer cancel()
+	return events.Running(ctx, time.Now())
 }
 
 // switchEvent makes e the running event, or none, and tells every player of the one that
@@ -64,7 +71,7 @@ func (w *presence) switchEvent(e event.Event, running bool) {
 // eventNotice tells a player an event is running, until when, and what it gives.
 func eventNotice(e event.Event) []byte {
 	return notice(fmt.Sprintf("Wydarzenie „%s” trwa do %s: doświadczenie ×%s.", e.Name,
-		e.End.Local().Format("02.01 15:04"), event.Multiplier(e.ExpPercent)))
+		e.End.In(event.Zone).Format("02.01 15:04"), event.Multiplier(e.ExpPercent)))
 }
 
 // notice is a line from the server itself: from vid 0, which the client shows at the top

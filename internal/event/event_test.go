@@ -7,15 +7,15 @@ import (
 )
 
 func TestAMultiplierIsReadAsAPersonWritesIt(t *testing.T) {
-	for in, want := range map[string]uint32{"2": 200, "1.5": 150, "1,5": 150, "1.25": 125, "10": 1000, "1.006": 101} {
+	for in, want := range map[string]uint32{"2": 200, "1.5": 150, "1,5": 150, "1.25": 125, "10": 1000, "1.01": 101, "1,05": 105} {
 		if got, err := ParseMultiplier(in); err != nil || got != want {
 			t.Errorf("%q: got %d, %v; want %d", in, got, err, want)
 		}
 	}
 }
 
-func TestAMultiplierThatIsNoBonusOrTooLargeOrNoNumberIsRefused(t *testing.T) {
-	for _, in := range []string{"1", "0.5", "-2", "10.01", "", "two", "NaN", "Inf"} {
+func TestAMultiplierThatIsNoBonusTooLargeOrNotWrittenPlainlyIsRefused(t *testing.T) {
+	for _, in := range []string{"1", "1.0", "0.5", "-2", "10.01", "", "two", "NaN", "Inf", "1e1", "0x1p1", "1.006", "1.", " 2"} {
 		if got, err := ParseMultiplier(in); err == nil {
 			t.Errorf("%q: got %d, want an error", in, got)
 		}

@@ -14,10 +14,10 @@ import (
 )
 
 var christmas = event.Event{ID: 1, Name: "Boże Narodzenie", ExpPercent: 200,
-	Start: time.Date(2026, 12, 24, 0, 0, 0, 0, time.Local), End: time.Date(2026, 12, 27, 0, 0, 0, 0, time.Local)}
+	Start: time.Date(2026, 12, 24, 0, 0, 0, 0, event.Zone), End: time.Date(2026, 12, 27, 0, 0, 0, 0, event.Zone)}
 
 var newYear = event.Event{ID: 2, Name: "Nowy Rok", ExpPercent: 150,
-	Start: time.Date(2026, 12, 31, 18, 0, 0, 0, time.Local), End: time.Date(2027, 1, 1, 12, 0, 0, 0, time.Local)}
+	Start: time.Date(2026, 12, 31, 18, 0, 0, 0, event.Zone), End: time.Date(2027, 1, 1, 12, 0, 0, 0, event.Zone)}
 
 // The notices as players read them, in the client's code page from the server's vid 0.
 var (
@@ -146,4 +146,32 @@ func TestTheWatchSwitchesEventsAsTheStoreSaysAndRidesOutAFailedLook(t *testing.T
 	if err := <-done; err != nil {
 		t.Fatalf("the watch ended with %v", err)
 	}
+}
+
+// hangingOnce never answers its first look, as a database that stopped answering, and
+// says Christmas runs at every look after.
+type hangingOnce struct {
+	looked chan struct{}
+}
+
+func (h hangingOnce) Running(ctx context.Context, _ time.Time) (event.Event, bool, error) {
+	select {
+	case h.looked <- struct{}{}:
+		<-ctx.Done()
+		return event.Event{}, false, ctx.Err()
+	default:
+		return christmas, true, nil
+	}
+}
+
+// A look that hangs is given up at the next, and the watch carries on.
+func TestTheWatchGivesUpALookThatHangs(t *testing.T) {
+	s := worldWith(t)
+	hendra := s.namedPlayer(t, 1000, "Hendra", 0)
+	events := hangingOnce{looked: make(chan struct{}, 1)}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = s.WatchEvents(ctx, events, 10*time.Millisecond, slog.New(slog.DiscardHandler)) }()
+
+	expectBytes(t, hendra, christmasRuns)
 }

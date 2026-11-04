@@ -12,26 +12,28 @@ import (
 	"github.com/SatoriAI/MT2-Go/internal/store"
 )
 
-// eventTime is how an event's start and end are written: to the minute, in the server's
-// time zone, which is the one its notices name.
+// eventTime is how an event's start and end are written: to the minute, in event.Zone,
+// which its notices name too.
 const eventTime = "2006-01-02T15:04"
 
 func runEvent(ctx context.Context, cfg config.Config, args []string) error {
+	var do func(store.Events) error
+	switch {
+	case len(args) == 5 && args[0] == "create":
+		do = func(events store.Events) error { return createEvent(ctx, events, args[1:]) }
+	case len(args) == 1 && args[0] == "list":
+		do = func(events store.Events) error { return listEvents(ctx, events) }
+	case len(args) == 2 && args[0] == "delete":
+		do = func(events store.Events) error { return deleteEvent(ctx, events, args[1]) }
+	default:
+		return errors.New(usage)
+	}
 	pool, err := store.Open(ctx, cfg.DatabaseURL)
 	if err != nil {
 		return err
 	}
 	defer pool.Close()
-	events := store.Events{Pool: pool}
-	switch {
-	case len(args) == 5 && args[0] == "create":
-		return createEvent(ctx, events, args[1:])
-	case len(args) == 1 && args[0] == "list":
-		return listEvents(ctx, events)
-	case len(args) == 2 && args[0] == "delete":
-		return deleteEvent(ctx, events, args[1])
-	}
-	return errors.New(usage)
+	return do(store.Events{Pool: pool})
 }
 
 func createEvent(ctx context.Context, events store.Events, args []string) error {
@@ -39,11 +41,11 @@ func createEvent(ctx context.Context, events store.Events, args []string) error 
 	if err != nil {
 		return err
 	}
-	start, err := time.ParseInLocation(eventTime, args[2], time.Local)
+	start, err := time.ParseInLocation(eventTime, args[2], event.Zone)
 	if err != nil {
 		return fmt.Errorf("the start must be written as %s: %w", eventTime, err)
 	}
-	end, err := time.ParseInLocation(eventTime, args[3], time.Local)
+	end, err := time.ParseInLocation(eventTime, args[3], event.Zone)
 	if err != nil {
 		return fmt.Errorf("the end must be written as %s: %w", eventTime, err)
 	}
@@ -88,5 +90,5 @@ func deleteEvent(ctx context.Context, events store.Events, arg string) error {
 
 func describe(e event.Event) string {
 	return fmt.Sprintf("%q, experience ×%s, %s to %s", e.Name, event.Multiplier(e.ExpPercent),
-		e.Start.Local().Format(eventTime), e.End.Local().Format(eventTime))
+		e.Start.In(event.Zone).Format(eventTime), e.End.In(event.Zone).Format(eventTime))
 }
