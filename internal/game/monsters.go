@@ -109,7 +109,7 @@ func (s *Service) newMob(proto mob.Proto, x, y int32, facing float32) *present {
 	}
 	if proto.Fightable() {
 		p.fight = &fight{hp: int(proto.MaxHP), maxHP: int(proto.MaxHP), targetedBy: map[*present]struct{}{},
-			defender: combat.Defender{Level: proto.Level, Dexterity: proto.Dexterity, Vitality: proto.Vitality,
+			defender: combat.Defender{Level: proto.Level, Vitality: proto.Vitality,
 				Armour: proto.Armour}}
 	}
 	return p
