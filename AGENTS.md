@@ -60,6 +60,7 @@ internal/account/   the game's types for accounts and characters, starting and d
 internal/store/     PostgreSQL: pool, embedded migrations, queries
 internal/world/     the game world: which maps exist and where, and where mobs are spawned
 internal/mob/       what each kind of monster and NPC is
+internal/combat/    how much a blow takes: attack, defence, damage
 internal/server/    wires everything and runs both ports; the end-to-end tests live here
 docs/mechanics/     how each mechanic works
 docs/decisions/     why the rules here are what they are

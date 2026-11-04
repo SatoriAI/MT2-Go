@@ -29,3 +29,14 @@ func TestOnlyMonstersWander(t *testing.T) {
 		t.Error("the weapon dealer wanders off")
 	}
 }
+
+// Every monster the world spawns can be fought: it has hit points and a level; NPCs
+// cannot be.
+func TestEveryMonsterCanBeFoughtAndNoNPC(t *testing.T) {
+	for _, s := range world.Spawns() {
+		p, _ := Lookup(s.VNum)
+		if p.Fightable() != (p.Kind == Monster) || (p.Fightable() && (p.MaxHP == 0 || p.Level == 0)) {
+			t.Errorf("%d: %+v", s.VNum, p)
+		}
+	}
+}

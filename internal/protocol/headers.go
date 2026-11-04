@@ -8,6 +8,7 @@ package protocol
 type ClientHeader byte
 
 const (
+	ClientAttack          ClientHeader = 0x02 // a blow landing on a character, as the attacker's client saw it
 	ClientChat            ClientHeader = 0x03
 	ClientCreateCharacter ClientHeader = 0x04
 	ClientSelectCharacter ClientHeader = 0x06
@@ -42,6 +43,9 @@ const (
 	ServerMainCharacter    ServerHeader = 0x71 // who the player is and where
 	ServerChannel          ServerHeader = 0x79
 	ServerCharacterInfo    ServerHeader = 0x88 // a character's name and parts
+	ServerDead             ServerHeader = 0x0E // a character dies
+	ServerTarget           ServerHeader = 0x3F // the target's hit points, as a percentage
+	ServerDamage           ServerHeader = 0x87 // damage dealt, drawn over the victim
 	ServerSkillLevels      ServerHeader = 0x4C
 	ServerCharacterList    ServerHeader = 0x20 // LOGIN_SUCCESS4: four character slots
 	ServerEmpire           ServerHeader = 0x5A

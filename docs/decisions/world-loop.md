@@ -12,7 +12,7 @@ Each monster schedules its next act with `time.AfterFunc`. It needs no loop, but
 
 - **One goroutine** orders every monster's acts, and a test calls `tick(now)` with the time it chooses and a fixed seed, so no test waits for a stroll. (Checking that nothing arrives still waits 100 ms.) The end-to-end tests run the real loop: a monster in their view would first stroll 5 s after the server starts, and each test finishes in well under one.
 - **100 ms** is far finer than anything a monster does yet: the shortest wait between strolls is 5 s. A stroll starts at most 100 ms late, which nobody sees.
-- **The cost** is a scan of the monsters each tick: 36 µs with 16,000 of them (Measured, below). A server with many more would keep them ordered by when they next act.
+- **The cost** is a scan of the monsters each tick: 45 µs with 16,000 of them (Measured, below), outside the world lock but for a short take of the monsters killed since the last tick. A server with many more would keep them ordered by when they next act.
 
 ## Mobs see no mobs
 
@@ -20,14 +20,16 @@ The world record links a player with anyone in view; two mobs never link. Mobs o
 
 ## Measured
 
-`make bench` (`internal/game/world_bench_test.go`) measures the world record and loop with players and wild dogs spread at random over the three first maps, a counting sink standing in for each player's connection. It runs each benchmark six times; compare medians, since a single run can be far off (the first baseline, from one run, put a move among 1,000 players at 90 µs; six runs give 52). Medians on an Apple M3 Pro, Go 1.27.3, 2026-11-04, without the race detector:
+`make bench` (`internal/game/world_bench_test.go`) measures the world record and loop with players and wild dogs spread at random over the three first maps, a counting sink standing in for each player's connection. It runs each benchmark six times; compare medians, since a single run can be far off (the first baseline, from one run, put a move among 1,000 players at 90 µs; six runs give 52). Medians on an Apple M3 Pro, Go 1.27.3, 2026-11-04, without the race detector, with combat in:
 
 | One operation | 100 players, 160 monsters (today) | 1,000 and 1,600 | 10,000 and 16,000 |
 |---|---|---|---|
-| A player's move | 3.5 µs | 52 µs | 525 µs |
-| A monster's stroll | 3.3 µs | 41 µs | 614 µs |
-| A tick with nothing due | 0.3 µs | 3.1 µs | 36 µs |
-| A player entering and leaving | 2.8 µs | 33 µs | 365 µs |
+| A player's move | 3.5 µs | 52 µs | 537 µs |
+| A monster's stroll | 3.4 µs | 43 µs | 613 µs |
+| A tick with nothing due | 0.4 µs | 4.3 µs | 45 µs |
+| A player entering and leaving | 2.8 µs | 33 µs | 369 µs |
+
+Combat added a monster's hit points and pickers to the record and bodies and returns to the loop. Moves, strolls and entering stayed within 4% of the figures before it; an idle tick, which now also looks for bodies to take away and monsters to bring back, costs a quarter to two fifths more. A first version, which read every monster's death under the world lock each tick, tripled the idle tick and held the lock 97 µs of each tick at 16,000 monsters; the record now keeps a short list of the monsters killed since the loop last asked, so the loop's work under the lock grows with deaths, not with monsters.
 
 A move costs about 20 ns per character in the world, as the scan predicts. The world lock is held for every move, so the share of each second it is held is the moves per second times their cost:
 

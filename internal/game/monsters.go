@@ -7,6 +7,7 @@ import (
 	"math/rand/v2"
 	"time"
 
+	"github.com/SatoriAI/MT2-Go/internal/combat"
 	"github.com/SatoriAI/MT2-Go/internal/mob"
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
 	"github.com/SatoriAI/MT2-Go/internal/world"
@@ -23,14 +24,26 @@ const (
 	tick = 100 * time.Millisecond
 )
 
-// wanderer is a monster the world loop walks. Only the loop moves it, so where it stands
-// here is where the world record has it.
-type wanderer struct {
-	vid        uint32
+// A dead monster's body lies corpseTime, as open-mt2's does; a new one takes its place
+// in its spawn's area respawnAfter its death, this server's choice for the village
+// fields.
+const (
+	corpseTime   = 2 * time.Second
+	respawnAfter = 20 * time.Second
+)
+
+// monster is one the world loop walks, if it wanders, and brings back after it dies. Only the loop moves
+// it, so where it stands here is where the world record has it.
+type monster struct {
+	proto      mob.Proto
+	spawn      world.Spawn
+	p          *present
 	homeX      int32
 	homeY      int32
 	x, y       int32
 	nextStroll time.Time
+	diedAt     time.Time // zero while alive
+	gone       bool      // its body has been taken away
 }
 
 // Run puts the world's mobs in it, then walks the monsters until ctx ends.
@@ -65,35 +78,68 @@ func (s *Service) spawn(now time.Time) error {
 }
 
 func (s *Service) spawnOne(proto mob.Proto, sp world.Spawn, now time.Time) {
-	x, y := sp.X+s.spread(sp.Spread), sp.Y+s.spread(sp.Spread)
-	vid := s.lastVID.Add(1)
-	var facing float32 // an NPC faces the way its model was made to
-	if proto.Wanders() {
-		facing = float32(s.rand.IntN(8) * 45)
+	// Whatever can be killed is the loop's to take away and bring back, wandering or not.
+	if !proto.Fightable() {
+		s.presence.enter(s.newMob(proto, sp.X+s.spread(sp.Spread), sp.Y+s.spread(sp.Spread), 0))
+		return
 	}
-	s.presence.enter(&present{
+	m := &monster{proto: proto, spawn: sp}
+	s.place(m, now)
+	s.monsters = append(s.monsters, m)
+}
+
+// place puts the monster in the world afresh, at a random point of its spawn's area, with
+// a new vid and all its hit points.
+func (s *Service) place(m *monster, now time.Time) {
+	m.homeX, m.homeY = m.spawn.X+s.spread(m.spawn.Spread), m.spawn.Y+s.spread(m.spawn.Spread)
+	m.x, m.y = m.homeX, m.homeY
+	delete(s.byPresent, m.p)
+	m.p = s.newMob(m.proto, m.x, m.y, float32(s.rand.IntN(8)*45))
+	m.nextStroll, m.diedAt, m.gone = now.Add(s.strollWait()), time.Time{}, false
+	s.byPresent[m.p] = m
+	s.presence.enter(m.p)
+}
+
+func (s *Service) newMob(proto mob.Proto, x, y int32, facing float32) *present {
+	vid := s.lastVID.Add(1)
+	p := &present{
 		add: protocol.CharacterAdd{VID: vid, Rotation: facing, X: x, Y: y, Type: entityType(proto.Kind),
 			Race: proto.VNum, MoveSpeed: proto.MoveSpeed, AttackSpeed: proto.AttackSpeed},
 		info: protocol.CharacterInfo{VID: vid, Name: textToClient(proto.Name)},
-	})
-	if proto.Wanders() {
-		s.wanderers = append(s.wanderers, &wanderer{vid: vid, homeX: x, homeY: y, x: x, y: y,
-			nextStroll: now.Add(s.strollWait())})
+	}
+	if proto.Fightable() {
+		p.fight = &fight{hp: int(proto.MaxHP), maxHP: int(proto.MaxHP), targetedBy: map[*present]struct{}{},
+			defender: combat.Defender{Level: proto.Level, Dexterity: proto.Dexterity, Vitality: proto.Vitality,
+				Armour: proto.Armour}}
+	}
+	return p
+}
+
+// tick takes away the bodies whose time has come, brings back the monsters whose has, and
+// walks every living monster whose stroll is due.
+func (s *Service) tick(now time.Time) {
+	for _, d := range s.presence.takeFallen() {
+		s.byPresent[d.p].diedAt = d.at
+	}
+	for _, m := range s.monsters {
+		switch {
+		case !m.diedAt.IsZero() && !m.gone && !now.Before(m.diedAt.Add(corpseTime)):
+			s.presence.leave(m.p.add.VID)
+			m.gone = true
+		case m.gone && !now.Before(m.diedAt.Add(respawnAfter)):
+			s.place(m, now)
+		case m.diedAt.IsZero() && m.proto.Wanders() && !now.Before(m.nextStroll):
+			s.stroll(m, now)
+		}
 	}
 }
 
-// tick walks every monster whose stroll is due.
-func (s *Service) tick(now time.Time) {
-	for _, w := range s.wanderers {
-		if now.Before(w.nextStroll) {
-			continue
-		}
-		x, y := w.homeX+s.spread(wanderRange), w.homeY+s.spread(wanderRange)
-		m := protocol.Move{Type: protocol.MoveWait, Rotation: rotationTowards(x-w.x, y-w.y), X: x, Y: y, Time: s.clock.Now()}
-		s.presence.move(w.vid, m)
-		w.x, w.y = x, y
-		w.nextStroll = now.Add(s.strollWait())
-	}
+func (s *Service) stroll(m *monster, now time.Time) {
+	x, y := m.homeX+s.spread(wanderRange), m.homeY+s.spread(wanderRange)
+	move := protocol.Move{Type: protocol.MoveWait, Rotation: rotationTowards(x-m.x, y-m.y), X: x, Y: y, Time: s.clock.Now()}
+	s.presence.move(m.p.add.VID, move)
+	m.x, m.y = x, y
+	m.nextStroll = now.Add(s.strollWait())
 }
 
 // spread is a random offset of at most r either way.

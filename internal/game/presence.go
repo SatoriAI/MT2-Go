@@ -23,6 +23,7 @@ type presence struct {
 	mu     sync.Mutex
 	all    map[uint32]*present // by vid
 	byName map[string]*present // players, by lower-cased name: unique regardless of case
+	fallen []death             // monsters killed since the world loop last asked
 }
 
 // sender is where a player's packets go: their connection, which only queues them.
@@ -38,6 +39,8 @@ type present struct {
 	add       protocol.CharacterAdd
 	info      protocol.CharacterInfo
 	blocks    account.Blocks // what they refuse from others, as they last chose
+	target    *present       // the monster the player has picked, while they see it
+	fight     *fight         // a monster's hit points; nil for those that cannot be fought
 	// sees is who this player has been shown, by vid. Seeing is mutual, so both sides
 	// change together, and leaving tells exactly these.
 	sees map[uint32]*present
@@ -47,10 +50,12 @@ type present struct {
 // or an NPC only when its info follows its add, so the two go out as one send; it builds
 // a monster from the add alone, naming it from its own mob data, and drops an info for one.
 func (p *present) appearance() [][]byte {
-	if p.add.Type == protocol.EntityMonster {
-		return [][]byte{protocol.EncodeCharacterAdd(p.add)}
+	add := p.add
+	add.Dead = p.dead() // a body is shown lying until it is taken away
+	if add.Type == protocol.EntityMonster {
+		return [][]byte{protocol.EncodeCharacterAdd(add)}
 	}
-	return [][]byte{protocol.EncodeCharacterAdd(p.add), protocol.EncodeCharacterInfo(p.info)}
+	return [][]byte{protocol.EncodeCharacterAdd(add), protocol.EncodeCharacterInfo(p.info)}
 }
 
 func (p *present) isPlayer() bool { return p.out != nil }
@@ -73,9 +78,12 @@ func link(a, b *present) {
 	b.sees[a.add.VID] = a
 }
 
+// unlink parts a and b, and a player stops targeting what they no longer see.
 func unlink(a, b *present) {
 	delete(a.sees, b.add.VID)
 	delete(b.sees, a.add.VID)
+	untarget(a, b)
+	untarget(b, a)
 }
 
 // enter puts p in the world, and shows p and the others in its view to each other. The
@@ -110,6 +118,9 @@ func (w *presence) move(vid uint32, m protocol.Move) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	p := w.all[vid]
+	if p.dead() {
+		return // a body lies where it fell
+	}
 	// Kept as the client draws it, so whoever meets the character later sees it where it
 	// went and facing the way it last moved: the move counts in steps of 5 degrees.
 	p.add.X, p.add.Y, p.add.Rotation = m.X, m.Y, float32(m.Rotation)*5
@@ -147,7 +158,9 @@ func (w *presence) leave(vid uint32) {
 	defer w.mu.Unlock()
 	p := w.all[vid]
 	delete(w.all, vid)
-	delete(w.byName, strings.ToLower(p.info.Name))
+	if p.isPlayer() {
+		delete(w.byName, strings.ToLower(p.info.Name)) // a mob's name may be a player's too
+	}
 	toViewers(p, protocol.EncodeCharacterDelete(vid))
 	for _, other := range p.sees {
 		unlink(p, other)

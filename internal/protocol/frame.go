@@ -40,6 +40,7 @@ var clientFrames = map[ClientHeader]frameSpec{
 	ClientCreateCharacter: {size: 34, sequenced: true},
 	ClientSelectCharacter: {size: 2, sequenced: true},
 	ClientEnterGame:       {size: 1, sequenced: true},
+	ClientAttack:          {size: 8, sequenced: true},
 	ClientOnClick:         {size: 5, sequenced: true},
 	ClientTarget:          {size: 5, sequenced: true},
 	ClientMove:            {size: 16, sequenced: true},

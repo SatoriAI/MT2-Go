@@ -87,6 +87,27 @@ type Move struct {
 	Time     uint32 // the client's clock, as the handshake set it
 }
 
+// DecodeTarget reads the vid of the character the player picked as target, 0 for none.
+func DecodeTarget(body []byte) (uint32, error) {
+	r := NewReader(body)
+	vid := r.U32()
+	return vid, r.Err()
+}
+
+// Attack is a blow the attacker's client saw land. Skill is 0 for a plain or combo blow;
+// the two bytes after the victim are a check of the client's files, which is not read.
+type Attack struct {
+	Skill  uint8
+	Victim uint32
+}
+
+func DecodeAttack(body []byte) (Attack, error) {
+	r := NewReader(body)
+	a := Attack{Skill: r.U8(), Victim: r.U32()}
+	r.Skip(2)
+	return a, r.Err()
+}
+
 // MoveWait is the move a server sends to walk a character to a point, where it stops
 // (the client's FUNC_WAIT).
 const MoveWait uint8 = 0

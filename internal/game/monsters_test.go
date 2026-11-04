@@ -133,7 +133,7 @@ func TestAMonsterOutOfViewStrollsUnseen(t *testing.T) {
 	s.tick(noon.Add(wanderMax))
 
 	expectNothing(t, client)
-	if w := s.wanderers[0]; w.x == homeX && w.y == homeY {
+	if w := s.monsters[0]; w.x == homeX && w.y == homeY {
 		t.Error("it stayed home")
 	}
 }
@@ -152,7 +152,7 @@ func TestAnNPCNeverStrolls(t *testing.T) {
 func TestAMonsterWalkingIntoViewIsShownBeforeItsMove(t *testing.T) {
 	s := worldWith(t, world.Spawn{VNum: 101, X: homeX + 9000, Y: homeY, Count: 1})
 	client := s.playerAt(t, homeX, 0)
-	vid := s.wanderers[0].vid
+	vid := s.monsters[0].p.add.VID
 
 	s.presence.move(vid, protocol.Move{Type: protocol.MoveWait, X: homeX + 7000, Y: homeY})
 
@@ -166,10 +166,10 @@ func TestAMonsterWalkingIntoViewIsShownBeforeItsMove(t *testing.T) {
 func TestASpawnPutsItsCountWithinItsSpread(t *testing.T) {
 	s := worldWith(t, world.Spawn{VNum: 101, X: homeX, Y: homeY, Spread: 2500, Count: 6})
 
-	if len(s.wanderers) != 6 {
-		t.Fatalf("%d monsters, want 6", len(s.wanderers))
+	if len(s.monsters) != 6 {
+		t.Fatalf("%d monsters, want 6", len(s.monsters))
 	}
-	for _, w := range s.wanderers {
+	for _, w := range s.monsters {
 		if w.x < homeX-2500 || w.x > homeX+2500 || w.y < homeY-2500 || w.y > homeY+2500 {
 			t.Errorf("one stands at (%d, %d), outside its area", w.x, w.y)
 		}
@@ -214,7 +214,7 @@ func TestMobsDoNotSeeEachOther(t *testing.T) {
 func TestAMonsterMetLaterFacesTheWayItLastWalked(t *testing.T) {
 	s := worldWith(t, world.Spawn{VNum: 101, X: homeX, Y: homeY, Count: 1})
 	s.tick(noon.Add(wanderMax))
-	w := s.wanderers[0]
+	w := s.monsters[0]
 
 	client := s.playerAt(t, w.x, 0)
 

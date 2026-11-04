@@ -229,6 +229,14 @@ type CharacterAdd struct {
 	Race        uint16
 	MoveSpeed   uint8
 	AttackSpeed uint8
+	Dead        bool // shown lying, as a body: the client's ADD_CHARACTER_STATE_DEAD
+}
+
+func state(dead bool) uint8 {
+	if dead {
+		return 1
+	}
+	return 0
 }
 
 // EncodeCharacterAdd sends a character standing still with no effects on it.
@@ -243,7 +251,7 @@ func EncodeCharacterAdd(c CharacterAdd) []byte {
 	w.U16(c.Race)
 	w.U8(c.MoveSpeed)
 	w.U8(c.AttackSpeed)
-	w.U8(0)                // state
+	w.U8(state(c.Dead))
 	w.Raw(make([]byte, 8)) // effects
 	return w.Bytes()
 }
@@ -291,6 +299,36 @@ func EncodeMove(vid uint32, m Move) []byte {
 	w.I32(m.Y)
 	w.U32(m.Time)
 	w.U32(0) // duration
+	return w.Bytes()
+}
+
+// EncodeTarget tells the player how many of their target's hit points are left, as a
+// percentage; the client draws its target window's bar from it.
+func EncodeTarget(vid uint32, hpPercent uint8) []byte {
+	w := NewWriter(byte(ServerTarget), 6)
+	w.U32(vid)
+	w.U8(hpPercent)
+	return w.Bytes()
+}
+
+// DamageNormal is a plain blow, drawn as a number over the victim.
+const DamageNormal uint8 = 1
+
+// EncodeDamage tells the attacker how much a blow took. The client draws it only over its
+// own target or the player.
+func EncodeDamage(vid uint32, flags uint8, damage int32) []byte {
+	w := NewWriter(byte(ServerDamage), 10)
+	w.U32(vid)
+	w.U8(flags)
+	w.I32(damage)
+	return w.Bytes()
+}
+
+// EncodeDead tells the client the character died; it plays the death and keeps the body
+// until the character is deleted.
+func EncodeDead(vid uint32) []byte {
+	w := NewWriter(byte(ServerDead), 5)
+	w.U32(vid)
 	return w.Bytes()
 }
 

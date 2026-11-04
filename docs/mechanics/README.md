@@ -18,6 +18,7 @@ Pages state facts in our own words. They never paste code from another server or
 | [entering-the-world.md](entering-the-world.md) | Start, the loading screen, the main character, points and the player appearing in the world |
 | [chat.md](chat.md) | Packets with their own length, chat, and leaving the world through the game menu |
 | [other-players.md](other-players.md) | Seeing the others in range: arriving, moving, talking, leaving, and the view range |
+| [combat.md](combat.md) | Picking a monster, hitting it, its bar, its death and its return |
 | [monsters.md](monsters.md) | Village NPCs and monsters: where they stand, how they appear, and their strolls |
 | [whispers.md](whispers.md) | A line for one player by name, wherever they are, and keeping every one |
 

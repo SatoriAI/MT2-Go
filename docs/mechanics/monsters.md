@@ -2,7 +2,7 @@
 
 ## What the player sees
 
-Each first village has its villagers: the weapon and armour dealers, the general store, the storekeeper, the old lady, and fishermen along the water, each standing where the minimap marks them, with their name over their head. In the fields around the village are wild dogs, wolves, alpha wolves and boars. Every few seconds a monster strolls a few steps and stops, facing where it went. Walking away, they fade out like other players; walking back, they are there again. Nothing can be attacked yet.
+Each first village has its villagers: the weapon and armour dealers, the general store, the storekeeper, the old lady, and fishermen along the water, each standing where the minimap marks them, with their name over their head. In the fields around the village are wild dogs, wolves, alpha wolves and boars. Every few seconds a monster strolls a few steps and stops, facing where it went. Walking away, they fade out like other players; walking back, they are there again. Monsters can be fought ([combat.md](combat.md)); NPCs cannot.
 
 ## What the client does
 
@@ -64,7 +64,7 @@ The packets are the ones on [other-players.md](other-players.md) and [entering-t
 
 ## Not done yet
 
-- Combat: targeting, hits, damage, death, respawn, experience.
+- Experience, and monsters fighting back; picking, hitting, death and return are on [combat.md](combat.md).
 - Aggressive monsters noticing players.
 - Metin stones, bosses and groups of monsters.
 - Warps, and the other maps.
