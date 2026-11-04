@@ -11,9 +11,10 @@ import (
 // five seconds.
 const floodLines = 10
 
-// sayLines has hendra say n numbered lines, and checks kira and hendra each get them.
-func sayLines(hendra, kira *client, n int) {
-	for i := range n {
+// sayUpToTheLimit has hendra say as many numbered lines as the limit allows, and checks
+// kira and hendra each get them.
+func sayUpToTheLimit(hendra, kira *client) {
+	for i := range floodLines {
 		hendra.say(fmt.Sprint(i))
 		line := protocol.EncodeChat(protocol.ChatNormal, 1, 3, fmt.Sprintf("Hendra : %d", i))
 		hendra.expect(line)
@@ -25,7 +26,7 @@ func sayLines(hendra, kira *client, n int) {
 func TestALineOverTheFloodLimitReachesNobody(t *testing.T) {
 	h := start(t)
 	hendra, kira := h.hendraAndKira()
-	sayLines(hendra, kira, floodLines)
+	sayUpToTheLimit(hendra, kira)
 
 	hendra.say("one too many")
 
@@ -36,7 +37,7 @@ func TestALineOverTheFloodLimitReachesNobody(t *testing.T) {
 func TestWhispersCountAgainstTheSameLimitAsChat(t *testing.T) {
 	h := start(t)
 	hendra, kira := h.hendraAndKira()
-	sayLines(hendra, kira, floodLines)
+	sayUpToTheLimit(hendra, kira)
 
 	hendra.whisper("Kira", "hi")
 
@@ -51,7 +52,7 @@ func TestWhispersCountAgainstTheSameLimitAsChat(t *testing.T) {
 func TestACommandStillWorksOnceTheLimitIsReached(t *testing.T) {
 	h := start(t)
 	hendra, kira := h.hendraAndKira()
-	sayLines(hendra, kira, floodLines)
+	sayUpToTheLimit(hendra, kira)
 	hendra.say("one too many")
 
 	hendra.say("/phase_select")
