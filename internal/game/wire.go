@@ -5,6 +5,8 @@
 package game
 
 import (
+	"golang.org/x/text/encoding/charmap"
+
 	"github.com/SatoriAI/MT2-Go/internal/account"
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
 )
@@ -94,4 +96,12 @@ func summary(c account.Character) protocol.CharacterSummary {
 		Y:           c.Y,
 		SkillGroup:  skillGroupNumber(c.Class, c.SkillGroup),
 	}
+}
+
+// textFromClient turns text the client typed into UTF-8. The client writes in its Windows
+// code page, cp1250 for Polish (docs/mechanics/chat.md). The few bytes cp1250 leaves
+// undefined become U+FFFD; decoding never fails.
+func textFromClient(text string) string {
+	utf8, _ := charmap.Windows1250.NewDecoder().String(text)
+	return utf8
 }

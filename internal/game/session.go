@@ -32,11 +32,17 @@ type Accounts interface {
 	SavePosition(ctx context.Context, characterID uint32, x, y int32) error
 }
 
+// Whispers is where the game port keeps whispers, by character id.
+type Whispers interface {
+	Save(ctx context.Context, sender, recipient uint32, text string) error
+}
+
 // Service is what every game connection shares.
 type Service struct {
-	store Accounts
-	keys  *account.Keys
-	clock handshake.Clock
+	store    Accounts
+	whispers Whispers
+	keys     *account.Keys
+	clock    handshake.Clock
 	// public is the address the client is told to connect to for this game server. It
 	// has to be reachable from the client, so it is never 0.0.0.0.
 	public netip.AddrPort
@@ -49,9 +55,9 @@ type Service struct {
 	presence presence
 }
 
-func NewService(store Accounts, keys *account.Keys, clock handshake.Clock, public netip.AddrPort) *Service {
-	return &Service{store: store, keys: keys, clock: clock, public: public, claims: map[uint32]*claim{},
-		presence: presence{players: map[uint32]*present{}}}
+func NewService(store Accounts, whispers Whispers, keys *account.Keys, clock handshake.Clock, public netip.AddrPort) *Service {
+	return &Service{store: store, whispers: whispers, keys: keys, clock: clock, public: public, claims: map[uint32]*claim{},
+		presence: presence{players: map[uint32]*present{}, byName: map[string]*present{}}}
 }
 
 func (s *Service) NewSession(conn *network.Conn) network.Session {
@@ -110,9 +116,11 @@ func (s *session) Handle(ctx context.Context, f protocol.Frame) error {
 		return s.onMove(f.Body)
 	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientChat:
 		return s.onChat(f.Body)
+	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientWhisper:
+		return s.onWhisper(f.Body)
 	case s.phase == protocol.PhaseGame && (f.Header == protocol.ClientTarget || f.Header == protocol.ClientOnClick):
 		return nil // picking or clicking a character; nothing answers it yet
-	case s.leftWorld && (f.Header == protocol.ClientMove || f.Header == protocol.ClientChat):
+	case s.leftWorld && (f.Header == protocol.ClientMove || f.Header == protocol.ClientChat || f.Header == protocol.ClientWhisper):
 		return nil
 	}
 	return unexpected(f, s.phase)

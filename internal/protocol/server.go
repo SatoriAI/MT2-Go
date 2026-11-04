@@ -310,6 +310,29 @@ func EncodeChat(t ChatType, vid uint32, empire uint8, text string) []byte {
 	return w.Bytes()
 }
 
+// WhisperType is what a whisper packet carries. The numbers are the client's; only the
+// ones the server sends are named.
+type WhisperType uint8
+
+const (
+	WhisperLine      WhisperType = 0 // a line from the named player
+	WhisperNotOnline WhisperType = 1 // the named player is not in the game
+	WhisperError     WhisperType = 4 // the text is shown as it is
+)
+
+// EncodeWhisper sends a whisper about the named player: their line, or what became of a
+// line to them.
+func EncodeWhisper(t WhisperType, name, text string) []byte {
+	size := 1 + 2 + 1 + characterNameSize + len(text) + 1
+	w := NewWriter(byte(ServerWhisper), size)
+	w.U16(uint16(size)) //nolint:gosec // a line read in is at most maxSized (1024) bytes
+	w.U8(uint8(t))
+	w.String(name, characterNameSize)
+	w.Raw([]byte(text))
+	w.U8(0)
+	return w.Bytes()
+}
+
 // ChannelStatus is one channel the login screen lists.
 type ChannelStatus struct {
 	Port   uint16

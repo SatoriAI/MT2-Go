@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"net/netip"
+	"strings"
 	"testing"
 )
 
@@ -330,6 +331,63 @@ func TestChatIsSentWithItsTotalSizeTypeSpeakerAndText(t *testing.T) {
 
 	want := mustHex(t, "04"+"1500"+"00"+"07000000"+"03"+ // header, size 21, type, vid, kingdom
 		hex.EncodeToString([]byte("Hendra : hi"))+"00")
+	if !bytes.Equal(got, want) {
+		t.Errorf("got  %x\nwant %x", got, want)
+	}
+}
+
+func TestDecodeWhisperReadsTheNameAndKeepsTheClientsBytes(t *testing.T) {
+	body := append([]byte("Kira"), make([]byte, characterNameSize-4)...)
+	body = append(body, 'z', 0xB9, 'b', 0)
+
+	w, err := DecodeWhisper(body)
+
+	if err != nil || w != (Whisper{To: "Kira", Text: "z\xb9b"}) {
+		t.Fatalf("got %+q %v", w, err)
+	}
+}
+
+// The client copies at most 24 bytes of the name and leaves the 25th as it was in its
+// memory, so that byte is never part of the name.
+func TestDecodeWhisperIgnoresTheLastByteOfTheNameField(t *testing.T) {
+	body := append(bytes.Repeat([]byte{'a'}, characterNameSize-1), 0x7F, 'h', 'i', 0)
+
+	w, err := DecodeWhisper(body)
+
+	if err != nil || w != (Whisper{To: strings.Repeat("a", characterNameSize-1), Text: "hi"}) {
+		t.Fatalf("got %+q %v", w, err)
+	}
+}
+
+func TestDecodeWhisperRefusesTextWithoutItsTerminator(t *testing.T) {
+	body := append(make([]byte, characterNameSize), 'h', 'i')
+	if _, err := DecodeWhisper(body); !errors.Is(err, ErrNoTerminator) {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestDecodeWhisperRefusesABodyShorterThanTheName(t *testing.T) {
+	if _, err := DecodeWhisper([]byte("Kira")); !errors.Is(err, ErrShort) {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestAWhisperIsSentWithItsSizeTypeNameAndText(t *testing.T) {
+	got := EncodeWhisper(WhisperLine, "Hendra", "hi")
+
+	want := mustHex(t, "22"+"2000"+"00"+ // header, size 32, type
+		hex.EncodeToString([]byte("Hendra"))+strings.Repeat("00", characterNameSize-6)+
+		hex.EncodeToString([]byte("hi"))+"00")
+	if !bytes.Equal(got, want) {
+		t.Errorf("got  %x\nwant %x", got, want)
+	}
+}
+
+func TestNotOnlineIsSentWithTheNameAndNoText(t *testing.T) {
+	got := EncodeWhisper(WhisperNotOnline, "Nobody", "")
+
+	want := mustHex(t, "22"+"1e00"+"01"+ // header, size 30, type
+		hex.EncodeToString([]byte("Nobody"))+strings.Repeat("00", characterNameSize-6)+"00")
 	if !bytes.Equal(got, want) {
 		t.Errorf("got  %x\nwant %x", got, want)
 	}

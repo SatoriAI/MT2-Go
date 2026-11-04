@@ -2,7 +2,7 @@
 
 ## What the player sees
 
-In the world, the player types a line and it appears once in their chat window as "Name : text", and in a bubble above their character's head. Everyone near the speaker sees it too (see [other-players.md](other-players.md)). The game menu's **Change character**, **Logout** and **Exit** work, and the character comes back where it stood.
+In the world, the player types a line and it appears once in their chat window as "Name : text", and in a bubble above their character's head. Everyone near the speaker sees it too (see [other-players.md](other-players.md)); a line for one player is a whisper ([whispers.md](whispers.md)). The game menu's **Change character**, **Logout** and **Exit** work, and the character comes back where it stood.
 
 ## What the client does
 
@@ -48,7 +48,7 @@ The phase packet with `0`: the connection is ending.
 - **A line** goes back to its speaker, and to everyone in their view, as "Name : text", type normal, with their vid and kingdom. The client doesn't draw its own line itself: with no reply, nothing appears. With the speaker's vid, the line appears once and in a bubble over the speaker. With vid 0, it appears only in the chat window. The bytes are kept as the client sent them, so Polish letters survive; open-mt2 decodes them as ASCII and garbles them. Party, guild and shout are answered as normal for now. An empty line gets no answer.
 - **`/quit`:** the server replies with chat of type command and the text `quit`, which tells the client to close itself. With the real client, it closed.
 - **`/logout`:** phase close, then the connection ends. With the real client, it went back to the login screen.
-- **`/phase_select`:** the character leaves the world (saved, and its claim released), then the server sends phase select **alone**. The client, still in its game window, ignores a kingdom and list sent ahead of the phase: tried first, it stayed in the game and went on sending moves. With the phase alone it shows the character screen. When the player then presses Start, it reconnects and logs in with its key again, getting a fresh list. Moves and chat the client sent before it took in the phase are dropped on the old connection until the next Start, rather than ending it as out of their phase.
+- **`/phase_select`:** the character leaves the world (saved, and its claim released), then the server sends phase select **alone**. The client, still in its game window, ignores a kingdom and list sent ahead of the phase: tried first, it stayed in the game and went on sending moves. With the phase alone it shows the character screen. When the player then presses Start, it reconnects and logs in with its key again, getting a fresh list. Moves, chat and whispers the client sent before it took in the phase are dropped on the old connection until the next Start, rather than ending it as out of their phase.
 - **Every other command** is logged and ignored.
 - **When they act:** the original game counts down before leaving, so nobody escapes a fight. With no fighting yet, these act at once.
 - **Saving:** in every case the position is saved, through the same path as a dropped connection.
@@ -71,13 +71,12 @@ The phase packet with `0`: the connection is ending.
   - `/quit` answered;
   - `/logout` closing and keeping the position;
   - `/phase_select` answered with the phase alone, and Start on a new connection then loading the character where it was left;
-  - moves and chat in flight after `/phase_select` ignored;
+  - moves, chat and whispers in flight after `/phase_select` ignored;
   - chat before entering the world held while incomplete, which shows it was framed, then closing the connection.
 - `internal/game/session_test.go`: the error for a packet out of its phase shows at most 64 bytes of its body, and none of a login packet's.
 
 ## Not done yet
 
-- Whispers, and a range for a line shorter than the map.
 - The leave countdown.
 - A limit on how fast a player may talk.
 - The GM and insult filters.

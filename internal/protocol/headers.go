@@ -13,6 +13,7 @@ const (
 	ClientSelectCharacter ClientHeader = 0x06
 	ClientMove            ClientHeader = 0x07
 	ClientEnterGame       ClientHeader = 0x0A
+	ClientWhisper         ClientHeader = 0x13
 	ClientOnClick         ClientHeader = 0x1A // a click on a character, for talking to it
 	ClientTarget          ClientHeader = 0x3D // a character picked as target, or 0 for none
 	ClientMarkLogin       ClientHeader = 0x64
@@ -36,6 +37,7 @@ const (
 	ServerMove             ServerHeader = 0x03 // another character moves
 	ServerChat             ServerHeader = 0x04
 	ServerPoints           ServerHeader = 0x10
+	ServerWhisper          ServerHeader = 0x22
 	ServerTime             ServerHeader = 0x6A
 	ServerMainCharacter    ServerHeader = 0x71 // who the player is and where
 	ServerChannel          ServerHeader = 0x79

@@ -61,7 +61,7 @@ func start(t *testing.T) *harness {
 	accounts := store.Accounts{Pool: pool}
 	done := make(chan error, 1)
 	go func() {
-		done <- Serve(ctx, Ports{Auth: authLn, Game: gameLn}, accounts, cfg, slog.New(slog.DiscardHandler))
+		done <- Serve(ctx, Ports{Auth: authLn, Game: gameLn}, pool, cfg, slog.New(slog.DiscardHandler))
 	}()
 	stop := sync.OnceValue(func() error {
 		cancel()
@@ -931,7 +931,7 @@ func TestChangeCharacterReturnsToTheCharacterScreen(t *testing.T) {
 
 // The client may still send what it wrote before it took in the select phase; that is
 // dropped rather than treated as out of its phase.
-func TestMovesAndChatInFlightAfterChangeCharacterAreIgnored(t *testing.T) {
+func TestMovesChatAndWhispersInFlightAfterChangeCharacterAreIgnored(t *testing.T) {
 	h := start(t)
 	game, _ := h.hendraInWorld()
 	game.say("/phase_select")
@@ -939,6 +939,7 @@ func TestMovesAndChatInFlightAfterChangeCharacterAreIgnored(t *testing.T) {
 
 	game.send(moveTo(963600, 278400))
 	game.say("hi")
+	game.whisper("Kira", "hi")
 
 	game.expectOpen()
 }
