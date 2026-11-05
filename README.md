@@ -7,7 +7,7 @@ A Metin2 server written from scratch in Go: every mechanic documented and unders
 
 ## Status
 
-Early. The original TMP4 client (r40250) logs in, chooses a kingdom, creates a character and enters the world. There a player sees the others near them and chats with them, whispers to anyone in the game, with each delivered whisper kept in the database, and can block whispers. The first villages have their NPCs and wandering monsters; monsters can be fought and bite back, a player can die and restart, both heal over time, and hit points and mana are kept between logins. Killing monsters gives experience, levels and stat points to spend. Experience events, scheduled from the command line, multiply it for a span of time. Local use only: nothing here is hardened for a public server.
+Early. The original TMP4 client (r40250) logs in, chooses a kingdom, creates a character and enters the world. There a player sees the others near them and chats with them, whispers to anyone in the game, with each delivered whisper kept in the database, and can block whispers. The first villages have their NPCs and wandering monsters; monsters can be fought and bite back, a player can die and restart, both heal over time, and hit points and mana are kept between logins. Killing monsters gives experience, levels and stat points to spend. Experience events, scheduled from the command line, multiply it for a span of time. Characters own items, given or taken on the command line, and see and move them in the inventory. Local use only: nothing here is hardened for a public server.
 
 Each mechanic is written up in [`docs/mechanics/`](docs/mechanics/) — what the client does, the exact bytes, what the server does and how we know. That is the best place to start reading.
 

@@ -47,6 +47,16 @@ var clientFrames = map[ClientHeader]frameSpec{
 	ClientChat:            {sized: true, sequenced: true},
 	ClientWhisper:         {sized: true, sequenced: true},
 	ClientVersion:         {size: 67, sequenced: true},
+	ClientItemUse:         {size: 4, sequenced: true},
+	ClientItemDrop:        {size: 8, sequenced: true},
+	ClientItemMove:        {size: 8, sequenced: true},
+	ClientQuickslotAdd:    {size: 4, sequenced: true},
+	ClientQuickslotDel:    {size: 2, sequenced: true},
+	ClientQuickslotSwap:   {size: 3, sequenced: true},
+	ClientItemDrop2:       {size: 9, sequenced: true},
+	ClientExchange:        {size: 10, sequenced: true},
+	ClientItemUseToItem:   {size: 7, sequenced: true},
+	ClientGiveItem:        {size: 9, sequenced: true},
 }
 
 // ErrIncomplete means the buffer holds only part of the next packet; read more first.

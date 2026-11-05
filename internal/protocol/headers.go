@@ -14,6 +14,16 @@ const (
 	ClientSelectCharacter ClientHeader = 0x06
 	ClientMove            ClientHeader = 0x07
 	ClientEnterGame       ClientHeader = 0x0A
+	ClientItemUse         ClientHeader = 0x0B // a double-click on an item
+	ClientItemDrop        ClientHeader = 0x0C
+	ClientItemMove        ClientHeader = 0x0D // an item dragged to another cell
+	ClientQuickslotAdd    ClientHeader = 0x10 // an item or skill dragged to the taskbar
+	ClientQuickslotDel    ClientHeader = 0x11
+	ClientQuickslotSwap   ClientHeader = 0x12
+	ClientItemDrop2       ClientHeader = 0x14 // an item dragged out onto the ground
+	ClientExchange        ClientHeader = 0x1B // a trade with another player, from dragging an item onto them
+	ClientItemUseToItem   ClientHeader = 0x3C // an item dropped onto another
+	ClientGiveItem        ClientHeader = 0x53 // an item dragged onto an NPC
 	ClientWhisper         ClientHeader = 0x13
 	ClientOnClick         ClientHeader = 0x1A // a click on a character, for talking to it
 	ClientTarget          ClientHeader = 0x3D // a character picked as target, or 0 for none
@@ -39,6 +49,7 @@ const (
 	ServerChat             ServerHeader = 0x04
 	ServerPoints           ServerHeader = 0x10
 	ServerPointChange      ServerHeader = 0x11 // one of a character's points changes
+	ServerItemSet          ServerHeader = 0x14 // an item in a cell, or vnum 0 for none
 	ServerWhisper          ServerHeader = 0x22
 	ServerTime             ServerHeader = 0x6A
 	ServerMainCharacter    ServerHeader = 0x71 // who the player is and where
