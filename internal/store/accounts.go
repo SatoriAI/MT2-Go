@@ -115,12 +115,12 @@ func (a Accounts) withAccount(ctx context.Context, id int64, fn func(pgx.Tx, acc
 
 // characterColumns are what account.Character holds, in the order scanCharacter reads them.
 const characterColumns = `id, slot, name, class, sex, shape, level, exp, stat_points, play_minutes,
-	vitality, intelligence, strength, dexterity, hair, x, y, coalesce(skill_group, ''), blocks`
+	coalesce(hp, 0), coalesce(sp, 0), vitality, intelligence, strength, dexterity, hair, x, y, coalesce(skill_group, ''), blocks`
 
 func scanCharacter(row pgx.Row) (account.Character, error) {
 	var c account.Character
 	err := row.Scan(&c.ID, &c.Slot, &c.Name, &c.Class, &c.Sex, &c.Shape, &c.Level, &c.Exp, &c.StatPoints, &c.PlayMinutes,
-		&c.Vitality, &c.Intelligence, &c.Strength, &c.Dexterity, &c.Hair, &c.X, &c.Y, &c.SkillGroup, &c.Blocks)
+		&c.HP, &c.SP, &c.Vitality, &c.Intelligence, &c.Strength, &c.Dexterity, &c.Hair, &c.X, &c.Y, &c.SkillGroup, &c.Blocks)
 	return c, err
 }
 
@@ -143,13 +143,14 @@ func (a Accounts) Character(ctx context.Context, accountID int64, slot int) (acc
 	return c, err
 }
 
-// SaveProgress keeps the character's level, experience, unspent stat points and stats.
+// SaveProgress keeps the character's level, experience, unspent stat points, stats, hit
+// points and mana.
 func (a Accounts) SaveProgress(ctx context.Context, c account.Character) error {
 	_, err := a.Pool.Exec(ctx, `
 		UPDATE characters SET level = $2, exp = $3, stat_points = $4,
-		                      strength = $5, vitality = $6, dexterity = $7, intelligence = $8
+		                      strength = $5, vitality = $6, dexterity = $7, intelligence = $8, hp = $9, sp = $10
 		WHERE id = $1`,
-		c.ID, c.Level, c.Exp, c.StatPoints, c.Strength, c.Vitality, c.Dexterity, c.Intelligence)
+		c.ID, c.Level, c.Exp, c.StatPoints, c.Strength, c.Vitality, c.Dexterity, c.Intelligence, c.HP, c.SP)
 	return err
 }
 

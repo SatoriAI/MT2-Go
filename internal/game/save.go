@@ -9,7 +9,7 @@ import (
 	"github.com/SatoriAI/MT2-Go/internal/world"
 )
 
-// saveTimeout bounds one save of a character: its position and progress.
+// saveTimeout bounds one save of a character: its position, progress and hit points.
 const saveTimeout = 5 * time.Second
 
 // SavePlayers saves every player in the world every so often until ctx ends, so a crash
@@ -34,8 +34,9 @@ func (s *Service) SavePlayers(ctx context.Context, every time.Duration, log *slo
 }
 
 // saveInWorld saves a player as they stand now, if they are still in the world; one who
-// left was saved on leaving. Holding p.saving keeps this save and the one on leaving in
-// order, so an older snapshot never lands after the last.
+// left was saved on leaving. One lying dead is not saved until they restart or leave.
+// Holding p.saving keeps this save and the one on leaving in order, so an older snapshot
+// never lands after the last.
 func (s *Service) saveInWorld(p *present, log *slog.Logger) {
 	p.saving.Lock()
 	defer p.saving.Unlock()
@@ -47,16 +48,20 @@ func (s *Service) saveInWorld(p *present, log *slog.Logger) {
 // leaveAndSave takes the player out of the world, after which nobody else touches the
 // character, and saves it once any save of it already under way has landed. The position
 // is the world record's, as the periodic save's is, so the two never disagree. A player
-// who leaves dead is kept at their kingdom's start, as a restart in town would put them,
-// since they come back with all their hit points.
+// who leaves dead is saved as a restart in town would leave them: at their kingdom's
+// start, with all their hit points and mana.
 func (s *Service) leaveAndSave(c *character, empire account.Empire, log *slog.Logger) {
 	p := s.presence.leave(c.vid)
 	p.saving.Lock()
 	defer p.saving.Unlock()
 	saved := c.Character
 	saved.X, saved.Y = p.add.X, p.add.Y
-	if x, y, ok := empire.StartPosition(); ok && p.dead() {
-		saved.X, saved.Y = x, y
+	if p.dead() {
+		if x, y, ok := empire.StartPosition(); ok {
+			saved.X, saved.Y = x, y
+		}
+		points, _ := saved.Points()
+		saved.HP, saved.SP = points.MaxHP, points.MaxSP
 	}
 	s.save(saved, log, slog.LevelWarn)
 }

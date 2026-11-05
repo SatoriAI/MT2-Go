@@ -104,8 +104,8 @@ type Character struct {
 	Level      uint8
 	Exp        uint32 // towards the next level
 	StatPoints uint16 // earned by levelling, not yet spent
-	HP, SP     uint32 // in play only: a character enters with both full
-	// LastFought is in play only, like HP and SP: when it last landed a blow or took a bite.
+	HP, SP     uint32 // kept between logins; both 0 for a character never saved in play
+	// LastFought is in play only: when it last landed a blow or took a bite.
 	// It lives here, not on the world record's entry, which must stay small (world-loop.md).
 	LastFought  time.Time
 	PlayMinutes uint32

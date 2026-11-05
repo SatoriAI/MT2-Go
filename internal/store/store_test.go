@@ -197,8 +197,8 @@ func waitUntilBlockedBy(t *testing.T, pool *pgxpool.Pool, holder int32) {
 	t.Fatal("nothing ever waited on the account lock: the call under test does not take it")
 }
 
-// What a character earns is kept whole: level, experience, unspent points and stats come
-// back as they were saved.
+// What a character earns is kept whole: level, experience, unspent points, stats, hit
+// points and mana come back as they were saved; a character never saved has neither.
 func TestProgressIsKept(t *testing.T) {
 	ctx := context.Background()
 	accounts, id := accountInShinsoo(t)
@@ -208,10 +208,10 @@ func TestProgressIsKept(t *testing.T) {
 		t.Fatal(err)
 	}
 	c, err := accounts.Character(ctx, id, 0)
-	if err != nil {
-		t.Fatal(err)
+	if err != nil || c.HP != 0 || c.SP != 0 {
+		t.Fatalf("a new character has %d and %d (%v)", c.HP, c.SP, err)
 	}
-	c.Level, c.Exp, c.StatPoints = 98, 2_029_047_115, 294
+	c.Level, c.Exp, c.StatPoints, c.HP, c.SP = 98, 2_029_047_115, 294, 13_300, 0
 	c.Stats = account.Stats{Strength: 90, Vitality: 41, Dexterity: 12, Intelligence: 7}
 
 	if err := accounts.SaveProgress(ctx, c); err != nil {
@@ -219,7 +219,9 @@ func TestProgressIsKept(t *testing.T) {
 	}
 
 	got, err := accounts.Character(ctx, id, 0)
-	if err != nil || got.Level != 98 || got.Exp != 2_029_047_115 || got.StatPoints != 294 || got.Stats != c.Stats {
-		t.Fatalf("got level %d, %d exp, %d points, %+v; err %v", got.Level, got.Exp, got.StatPoints, got.Stats, err)
+	if err != nil || got.Level != 98 || got.Exp != 2_029_047_115 || got.StatPoints != 294 || got.Stats != c.Stats ||
+		got.HP != 13_300 || got.SP != 0 {
+		t.Fatalf("got level %d, %d exp, %d points, %+v, %d and %d; err %v", got.Level, got.Exp, got.StatPoints, got.Stats,
+			got.HP, got.SP, err)
 	}
 }
