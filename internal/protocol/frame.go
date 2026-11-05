@@ -57,6 +57,7 @@ var clientFrames = map[ClientHeader]frameSpec{
 	ClientExchange:        {size: 10, sequenced: true},
 	ClientItemUseToItem:   {size: 7, sequenced: true},
 	ClientGiveItem:        {size: 9, sequenced: true},
+	ClientItemPickup:      {size: 5, sequenced: true},
 }
 
 // ErrIncomplete means the buffer holds only part of the next packet; read more first.

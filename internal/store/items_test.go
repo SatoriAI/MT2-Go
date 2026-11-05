@@ -247,3 +247,21 @@ func TestTheArmourWornIsReadWithTheCharacter(t *testing.T) {
 		t.Fatalf("read wearing %d (%v)", c.Body, err)
 	}
 }
+
+// An item picked up is kept as a new item, and a stack it joins at its new count.
+func TestAnItemPickedUpIsKept(t *testing.T) {
+	s, cid := hendrasItems(t)
+	id, err := s.Add(context.Background(), cid, item.Item{VNum: 27001, Count: 1, Cell: 4})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := s.SetCount(context.Background(), id, 2); err != nil {
+		t.Fatal(err)
+	}
+
+	inv, _, _ := s.Owned(context.Background(), "Hendra")
+	if len(inv) != 1 || inv[0] != (item.Item{ID: id, VNum: 27001, Count: 2, Cell: 4}) {
+		t.Fatalf("kept %+v", inv)
+	}
+}

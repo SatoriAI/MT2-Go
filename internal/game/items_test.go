@@ -17,7 +17,25 @@ type keptItems struct {
 	Items // the rest is never called
 	moved map[int64]uint16
 	worn  map[int64]item.Wear
+	added []item.Item
+	count map[int64]uint8
 	fail  error
+}
+
+func (k *keptItems) Add(_ context.Context, _ uint32, it item.Item) (int64, error) {
+	if k.fail != nil {
+		return 0, k.fail
+	}
+	k.added = append(k.added, it)
+	return int64(100 + len(k.added)), nil
+}
+
+func (k *keptItems) SetCount(_ context.Context, id int64, count uint8) error {
+	if k.fail != nil {
+		return k.fail
+	}
+	k.count[id] = count
+	return nil
 }
 
 func (k *keptItems) Place(_ context.Context, items ...item.Item) error {
@@ -37,7 +55,7 @@ const itemSetSize = 42
 func carrying(t *testing.T) (*session, *keptItems, net.Conn) {
 	t.Helper()
 	conn, client := watcher(t)
-	kept := &keptItems{moved: map[int64]uint16{}, worn: map[int64]item.Wear{}}
+	kept := &keptItems{moved: map[int64]uint16{}, worn: map[int64]item.Wear{}, count: map[int64]uint8{}}
 	s := &session{svc: &Service{items: kept}, conn: conn, phase: protocol.PhaseGame, inventory: item.Inventory{
 		{ID: 1, VNum: 10, Count: 1, Cell: 0}, {ID: 2, VNum: 27001, Count: 50, Cell: 1}}}
 	return s, kept, client

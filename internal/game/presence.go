@@ -22,11 +22,12 @@ const viewRange = 8000
 // client. A send that fails is left: that connection closes itself.
 type presence struct {
 	mu       sync.Mutex
-	all      map[uint32]*present // by vid
-	byName   map[string]*present // players, by lower-cased name: unique regardless of case
-	fallen   []death             // monsters killed since the world loop last asked
-	provoked []provocation       // blows on living monsters since the world loop last asked
-	event    *event.Event        // the event running; nil for none
+	all      map[uint32]*present    // by vid
+	byName   map[string]*present    // players, by lower-cased name: unique regardless of case
+	fallen   []death                // monsters killed since the world loop last asked
+	provoked []provocation          // blows on living monsters since the world loop last asked
+	event    *event.Event           // the event running; nil for none
+	ground   map[uint32]*groundItem // items lying in the world, by vid
 }
 
 // sender is where a player's packets go: their connection, which only queues them.
@@ -120,6 +121,9 @@ func (w *presence) enterLocked(p *present) {
 			others = append(others, other.appearance()...)
 		}
 	}
+	if p.isPlayer() {
+		others = append(others, w.groundInView(p, false)...)
+	}
 	p.send(others...)
 	w.all[p.add.VID] = p
 	if p.isPlayer() {
@@ -143,10 +147,14 @@ func (w *presence) moveLocked(p *present, m protocol.Move) {
 	if p.dead() {
 		return // a body lies where it fell
 	}
+	fromX, fromY := p.add.X, p.add.Y
 	// Kept as the client draws it, so whoever meets the character later sees it where it
 	// went and facing the way it last moved: the move counts in steps of 5 degrees.
 	p.add.X, p.add.Y, p.add.Rotation = m.X, m.Y, float32(m.Rotation)*5
 	var mine [][]byte
+	if p.isPlayer() {
+		mine = w.groundSeen(p, fromX, fromY)
+	}
 	for _, other := range w.all {
 		if other == p {
 			continue
@@ -189,6 +197,9 @@ func (w *presence) leaveLocked(p *present) {
 	delete(w.all, vid)
 	if p.isPlayer() {
 		delete(w.byName, strings.ToLower(p.info.Name)) // a mob's name may be a player's too
+		// The connection stays open through Change character and a restart: the client must
+		// not keep these, nor be shown them twice on coming back.
+		p.send(w.groundInView(p, true)...)
 	}
 	toViewers(p, protocol.EncodeCharacterDelete(vid))
 	for _, other := range p.sees {

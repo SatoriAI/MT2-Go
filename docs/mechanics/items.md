@@ -45,6 +45,7 @@ Seen from the real client: a sword dragged from cell 0 to 17 sends `0D 01 00 00 
 
 - **The kinds** are a table in `internal/item`, only those the game hands out: each class's first weapons and body armour, and red and blue potions. The Copper Bell went when equipment came, as it needs level 10 and only the starters are kept. Each has its vnum, the Polish client's name, its height in cells, and how many one item holds, 1 or 200; what is worn says more ([equipment.md](equipment.md)). A kind is added with a line there. A stack holds up to 200, as open-mt2's shops sell potions.
 - **An item** is a row: its kind, its count, and the cell of its top. The database keeps two items from sharing a top cell, and the game keeps a tall item from covering another's cells. Every change is written as it happens, never in a periodic save, so a crash neither loses nor duplicates an item.
+- **Where items come from:** monsters' drops ([drops.md](drops.md)), and the command line.
 - **Giving and taking** are orders, left by the command line while there is no website:
 
   ```bash
@@ -104,7 +105,7 @@ Seen from the real client: a sword dragged from cell 0 to 17 sends `0D 01 00 00 
 
 ## Not done yet
 
-- **Drops** from monsters, and yang.
+- Yang.
 - Using items and potions, dropping them, the taskbar.
 - Splitting, merging and swapping stacks.
 - Trading, shops, the storekeeper's safebox.

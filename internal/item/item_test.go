@@ -165,3 +165,20 @@ func TestEveryWornKindHasItsClassesAndStats(t *testing.T) {
 		}
 	}
 }
+
+// Potions picked up join a stack of their kind with room for all of them; when none has,
+// or for a kind that does not stack, they take the first free cell.
+func TestAnItemPickedUpJoinsItsStackOrTakesAFreeCell(t *testing.T) {
+	inv := Inventory{{ID: 1, VNum: 27001, Count: 199, Cell: 0}, {ID: 2, VNum: 27001, Count: 5, Cell: 1},
+		{ID: 3, VNum: 10, Count: 1, Cell: 2}}
+
+	if got, ok := inv.RoomFor(potion, 3); !ok || got != (Item{ID: 2, VNum: 27001, Count: 8, Cell: 1}) {
+		t.Errorf("3 potions: %+v (%v), want the stack of 5 at 8", got, ok)
+	}
+	if got, ok := inv.RoomFor(potion, 196); !ok || got.ID != 0 || got.Cell != 3 || got.Count != 196 {
+		t.Errorf("196 potions: %+v (%v), want a new stack at 3", got, ok)
+	}
+	if got, ok := inv.RoomFor(sword, 1); !ok || got.ID != 0 || got.Cell != 3 {
+		t.Errorf("a sword: %+v (%v), want a new one at 3", got, ok)
+	}
+}

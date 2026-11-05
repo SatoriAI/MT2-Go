@@ -143,6 +143,19 @@ func (inv Inventory) Free(p Proto) (uint16, bool) {
 	return 0, false
 }
 
+// RoomFor is where count of kind p picked up goes: onto a stack of its kind with room for
+// all of it, as that stack would then be, or a new item in the first cells it fits.
+func (inv Inventory) RoomFor(p Proto, count uint8) (Item, bool) {
+	for _, it := range inv {
+		if it.VNum == p.VNum && it.Worn == "" && p.Stack > 1 && int(it.Count)+int(count) <= int(p.Stack) {
+			it.Count += count
+			return it, true
+		}
+	}
+	cell, ok := inv.Free(p)
+	return Item{VNum: p.VNum, Count: count, Cell: cell}, ok
+}
+
 // At returns the item whose top stands at cell.
 func (inv Inventory) At(cell uint16) (Item, bool) {
 	for _, it := range inv {
