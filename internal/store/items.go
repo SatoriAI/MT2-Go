@@ -149,6 +149,12 @@ func (s Items) SetCount(ctx context.Context, id int64, count uint8) error {
 	return err
 }
 
+// Remove forgets an item the character no longer has, such as the last potion of a stack.
+func (s Items) Remove(ctx context.Context, id int64) error {
+	_, err := s.Pool.Exec(ctx, `DELETE FROM items WHERE id = $1`, id)
+	return err
+}
+
 // UnknownKinds returns the kinds owned or ordered that are not among known, in order.
 func (s Items) UnknownKinds(ctx context.Context, known []uint32) ([]uint32, error) {
 	rows, err := s.Pool.Query(ctx, `

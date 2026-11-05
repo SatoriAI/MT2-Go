@@ -19,6 +19,8 @@ type Items interface {
 	// Add keeps a new item the character owns and returns its id; SetCount keeps a stack's.
 	Add(ctx context.Context, characterID uint32, it item.Item) (int64, error)
 	SetCount(ctx context.Context, id int64, count uint8) error
+	// Remove forgets an item the character no longer has.
+	Remove(ctx context.Context, id int64) error
 }
 
 // loadInventory carries out the orders waiting for the character, and keeps what it then
@@ -71,8 +73,9 @@ func (s *session) onItemMove(body []byte) error {
 	return s.conn.Send(itemSet(it))
 }
 
-// onItemUse answers a double-click: an item that is worn is put on, and one worn is
-// taken off into the first cells it fits. Using anything else is not done yet.
+// onItemUse answers a double-click: an item that is worn is put on, one worn is taken
+// off into the first cells it fits, and a potion is drunk. Using anything else is not
+// done yet.
 func (s *session) onItemUse(body []byte) error {
 	at, err := protocol.DecodeItemUse(body)
 	if err != nil {
@@ -91,6 +94,8 @@ func (s *session) onItemUse(body []byte) error {
 		return s.conn.Send(itemSet(it))
 	case p.Wear != "":
 		return s.putOn(it)
+	case p.HP > 0 || p.SP > 0:
+		return s.drink(it)
 	}
 	s.conn.Log().Debug("item use not handled yet", "item", it.ID, "vnum", it.VNum)
 	return nil

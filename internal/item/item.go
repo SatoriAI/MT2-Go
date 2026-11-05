@@ -36,6 +36,9 @@ type Proto struct {
 	AttackMin uint16 // a weapon's attack, rolled for each blow
 	AttackMax uint16
 	Defence   uint16 // armour's
+
+	// What a potion restores when it is drunk; a kind restoring neither is not drunk.
+	HP, SP uint16
 }
 
 var (
@@ -90,9 +93,9 @@ var protos = map[uint32]Proto{
 		Classes: []account.Class{account.Sura}, Defence: 12},
 	11800: {VNum: 11800, Name: "Błękitna Szata+0", Size: 2, Stack: 1, Wear: Body,
 		Classes: []account.Class{account.Shaman}, Defence: 12},
-	27001: {VNum: 27001, Name: "Czerwona Mikstura(M)", Size: 1, Stack: MaxStack},
-	27002: {VNum: 27002, Name: "Czerwona Mikstura(Ś)", Size: 1, Stack: MaxStack},
-	27004: {VNum: 27004, Name: "Niebieska Mikstura(M)", Size: 1, Stack: MaxStack},
+	27001: {VNum: 27001, Name: "Czerwona Mikstura(M)", Size: 1, Stack: MaxStack, HP: 300},
+	27002: {VNum: 27002, Name: "Czerwona Mikstura(Ś)", Size: 1, Stack: MaxStack, HP: 800},
+	27004: {VNum: 27004, Name: "Niebieska Mikstura(M)", Size: 1, Stack: MaxStack, SP: 100},
 }
 
 // Item is one item a character owns: a kind, how many of it, and either the inventory

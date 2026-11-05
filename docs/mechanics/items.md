@@ -106,7 +106,7 @@ Seen from the real client: a sword dragged from cell 0 to 17 sends `0D 01 00 00 
 ## Not done yet
 
 - Yang.
-- Using items and potions, dropping them, the taskbar.
+- Using items other than potions ([potions.md](potions.md)), dropping them, the taskbar.
 - Splitting, merging and swapping stacks.
 - Trading, shops, the storekeeper's safebox.
 - Delivering an order while the character is in the world, and in-game commands for game masters.

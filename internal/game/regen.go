@@ -29,18 +29,8 @@ func (w *presence) regenPlayers(now time.Time) {
 			continue
 		}
 		points, _ := c.Points()
-		hp := regained(c.HP, points.MaxHP, playerRegenFlat+points.MaxHP*playerRegenPercent/100)
-		sp := regained(c.SP, points.MaxSP, points.MaxSP*playerRegenPercent/100)
-		vid := p.add.VID
-		var told [][]byte
-		if hp != c.HP {
-			told = append(told, protocol.EncodePointChange(vid, protocol.PointHP, int32(hp-c.HP), int32(hp))) //nolint:gosec // small
-		}
-		if sp != c.SP {
-			told = append(told, protocol.EncodePointChange(vid, protocol.PointSP, int32(sp-c.SP), int32(sp))) //nolint:gosec // small
-		}
-		p.send(told...)
-		c.HP, c.SP = hp, sp
+		p.send(restore(p, points.MaxHP, points.MaxSP, playerRegenFlat+points.MaxHP*playerRegenPercent/100,
+			points.MaxSP*playerRegenPercent/100)...)
 	}
 }
 
