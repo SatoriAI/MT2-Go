@@ -207,18 +207,19 @@ func (w *presence) players() []*present {
 	return all
 }
 
-// snapshot copies what is saved of a player, if they are still in the world: their
-// progress, which changes only under the lock, and where the world record has them. The
-// rest of their character is their connection's, so it is not read here.
+// snapshot copies what is saved of a player, if they are still in the world and alive:
+// their progress and hit points, which change only under the lock, and where the world
+// record has them. The rest of their character is their connection's, so it is not read
+// here.
 func (w *presence) snapshot(p *present) (account.Character, bool) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	if w.all[p.add.VID] != p {
+	if w.all[p.add.VID] != p || p.dead() {
 		return account.Character{}, false
 	}
 	c := p.char
 	return account.Character{ID: c.ID, Name: c.Name, Level: c.Level, Exp: c.Exp, StatPoints: c.StatPoints,
-		Stats: c.Stats, X: p.add.X, Y: p.add.Y}, true
+		Stats: c.Stats, HP: c.HP, SP: c.SP, X: p.add.X, Y: p.add.Y}, true
 }
 
 // whisperOutcome is what became of a whisper.

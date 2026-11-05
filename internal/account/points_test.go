@@ -43,3 +43,25 @@ func TestAClassTheGameDoesNotHaveHasNoPoints(t *testing.T) {
 		t.Error("got points")
 	}
 }
+
+// A character never saved in play enters with all its hit points and mana; one saved keeps
+// what it had, cut to its maximum, which may have fallen since.
+func TestACharacterEntersWithWhatItWasSavedWithUpToItsMaximum(t *testing.T) {
+	full := Points{MaxHP: 950, MaxSP: 850}
+	cases := []struct {
+		name           string
+		hp, sp         uint32
+		wantHP, wantSP uint32
+	}{
+		{"never saved", 0, 0, 950, 850},
+		{"saved hurt", 500, 0, 500, 0},
+		{"saved over its maximum", 2000, 900, 950, 850},
+	}
+	for _, c := range cases {
+		ch := Character{HP: c.hp, SP: c.sp}
+		ch.Enter(full)
+		if ch.HP != c.wantHP || ch.SP != c.wantSP {
+			t.Errorf("%s: entered with %d and %d, want %d and %d", c.name, ch.HP, ch.SP, c.wantHP, c.wantSP)
+		}
+	}
+}

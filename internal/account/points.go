@@ -45,3 +45,12 @@ func (c Character) Points() (Points, bool) {
 		NextExp:     NextExp(c.Level),
 	}, true
 }
+
+// Enter sets the hit points and mana the character enters the world with: all of them if
+// it was never saved in play, otherwise what it was saved with, cut to its maximum now.
+func (c *Character) Enter(p Points) {
+	if c.HP == 0 {
+		c.HP, c.SP = p.MaxHP, p.MaxSP
+	}
+	c.HP, c.SP = min(c.HP, p.MaxHP), min(c.SP, p.MaxSP)
+}

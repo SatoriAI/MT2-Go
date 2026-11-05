@@ -123,3 +123,23 @@ func TestChangeCharacterShowsTheCharacterAsItIsNow(t *testing.T) {
 		t.Fatalf("the first slot shows %q at level %d with strength %d, want Hendra, 1 and 6", name, level, st)
 	}
 }
+
+// Entering again, the character has the hit points and mana it was saved with.
+func TestEnteringShowsTheHitPointsAndManaKept(t *testing.T) {
+	h := start(t)
+	hendra, key := h.hendraInWorld()
+	hendra.changeCharacter()
+	h.exec(`UPDATE characters SET hp = 500, sp = 120 WHERE name = 'Hendra'`)
+
+	game := h.enterSelection("admin", key)
+	game.read(2 + 329 + 2) // kingdom, list, select phase
+	game.selectCharacter(0)
+	game.expect(protocol.EncodePhase(protocol.PhaseLoading))
+	game.read(46) // the main character
+	points := game.read(1021)[1:]
+
+	if hp, sp := binary.LittleEndian.Uint32(points[4*protocol.PointHP:]),
+		binary.LittleEndian.Uint32(points[4*protocol.PointSP:]); hp != 500 || sp != 120 {
+		t.Fatalf("shown %d hit points and %d mana, want 500 and 120", hp, sp)
+	}
+}

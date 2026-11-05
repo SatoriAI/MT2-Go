@@ -146,3 +146,47 @@ func TestADogThatIsHitBitesBack(t *testing.T) {
 		t.Fatalf("got point %d of %d %+d to %d, want her hit points down %d", point, vid, amount, value, damage)
 	}
 }
+
+// The hit points a bite leaves are kept when Hendra changes character.
+func TestTheHitPointsABiteLeavesAreKept(t *testing.T) {
+	h := startWith(t, aDogAtTheStart)
+	hendra, _ := h.enterWorld("admin", "Hendra", 3, 6)
+	hendra.read(35)
+	hendra.hitTheDog()
+	hendra.read(damageSize)
+	hendra.read(moveSize)
+	hendra.read(damageSize)
+	p := protocol.NewReader(hendra.read(pointChangeSize)[4:])
+	_, _, _, left := p.U32(), p.U8(), p.I32(), p.I32()
+
+	hendra.changeCharacter()
+
+	if got := h.characterValue("hp"); got != int(left) || left >= 950 {
+		t.Fatalf("stored %d hit points, want the %d the bite left", got, left)
+	}
+}
+
+// Hendra, at her last hit point, is killed by the dog and leaves dead: she is kept at
+// Jinno's start with all her 950 hit points and 850 mana, which the database takes.
+func TestAPlayerWhoLeavesDeadIsKeptWholeAtTheStart(t *testing.T) {
+	h := startWith(t, aDogAtTheStart)
+	hendra, _ := h.enterWorld("admin", "Hendra", 3, 6)
+	hendra.read(35)
+	hendra.changeCharacter()
+	h.exec(`UPDATE characters SET hp = 1, sp = 100 WHERE name = 'Hendra'`)
+	hendra.selectCharacter(0)
+	hendra.expect(protocol.EncodePhase(protocol.PhaseLoading))
+	hendra.read(46 + 1021 + 1531) // the main character, points and skills
+	hendra.enterGame()
+	hendra.read(2 + 5 + 2 + appearanceSize + noBlocksSize + 35) // phase, time, channel, herself, blocks, the dog
+	hendra.hitTheDog()
+	hendra.read(damageSize + moveSize + damageSize + pointChangeSize) // her blow, the bite, her last hit point
+	hendra.expect(protocol.EncodeDead(3))                             // a new vid for her second entry
+
+	hendra.changeCharacter()
+
+	if hp, sp, x, y := h.characterValue("hp"), h.characterValue("sp"), h.characterValue("x"), h.characterValue("y"); hp != 950 ||
+		sp != 850 || x != 963400 || y != 278200 {
+		t.Fatalf("kept with %d and %d at (%d, %d), want 950 and 850 at Jinno's start", hp, sp, x, y)
+	}
+}

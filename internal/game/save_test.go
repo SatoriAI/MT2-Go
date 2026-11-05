@@ -66,8 +66,8 @@ func playing(t *testing.T) (*Service, *saves, *character, *present) {
 	store := newSaves()
 	s := worldWith(t)
 	s.store = store
-	c := &character{vid: 1000, Character: account.Character{HP: 1000, SP: 1000, ID: 7, Name: "Hendra", Level: 3, Exp: 40,
-		StatPoints: 2, Stats: account.Stats{Strength: 8}, X: homeX, Y: homeY}}
+	c := &character{vid: 1000, Character: account.Character{HP: 900, SP: 400, ID: 7, Name: "Hendra", Class: account.Sura,
+		Level: 3, Exp: 40, StatPoints: 2, Stats: account.Stats{Strength: 8}, X: homeX, Y: homeY}}
 	conn, _ := watcher(t)
 	p := &present{out: conn, char: &c.Character,
 		add: protocol.CharacterAdd{VID: c.vid, X: homeX, Y: homeY}, info: protocol.CharacterInfo{Name: c.Name}}
@@ -84,7 +84,8 @@ func TestAPlayerInTheWorldIsSavedAsTheyAreNow(t *testing.T) {
 	s.saveInWorld(p, quiet)
 
 	c, at, ok := store.ofHendra()
-	if !ok || c.Level != 3 || c.Exp != 40 || c.StatPoints != 2 || c.Strength != 8 || at != [2]int32{homeX + 500, homeY} {
+	if !ok || c.Level != 3 || c.Exp != 40 || c.StatPoints != 2 || c.Strength != 8 || c.HP != 900 || c.SP != 400 ||
+		at != [2]int32{homeX + 500, homeY} {
 		t.Fatalf("saved %+v at %v (%v)", c, at, ok)
 	}
 }
@@ -222,5 +223,31 @@ func TestAPlayerWhoLeavesDeadIsKeptAtTheStart(t *testing.T) {
 	x, y, _ := account.EmpireShinsoo.StartPosition()
 	if _, at, _ := store.ofHendra(); at != [2]int32{x, y} {
 		t.Fatalf("saved at %v, want the start at (%d, %d)", at, x, y)
+	}
+}
+
+// A player lying dead is not saved until they restart or leave: what was saved before they
+// fell stands, and a crash brings them back from it, alive.
+func TestAPlayerLyingDeadIsNotSavedInTheWorld(t *testing.T) {
+	s, store, c, p := playing(t)
+	c.HP = 0
+
+	s.saveInWorld(p, quiet)
+
+	if _, _, ok := store.ofHendra(); ok {
+		t.Fatal("a dead player was saved")
+	}
+}
+
+// A player who leaves dead comes back with all their hit points and mana, as a restart in
+// town would give them: 1000 and 850 for her, a level-3 sura with no vitality or intelligence.
+func TestAPlayerWhoLeavesDeadIsSavedWhole(t *testing.T) {
+	s, store, c, _ := playing(t)
+	c.HP, c.SP = 0, 10
+
+	s.leaveAndSave(c, account.EmpireShinsoo, quiet)
+
+	if got, _, _ := store.ofHendra(); got.HP != 1000 || got.SP != 850 {
+		t.Fatalf("saved with %d and %d, want 1000 and 850", got.HP, got.SP)
 	}
 }

@@ -112,12 +112,12 @@ The client sends it on its own a few seconds after entering, seen with the real 
 - **One connection per character** (`internal/game/claims.go`). Start claims the character for its connection. If another connection holds it, which the client's key reuse allows, that connection is closed. Start then waits for it to save and reads the character afterwards, so the newcomer loads where the other left off. The wait is bounded, at eleven seconds: long enough for a periodic save of the character already under way and the save on leaving. It ends at shutdown. A newcomer that gives up closes its connection, but its claim lets go only after the connection it waited on has, so a third connection never reads the character before the slow one has saved. One login per account stays the rule at the auth port (`ALREADY`).
 - **Loading.** A second `06` for the same slot is ignored; any other slot closes the connection. `CLIENT_VERSION` is logged and otherwise ignored. `ENTERGAME` moves to `GAME` and sends the time, the channel, and the player's own character: `CHARACTER_ADD`, then `CHARACTER_ADDITIONAL_INFO`, then what the player blocks, as the command chat `setblockmode N` ([chat.md](chat.md)). The body part is the character's look, as in the list.
 - **In the world.** `CHARACTER_MOVE` is accepted, and the session keeps the reported position. The others in range see the move. Chat, ON_CLICK and TARGET are handled too (see [chat.md](chat.md) and [other-players.md](other-players.md)). Any other packet closes the connection for now, and the log names its header.
-- **Where a character appears.** The first time, at its kingdom's start, written into its row at creation. Afterwards, where it stood when its connection closed: logout, a dropped connection and a server shutdown all go through the session's close, which saves the position. A position is saved only if it lies on a map the server knows (`internal/world`); otherwise the last good one stays and the server logs a warning. The map check uses each map's area from the client's `atlasinfo.txt`, in cells of 25600; without warps, the known maps are the three first villages. While the character stays in the world, the server also saves it every minute (`internal/game/save.go`): its position as the world record has it, as the save on leaving does too, and its progress ([experience.md](experience.md)). A hard crash loses at most that minute. A position on no known map is logged once, on leaving, not every minute. The saves run one player after another, two statements each; at a few thousand players a round could outlast the minute, and would then become one batched statement. The periodic save copies what it keeps under the world's lock and writes after letting go; a save of the character under way when it leaves lands before the one on leaving, so the last write is always the newest. A new login waits up to eleven seconds for the old connection to let go, long enough for both saves.
+- **Where a character appears.** The first time, at its kingdom's start, written into its row at creation. Afterwards, where it stood when its connection closed: logout, a dropped connection and a server shutdown all go through the session's close, which saves the position. A position is saved only if it lies on a map the server knows (`internal/world`); otherwise the last good one stays and the server logs a warning. The map check uses each map's area from the client's `atlasinfo.txt`, in cells of 25600; without warps, the known maps are the three first villages. While the character stays in the world, the server also saves it every minute (`internal/game/save.go`): its position as the world record has it, as the save on leaving does too, its progress ([experience.md](experience.md)), and its hit points and mana. A hard crash loses at most that minute. A position on no known map is logged once, on leaving, not every minute. The saves run one player after another, two statements each; at a few thousand players a round could outlast the minute, and would then become one batched statement. The periodic save copies what it keeps under the world's lock and writes after letting go; a save of the character under way when it leaves lands before the one on leaving, so the last write is always the newest. A new login waits up to eleven seconds for the old connection to let go, long enough for both saves.
 - **Derived values** (`internal/account/points.go`) are worked out, not stored:
   - **Max hit points:** 700 + 50 per vitality + 100 per level.
   - **Max mana:** 500 for warrior and ninja, 700 for sura and shaman, + 20 per intelligence + 50 per level.
   - **Stamina, speeds and exp:** stamina 1000, attack and move speed 150. The next level needs 300 exp at level 1; other levels send 0 until they matter.
-  - **Current values:** hit points and mana are full, because nothing can hurt a character yet.
+  - **Current values:** hit points and mana are what the character was last saved with, cut to its maximum now, which a later change to the formula or, one day, taking off an item can lower. A character never saved in play has all of them. They are saved with its progress, on leaving and every minute, except while it lies dead ([dying.md](dying.md)).
 
   A new sura has 950 hit points and 850 mana.
 
@@ -130,7 +130,7 @@ The client sends it on its own a few seconds after entering, seen with the real 
 ## What proves it
 
 - `internal/protocol/protocol_test.go`: every new packet, byte for byte.
-- `internal/account/points_test.go`: each class's level-1 hit points and mana, and growth per level.
+- `internal/account/points_test.go`: each class's level-1 hit points and mana, and growth per level; entering with all of them when never saved, with those saved, and cut to the maximum.
 - `internal/server/server_test.go`:
   - Start then enter, with every packet compared;
   - the same slot asked for again while loading;
@@ -145,7 +145,9 @@ The client sends it on its own a few seconds after entering, seen with the real 
   - a character started on a second connection, which closes the first and loads where it left off;
   - a server shutdown saving where the player stood.
 - `internal/game/claims_test.go`: a takeover stopping the holder and waiting for it, and a claim given up letting go only after the holder has.
-- `internal/game/save_test.go`: a player in the world saved as they are now, with the position the world record has; a player who left not saved again; a save under way as the player leaves landing before the save on leaving; leaving saving where the world record has the player; the saver saving every player until stopped, and stopping mid-round ending the round; the periodic save reading nothing the connection writes unlocked, under the race detector.
+- `internal/store/store_test.go`: hit points and mana kept with the progress, and none for a character never saved.
+- `internal/server/experience_test.go` and `combat_test.go`: entering again with the hit points and mana kept, and the hit points a bite left kept over Change character.
+- `internal/game/save_test.go`: a player in the world saved as they are now, hit points and mana included, with the position the world record has; a player who left not saved again; a save under way as the player leaves landing before the save on leaving; leaving saving where the world record has the player; the saver saving every player until stopped, and stopping mid-round ending the round; the periodic save reading nothing the connection writes unlocked, under the race detector.
 - `internal/world/maps_test.go`: map corners, and every kingdom's start lying on a known map.
 
 ## Not done yet
@@ -154,5 +156,5 @@ The client sends it on its own a few seconds after entering, seen with the real 
 - Monsters and NPCs.
 - Items, equipment and quickslots.
 - Quests.
-- Play time, and saving anything on logout.
+- Play time.
 - Warps between maps.

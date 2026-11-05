@@ -20,7 +20,7 @@ No new packets: DEAD, CHAT (type 5, a command, from the player's vid), CHARACTER
 
 - **A player is dead** at no hit points. A dead player's moves are dropped, their blows and picks land nowhere, and monsters chasing them give up at their next step. Someone arriving sees the body lying, as for a monster.
 - **Dying:** the player loses 2% of what their level needs, never below no experience, so a level is never lost: 6 at level 1, nothing at the top level. They get the experience lost as a POINT_CHANGE, then their death; everyone who sees them gets the death. Their pick ends.
-- **Leaving while dead,** by logging out, Change character or a dropped connection, keeps the character at its kingdom's start, as a restart in town would put it, since it comes back with all its hit points.
+- **Leaving while dead,** by logging out, Change character or a dropped connection, saves the character as a restart in town would leave it: at its kingdom's start, with all its hit points and mana. The save every minute passes over a player lying dead, so a crash brings them back from the save before they fell, alive. No character is ever saved with no hit points, and the database refuses one.
 - **Experience** from a monster that dies after the player did is not theirs: a dead player gets no share of a kill.
 - **Restarting,** only while dead (otherwise the command is ignored): hit points and mana are set, half here (at least 1 hit point), all in town; the player gets `CloseRestartWindow`, their own character afresh, their hit points and mana, then everyone in view. Those who saw them get them afresh, or, after a restart in town, see them go. In town the character stands at its kingdom's start, which the session keeps as where it is, so leaving saves it there. The client is only told its character's new position, which works because every first village holds its kingdom's start: dying on another map will need a warp.
 
@@ -40,10 +40,10 @@ No new packets: DEAD, CHAT (type 5, a command, from the player's vid), CHARACTER
   - restarting in town with all, at the start, an onlooker seeing her go;
   - a restart while alive changing nothing;
   - a dead player getting no share of a kill.
-- `internal/game/save_test.go`: a player who leaves dead kept at their kingdom's start.
+- `internal/game/save_test.go`: a player who leaves dead kept at their kingdom's start, with all their hit points and mana; one lying dead not saved every minute.
+- `internal/server/combat_test.go`: the same over real sockets and the real database, which refuses a character saved with no hit points.
 
 ## Not done yet
 
-- Keeping hit points between logins; a character enters with all of them.
 - Dying to other players, and duels.
 - A pause before the buttons work, and a short protection after restarting here.

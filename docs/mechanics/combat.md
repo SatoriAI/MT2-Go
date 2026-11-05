@@ -79,7 +79,7 @@ A level-1 sura without a weapon takes about 10 to 12 off a wild dog a blow, so a
 - **A bite** is twice the monster's level, twice its strength (`mob_proto` ST), and a roll of its damage dice (`DAMAGE_MIN` to `DAMAGE_MAX`), close to the original's monster attack, of which the player's defence, level + vitality + armour, takes its share as for a blow: attack × 100 ÷ (100 + defence), rounded, never under 1. A wild dog bites a level-1 sura for 27 to 31 of her 950 hit points, the boar for 69 to 76.
 - **Giving up:** the monster stops when it died, when its target has left the world or is dead, when it has neither bitten nor been hit by its target for ten seconds, or when it is 5,000 from where it last bit (or was first hit). It walks straight home and strolls again from there, once the client can have walked it home at 400 a second. The world record has it home at once, so until the client's walk ends, a blow on it lands only within reach of its home. Going home does not heal it. While it fights, blows from other players are not answered.
 - **While fighting** a monster does not stroll. A monster killed mid-fight stops.
-- **Hit points** are the character's, kept under the world record's lock as experience is; a character enters the world with all of them, as they are not saved.
+- **Hit points** are the character's, kept under the world record's lock as experience is; they are saved with the character's progress and it enters the world with them ([entering-the-world.md](entering-the-world.md)).
 
 ### Healing
 

@@ -48,7 +48,7 @@ func (s *session) onSelectCharacter(ctx context.Context, body []byte) error {
 	if !ok {
 		return fmt.Errorf("game: no points for class %q", c.Class)
 	}
-	c.HP, c.SP = points.MaxHP, points.MaxSP
+	c.Enter(points)
 	s.playing = &character{Character: c, vid: s.svc.lastVID.Add(1), points: points}
 	s.phase = protocol.PhaseLoading
 	s.conn.Log().Info("loading", "character", c.Name, "vid", s.playing.vid)

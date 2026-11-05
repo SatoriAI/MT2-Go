@@ -39,7 +39,7 @@ Unspent stat points sit at index 26 of POINTS; experience at 3, as before.
 - **Dying** costs 2% of the level's need, never a level ([dying.md](dying.md)).
 - **Spending:** `/stat st|ht|dx|iq` moves one point into the stat, up to 90 a stat, and tells the player the stat, their points left, and for vitality or intelligence their new maximum hit points or mana. With no point to spend, at the cap, or for any other name, nothing happens. Attack follows the new stats on the next blow.
 - **While in the world** a player's level, experience and stats live in the world record and change only under its lock, since others' kills raise them; the blow's attack is read there too.
-- **Kept** with the position when the character leaves the world, by any way out: level, experience, unspent stat points and the four stats (`characters.exp`, `stat_points`). They are also saved every minute while the character stays in the world (`internal/game/save.go`, as [entering-the-world.md](entering-the-world.md) describes), so a crash loses at most a minute of play.
+- **Kept** with the position when the character leaves the world, by any way out: level, experience, unspent stat points and the four stats (`characters.exp`, `stat_points`), with the hit points and mana ([entering-the-world.md](entering-the-world.md)). They are also saved every minute while the character stays in the world (`internal/game/save.go`, as [entering-the-world.md](entering-the-world.md) describes), so a crash loses at most a minute of play.
 
 ## How we know
 
