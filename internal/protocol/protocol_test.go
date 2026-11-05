@@ -555,3 +555,13 @@ func TestDecodeItemPickupReadsTheVid(t *testing.T) {
 		t.Fatalf("got %d %v", vid, err)
 	}
 }
+
+// SPECIAL_EFFECT names the effect, then the character it is drawn on.
+func TestAPotionsEffectIsDrawnOnTheCharacter(t *testing.T) {
+	if got, want := EncodeSpecialEffect(EffectRedPotion, 900001), mustHex(t, "72"+"01"+"a1bb0d00"); !bytes.Equal(got, want) {
+		t.Errorf("got %x, want %x", got, want)
+	}
+	if got, want := EncodeSpecialEffect(EffectBluePotion, 900001), mustHex(t, "72"+"02"+"a1bb0d00"); !bytes.Equal(got, want) {
+		t.Errorf("got %x, want %x", got, want)
+	}
+}

@@ -56,6 +56,7 @@ const (
 	ServerGroundDel        ServerHeader = 0x1B // an item on the ground is gone from view
 	ServerItemOwner        ServerHeader = 0x1F // who alone may pick an item up, or nobody
 	ServerWhisper          ServerHeader = 0x22
+	ServerSpecialEffect    ServerHeader = 0x72 // an effect drawn on a character, such as a potion's
 	ServerTime             ServerHeader = 0x6A
 	ServerMainCharacter    ServerHeader = 0x71 // who the player is and where
 	ServerChannel          ServerHeader = 0x79

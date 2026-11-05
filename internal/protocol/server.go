@@ -502,3 +502,21 @@ func EncodeItemOwner(vid uint32, name string) []byte {
 	w.String(name, characterNameSize)
 	return w.Bytes()
 }
+
+// Effect is one of the effects the client draws on a character.
+type Effect uint8
+
+// The potions' effects; the client plays the potion sound with either on the player's own
+// character.
+const (
+	EffectRedPotion  Effect = 1
+	EffectBluePotion Effect = 2
+)
+
+// EncodeSpecialEffect draws the effect on the character vid.
+func EncodeSpecialEffect(e Effect, vid uint32) []byte {
+	w := NewWriter(byte(ServerSpecialEffect), 6)
+	w.U8(uint8(e))
+	w.U32(vid)
+	return w.Bytes()
+}

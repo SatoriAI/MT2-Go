@@ -19,7 +19,16 @@ type keptItems struct {
 	worn  map[int64]item.Wear
 	added []item.Item
 	count map[int64]uint8
+	gone  []int64
 	fail  error
+}
+
+func (k *keptItems) Remove(_ context.Context, id int64) error {
+	if k.fail != nil {
+		return k.fail
+	}
+	k.gone = append(k.gone, id)
+	return nil
 }
 
 func (k *keptItems) Add(_ context.Context, _ uint32, it item.Item) (int64, error) {

@@ -4,7 +4,7 @@
 
 A monster may leave something when it dies: a potion now and then, and from the stronger ones, rarely, a first weapon or armour. Each item lies on the grass beside the body with the name of whoever it's kept for over it in yellow, «Szepta's». That's the player who took the most of the monster's hit points, not whoever landed the last blow. For 20 seconds only they can pick it up; then the name goes and anyone may; after a minute it's gone.
 
-Clicking an item walks the character to it and picks it up, and the pick-up key takes the nearest one. A potion joins the stack of its kind in the bag when the whole of it fits there; anything else takes the first free cells. With no room, the chat says «Nie masz miejsca w ekwipunku.» and the item stays where it lies.
+Clicking an item walks the character to it and picks it up, and the pick-up key takes the nearest one. A potion joins the stack of its kind in the bag when the whole of it fits there; anything else takes the first free cells. With no room, the chat says «Nie masz miejsca w ekwipunku.» and the item stays where it lies. A potion picked up is drunk with a double-click ([potions.md](potions.md)).
 
 ## What the client does
 

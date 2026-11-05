@@ -166,6 +166,18 @@ func TestEveryWornKindHasItsClassesAndStats(t *testing.T) {
 	}
 }
 
+// The potions are the kinds drunk: the red ones heal, the blue one restores mana, as the
+// client's item_proto says; nothing else restores anything.
+func TestOnlyThePotionsRestoreHPOrSP(t *testing.T) {
+	want := map[uint32][2]uint16{27001: {300, 0}, 27002: {800, 0}, 27004: {0, 100}}
+	for _, vnum := range VNums() {
+		p, _ := Lookup(vnum)
+		if got := [2]uint16{p.HP, p.SP}; got != want[vnum] {
+			t.Errorf("kind %d restores %v, want %v", vnum, got, want[vnum])
+		}
+	}
+}
+
 // Potions picked up join a stack of their kind with room for all of them; when none has,
 // or for a kind that does not stack, they take the first free cell.
 func TestAnItemPickedUpJoinsItsStackOrTakesAFreeCell(t *testing.T) {

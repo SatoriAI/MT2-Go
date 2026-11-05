@@ -265,3 +265,25 @@ func TestAnItemPickedUpIsKept(t *testing.T) {
 		t.Fatalf("kept %+v", inv)
 	}
 }
+
+// The last potion of a stack drunk is forgotten, and the others the character has are kept.
+func TestARemovedItemIsForgotten(t *testing.T) {
+	s, cid := hendrasItems(t)
+	last, err := s.Add(context.Background(), cid, item.Item{VNum: 27001, Count: 1, Cell: 4})
+	if err != nil {
+		t.Fatal(err)
+	}
+	kept, err := s.Add(context.Background(), cid, item.Item{VNum: 27004, Count: 3, Cell: 5})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := s.Remove(context.Background(), last); err != nil {
+		t.Fatal(err)
+	}
+
+	inv, _, _ := s.Owned(context.Background(), "Hendra")
+	if len(inv) != 1 || inv[0].ID != kept {
+		t.Fatalf("kept %+v", inv)
+	}
+}
