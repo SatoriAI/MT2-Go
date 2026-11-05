@@ -33,9 +33,12 @@ func (s *session) onWhisper(body []byte) error {
 	if w.Text == "" || strings.EqualFold(w.To, p.Name) {
 		return nil
 	}
+	// The line's time is taken before it can reach the recipient, so a reply to it is
+	// later, whichever session saves first.
+	now := time.Now()
 	// A whisper over the limit gets no reply at all, so a flood cannot be turned into
 	// replies.
-	if !s.flood.allow(time.Now()) {
+	if !s.flood.allow(now) {
 		s.conn.Log().Debug("whisper dropped: talking too fast", "character", p.Name)
 		return nil
 	}
@@ -53,7 +56,7 @@ func (s *session) onWhisper(body []byte) error {
 	// its own time, as a position's does.
 	ctx, cancel := context.WithTimeout(context.Background(), saveTimeout)
 	defer cancel()
-	if err := s.svc.whispers.Save(ctx, p.ID, recipient, textFromClient(w.Text)); err != nil {
+	if err := s.svc.whispers.Save(ctx, p.ID, recipient, textFromClient(w.Text), now); err != nil {
 		s.conn.Log().Error("whisper not saved", "from", p.Name, "to", w.To, "err", err)
 		return s.conn.Send(protocol.EncodeWhisper(protocol.WhisperError, w.To, notSaved))
 	}

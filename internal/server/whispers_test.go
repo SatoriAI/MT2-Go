@@ -20,11 +20,12 @@ func (c *client) whisper(to, text string) {
 	c.send(packet, name, []byte(text), []byte{0, sequenceByte})
 }
 
-// whispers reads the stored whispers in order, as sender, recipient and text.
+// whispers reads the stored whispers in the order they were sent, as sender, recipient
+// and text.
 func (h *harness) whispers() [][3]any {
 	h.t.Helper()
 	rows, err := h.accounts.Pool.Query(context.Background(),
-		`SELECT sender, recipient, text FROM whispers ORDER BY id`)
+		`SELECT sender, recipient, text FROM whispers ORDER BY sent_at, id`)
 	if err != nil {
 		h.t.Fatal(err)
 	}

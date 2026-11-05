@@ -43,7 +43,8 @@ The original client keeps its whisper windows only until logout. The server keep
 - **An empty line** is ignored, and so is **a line to oneself**: the client has already shown it, and sending it back would show it twice. **A line over 254 bytes** is not the client's, and ends the connection.
 - **Blocking whispers:** a player who blocks whispers in the options window ([chat.md](chat.md), `/setblockmode`) gets none: the sender gets type 2 with the name, which the client shows as "%s zablokował możliwość szeptania.", and nothing is delivered or kept. A player who blocks whispers may not send them either: they get type 3, "Nie możesz pisać do innych gdy masz zablokowane szeptanie." The recipient's choice is read under the world's lock, so it is the one they last made.
 - **Talking too fast:** whispers count against the same limit as chat, 10 lines in any 5 seconds ([chat.md](chat.md)). A whisper over it gets no reply at all, not even "not online", so a flood can't be turned into replies.
-- **Keeping it:** a delivered whisper is stored in `whispers`, with the two characters' ids, the time, and the text decoded from cp1250 to UTF-8 (`internal/game/wire.go`), so the table reads plainly and a client of our own needs no knowledge of the code page. Bytes cp1250 leaves undefined become U+FFFD. The save has its own few seconds rather than the connection's, so a line delivered as the server stops is still kept. Whispers are kept with no limit for now.
+- **Keeping it:** a delivered whisper is stored in `whispers`, with the two characters' ids, the time it was sent, and the text decoded from cp1250 to UTF-8 (`internal/game/wire.go`), so the table reads plainly and a client of our own needs no knowledge of the code page. Bytes cp1250 leaves undefined become U+FFFD. The save has its own few seconds rather than the connection's, so a line delivered as the server stops is still kept. Whispers are kept with no limit for now.
+- **The order of a conversation** is the order of `sent_at`, not of `id`. The time is taken before the line reaches the recipient, so a reply to it is later unless the server's clock is set back in between; the row is saved after delivery, so a quick reply can be saved, and numbered, first.
 - **A whisper that could not be stored** has already reached its recipient. The error is logged, the sender gets type error with "Not saved.", and the connection stays up.
 
 ## How we know
@@ -66,10 +67,11 @@ The original client keeps its whisper windows only until logout. The server keep
   - a whisper reaching only its recipient, on another map, with nothing back to the sender;
   - the name matched regardless of case;
   - not online for a name nobody has, and for a player on the character screen;
-  - two whispers stored between the right characters, a cp1250 line as UTF-8;
+  - a whisper and its reply stored between the right characters in the order they were sent, a cp1250 line as UTF-8;
   - an empty whisper, and one to oneself whatever the case of the name, ignored;
   - a whisper that could not be stored delivered, the sender told, the connection kept;
   - 254 bytes passed on, 255 ending the connection.
+- `internal/game/whisper_test.go`: a whisper kept with a time from before it reached its recipient.
 - `internal/server/blocks_test.go`: a whisper to a player blocking whispers refused with nothing delivered or kept, a player blocking whispers unable to send one, and other blocks letting whispers through.
 - `internal/server/flood_test.go`: a whisper after ten lines of chat dropped without a reply.
 - `internal/server/server_test.go`: whispers in flight after Change character ignored.

@@ -39,7 +39,7 @@ type Accounts interface {
 
 // Whispers is where the game port keeps whispers, by character id.
 type Whispers interface {
-	Save(ctx context.Context, sender, recipient uint32, text string) error
+	Save(ctx context.Context, sender, recipient uint32, text string, sentAt time.Time) error
 }
 
 // Service is what every game connection shares.
