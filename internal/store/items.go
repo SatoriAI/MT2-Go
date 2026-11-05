@@ -135,6 +135,20 @@ func (s Items) Place(ctx context.Context, items ...item.Item) error {
 	})
 }
 
+// Add keeps a new item the character now owns, and returns its id.
+func (s Items) Add(ctx context.Context, characterID uint32, it item.Item) (int64, error) {
+	var id int64
+	err := s.Pool.QueryRow(ctx, `INSERT INTO items (character_id, vnum, count, cell) VALUES ($1, $2, $3, $4)
+		RETURNING id`, characterID, it.VNum, it.Count, it.Cell).Scan(&id)
+	return id, err
+}
+
+// SetCount keeps how many of its kind a stack now holds.
+func (s Items) SetCount(ctx context.Context, id int64, count uint8) error {
+	_, err := s.Pool.Exec(ctx, `UPDATE items SET count = $2 WHERE id = $1`, id, count)
+	return err
+}
+
 // UnknownKinds returns the kinds owned or ordered that are not among known, in order.
 func (s Items) UnknownKinds(ctx context.Context, known []uint32) ([]uint32, error) {
 	rows, err := s.Pool.Query(ctx, `

@@ -118,7 +118,7 @@ func (w *presence) attack(playerVID, vid uint32, gap time.Duration, r *rand.Rand
 		return blowLanded
 	}
 	f.diedAt = now
-	w.fallen = append(w.fallen, death{v, now})
+	w.fallen = append(w.fallen, death{v, now, w.dropOwner(f, p)})
 	for t := range f.targetedBy {
 		untarget(t, v)
 	}
@@ -127,10 +127,12 @@ func (w *presence) attack(playerVID, vid uint32, gap time.Duration, r *rand.Rand
 	return blowKilled
 }
 
-// death is a monster that died, for the world loop to take away and bring back.
+// death is a monster that died, for the world loop to take away and bring back, and
+// whom what it leaves is kept for.
 type death struct {
-	p  *present
-	at time.Time
+	p     *present
+	at    time.Time
+	owner owner
 }
 
 // takeNews hands the world loop what happened to monsters since it last asked: those that

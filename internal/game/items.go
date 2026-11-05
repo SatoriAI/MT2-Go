@@ -16,6 +16,9 @@ type Items interface {
 	ApplyOrders(ctx context.Context, characterID uint32) (item.Inventory, []item.Order, error)
 	// Place keeps where each item now is, all or none of them.
 	Place(ctx context.Context, items ...item.Item) error
+	// Add keeps a new item the character owns and returns its id; SetCount keeps a stack's.
+	Add(ctx context.Context, characterID uint32, it item.Item) (int64, error)
+	SetCount(ctx context.Context, id int64, count uint8) error
 }
 
 // loadInventory carries out the orders waiting for the character, and keeps what it then
@@ -193,7 +196,7 @@ var itemPackets = map[protocol.ClientHeader]bool{
 	protocol.ClientItemUse: true, protocol.ClientItemDrop: true, protocol.ClientItemMove: true,
 	protocol.ClientQuickslotAdd: true, protocol.ClientQuickslotDel: true, protocol.ClientQuickslotSwap: true,
 	protocol.ClientItemDrop2: true, protocol.ClientExchange: true, protocol.ClientItemUseToItem: true,
-	protocol.ClientGiveItem: true,
+	protocol.ClientGiveItem: true, protocol.ClientItemPickup: true,
 }
 
 // dress puts the weapon and armour, by vnum, 0 for none, on the player's character: their

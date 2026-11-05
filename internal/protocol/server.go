@@ -474,3 +474,31 @@ func EncodeCharacterUpdate(c CharacterInfo, moveSpeed, attackSpeed uint8) []byte
 	w.U32(0) // mount
 	return w.Bytes()
 }
+
+// EncodeGroundAdd shows an item of kind vnum lying at (x, y); the client sets it on the
+// terrain itself, so the height is sent as 0.
+func EncodeGroundAdd(vid uint32, x, y int32, vnum uint32) []byte {
+	w := NewWriter(byte(ServerGroundAdd), 21)
+	w.I32(x)
+	w.I32(y)
+	w.I32(0) // height
+	w.U32(vid)
+	w.U32(vnum)
+	return w.Bytes()
+}
+
+// EncodeGroundDel takes an item off the ground.
+func EncodeGroundDel(vid uint32) []byte {
+	w := NewWriter(byte(ServerGroundDel), 5)
+	w.U32(vid)
+	return w.Bytes()
+}
+
+// EncodeItemOwner names who alone may pick the item on the ground up; "" frees it for
+// anyone. The client shows the name over the item and refuses everyone else by itself.
+func EncodeItemOwner(vid uint32, name string) []byte {
+	w := NewWriter(byte(ServerItemOwner), 30)
+	w.U32(vid)
+	w.String(name, characterNameSize)
+	return w.Bytes()
+}

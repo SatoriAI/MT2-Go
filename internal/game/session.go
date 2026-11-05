@@ -70,13 +70,17 @@ type Service struct {
 	healing   []healing             // the hurt monsters, which the loop heals
 	// nextPlayerRegen is when the loop next heals the players.
 	nextPlayerRegen time.Time
+	// now is the time, which tests set.
+	now func() time.Time
+	// The drops on the ground, in the order they fell, to free and to clear away.
+	freeing, vanishing []timed
 }
 
 // NewService makes the game port's shared state; Run puts spawns' mobs in the world.
 func NewService(store Accounts, whispers Whispers, items Items, keys *account.Keys, clock handshake.Clock, public netip.AddrPort,
 	spawns []world.Spawn) *Service {
 	return &Service{store: store, whispers: whispers, items: items, keys: keys, clock: clock, public: public, claims: map[uint32]*claim{},
-		presence: presence{all: map[uint32]*present{}, byName: map[string]*present{}}, spawns: spawns, rand: newRand(),
+		presence: presence{all: map[uint32]*present{}, byName: map[string]*present{}, ground: map[uint32]*groundItem{}}, spawns: spawns, rand: newRand(), now: time.Now,
 		byPresent: map[*present]*monster{}}
 }
 
@@ -161,6 +165,8 @@ func (s *session) Handle(ctx context.Context, f protocol.Frame) error {
 		return s.onItemMove(f.Body)
 	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientItemUse:
 		return s.onItemUse(f.Body)
+	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientItemPickup:
+		return s.onItemPickup(f.Body)
 	case s.phase == protocol.PhaseGame && itemPackets[f.Header]:
 		s.conn.Log().Debug("item packet not handled yet", "header", byte(f.Header))
 		return nil

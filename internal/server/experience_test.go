@@ -43,7 +43,8 @@ func TestKillingADogEarnsItsExperienceAndKeepsIt(t *testing.T) {
 	}
 	hendra.expect(protocol.EncodeDead(dogVID))
 	hendra.expectHendrasPoint(protocol.PointExp, 15)
-	hendra.changeCharacter() // sent once the character is saved
+	hendra.say("/phase_select") // Change character, answered once the character is saved
+	hendra.expectPastDrops(protocol.EncodePhase(protocol.PhaseSelect))
 
 	if got := h.characterValue("exp"); got != 15 {
 		t.Fatalf("stored %d exp, want 15", got)

@@ -87,6 +87,35 @@ func BenchmarkPlayerMove(b *testing.B) {
 	}
 }
 
+// A player's move, with drops lying about: one for every ten monsters, a generous guess at
+// what a minute of kills leaves on the ground. The move looks at each, to bring the ones
+// that come into view and take away those that leave it.
+func BenchmarkPlayerMoveAmongDrops(b *testing.B) {
+	for _, n := range worldSizes {
+		b.Run(size(n.players, n.monsters), func(b *testing.B) {
+			s, players, out := benchWorld(b, n.players, n.monsters)
+			r := rand.New(rand.NewPCG(9, 9)) //nolint:gosec // a fixed seed, so each run measures the same ground
+			for i := range n.monsters / 10 {
+				m := firstMaps[r.IntN(len(firstMaps))]
+				x, y := m.x+1000+r.Int32N(mapWidth-2000), m.y+1000+r.Int32N(mapHeight-2000)
+				on, _ := world.MapAt(x, y)
+				vid := uint32(900000 + i)
+				s.presence.ground[vid] = &groundItem{vid: vid, world: on.Name, x: x, y: y, vnum: 27001, count: 1}
+			}
+			out.sends.Store(0)
+			b.ReportAllocs()
+			i := 0
+			for b.Loop() {
+				p := players[i%len(players)]
+				step := int32(300 - 600*(i/len(players)%2))
+				s.presence.move(p.add.VID, protocol.Move{Type: 1, X: p.add.X + step, Y: p.add.Y})
+				i++
+			}
+			b.ReportMetric(float64(out.sends.Load())/float64(b.N), "sends/op")
+		})
+	}
+}
+
 // One monster strolls: the loop finds it due and walks it, the cost of each of the
 // world's strolls.
 func BenchmarkMonsterStroll(b *testing.B) {

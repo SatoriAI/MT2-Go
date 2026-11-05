@@ -464,7 +464,7 @@ func TestNextFrameCutsEveryItemPacketAtItsSize(t *testing.T) {
 	sizes := map[ClientHeader]int{
 		ClientItemUse: 4, ClientItemDrop: 8, ClientItemMove: 8, ClientQuickslotAdd: 4,
 		ClientQuickslotDel: 2, ClientQuickslotSwap: 3, ClientItemDrop2: 9, ClientExchange: 10,
-		ClientItemUseToItem: 7, ClientGiveItem: 9,
+		ClientItemUseToItem: 7, ClientGiveItem: 9, ClientItemPickup: 5,
 	}
 	for header, size := range sizes {
 		packet := append(append([]byte{byte(header)}, make([]byte, size-1)...), 0xAF, byte(ClientEnterGame))
@@ -521,5 +521,37 @@ func TestTheDefenceIsSentAtItsIndex(t *testing.T) {
 
 	if got := binary.LittleEndian.Uint32(points[4*PointDefence:]); got != 16 {
 		t.Fatalf("DEF %d", got)
+	}
+}
+
+// GROUND_ADD as the real client took it: a red potion at (977491, 272599), height 0.
+func TestAnItemIsLaidOnTheGround(t *testing.T) {
+	want := mustHex(t, "1a"+"53ea0e00"+"d7280400"+"00000000"+"a1bb0d00"+"79690000")
+
+	if got := EncodeGroundAdd(900001, 977491, 272599, 27001); !bytes.Equal(got, want) {
+		t.Errorf("got  %x\nwant %x", got, want)
+	}
+}
+
+func TestAnItemIsTakenOffTheGround(t *testing.T) {
+	if got, want := EncodeGroundDel(900001), mustHex(t, "1b"+"a1bb0d00"); !bytes.Equal(got, want) {
+		t.Errorf("got %x, want %x", got, want)
+	}
+}
+
+// OWNERSHIP names the owner in 25 bytes, or nobody with an empty name.
+func TestAnItemsOwnerIsNamedOrCleared(t *testing.T) {
+	if got, want := EncodeItemOwner(900001, "Szepta"), mustHex(t, "1f"+"a1bb0d00"+hex.EncodeToString(fixed("Szepta", 25))); !bytes.Equal(got, want) {
+		t.Errorf("got  %x\nwant %x", got, want)
+	}
+	if got, want := EncodeItemOwner(900001, ""), mustHex(t, "1f"+"a1bb0d00"+strings.Repeat("00", 25)); !bytes.Equal(got, want) {
+		t.Errorf("got  %x\nwant %x", got, want)
+	}
+}
+
+// A pick-up reads as the real client sent it: vid 900002.
+func TestDecodeItemPickupReadsTheVid(t *testing.T) {
+	if vid, err := DecodeItemPickup(mustHex(t, "a2bb0d00")); err != nil || vid != 900002 {
+		t.Fatalf("got %d %v", vid, err)
 	}
 }

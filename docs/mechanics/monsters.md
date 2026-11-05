@@ -62,6 +62,8 @@ The packets are the ones on [other-players.md](other-players.md) and [entering-t
   - walking off swapping which mobs are shown;
   - a whisper to an NPC finding nobody.
 
+What a monster leaves when it dies is on [drops.md](drops.md).
+
 ## Not done yet
 
 - Aggressive monsters noticing players.

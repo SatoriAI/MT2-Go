@@ -3,6 +3,7 @@ package mob
 import (
 	"testing"
 
+	"github.com/SatoriAI/MT2-Go/internal/item"
 	"github.com/SatoriAI/MT2-Go/internal/world"
 )
 
@@ -46,6 +47,19 @@ func TestEveryMonsterCanBite(t *testing.T) {
 	for _, s := range world.Spawns() {
 		if p, _ := Lookup(s.VNum); p.Fightable() && (p.DamageMin == 0 || p.DamageMax < p.DamageMin || p.AttackRange == 0) {
 			t.Errorf("%d: dice %d to %d, reach %d", s.VNum, p.DamageMin, p.DamageMax, p.AttackRange)
+		}
+	}
+}
+
+// Every drop is an item the game has, in a count one item of it holds, with a chance that
+// is one: above none and at most certain.
+func TestEveryDropIsAnItemTheGameHas(t *testing.T) {
+	for vnum, p := range protos {
+		for _, d := range p.Drops {
+			kind, ok := item.Lookup(d.VNum)
+			if !ok || d.Count < 1 || d.Count > kind.Stack || d.Chance < 1 || d.Chance > 10000 {
+				t.Errorf("%d drops %+v (%v)", vnum, d, ok)
+			}
 		}
 	}
 }

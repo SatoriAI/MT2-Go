@@ -229,3 +229,10 @@ func DecodeItemUse(body []byte) (ItemPos, error) {
 	at := r.itemPos()
 	return at, r.Err()
 }
+
+// DecodeItemPickup reads the vid of the item on the ground the player picks up.
+func DecodeItemPickup(body []byte) (uint32, error) {
+	r := NewReader(body)
+	vid := r.U32()
+	return vid, r.Err()
+}

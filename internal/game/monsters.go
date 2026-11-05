@@ -130,7 +130,9 @@ func (s *Service) tick(now time.Time) {
 	for _, d := range fallen {
 		m := s.byPresent[d.p]
 		m.diedAt, m.chase = d.at, nil
+		s.dropFrom(m, d, now)
 	}
+	s.keepGround(now)
 	s.engage(provoked, now)
 	for _, m := range s.monsters {
 		switch {

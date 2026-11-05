@@ -43,6 +43,8 @@ Healing added two jobs to the loop. Hurt monsters are kept on a list, as fightin
 
 Equipment added nothing to the record's entries: what a player wears is kept on their character, as their hit points are, and a blow looks its weapon up by vnum. Measured against main, alternately and with the client closed, every benchmark stayed within 1% except the 100-player regeneration and entering, 2 to 7% faster, which is noise in the other direction; the geometric mean moved 1%.
 
+Drops lie on the ground in a table of their own under the world's lock, not in the record's entries, and nobody keeps what each player has been shown: items never move, so a player's move looks at each item on the ground, at its old and new position, to show those coming into view and take away those leaving it. With one item lying for every ten monsters, a generous guess at a minute of kills, `BenchmarkPlayerMoveAmongDrops` puts a move 3 to 7% above the same move with nothing on the ground (3.75 µs against 3.52 at today's size, 558 µs against 532 at a hundred times it). Each drop's timers are two queues in the order drops fell, so an idle tick with nothing on the ground does nothing more; the existing benchmarks stayed within 3% of main. Keeping ground items by map, as the record itself may one day be, is the step if the ground ever holds thousands.
+
 A move costs about 20 ns per character in the world, as the scan predicts. The world lock is held for every move, so the share of each second it is held is the moves per second times their cost:
 
 - **Today:** 100 player moves and 11 strolls a second hold the lock for 0.4 ms of each second: 0.04%.

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"log/slog"
 	"net/netip"
@@ -118,5 +119,37 @@ func TestTheServerRefusesToStartWithItemsOfKindsItDoesNotHave(t *testing.T) {
 
 	if err == nil || !strings.Contains(err.Error(), "[11]") {
 		t.Fatalf("started with %v", err)
+	}
+}
+
+// A pick-up of nothing on the ground is ignored, and the connection stays: the packet is
+// framed at the size the real client sends it.
+func TestAPickUpOfNothingIsIgnored(t *testing.T) {
+	h := start(t)
+	hendra, _ := h.hendraInWorld()
+
+	hendra.send([]byte{byte(protocol.ClientItemPickup), 0xa2, 0xbb, 0x0d, 0x00, sequenceByte})
+
+	hendra.expectOpen()
+}
+
+// groundSizes are the packets an item on the ground can send, which a dog's death may or
+// may not bring: what it drops is rolled.
+var groundSizes = map[byte]int{byte(protocol.ServerGroundAdd): 21, byte(protocol.ServerItemOwner): 30,
+	byte(protocol.ServerGroundDel): 5}
+
+// expectPastDrops is expect, passing over whatever the dog dropped coming and going.
+func (c *client) expectPastDrops(want []byte) {
+	c.t.Helper()
+	for {
+		header := c.read(1)
+		if n, ok := groundSizes[header[0]]; ok {
+			c.read(n - 1)
+			continue
+		}
+		if got := append(header, c.read(len(want)-1)...); !bytes.Equal(got, want) {
+			c.t.Fatalf("got %x, want %x", got, want)
+		}
+		return
 	}
 }

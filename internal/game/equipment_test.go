@@ -19,7 +19,7 @@ const updateSize, infoSize, chatHeaderSize = 35, 54, 9
 func dressing(t *testing.T) (*session, *keptItems, net.Conn, net.Conn) {
 	t.Helper()
 	svc := worldWith(t)
-	kept := &keptItems{moved: map[int64]uint16{}, worn: map[int64]item.Wear{}}
+	kept := &keptItems{moved: map[int64]uint16{}, worn: map[int64]item.Wear{}, count: map[int64]uint8{}}
 	svc.items = kept
 	conn, client := watcher(t)
 	hendra := &character{vid: 1000, Character: account.Character{Name: "Hendra", Class: account.Sura, Level: 1, HP: 1,
