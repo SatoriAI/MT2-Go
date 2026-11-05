@@ -431,3 +431,21 @@ func EncodeChannelStatus(channels []ChannelStatus) []byte {
 	w.U8(1)
 	return w.Bytes()
 }
+
+// EncodeItemSet puts count of item vnum in the cell, or empties it with vnum 0. The
+// sockets and bonuses that follow are not used yet, so they are sent empty.
+func EncodeItemSet(at ItemPos, vnum uint32, count uint8) []byte {
+	w := NewWriter(byte(ServerItemSet), 42)
+	w.U8(at.Window)
+	w.U16(at.Cell)
+	w.U32(vnum)
+	w.U8(count)
+	for range 3 { // sockets
+		w.I32(0)
+	}
+	for range 7 { // bonuses: a type and a value
+		w.U8(0)
+		w.U16(0)
+	}
+	return w.Bytes()
+}

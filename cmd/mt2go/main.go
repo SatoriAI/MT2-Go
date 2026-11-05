@@ -1,9 +1,10 @@
-// Command mt2go runs the server, and creates accounts and schedules events while there is
-// no website for either (docs/mechanics/events.md):
+// Command mt2go runs the server, and creates accounts, schedules events and gives or takes
+// items while there is no website for any of them (docs/mechanics/events.md, items.md):
 //
 //	mt2go serve
 //	mt2go account create <name>   (password read from standard input)
 //	mt2go event create <name> <multiplier> <start> <end> | event list | event delete <id>
+//	mt2go item give <character> <vnum> [count] | item take <character> <item-id> | item list <character>
 package main
 
 import (
@@ -26,7 +27,8 @@ import (
 )
 
 const usage = "usage: mt2go serve | mt2go account create <name> | mt2go event create <name> <multiplier> <start> <end> | " +
-	"mt2go event list | mt2go event delete <id>"
+	"mt2go event list | mt2go event delete <id> | mt2go item give <character> <vnum> [count] | " +
+	"mt2go item take <character> <item-id> | mt2go item list <character>"
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -51,6 +53,8 @@ func run(ctx context.Context, log *slog.Logger, args []string) error {
 		return createAccount(ctx, cfg, args[2])
 	case len(args) >= 2 && args[0] == "event":
 		return runEvent(ctx, cfg, args[1:])
+	case len(args) >= 2 && args[0] == "item":
+		return runItem(ctx, cfg, args[1:])
 	}
 	return errors.New(usage)
 }

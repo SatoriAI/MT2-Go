@@ -4,6 +4,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net"
 	"time"
@@ -16,6 +17,7 @@ import (
 	"github.com/SatoriAI/MT2-Go/internal/config"
 	"github.com/SatoriAI/MT2-Go/internal/game"
 	"github.com/SatoriAI/MT2-Go/internal/handshake"
+	"github.com/SatoriAI/MT2-Go/internal/item"
 	"github.com/SatoriAI/MT2-Go/internal/network"
 	"github.com/SatoriAI/MT2-Go/internal/store"
 	"github.com/SatoriAI/MT2-Go/internal/world"
@@ -62,11 +64,15 @@ type Ports struct {
 // mobs of spawns in it.
 func Serve(ctx context.Context, ports Ports, pool *pgxpool.Pool, spawns []world.Spawn, cfg config.Config,
 	log *slog.Logger) error {
+	items := store.Items{Pool: pool}
+	if err := checkItemKinds(ctx, items); err != nil {
+		return err
+	}
 	accounts := store.Accounts{Pool: pool}
 	keys := account.NewKeys(time.Now)
 	clock := handshake.NewClock()
 	authSvc := auth.NewService(accounts, keys, clock)
-	gameSvc := game.NewService(accounts, store.Whispers{Pool: pool}, keys, clock, cfg.GamePublic, spawns)
+	gameSvc := game.NewService(accounts, store.Whispers{Pool: pool}, items, keys, clock, cfg.GamePublic, spawns)
 
 	log.Info("listening", "auth", ports.Auth.Addr().String(), "game", ports.Game.Addr().String(),
 		"game_public", cfg.GamePublic.String())
@@ -81,4 +87,18 @@ func Serve(ctx context.Context, ports Ports, pool *pgxpool.Pool, spawns []world.
 	g.Go(func() error { return gameSvc.WatchEvents(ctx, store.Events{Pool: pool}, eventCheck, log) })
 	g.Go(func() error { return gameSvc.SavePlayers(ctx, saveEvery, log) })
 	return g.Wait()
+}
+
+// checkItemKinds refuses to start while a character owns, or is to be given, an item of a
+// kind the game no longer has: the server could neither show it nor say what it is, and
+// removing a kind should not quietly take items away.
+func checkItemKinds(ctx context.Context, items store.Items) error {
+	unknown, err := items.UnknownKinds(ctx, item.VNums())
+	if err != nil {
+		return err
+	}
+	if len(unknown) > 0 {
+		return fmt.Errorf("items of kinds the game does not have are owned or ordered: %v", unknown)
+	}
+	return nil
 }

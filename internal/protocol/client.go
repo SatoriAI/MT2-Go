@@ -200,3 +200,24 @@ func DecodeEmpire(body []byte) (uint8, error) {
 	e := r.U8()
 	return e, r.Err()
 }
+
+// ItemPos is a cell in one of the client's item windows.
+type ItemPos struct {
+	Window uint8
+	Cell   uint16
+}
+
+func (r *Reader) itemPos() ItemPos { return ItemPos{Window: r.U8(), Cell: r.U16()} }
+
+// ItemMove is an item dragged from one cell to another; Count is how many of a stack go,
+// all of it unless the player split it.
+type ItemMove struct {
+	From, To ItemPos
+	Count    uint8
+}
+
+func DecodeItemMove(body []byte) (ItemMove, error) {
+	r := NewReader(body)
+	m := ItemMove{From: r.itemPos(), To: r.itemPos(), Count: r.U8()}
+	return m, r.Err()
+}

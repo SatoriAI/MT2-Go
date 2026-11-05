@@ -48,7 +48,7 @@ func benchWorld(b *testing.B, players, monsters int) (*Service, []*present, *sin
 		x, y := point()
 		spawns = append(spawns, world.Spawn{VNum: 101, X: x, Y: y, Count: 1})
 	}
-	s := NewService(nil, nil, nil, handshake.NewClock(), netip.AddrPort{}, spawns)
+	s := NewService(nil, nil, nil, nil, handshake.NewClock(), netip.AddrPort{}, spawns)
 	s.rand = rand.New(rand.NewPCG(1, 2)) //nolint:gosec // a fixed seed, as above
 	if err := s.spawn(noon); err != nil {
 		b.Fatal(err)
