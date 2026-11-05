@@ -275,7 +275,7 @@ func TestAHangUpClosesTheSessionWithoutWaitingForQueuedWrites(t *testing.T) {
 
 	select {
 	case <-closed:
-	case <-time.After(5 * time.Second):
+	case <-time.After(2 * time.Second):
 		t.Fatal("the session waited on the queued writes")
 	}
 }
