@@ -154,7 +154,7 @@ The client sends it on its own a few seconds after entering, seen with the real 
 
 - Movement checked against the map's terrain rather than only its area.
 - Monsters and NPCs.
-- Items, equipment and quickslots.
+- Equipment and quickslots; items are on [items.md](items.md).
 - Quests.
 - Play time.
 - Warps between maps.

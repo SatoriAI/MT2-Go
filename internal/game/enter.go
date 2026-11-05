@@ -44,6 +44,9 @@ func (s *session) onSelectCharacter(ctx context.Context, body []byte) error {
 			return err
 		}
 	}
+	if err := s.loadInventory(ctx, c.ID); err != nil {
+		return err
+	}
 	points, ok := c.Points()
 	if !ok {
 		return fmt.Errorf("game: no points for class %q", c.Class)
@@ -124,7 +127,7 @@ func (s *session) onEnterGame() error {
 		protocol.EncodePhase(protocol.PhaseGame),
 		protocol.EncodeTime(s.svc.clock.Now()),
 		protocol.EncodeChannel(1),
-	}, append(me.appearance(), s.blockMode())...)...)
+	}, append(append(me.appearance(), s.blockMode()), s.inventoryShown()...)...)...)
 	if err != nil {
 		return err
 	}
@@ -184,4 +187,13 @@ func (s *session) leaveWorld() {
 	s.svc.release(s.claim)
 	s.claim = nil
 	s.playing = nil
+}
+
+// inventoryShown fills the inventory window, an item to a packet.
+func (s *session) inventoryShown() [][]byte {
+	packets := make([][]byte, 0, len(s.inventory))
+	for _, it := range s.inventory {
+		packets = append(packets, itemSet(it))
+	}
+	return packets
 }

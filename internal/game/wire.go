@@ -10,6 +10,7 @@ import (
 	"golang.org/x/text/encoding/charmap"
 
 	"github.com/SatoriAI/MT2-Go/internal/account"
+	"github.com/SatoriAI/MT2-Go/internal/item"
 	"github.com/SatoriAI/MT2-Go/internal/mob"
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
 )
@@ -173,4 +174,22 @@ func ClientCanShow(text string) bool {
 func textFromClient(text string) string {
 	utf8, _ := charmap.Windows1250.NewDecoder().String(text)
 	return utf8
+}
+
+// inventoryWindow is the client's number for the inventory among its item windows
+// (GameType.h, INVENTORY); its cells are the game's own, 0 to 89.
+const inventoryWindow uint8 = 1
+
+// cellFromWire returns the inventory cell the client's position stands for, or false for
+// another window or a cell past the inventory.
+func cellFromWire(at protocol.ItemPos) (uint16, bool) {
+	return at.Cell, at.Window == inventoryWindow && at.Cell < item.Cells
+}
+
+func itemSet(it item.Item) []byte {
+	return protocol.EncodeItemSet(protocol.ItemPos{Window: inventoryWindow, Cell: it.Cell}, it.VNum, it.Count)
+}
+
+func itemCleared(cell uint16) []byte {
+	return protocol.EncodeItemSet(protocol.ItemPos{Window: inventoryWindow, Cell: cell}, 0, 0)
 }

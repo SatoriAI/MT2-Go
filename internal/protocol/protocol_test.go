@@ -455,3 +455,48 @@ func TestUnspentStatPointsGoWhereTheCharacterWindowReadsThem(t *testing.T) {
 		t.Fatalf("stat points %d at index %d", v, PointStatPoints)
 	}
 }
+
+// Each packet the inventory window can send is cut at the size the client sends it with,
+// so none of them ends the connection: the sizes of a move, a double-click, a drag to the
+// taskbar and a drop to the ground were read off the real client.
+func TestNextFrameCutsEveryItemPacketAtItsSize(t *testing.T) {
+	sizes := map[ClientHeader]int{
+		ClientItemUse: 4, ClientItemDrop: 8, ClientItemMove: 8, ClientQuickslotAdd: 4,
+		ClientQuickslotDel: 2, ClientQuickslotSwap: 3, ClientItemDrop2: 9, ClientExchange: 10,
+		ClientItemUseToItem: 7, ClientGiveItem: 9,
+	}
+	for header, size := range sizes {
+		packet := append(append([]byte{byte(header)}, make([]byte, size-1)...), 0xAF, byte(ClientEnterGame))
+
+		frame, used, err := NextFrame(packet)
+
+		if err != nil || used != size+1 || frame.Header != header || len(frame.Body) != size-1 {
+			t.Errorf("header 0x%02X: used %d of %d, body %d, err %v", byte(header), used, size+1, len(frame.Body), err)
+		}
+	}
+}
+
+// A drag reads as the real client sent it: the sword from cell 0 to cell 17 of the
+// inventory, whole.
+func TestDecodeItemMoveReadsBothCellsAndTheCount(t *testing.T) {
+	m, err := DecodeItemMove(mustHex(t, "010000011100"+"01"))
+
+	if err != nil || m != (ItemMove{From: ItemPos{Window: 1, Cell: 0}, To: ItemPos{Window: 1, Cell: 17}, Count: 1}) {
+		t.Fatalf("got %+v %v", m, err)
+	}
+}
+
+func TestDecodeItemMoveRefusesAShortBody(t *testing.T) {
+	if _, err := DecodeItemMove(mustHex(t, "010000011100")); !errors.Is(err, ErrShort) {
+		t.Fatalf("got %v", err)
+	}
+}
+
+// ITEM_SET: the cell, the kind and count, then three empty sockets and seven empty bonuses.
+func TestAnItemIsSetInACell(t *testing.T) {
+	want := mustHex(t, "14"+"01"+"1100"+"79690000"+"32"+strings.Repeat("00", 12+21))
+
+	if got := EncodeItemSet(ItemPos{Window: 1, Cell: 17}, 27001, 50); !bytes.Equal(got, want) {
+		t.Errorf("got  %x\nwant %x", got, want)
+	}
+}

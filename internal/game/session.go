@@ -15,6 +15,7 @@ import (
 
 	"github.com/SatoriAI/MT2-Go/internal/account"
 	"github.com/SatoriAI/MT2-Go/internal/handshake"
+	"github.com/SatoriAI/MT2-Go/internal/item"
 	"github.com/SatoriAI/MT2-Go/internal/network"
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
 	"github.com/SatoriAI/MT2-Go/internal/world"
@@ -46,6 +47,7 @@ type Whispers interface {
 type Service struct {
 	store    Accounts
 	whispers Whispers
+	items    Items
 	keys     *account.Keys
 	clock    handshake.Clock
 	// public is the address the client is told to connect to for this game server. It
@@ -71,9 +73,9 @@ type Service struct {
 }
 
 // NewService makes the game port's shared state; Run puts spawns' mobs in the world.
-func NewService(store Accounts, whispers Whispers, keys *account.Keys, clock handshake.Clock, public netip.AddrPort,
+func NewService(store Accounts, whispers Whispers, items Items, keys *account.Keys, clock handshake.Clock, public netip.AddrPort,
 	spawns []world.Spawn) *Service {
-	return &Service{store: store, whispers: whispers, keys: keys, clock: clock, public: public, claims: map[uint32]*claim{},
+	return &Service{store: store, whispers: whispers, items: items, keys: keys, clock: clock, public: public, claims: map[uint32]*claim{},
 		presence: presence{all: map[uint32]*present{}, byName: map[string]*present{}}, spawns: spawns, rand: newRand(),
 		byPresent: map[*present]*monster{}}
 }
@@ -90,6 +92,7 @@ type session struct {
 	accountID int64          // set once the login key is redeemed
 	empire    account.Empire // the account's kingdom as this connection last knew it
 	playing   *character     // set once the player pressed Start
+	inventory item.Inventory // what playing owns, read on Start
 	claim     *claim         // this connection's hold on playing
 	flood     floodLimit     // the lines this player said lately, to others
 	// leftWorld is set from change character until the next Start: the client may still
@@ -154,7 +157,12 @@ func (s *session) Handle(ctx context.Context, f protocol.Frame) error {
 		return s.onAttack(f.Body)
 	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientOnClick:
 		return nil // clicking a character, to talk to it; nothing answers it yet
-	case s.leftWorld && inFlightAfterLeaving[f.Header]:
+	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientItemMove:
+		return s.onItemMove(f.Body)
+	case s.phase == protocol.PhaseGame && itemPackets[f.Header]:
+		s.conn.Log().Debug("item packet not handled yet", "header", byte(f.Header))
+		return nil
+	case s.leftWorld && (inFlightAfterLeaving[f.Header] || itemPackets[f.Header]):
 		return nil
 	}
 	return unexpected(f, s.phase)
