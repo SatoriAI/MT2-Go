@@ -47,6 +47,7 @@ func (s *session) onSelectCharacter(ctx context.Context, body []byte) error {
 	if err := s.loadInventory(ctx, c.ID); err != nil {
 		return err
 	}
+	wear(&c, s.inventory)
 	points, ok := c.Points()
 	if !ok {
 		return fmt.Errorf("game: no points for class %q", c.Class)
@@ -115,12 +116,13 @@ func (s *session) onEnterGame() error {
 		},
 		blocks: p.Blocks,
 		info: protocol.CharacterInfo{
-			VID:      p.vid,
-			Name:     p.Name,
-			BodyPart: uint16(p.Shape),
-			HairPart: p.Hair,
-			Empire:   empireNumbers[s.empire],
-			Level:    uint32(p.Level),
+			VID:        p.vid,
+			Name:       p.Name,
+			BodyPart:   bodyPart(p.Character),
+			WeaponPart: weaponPart(p.Character),
+			HairPart:   p.Hair,
+			Empire:     empireNumbers[s.empire],
+			Level:      uint32(p.Level),
 		},
 	}
 	err := s.conn.Send(append([][]byte{
@@ -172,6 +174,7 @@ func pointsOf(p *character) protocol.CharacterPoints {
 		IQ:          uint32(p.Intelligence),
 		AttackSpeed: uint32(p.points.AttackSpeed),
 		MoveSpeed:   uint32(p.points.MoveSpeed),
+		Defence:     defence(&p.Character),
 	}
 }
 

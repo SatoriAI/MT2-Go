@@ -128,6 +128,7 @@ type ChatType uint8
 
 const (
 	ChatNormal  ChatType = 0
+	ChatInfo    ChatType = 1 // from vid 0, a line from the game in chat, in its own colour
 	ChatNotice  ChatType = 2 // from vid 0, scrolls over the top of the screen and stays in chat
 	ChatCommand ChatType = 5 // an instruction to the client itself, such as "quit"
 )
@@ -220,4 +221,11 @@ func DecodeItemMove(body []byte) (ItemMove, error) {
 	r := NewReader(body)
 	m := ItemMove{From: r.itemPos(), To: r.itemPos(), Count: r.U8()}
 	return m, r.Err()
+}
+
+// DecodeItemUse reads the position of the item double-clicked.
+func DecodeItemUse(body []byte) (ItemPos, error) {
+	r := NewReader(body)
+	at := r.itemPos()
+	return at, r.Err()
 }

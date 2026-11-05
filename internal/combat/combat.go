@@ -12,20 +12,21 @@ import (
 	"github.com/SatoriAI/MT2-Go/internal/account"
 )
 
-// Attacker is what a player's blow is made of. Bare hands for now: a weapon will add twice
-// its attack value once characters carry one.
+// Attacker is what a player's blow is made of: their level, class and stats, and the
+// attack of the weapon they hold, 0 to 0 bare-handed.
 type Attacker struct {
 	Level uint8
 	Class account.Class
 	account.Stats
+	WeaponMin, WeaponMax uint16
 }
 
 // Defender is what is set against a blow: a monster's, from its mob_proto, or a player's,
-// their level and vitality, with armour once they wear it.
+// their level and vitality, and the defence of the armour they wear.
 type Defender struct {
 	Level    uint8
-	Vitality uint8 // a monster's HT
-	Armour   uint8 // a monster's DEF
+	Vitality uint8  // a monster's HT
+	Armour   uint16 // a monster's DEF
 }
 
 // Biter is what a monster's bite is made of: its level and strength, as the original
@@ -72,13 +73,20 @@ func (d Defender) Defence() float64 {
 	return float64(d.Level) + float64(d.Vitality) + float64(d.Armour)
 }
 
-// Mean is the damage a's blows on d average: the attack less the share defence takes,
-// attack × 100 / (100 + defence).
-func Mean(a Attacker, d Defender) float64 { return Attack(a) * 100 / (100 + d.Defence()) }
+// Mean is the damage a's blows on d average: the attack, with twice the weapon's average
+// attack, less the share defence takes, attack × 100 / (100 + defence).
+func Mean(a Attacker, d Defender) float64 {
+	return (Attack(a) + float64(a.WeaponMin) + float64(a.WeaponMax)) * 100 / (100 + d.Defence())
+}
 
-// Damage is what one blow of a on d takes from d's hit points: the mean, up to a tenth
-// more or less at random, rounded, and never under 1.
+// Damage is what one blow of a on d takes from d's hit points: the attack and twice a
+// roll of the weapon's attack, less the share d's defence takes, up to a tenth more or
+// less at random, rounded, and never under 1.
 func Damage(a Attacker, d Defender, r *rand.Rand) int {
 	luck := 1 + spread*(2*r.Float64()-1)
+	if a.WeaponMax > 0 {
+		roll := a.WeaponMin + uint16(r.IntN(int(a.WeaponMax-a.WeaponMin)+1)) //nolint:gosec // within the weapon's range
+		a.WeaponMin, a.WeaponMax = roll, roll
+	}
 	return max(1, int(math.Round(Mean(a, d)*luck)))
 }

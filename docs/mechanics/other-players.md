@@ -95,7 +95,7 @@ The range is open-mt2's choice; the client takes any, and draws characters up to
 - A spatial grid, so a move is checked against those nearby rather than everyone on the map; a measurement should ask for it first.
 - A margin against flickering, for two players walking along the edge of each other's range.
 - Changing map. A player's map is taken on entering only, which holds while the only way to another map is entering it; a warp must update it, or the player stays visible on the old map.
-- CHARACTER_UPDATE (`13`), which open-mt2 sends after another player's INFO, for equipment and guild.
+- CHARACTER_UPDATE (`13`) for the guild; equipment uses it ([equipment.md](equipment.md)).
 - SYNC_POSITION (`08`), which the client sends once it hits things.
 - The move's duration. With 0, a walk looked right with the real client; what the client uses it for is not confirmed in its source here.
 - Checking that a move is possible, rather than trusting the client.

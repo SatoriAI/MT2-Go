@@ -141,6 +141,7 @@ type CharacterPoints struct {
 	StatPoints          uint32
 	AttackSpeed         uint32
 	MoveSpeed           uint32
+	Defence             uint32 // the character window's DEF
 }
 
 // pointCount is how many entries the client's points array has. The client reads each
@@ -155,7 +156,7 @@ func EncodePoints(p CharacterPoints) []byte {
 		1: p.Level, 3: p.Exp, 4: p.NextExp,
 		5: p.HP, 6: p.MaxHP, 7: p.SP, 8: p.MaxSP, 9: p.Stamina, 10: p.MaxStamina,
 		11: p.Gold, PointST: p.ST, PointHT: p.HT, PointDX: p.DX, PointIQ: p.IQ,
-		17: p.AttackSpeed, 19: p.MoveSpeed, PointStatPoints: p.StatPoints,
+		17: p.AttackSpeed, 19: p.MoveSpeed, PointDefence: p.Defence, PointStatPoints: p.StatPoints,
 	} {
 		points[index] = v
 	}
@@ -181,6 +182,7 @@ const (
 	PointHT         Point = 13
 	PointDX         Point = 14
 	PointIQ         Point = 15
+	PointDefence    Point = 20 // DEF_GRADE, the character window's DEF
 	PointStatPoints Point = 26 // earned and not yet spent; the character window's + buttons show while above 0
 )
 
@@ -292,22 +294,23 @@ func EncodeCharacterAdd(c CharacterAdd) []byte {
 // CharacterInfo is what the client shows of a character beyond its model: its name, the
 // parts it wears and its level.
 type CharacterInfo struct {
-	VID      uint32
-	Name     string
-	BodyPart uint16
-	HairPart uint16
-	Empire   uint8
-	Level    uint32
+	VID        uint32
+	Name       string
+	BodyPart   uint16 // the armour worn, by its vnum, or the class's own look, 0 or 1
+	WeaponPart uint16 // the weapon held, by its vnum, or 0
+	HairPart   uint16
+	Empire     uint8
+	Level      uint32
 }
 
-// EncodeCharacterInfo sends the parts as body, weapon, head and hair; the weapon and head
-// stay 0 until characters carry items. Guild, rank, player-kill mode and mount are 0.
+// EncodeCharacterInfo sends the parts as body, weapon, head and hair; the head stays 0
+// until helmets are worn. Guild, rank, player-kill mode and mount are 0.
 func EncodeCharacterInfo(c CharacterInfo) []byte {
 	w := NewWriter(byte(ServerCharacterInfo), 54)
 	w.U32(c.VID)
 	w.String(c.Name, characterNameSize)
 	w.U16(c.BodyPart)
-	w.U16(0) // weapon
+	w.U16(c.WeaponPart)
 	w.U16(0) // head
 	w.U16(c.HairPart)
 	w.U8(c.Empire)
@@ -447,5 +450,27 @@ func EncodeItemSet(at ItemPos, vnum uint32, count uint8) []byte {
 		w.U8(0)
 		w.U16(0)
 	}
+	return w.Bytes()
+}
+
+// EncodeCharacterUpdate re-dresses a character the client already shows: its armour,
+// weapon and hair, as CHARACTER_INFO names them, and its speeds. The rest, state, affects,
+// guild, alignment, player-kill mode and mount, are 0 for now.
+func EncodeCharacterUpdate(c CharacterInfo, moveSpeed, attackSpeed uint8) []byte {
+	w := NewWriter(byte(ServerCharacterUpdate), 35)
+	w.U32(c.VID)
+	w.U16(c.BodyPart)
+	w.U16(c.WeaponPart)
+	w.U16(0) // head
+	w.U16(c.HairPart)
+	w.U8(moveSpeed)
+	w.U8(attackSpeed)
+	w.U8(0)  // state
+	w.U32(0) // affects
+	w.U32(0)
+	w.U32(0) // guild
+	w.U16(0) // alignment
+	w.U8(0)  // player-kill mode
+	w.U32(0) // mount
 	return w.Bytes()
 }
