@@ -49,6 +49,7 @@ const (
 	ServerChat             ServerHeader = 0x04
 	ServerPoints           ServerHeader = 0x10
 	ServerPointChange      ServerHeader = 0x11 // one of a character's points changes
+	ServerCharacterUpdate  ServerHeader = 0x13 // a character shown already is re-dressed
 	ServerItemSet          ServerHeader = 0x14 // an item in a cell, or vnum 0 for none
 	ServerWhisper          ServerHeader = 0x22
 	ServerTime             ServerHeader = 0x6A

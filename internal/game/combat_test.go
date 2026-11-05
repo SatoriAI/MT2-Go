@@ -44,7 +44,7 @@ func (s *Service) hit(victim uint32, a combat.Attacker, gap time.Duration, now t
 func dogDefender(t *testing.T) combat.Defender {
 	t.Helper()
 	p, _ := mob.Lookup(101)
-	return combat.Defender{Level: p.Level, Vitality: p.Vitality, Armour: p.Armour}
+	return combat.Defender{Level: p.Level, Vitality: p.Vitality, Armour: uint16(p.Armour)}
 }
 
 // aDog is a world with one wild dog at home, and the player at playerX east of it, with

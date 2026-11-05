@@ -159,6 +159,8 @@ func (s *session) Handle(ctx context.Context, f protocol.Frame) error {
 		return nil // clicking a character, to talk to it; nothing answers it yet
 	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientItemMove:
 		return s.onItemMove(f.Body)
+	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientItemUse:
+		return s.onItemUse(f.Body)
 	case s.phase == protocol.PhaseGame && itemPackets[f.Header]:
 		s.conn.Log().Debug("item packet not handled yet", "header", byte(f.Header))
 		return nil

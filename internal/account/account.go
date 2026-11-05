@@ -105,6 +105,9 @@ type Character struct {
 	Exp        uint32 // towards the next level
 	StatPoints uint16 // earned by levelling, not yet spent
 	HP, SP     uint32 // kept between logins; both 0 for a character never saved in play
+	// Weapon and Body are the vnums of the weapon and armour worn, or 0. Body is read with
+	// the character for the select screen; in play both follow what is put on and off.
+	Weapon, Body uint32
 	// LastFought is in play only: when it last landed a blow or took a bite.
 	// It lives here, not on the world record's entry, which must stay small (world-loop.md).
 	LastFought  time.Time

@@ -1,6 +1,11 @@
 package item
 
-import "testing"
+import (
+	"errors"
+	"testing"
+
+	"github.com/SatoriAI/MT2-Go/internal/account"
+)
 
 var (
 	sword, _  = Lookup(10)    // two cells tall
@@ -111,6 +116,52 @@ func TestAGiveIsOfAKindAndAsManyAsOneItemHolds(t *testing.T) {
 		o, err := GiveOrder(c.vnum, int(c.count))
 		if (err == nil) != c.ok || (c.ok && o != (Order{Kind: Give, VNum: c.vnum, Count: c.count})) {
 			t.Errorf("%d of %d: got %+v, %v", c.count, c.vnum, o, err)
+		}
+	}
+}
+
+// A worn item stands in no cell: its old cell is free, and another item fits there.
+func TestAWornItemTakesNoCell(t *testing.T) {
+	inv := Inventory{{ID: 1, VNum: 10, Count: 1, Cell: 0, Worn: Weapon}}
+
+	if _, ok := inv.At(0); ok || !inv.Fits(potion, 0, 0) {
+		t.Fatal("the worn sword still stands in cell 0")
+	}
+	if worn, ok := inv.WornIn(Weapon); !ok || worn.ID != 1 {
+		t.Fatalf("worn as a weapon: %+v (%v)", worn, ok)
+	}
+	if cell, ok := inv.Free(sword); !ok || cell != 0 {
+		t.Fatalf("the first free cell is %d (%v)", cell, ok)
+	}
+}
+
+// Who may wear what: the sword is for warriors, ninjas and suras; a potion is not worn at
+// all.
+func TestOnlyTheClassesAKindIsForMayWearIt(t *testing.T) {
+	cases := []struct {
+		p     Proto
+		class account.Class
+		want  error
+	}{
+		{sword, account.Sura, nil},
+		{sword, account.Shaman, ErrWrongClass},
+		{potion, account.Sura, ErrNotWearable},
+	}
+	for _, c := range cases {
+		if got := c.p.CanWear(c.class); !errors.Is(got, c.want) || (got == nil) != (c.want == nil) {
+			t.Errorf("%s wearing %q: got %v, want %v", c.class, c.p.Name, got, c.want)
+		}
+	}
+}
+
+// Every kind that is worn says who may wear it and adds to a blow or sets against one.
+func TestEveryWornKindHasItsClassesAndStats(t *testing.T) {
+	for _, vnum := range VNums() {
+		p, _ := Lookup(vnum)
+		weapon := p.Wear == Weapon && p.AttackMin > 0 && p.AttackMin <= p.AttackMax && p.Defence == 0
+		armour := p.Wear == Body && p.Defence > 0 && p.AttackMax == 0
+		if p.Wear != "" && (len(p.Classes) == 0 || p.Stack != 1 || (!weapon && !armour)) {
+			t.Errorf("kind %d: %+v", vnum, p)
 		}
 	}
 }

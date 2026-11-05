@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/SatoriAI/MT2-Go/internal/combat"
+	"github.com/SatoriAI/MT2-Go/internal/item"
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
 )
 
@@ -102,7 +103,9 @@ func (w *presence) attack(playerVID, vid uint32, gap time.Duration, r *rand.Rand
 		return blowTooSoon
 	}
 	f.lastAttacker, f.lastBlowAt, p.char.LastFought = p, now, now
-	a := combat.Attacker{Level: p.char.Level, Class: p.char.Class, Stats: p.char.Stats}
+	weapon, _ := item.Lookup(p.char.Weapon)
+	a := combat.Attacker{Level: p.char.Level, Class: p.char.Class, Stats: p.char.Stats,
+		WeaponMin: weapon.AttackMin, WeaponMax: weapon.AttackMax}
 	damage := min(combat.Damage(a, f.defender, r), f.hp)
 	f.hp -= damage
 	f.damageBy[p] += damage

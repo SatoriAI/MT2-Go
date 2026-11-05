@@ -264,10 +264,11 @@ func TestCharacterAddPlacesEveryFieldWhereTheClientReadsIt(t *testing.T) {
 }
 
 func TestCharacterInfoSendsThePartsAsBodyWeaponHeadHair(t *testing.T) {
-	got := EncodeCharacterInfo(CharacterInfo{VID: 7, Name: "Hendra", BodyPart: 1, HairPart: 3, Empire: 3, Level: 21})
+	got := EncodeCharacterInfo(CharacterInfo{VID: 7, Name: "Hendra", BodyPart: 11600, WeaponPart: 10, HairPart: 3,
+		Empire: 3, Level: 21})
 
 	want := mustHex(t, "88"+"07000000"+hex.EncodeToString(fixed("Hendra", 25))+
-		"0100"+"0000"+"0000"+"0300"+ // body, weapon, head, hair
+		"502d"+"0a00"+"0000"+"0300"+ // body (the armour 11600), weapon (the sword 10), head, hair
 		"03"+"00000000"+"15000000"+ // empire, guild, level
 		"0000"+"00"+"00000000") // rank, player-kill mode, mount
 	if !bytes.Equal(got, want) {
@@ -498,5 +499,27 @@ func TestAnItemIsSetInACell(t *testing.T) {
 
 	if got := EncodeItemSet(ItemPos{Window: 1, Cell: 17}, 27001, 50); !bytes.Equal(got, want) {
 		t.Errorf("got  %x\nwant %x", got, want)
+	}
+}
+
+// CHARACTER_UPDATE re-dresses Hendra in the armour 11600 and the sword 10, with her speeds;
+// the rest is 0.
+func TestACharacterIsReDressed(t *testing.T) {
+	got := EncodeCharacterUpdate(CharacterInfo{VID: 7, BodyPart: 11600, WeaponPart: 10, HairPart: 3}, 150, 150)
+
+	want := mustHex(t, "13"+"07000000"+"502d"+"0a00"+"0000"+"0300"+ // vid, armour, weapon, head, hair
+		"96"+"96"+"00"+ // move and attack speed, state
+		strings.Repeat("00", 8+4+2+1+4)) // affects, guild, alignment, player-kill mode, mount
+	if !bytes.Equal(got, want) {
+		t.Errorf("got  %x\nwant %x", got, want)
+	}
+}
+
+// DEF goes at the client's index for it, 20.
+func TestTheDefenceIsSentAtItsIndex(t *testing.T) {
+	points := EncodePoints(CharacterPoints{Defence: 16})[1:]
+
+	if got := binary.LittleEndian.Uint32(points[4*PointDefence:]); got != 16 {
+		t.Fatalf("DEF %d", got)
 	}
 }

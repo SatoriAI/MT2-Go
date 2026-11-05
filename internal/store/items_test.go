@@ -168,11 +168,82 @@ func TestAMovedItemIsKept(t *testing.T) {
 	s.mustOrder(t, item.Order{Kind: item.Give, VNum: 10, Count: 1})
 	inv, _ := s.mustApply(t, cid)
 
-	if err := s.Move(context.Background(), inv[0].ID, 17); err != nil {
+	inv[0].Cell = 17
+	if err := s.Place(context.Background(), inv[0]); err != nil {
 		t.Fatal(err)
 	}
 
 	if inv, _, _ := s.Owned(context.Background(), "Hendra"); inv[0].Cell != 17 {
 		t.Fatalf("kept at %d", inv[0].Cell)
+	}
+}
+
+// Putting on a sword where another is worn moves both in one transaction, as the game
+// writes them: the new one into the weapon's place, then the old one into the cell the new
+// one left. One to a place is checked at the end, when they no longer share it.
+func TestASwapIsKeptWhole(t *testing.T) {
+	s, cid := hendrasItems(t)
+	s.mustOrder(t, item.Order{Kind: item.Give, VNum: 10, Count: 1})
+	s.mustOrder(t, item.Order{Kind: item.Give, VNum: 10, Count: 1})
+	inv, _ := s.mustApply(t, cid) // swords at 0 and 1
+	worn, other := inv[0], inv[1]
+	worn.Worn = item.Weapon
+	if err := s.Place(context.Background(), worn); err != nil {
+		t.Fatal(err)
+	}
+
+	worn.Worn, worn.Cell = "", other.Cell
+	other.Worn = item.Weapon
+	if err := s.Place(context.Background(), other, worn); err != nil {
+		t.Fatal(err)
+	}
+
+	got, _, _ := s.Owned(context.Background(), "Hendra")
+	if len(got) != 2 || got[0].ID != worn.ID || got[0].Cell != 1 || got[0].Worn != "" ||
+		got[1].ID != other.ID || got[1].Worn != item.Weapon {
+		t.Fatalf("kept %+v", got)
+	}
+}
+
+// The database keeps one item to a place, and an item either in a cell or worn.
+func TestTheDatabaseKeepsOneItemToAPlace(t *testing.T) {
+	s, cid := hendrasItems(t)
+	s.mustOrder(t, item.Order{Kind: item.Give, VNum: 10, Count: 1})
+	s.mustOrder(t, item.Order{Kind: item.Give, VNum: 10, Count: 1})
+	inv, _ := s.mustApply(t, cid)
+	inv[0].Worn, inv[1].Worn = item.Weapon, item.Weapon
+
+	if err := s.Place(context.Background(), inv[0], inv[1]); err == nil {
+		t.Error("kept two weapons worn at once")
+	}
+	for _, sql := range []string{
+		`UPDATE items SET worn = 'weapon' WHERE id = $1`,            // worn and in a cell
+		`UPDATE items SET cell = NULL WHERE id = $1`,                // neither
+		`UPDATE items SET cell = NULL, worn = 'ring' WHERE id = $1`, // no such place
+	} {
+		if _, err := s.Pool.Exec(context.Background(), sql, inv[0].ID); err == nil {
+			t.Errorf("kept %s", sql)
+		}
+	}
+}
+
+// The select screen shows the armour a character wears.
+func TestTheArmourWornIsReadWithTheCharacter(t *testing.T) {
+	s, cid := hendrasItems(t)
+	s.mustOrder(t, item.Order{Kind: item.Give, VNum: 11600, Count: 1})
+	inv, _ := s.mustApply(t, cid)
+	inv[0].Worn = item.Body
+	if err := s.Place(context.Background(), inv[0]); err != nil {
+		t.Fatal(err)
+	}
+
+	accounts := Accounts(s)
+	var accountID int64
+	if err := s.Pool.QueryRow(context.Background(), `SELECT account_id FROM characters WHERE id = $1`, cid).
+		Scan(&accountID); err != nil {
+		t.Fatal(err)
+	}
+	if c, err := accounts.Character(context.Background(), accountID, 0); err != nil || c.Body != 11600 {
+		t.Fatalf("read wearing %d (%v)", c.Body, err)
 	}
 }

@@ -122,3 +122,42 @@ func TestDefenceTakesAShareOfABite(t *testing.T) {
 		t.Fatalf("got %d, want 28 to 32 × 100/190", got)
 	}
 }
+
+// A level-1 sura with a sword (attack 13 to 15) puts twice a roll of it into each blow:
+// her 12 and 26 to 30, so 38 to 42, of which a wild dog's defence of 10 takes a share,
+// ×100/110, then up to a tenth either way: 31 to 42, every blow above any bare-handed one
+// (11 to 12).
+func TestASwordAddsTwiceARollOfItsAttack(t *testing.T) {
+	armed := levelOneSura
+	armed.WeaponMin, armed.WeaponMax = 13, 15
+	r := fixedRand()
+	low, high := math.Inf(1), math.Inf(-1)
+	for range 2000 {
+		got := float64(Damage(armed, wildDog, r))
+		low, high = math.Min(low, got), math.Max(high, got)
+	}
+
+	if low != 31 || high != 42 {
+		t.Fatalf("blows from %v to %v, want 31 to 42", low, high)
+	}
+	if mean := Mean(armed, wildDog); math.Abs(mean-40*100.0/110) > 0.5 {
+		t.Fatalf("a mean of %v", mean)
+	}
+}
+
+// Armour adds to a player's defence: a sura in the starters' armour (defence 12) sets 1 + 3
+// + 12 against a wild dog's bite of 28 to 32, ×100/116: 24 to 28 instead of 27 to 31.
+func TestArmourTakesItsShareOffABite(t *testing.T) {
+	armoured := levelOneSuraDefence
+	armoured.Armour = 12
+	r := fixedRand()
+	low, high := 1000, 0
+	for range 1000 {
+		got := Bite(wildDogBite, armoured, r)
+		low, high = min(low, got), max(high, got)
+	}
+
+	if low != 24 || high != 28 {
+		t.Fatalf("bites from %d to %d, want 24 to 28", low, high)
+	}
+}

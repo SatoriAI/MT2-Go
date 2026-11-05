@@ -121,10 +121,18 @@ func (s Items) ApplyOrders(ctx context.Context, characterID uint32) (item.Invent
 	return inv, done, err
 }
 
-// Move puts the item's top at cell.
-func (s Items) Move(ctx context.Context, id int64, cell uint16) error {
-	_, err := s.Pool.Exec(ctx, `UPDATE items SET cell = $2 WHERE id = $1`, id, cell)
-	return err
+// Place keeps where each item now is, its cell or where it is worn, all in one
+// transaction: an item put on where another was worn moves both, the new one first.
+func (s Items) Place(ctx context.Context, items ...item.Item) error {
+	return pgx.BeginFunc(ctx, s.Pool, func(tx pgx.Tx) error {
+		for _, it := range items {
+			if _, err := tx.Exec(ctx, `UPDATE items SET cell = CASE WHEN $3 = '' THEN $2::smallint END,
+				worn = nullif($3, '') WHERE id = $1`, it.ID, it.Cell, string(it.Worn)); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 // UnknownKinds returns the kinds owned or ordered that are not among known, in order.
@@ -140,14 +148,14 @@ func (s Items) UnknownKinds(ctx context.Context, known []uint32) ([]uint32, erro
 }
 
 func inventory(ctx context.Context, tx pgx.Tx, characterID uint32) (item.Inventory, error) {
-	rows, err := tx.Query(ctx, `SELECT id, vnum, count, cell FROM items WHERE character_id = $1 ORDER BY cell`,
-		characterID)
+	rows, err := tx.Query(ctx, `SELECT id, vnum, count, coalesce(cell, 0), coalesce(worn, '') FROM items
+		WHERE character_id = $1 ORDER BY worn NULLS FIRST, cell`, characterID)
 	if err != nil {
 		return nil, err
 	}
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (item.Item, error) {
 		var it item.Item
-		err := row.Scan(&it.ID, &it.VNum, &it.Count, &it.Cell)
+		err := row.Scan(&it.ID, &it.VNum, &it.Count, &it.Cell, &it.Worn)
 		return it, err
 	})
 }

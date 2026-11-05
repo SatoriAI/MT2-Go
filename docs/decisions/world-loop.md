@@ -41,6 +41,8 @@ Monsters fighting back added a fight to the loop: blows on living monsters are k
 
 Healing added two jobs to the loop. Hurt monsters are kept on a list, as fighting ones are, so an idle tick still walks none of them. Players are healed every three seconds in one round under the world lock, which `BenchmarkPlayerRegeneration` measures with every player hurt: 5.5 µs at 100 players, 73 µs at 1,000, 0.73 ms at 10,000, 0.02% of each three seconds even at the largest size.
 
+Equipment added nothing to the record's entries: what a player wears is kept on their character, as their hit points are, and a blow looks its weapon up by vnum. Measured against main, alternately and with the client closed, every benchmark stayed within 1% except the 100-player regeneration and entering, 2 to 7% faster, which is noise in the other direction; the geometric mean moved 1%.
+
 A move costs about 20 ns per character in the world, as the scan predicts. The world lock is held for every move, so the share of each second it is held is the moves per second times their cost:
 
 - **Today:** 100 player moves and 11 strolls a second hold the lock for 0.4 ms of each second: 0.04%.

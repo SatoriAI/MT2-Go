@@ -3,13 +3,24 @@
 package item
 
 import (
+	"errors"
 	"fmt"
 	"maps"
 	"slices"
+
+	"github.com/SatoriAI/MT2-Go/internal/account"
 )
 
 // MaxStack is the most of one kind a stack holds.
 const MaxStack = 200
+
+// Wear is where on a character an item is worn; "" for one that is not worn.
+type Wear string
+
+const (
+	Weapon Wear = "weapon"
+	Body   Wear = "body" // armour
+)
 
 // Proto is one kind of item, as the client's item_proto describes it.
 type Proto struct {
@@ -17,6 +28,32 @@ type Proto struct {
 	Name  string
 	Size  uint8 // how many cells tall it stands in the inventory, 1 to 3
 	Stack uint8 // the most one item of it holds: 1 for a kind that does not stack
+
+	// What a worn item is: where it goes, who may wear it, and what it adds to a blow or
+	// sets against one.
+	Wear      Wear
+	Classes   []account.Class
+	AttackMin uint16 // a weapon's attack, rolled for each blow
+	AttackMax uint16
+	Defence   uint16 // armour's
+}
+
+var (
+	// ErrNotWearable means the kind is not worn at all.
+	ErrNotWearable = errors.New("item: not worn")
+	// ErrWrongClass means the character's class cannot wear the kind.
+	ErrWrongClass = errors.New("item: not for this class")
+)
+
+// CanWear reports why a character of class cannot wear the kind, or nil.
+func (p Proto) CanWear(class account.Class) error {
+	switch {
+	case p.Wear == "":
+		return ErrNotWearable
+	case !slices.Contains(p.Classes, class):
+		return ErrWrongClass
+	}
+	return nil
 }
 
 // Lookup returns the kind vnum, or false if the game has none of it.
@@ -28,32 +65,44 @@ func Lookup(vnum uint32) (Proto, bool) {
 // VNums are the kinds the game has, in order.
 func VNums() []uint32 { return slices.Sorted(maps.Keys(protos)) }
 
-// protos are the client's item_proto values (its --dump_proto--/item_proto.txt): size, and
-// ITEM_STACKABLE for the stacks. The names are the Polish client's own, from its locale
+// protos are the client's item_proto values (its --dump_proto--/item_proto.txt): size,
+// ITEM_STACKABLE for the stacks; for what is worn, its ITEM_WEAR, the classes its
+// ANTI_ flags leave, a weapon's attack (VALUE3 to VALUE4) and armour's
+// defence (VALUE1). Only each class's first weapon and armour are listed, none of which
+// needs a level; a level check comes with the first that does. The names are the Polish client's own, from its locale
 // item_proto (docs/mechanics/items.md says how they were read), in UTF-8.
 var protos = map[uint32]Proto{
-	10:    {VNum: 10, Name: "Miecz+0", Size: 2, Stack: 1},
-	1000:  {VNum: 1000, Name: "Sztylet+0", Size: 1, Stack: 1},
-	2000:  {VNum: 2000, Name: "Łuk+0", Size: 2, Stack: 1},
-	3000:  {VNum: 3000, Name: "Glewia+0", Size: 3, Stack: 1},
-	5000:  {VNum: 5000, Name: "Miedziany Dzwon+0", Size: 1, Stack: 1},
-	7000:  {VNum: 7000, Name: "Wachlarz+0", Size: 1, Stack: 1},
-	11200: {VNum: 11200, Name: "Mnisia Zbr. Płyt.+0", Size: 2, Stack: 1},
-	11400: {VNum: 11400, Name: "Błękitne Ubranie+0", Size: 2, Stack: 1},
-	11600: {VNum: 11600, Name: "Żałobna Zbr. Płyt.+0", Size: 2, Stack: 1},
-	11800: {VNum: 11800, Name: "Błękitna Szata+0", Size: 2, Stack: 1},
+	10: {VNum: 10, Name: "Miecz+0", Size: 2, Stack: 1, Wear: Weapon,
+		Classes: []account.Class{account.Warrior, account.Ninja, account.Sura}, AttackMin: 13, AttackMax: 15},
+	1000: {VNum: 1000, Name: "Sztylet+0", Size: 1, Stack: 1, Wear: Weapon,
+		Classes: []account.Class{account.Ninja}, AttackMin: 8, AttackMax: 11},
+	2000: {VNum: 2000, Name: "Łuk+0", Size: 2, Stack: 1, Wear: Weapon,
+		Classes: []account.Class{account.Ninja}, AttackMin: 7, AttackMax: 29},
+	3000: {VNum: 3000, Name: "Glewia+0", Size: 3, Stack: 1, Wear: Weapon,
+		Classes: []account.Class{account.Warrior}, AttackMin: 14, AttackMax: 22},
+	7000: {VNum: 7000, Name: "Wachlarz+0", Size: 1, Stack: 1, Wear: Weapon,
+		Classes: []account.Class{account.Shaman}, AttackMin: 11, AttackMax: 15},
+	11200: {VNum: 11200, Name: "Mnisia Zbr. Płyt.+0", Size: 2, Stack: 1, Wear: Body,
+		Classes: []account.Class{account.Warrior}, Defence: 12},
+	11400: {VNum: 11400, Name: "Błękitne Ubranie+0", Size: 2, Stack: 1, Wear: Body,
+		Classes: []account.Class{account.Ninja}, Defence: 12},
+	11600: {VNum: 11600, Name: "Żałobna Zbr. Płyt.+0", Size: 2, Stack: 1, Wear: Body,
+		Classes: []account.Class{account.Sura}, Defence: 12},
+	11800: {VNum: 11800, Name: "Błękitna Szata+0", Size: 2, Stack: 1, Wear: Body,
+		Classes: []account.Class{account.Shaman}, Defence: 12},
 	27001: {VNum: 27001, Name: "Czerwona Mikstura(M)", Size: 1, Stack: MaxStack},
 	27002: {VNum: 27002, Name: "Czerwona Mikstura(Ś)", Size: 1, Stack: MaxStack},
 	27004: {VNum: 27004, Name: "Niebieska Mikstura(M)", Size: 1, Stack: MaxStack},
 }
 
-// Item is one item a character owns: a kind, how many of it, and the inventory cell its
-// top stands in.
+// Item is one item a character owns: a kind, how many of it, and either the inventory
+// cell its top stands in or where it is worn.
 type Item struct {
 	ID    int64
 	VNum  uint32
 	Count uint8
-	Cell  uint16
+	Cell  uint16 // meaningless while it is worn
+	Worn  Wear
 }
 
 // The inventory is two pages of 45 cells, five to a row; an item stands in its column
@@ -76,7 +125,7 @@ func (inv Inventory) Fits(p Proto, cell uint16, except int64) bool {
 	}
 	for _, it := range inv {
 		other, _ := Lookup(it.VNum)
-		if it.ID != except && it.Cell%RowCells == cell%RowCells &&
+		if it.Worn == "" && it.ID != except && it.Cell%RowCells == cell%RowCells &&
 			it.Cell <= bottom && cell <= it.Cell+uint16(other.Size-1)*RowCells {
 			return false
 		}
@@ -97,7 +146,36 @@ func (inv Inventory) Free(p Proto) (uint16, bool) {
 // At returns the item whose top stands at cell.
 func (inv Inventory) At(cell uint16) (Item, bool) {
 	for _, it := range inv {
-		if it.Cell == cell {
+		if it.Worn == "" && it.Cell == cell {
+			return it, true
+		}
+	}
+	return Item{}, false
+}
+
+// ByID returns the item with the id.
+func (inv Inventory) ByID(id int64) (Item, bool) {
+	for _, it := range inv {
+		if it.ID == id {
+			return it, true
+		}
+	}
+	return Item{}, false
+}
+
+// Replace puts it in place of the item with its id.
+func (inv Inventory) Replace(it Item) {
+	for i := range inv {
+		if inv[i].ID == it.ID {
+			inv[i] = it
+		}
+	}
+}
+
+// WornIn returns the item worn in place, if any.
+func (inv Inventory) WornIn(place Wear) (Item, bool) {
+	for _, it := range inv {
+		if it.Worn == place {
 			return it, true
 		}
 	}

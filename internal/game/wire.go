@@ -94,7 +94,7 @@ func summary(c account.Character) protocol.CharacterSummary {
 		HT:          c.Vitality,
 		DX:          c.Dexterity,
 		IQ:          c.Intelligence,
-		BodyPart:    uint16(c.Shape),
+		BodyPart:    bodyPart(c),
 		HairPart:    c.Hair,
 		X:           c.X,
 		Y:           c.Y,
@@ -177,19 +177,53 @@ func textFromClient(text string) string {
 }
 
 // inventoryWindow is the client's number for the inventory among its item windows
-// (GameType.h, INVENTORY); its cells are the game's own, 0 to 89.
+// (GameType.h, INVENTORY): its cells 0 to 89 are the game's own, and what is worn is in
+// the cells after them, the body at 90 and the weapon at 94.
 const inventoryWindow uint8 = 1
 
-// cellFromWire returns the inventory cell the client's position stands for, or false for
-// another window or a cell past the inventory.
-func cellFromWire(at protocol.ItemPos) (uint16, bool) {
-	return at.Cell, at.Window == inventoryWindow && at.Cell < item.Cells
+var wornCells = map[item.Wear]uint16{item.Body: 90, item.Weapon: 94}
+
+// placeFromWire returns where a position the client names is: an inventory cell, or
+// where an item is worn. False for another window, or a cell the game does not use.
+func placeFromWire(at protocol.ItemPos) (uint16, item.Wear, bool) {
+	if at.Window != inventoryWindow {
+		return 0, "", false
+	}
+	if at.Cell < item.Cells {
+		return at.Cell, "", true
+	}
+	for worn, cell := range wornCells {
+		if cell == at.Cell {
+			return 0, worn, true
+		}
+	}
+	return 0, "", false
 }
 
-func itemSet(it item.Item) []byte {
-	return protocol.EncodeItemSet(protocol.ItemPos{Window: inventoryWindow, Cell: it.Cell}, it.VNum, it.Count)
+// itemPos is where the client shows an item: its cell, or its place among what is worn.
+func itemPos(it item.Item) protocol.ItemPos {
+	if it.Worn != "" {
+		return protocol.ItemPos{Window: inventoryWindow, Cell: wornCells[it.Worn]}
+	}
+	return protocol.ItemPos{Window: inventoryWindow, Cell: it.Cell}
 }
 
-func itemCleared(cell uint16) []byte {
-	return protocol.EncodeItemSet(protocol.ItemPos{Window: inventoryWindow, Cell: cell}, 0, 0)
+func itemSet(it item.Item) []byte { return protocol.EncodeItemSet(itemPos(it), it.VNum, it.Count) }
+
+// itemCleared empties the place the item stood in.
+func itemCleared(it item.Item) []byte { return protocol.EncodeItemSet(itemPos(it), 0, 0) }
+
+// bodyPart is how the client is told to dress a character: in its armour, by the
+// armour's vnum, which the client turns into a model through the item's own data, or
+// else in the class's look the player picked, 0 or 1.
+func bodyPart(c account.Character) uint16 {
+	if c.Body != 0 {
+		return uint16(c.Body) //nolint:gosec // armour vnums are under 2^16
+	}
+	return uint16(c.Shape)
+}
+
+// weaponPart is the weapon a character holds, by its vnum, or 0.
+func weaponPart(c account.Character) uint16 {
+	return uint16(c.Weapon) //nolint:gosec // weapon vnums are under 2^16
 }

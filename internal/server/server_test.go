@@ -652,7 +652,7 @@ func (c *client) expectLoading() {
 		X: 963400, Y: 278200, Empire: 3}))
 	c.expect(protocol.EncodePoints(protocol.CharacterPoints{Level: 1, NextExp: 300,
 		HP: 950, MaxHP: 950, SP: 850, MaxSP: 850, Stamina: 1000, MaxStamina: 1000, // a level-1 sura's
-		ST: 5, HT: 3, DX: 3, IQ: 5, AttackSpeed: 150, MoveSpeed: 150}))
+		ST: 5, HT: 3, DX: 3, IQ: 5, AttackSpeed: 150, MoveSpeed: 150, Defence: 1 + 3})) // DEF: level and vitality
 	c.expect(protocol.EncodeSkillLevels())
 }
 

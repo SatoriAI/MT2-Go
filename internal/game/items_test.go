@@ -11,19 +11,22 @@ import (
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
 )
 
-// keptItems stands in for the store's items: it keeps the cells items were moved to, and
-// fails every move with fail set.
+// keptItems stands in for the store's items: it keeps where items were placed, and fails
+// every placing with fail set.
 type keptItems struct {
 	Items // the rest is never called
 	moved map[int64]uint16
+	worn  map[int64]item.Wear
 	fail  error
 }
 
-func (k *keptItems) Move(_ context.Context, id int64, cell uint16) error {
+func (k *keptItems) Place(_ context.Context, items ...item.Item) error {
 	if k.fail != nil {
 		return k.fail
 	}
-	k.moved[id] = cell
+	for _, it := range items {
+		k.moved[it.ID], k.worn[it.ID] = it.Cell, it.Worn
+	}
 	return nil
 }
 
@@ -34,7 +37,7 @@ const itemSetSize = 42
 func carrying(t *testing.T) (*session, *keptItems, net.Conn) {
 	t.Helper()
 	conn, client := watcher(t)
-	kept := &keptItems{moved: map[int64]uint16{}}
+	kept := &keptItems{moved: map[int64]uint16{}, worn: map[int64]item.Wear{}}
 	s := &session{svc: &Service{items: kept}, conn: conn, phase: protocol.PhaseGame, inventory: item.Inventory{
 		{ID: 1, VNum: 10, Count: 1, Cell: 0}, {ID: 2, VNum: 27001, Count: 50, Cell: 1}}}
 	return s, kept, client
@@ -55,7 +58,7 @@ func TestAnItemDraggedWhereItFitsIsMovedAndKept(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if got := read(t, client, 2*itemSetSize); string(got) != string(itemCleared(0))+string(
+	if got := read(t, client, 2*itemSetSize); string(got) != string(itemCleared(item.Item{Cell: 0}))+string(
 		itemSet(item.Item{ID: 1, VNum: 10, Count: 1, Cell: 17})) {
 		t.Fatalf("told %x", got)
 	}

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/SatoriAI/MT2-Go/internal/combat"
+	"github.com/SatoriAI/MT2-Go/internal/item"
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
 )
 
@@ -125,7 +126,9 @@ func (w *presence) bite(m *monster, t *present, now time.Time, clock uint32, r *
 		X: me.add.X, Y: me.add.Y, Time: clock}))
 	b := combat.Biter{Level: m.proto.Level, Strength: m.proto.Strength, DamageMin: m.proto.DamageMin,
 		DamageMax: m.proto.DamageMax}
-	damage := min(uint32(combat.Bite(b, combat.Defender{Level: ch.Level, Vitality: ch.Vitality}, r)), ch.HP) //nolint:gosec // at least 1
+	armour, _ := item.Lookup(ch.Body)
+	damage := min(uint32(combat.Bite(b, combat.Defender{Level: ch.Level, Vitality: ch.Vitality, Armour: armour.Defence}, r)), //nolint:gosec // at least 1
+		ch.HP)
 	ch.HP -= damage
 	ch.LastFought = now
 	vid := t.add.VID

@@ -55,6 +55,7 @@ func (w *presence) gainExp(p *present, gain uint32) {
 		protocol.EncodePointChange(vid, protocol.PointHP, 0, int32(points.MaxHP)),    //nolint:gosec // small
 		protocol.EncodePointChange(vid, protocol.PointMaxSP, 0, int32(points.MaxSP)), //nolint:gosec // small
 		protocol.EncodePointChange(vid, protocol.PointSP, 0, int32(points.MaxSP)),    //nolint:gosec // small
+		protocol.EncodePointChange(vid, protocol.PointDefence, 0, int32(defence(c))), //nolint:gosec // small
 	)
 	toViewers(p, protocol.EncodePointChange(vid, protocol.PointLevel, gained, int32(c.Level)))
 }
@@ -94,7 +95,8 @@ func (w *presence) spendStatPoint(vid uint32, name string) {
 	}
 	switch name {
 	case "ht":
-		packets = append(packets, protocol.EncodePointChange(vid, protocol.PointMaxHP, 0, int32(points.MaxHP))) //nolint:gosec // small
+		packets = append(packets, protocol.EncodePointChange(vid, protocol.PointMaxHP, 0, int32(points.MaxHP)), //nolint:gosec // small
+			protocol.EncodePointChange(vid, protocol.PointDefence, 0, int32(defence(c)))) //nolint:gosec // small
 	case "iq":
 		packets = append(packets, protocol.EncodePointChange(vid, protocol.PointMaxSP, 0, int32(points.MaxSP))) //nolint:gosec // small
 	}

@@ -43,7 +43,7 @@ Seen from the real client: a sword dragged from cell 0 to 17 sends `0D 01 00 00 
 
 `internal/item` holds the kinds and the inventory's rules; `internal/store/items.go` keeps what characters own; `internal/game/items.go` shows and moves it.
 
-- **The kinds** are a table in `internal/item`, only those the game hands out: the six first weapons, the four classes' first body armours, and red and blue potions. Each has its vnum, the Polish client's name, its height in cells, and how many one item holds, 1 or 200. A kind is added with a line there. A stack holds up to 200, as open-mt2's shops sell potions.
+- **The kinds** are a table in `internal/item`, only those the game hands out: each class's first weapons and body armour, and red and blue potions. The Copper Bell went when equipment came, as it needs level 10 and only the starters are kept. Each has its vnum, the Polish client's name, its height in cells, and how many one item holds, 1 or 200; what is worn says more ([equipment.md](equipment.md)). A kind is added with a line there. A stack holds up to 200, as open-mt2's shops sell potions.
 - **An item** is a row: its kind, its count, and the cell of its top. The database keeps two items from sharing a top cell, and the game keeps a tall item from covering another's cells. Every change is written as it happens, never in a periodic save, so a crash neither loses nor duplicates an item.
 - **Giving and taking** are orders, left by the command line while there is no website:
 
@@ -60,7 +60,7 @@ Seen from the real client: a sword dragged from cell 0 to 17 sends `0D 01 00 00 
   - Orders are carried out oldest first, all in one transaction. A character is played on one connection at a time, so only one carries its orders out.
   - Only the server writes the items, so what a session holds is never stale.
   - `give` refuses a kind the game lacks and a count one item cannot hold, and `take` refuses an item the character doesn't own.
-- **Entering** shows each item, last of what entering sends, after the player's own character and their block settings.
+- **Entering** shows each item, last of what entering sends, after the player's own character and their block settings; worn items show in their places ([equipment.md](equipment.md)).
 - **A move** is made when all of the item fits at the new cell, on one page and over no other item. The item may overlap its own old cells. The game writes the new cell, then tells the client the old cell is empty and the new one holds the item. Refused, and answered with the item where it was:
   - a split;
   - a drop onto another item;
@@ -104,7 +104,6 @@ Seen from the real client: a sword dragged from cell 0 to 17 sends `0D 01 00 00 
 
 ## Not done yet
 
-- **Equipment:** wearing items, their attack and defence, others seeing them.
 - **Drops** from monsters, and yang.
 - Using items and potions, dropping them, the taskbar.
 - Splitting, merging and swapping stacks.
