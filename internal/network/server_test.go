@@ -248,10 +248,14 @@ func TestAClientThatStopsReadingIsDisconnected(t *testing.T) {
 
 // A client that stops reading and hangs up still has its session closed at once: the
 // player leaves the world without waiting for the write timeout on what is queued.
+//
+// The clock starts once the first byte arrives, so it leaves out the accept and the
+// flooder's 64 MiB send, which take a while under -race on a busy machine. Waiting on the
+// queue would take the whole write timeout, far longer than the deadline.
 func TestAHangUpClosesTheSessionWithoutWaitingForQueuedWrites(t *testing.T) {
 	ln := listen(t)
 	closed := make(chan struct{})
-	stop := serve(t, ln, Timeouts{Write: 3 * time.Second}, func(c *Conn) Session {
+	stop := serve(t, ln, Timeouts{Write: 30 * time.Second}, func(c *Conn) Session {
 		return &flooder{conn: c, closed: closed}
 	})
 	defer func() { _ = stop() }()
@@ -261,13 +265,17 @@ func TestAHangUpClosesTheSessionWithoutWaitingForQueuedWrites(t *testing.T) {
 	}
 	defer func() { _ = conn.Close() }()
 
+	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	if _, err := io.ReadFull(conn, make([]byte, 1)); err != nil {
+		t.Fatalf("the queued writes never started: %v", err)
+	}
 	if err := conn.(*net.TCPConn).CloseWrite(); err != nil {
 		t.Fatal(err)
 	}
 
 	select {
 	case <-closed:
-	case <-time.After(time.Second):
+	case <-time.After(2 * time.Second):
 		t.Fatal("the session waited on the queued writes")
 	}
 }
