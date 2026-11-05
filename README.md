@@ -7,7 +7,7 @@ A Metin2 server written from scratch in Go: every mechanic documented and unders
 
 ## Status
 
-Early. The original TMP4 client (r40250) logs in, chooses a kingdom, creates a character and enters the world. There a player sees the others near them and chats with them, whispers to anyone in the game, with each delivered whisper kept in the database, and can block whispers. The first villages have their NPCs and wandering monsters; monsters can be fought and bite back, a player can die and restart, both heal over time, and hit points and mana are kept between logins. Killing monsters gives experience, levels and stat points to spend. Experience events, scheduled from the command line, multiply it for a span of time. Characters own items, given or taken on the command line, see and move them in the inventory, and wear a weapon and armour that count in a fight and show on them. Monsters drop potions and, rarely, gear, kept for whoever fought them hardest before anyone may pick it up. Potions heal and restore mana with a double-click. Local use only: nothing here is hardened for a public server.
+Early. The original TMP4 client (r40250) logs in, chooses a kingdom, creates a character and enters the world. There a player sees the others near them and chats with them, whispers to anyone in the game, with each delivered whisper kept in the database, and can block whispers. The first villages have their NPCs and wandering monsters; monsters can be fought and bite back, a player can die and restart, both heal over time, and hit points and mana are kept between logins. Killing monsters gives experience, levels and stat points to spend. Events, scheduled from the command line, multiply experience and yang for a span of time. Characters own items, given or taken on the command line, see and move them in the inventory, and wear a weapon and armour that count in a fight and show on them. Monsters drop yang, potions and, rarely, gear, kept for whoever fought them hardest before anyone may pick it up. Potions heal and restore mana with a double-click. Local use only: nothing here is hardened for a public server.
 
 Each mechanic is written up in [`docs/mechanics/`](docs/mechanics/) — what the client does, the exact bytes, what the server does and how we know. That is the best place to start reading.
 
@@ -23,7 +23,7 @@ make account NAME=admin  # asks for a password (at most 16 characters, the clien
 make run                 # auth on 127.0.0.1:11002, game on 127.0.0.1:13001
 ```
 
-An experience event, such as double experience over Christmas, is scheduled with `go run ./cmd/mt2go event create "Boże Narodzenie" 2 2026-12-24T00:00 2026-12-27T00:00`; see [`docs/mechanics/events.md`](docs/mechanics/events.md).
+An event, such as double experience and half as much yang again over Christmas, is scheduled with `go run ./cmd/mt2go event create "Boże Narodzenie" 2 1.5 2026-12-24T00:00 2026-12-27T00:00`; see [`docs/mechanics/events.md`](docs/mechanics/events.md).
 
 Point the client's `serverinfo.py` at `127.0.0.1`, auth port `11002`, channel port `13001`, and log in with the account you created. **The client is not part of this repository** and is not provided here.
 

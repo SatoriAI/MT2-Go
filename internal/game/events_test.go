@@ -13,10 +13,10 @@ import (
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
 )
 
-var christmas = event.Event{ID: 1, Name: "Boże Narodzenie", ExpPercent: 200,
+var christmas = event.Event{ID: 1, Name: "Boże Narodzenie", ExpPercent: 200, YangPercent: 100,
 	Start: time.Date(2026, 12, 24, 0, 0, 0, 0, event.Zone), End: time.Date(2026, 12, 27, 0, 0, 0, 0, event.Zone)}
 
-var newYear = event.Event{ID: 2, Name: "Nowy Rok", ExpPercent: 150,
+var newYear = event.Event{ID: 2, Name: "Nowy Rok", ExpPercent: 150, YangPercent: 100,
 	Start: time.Date(2026, 12, 31, 18, 0, 0, 0, event.Zone), End: time.Date(2027, 1, 1, 12, 0, 0, 0, event.Zone)}
 
 // The notices as players read them, in the client's code page from the server's vid 0.
@@ -174,4 +174,19 @@ func TestTheWatchGivesUpALookThatHangs(t *testing.T) {
 	go func() { _ = s.WatchEvents(ctx, events, 10*time.Millisecond, slog.New(slog.DiscardHandler)) }()
 
 	expectBytes(t, hendra, christmasRuns)
+}
+
+// The notice names only what the event multiplies: yang alone, or both.
+func TestAnEventsNoticeNamesWhatItMultiplies(t *testing.T) {
+	yangOnly, both := christmas, christmas
+	yangOnly.ExpPercent, yangOnly.YangPercent = 100, 150
+	both.YangPercent = 300
+	for e, want := range map[*event.Event]string{
+		&yangOnly: "Wydarzenie „Boże Narodzenie” trwa do 27.12 00:00: yang ×1,5.",
+		&both:     "Wydarzenie „Boże Narodzenie” trwa do 27.12 00:00: doświadczenie ×2, yang ×3.",
+	} {
+		if got := eventNotice(*e); string(got) != string(notice(want)) {
+			t.Errorf("got %q, want %q", got, want)
+		}
+	}
 }

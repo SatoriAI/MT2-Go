@@ -144,3 +144,22 @@ func TestEnteringShowsTheHitPointsAndManaKept(t *testing.T) {
 		t.Fatalf("shown %d hit points and %d mana, want 500 and 120", hp, sp)
 	}
 }
+
+// Entering, the character has the yang it has kept.
+func TestEnteringShowsTheYangKept(t *testing.T) {
+	h := start(t)
+	hendra, key := h.hendraInWorld()
+	hendra.changeCharacter()
+	h.exec(`UPDATE characters SET gold = 1234 WHERE name = 'Hendra'`)
+
+	game := h.enterSelection("admin", key)
+	game.read(2 + 329 + 2) // kingdom, list, select phase
+	game.selectCharacter(0)
+	game.expect(protocol.EncodePhase(protocol.PhaseLoading))
+	game.read(46) // the main character
+	points := game.read(1021)[1:]
+
+	if gold := binary.LittleEndian.Uint32(points[4*protocol.PointGold:]); gold != 1234 {
+		t.Fatalf("shown %d yang, want 1234", gold)
+	}
+}

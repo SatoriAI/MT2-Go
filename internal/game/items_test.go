@@ -20,7 +20,18 @@ type keptItems struct {
 	added []item.Item
 	count map[int64]uint8
 	gone  []int64
+	gold  uint32
 	fail  error
+}
+
+func (k *keptItems) Gold(context.Context, uint32) (uint32, error) { return k.gold, k.fail }
+
+func (k *keptItems) AddGold(_ context.Context, _, amount uint32) (uint32, error) {
+	if k.fail != nil {
+		return 0, k.fail
+	}
+	k.gold += amount
+	return k.gold, nil
 }
 
 func (k *keptItems) Remove(_ context.Context, id int64) error {

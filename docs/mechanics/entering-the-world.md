@@ -121,6 +121,7 @@ The client sends it on its own a few seconds after entering, seen with the real 
   - **Current values:** hit points and mana are what the character was last saved with, cut to its maximum now, which a later change to the formula or, one day, taking off an item can lower. A character never saved in play has all of them. They are saved with its progress, on leaving and every minute, except while it lies dead ([dying.md](dying.md)).
 
   A new sura has 950 hit points and 850 mana.
+- **Yang** is stored, not derived: what the character has, kept in its row as it changes ([drops.md](drops.md)), and sent in POINTS at index 11.
 
 ## How we know
 

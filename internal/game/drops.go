@@ -34,6 +34,7 @@ type groundItem struct {
 	x, y    int32
 	vnum    uint32
 	count   uint8
+	gold    uint32 // yang, in place of an item
 	owner   owner
 	dropped time.Time
 }
@@ -57,9 +58,9 @@ func (w *presence) dropOwner(f *fight, killer *present) owner {
 	return owner{id: best.char.ID, name: best.info.Name}
 }
 
-// dropFrom rolls what a dead monster leaves, each of its drops on its own, and lays what
-// falls near its body for its owner; the loop then frees each one and clears it away in
-// turn.
+// dropFrom rolls what a dead monster leaves, each of its drops on its own, then its yang,
+// and lays what falls near its body for its owner; the loop then frees each one and clears
+// it away in turn.
 func (s *Service) dropFrom(m *monster, d death, now time.Time) {
 	var fallen []*groundItem
 	for _, drop := range m.proto.Drops {
@@ -67,6 +68,11 @@ func (s *Service) dropFrom(m *monster, d death, now time.Time) {
 			fallen = append(fallen, &groundItem{vid: s.lastVID.Add(1), x: m.x + s.spread(dropSpread),
 				y: m.y + s.spread(dropSpread), vnum: drop.VNum, count: drop.Count, owner: d.owner, dropped: now})
 		}
+	}
+	if y := m.proto.Yang; s.rand.IntN(10000) < int(y.Chance) {
+		fallen = append(fallen, &groundItem{vid: s.lastVID.Add(1), x: m.x + s.spread(dropSpread),
+			y: m.y + s.spread(dropSpread), gold: y.Min + uint32(s.rand.IntN(int(y.Max-y.Min+1))), //nolint:gosec // a small range
+			owner: d.owner, dropped: now})
 	}
 	if len(fallen) == 0 {
 		return
@@ -92,13 +98,16 @@ func (s *Service) keepGround(now time.Time) {
 	}
 }
 
-// drop lays the items on the ground where the body is, and shows each, with its owner, to
-// the players who see it.
+// drop lays the items on the ground where the body is, yang multiplied by the event that
+// runs, and shows each, with its owner, to the players who see it.
 func (w *presence) drop(body *present, items []*groundItem) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	for _, it := range items {
 		it.world = body.world
+		if it.gold > 0 && w.event != nil {
+			it.gold = w.event.Yang(it.gold)
+		}
 		w.ground[it.vid] = it
 		w.toNear(it, shown(it)...)
 	}
@@ -127,7 +136,7 @@ func (w *presence) vanish(vid uint32) {
 // shown is how a ground item comes into a player's view: laid down, then its owner's name,
 // which the client takes only for an item it has.
 func shown(it *groundItem) [][]byte {
-	add := protocol.EncodeGroundAdd(it.vid, it.x, it.y, it.vnum)
+	add := protocol.EncodeGroundAdd(it.vid, it.x, it.y, groundVNum(it))
 	if it.owner.id == 0 {
 		return [][]byte{add}
 	}
@@ -194,7 +203,7 @@ const (
 // they have room for it, and shows everyone near it that it is gone. room runs under the
 // lock, so it must only look at what the player's own connection keeps. The first of two
 // players to reach for an item has it; the second finds nothing.
-func (w *presence) pickUp(playerVID, vid uint32, room func(vnum uint32, count uint8) bool) (groundItem, pickResult) {
+func (w *presence) pickUp(playerVID, vid uint32, room func(*groundItem) bool) (groundItem, pickResult) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	p, it := w.all[playerVID], w.ground[vid]
@@ -202,7 +211,7 @@ func (w *presence) pickUp(playerVID, vid uint32, room func(vnum uint32, count ui
 	case it == nil || p.dead() || p.world != it.world || !near(p.add.X, p.add.Y, it.x, it.y, pickupReach+1) ||
 		(it.owner.id != 0 && it.owner.id != p.char.ID):
 		return groundItem{}, pickRefused
-	case !room(it.vnum, it.count):
+	case !room(it):
 		return groundItem{}, pickNoRoom
 	}
 	delete(w.ground, vid)
@@ -237,10 +246,14 @@ func (s *session) onItemPickup(body []byte) error {
 		return err
 	}
 	var into item.Item
-	it, result := s.svc.presence.pickUp(s.playing.vid, vid, func(vnum uint32, count uint8) bool {
-		p, _ := item.Lookup(vnum)
+	var yang bool
+	it, result := s.svc.presence.pickUp(s.playing.vid, vid, func(it *groundItem) bool {
+		if yang = it.gold > 0; yang {
+			return uint64(s.gold)+uint64(it.gold) <= maxGold
+		}
+		p, _ := item.Lookup(it.vnum)
 		var ok bool
-		into, ok = s.inventory.RoomFor(p, count)
+		into, ok = s.inventory.RoomFor(p, it.count)
 		return ok
 	})
 	switch result {
@@ -248,10 +261,17 @@ func (s *session) onItemPickup(body []byte) error {
 		s.conn.Log().Debug("pick-up refused", "vid", vid)
 		return nil
 	case pickNoRoom:
+		if yang {
+			s.conn.Log().Debug("yang past what a character may hold left lying", "vid", vid)
+			return nil
+		}
 		return s.conn.Send(protocol.EncodeChat(protocol.ChatInfo, 0, 0, textToClient("Nie masz miejsca w ekwipunku.")))
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), saveTimeout)
 	defer cancel()
+	if it.gold > 0 {
+		return s.pickGold(ctx, it)
+	}
 	if into.ID != 0 {
 		err = s.svc.items.SetCount(ctx, into.ID, into.Count)
 	} else {
@@ -268,4 +288,21 @@ func (s *session) onItemPickup(body []byte) error {
 		s.inventory = append(s.inventory, into)
 	}
 	return s.conn.Send(itemSet(into))
+}
+
+// maxGold is the most yang a character may hold, as the characters table checks too: a
+// round cap under what the client's signed 32-bit points hold.
+const maxGold = 2_000_000_000
+
+// pickGold keeps the yang picked up and tells the player their new balance; the client
+// says how much they got by itself. Yang that cannot be kept goes back on the ground.
+func (s *session) pickGold(ctx context.Context, it groundItem) error {
+	gold, err := s.svc.items.AddGold(ctx, s.playing.ID, it.gold)
+	if err != nil {
+		s.conn.Log().Error("yang picked up not kept", "amount", it.gold, "err", err)
+		s.svc.presence.putBack(it, s.svc.now())
+		return nil
+	}
+	s.gold = gold
+	return s.conn.Send(protocol.EncodePointChange(s.playing.vid, protocol.PointGold, int32(it.gold), int32(gold))) //nolint:gosec // under 2^31
 }

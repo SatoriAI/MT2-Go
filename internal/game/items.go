@@ -21,10 +21,13 @@ type Items interface {
 	SetCount(ctx context.Context, id int64, count uint8) error
 	// Remove forgets an item the character no longer has.
 	Remove(ctx context.Context, id int64) error
+	// Gold returns the character's yang; AddGold keeps more of it and returns the balance.
+	Gold(ctx context.Context, characterID uint32) (uint32, error)
+	AddGold(ctx context.Context, characterID, amount uint32) (uint32, error)
 }
 
 // loadInventory carries out the orders waiting for the character, and keeps what it then
-// owns. Only the connection's goroutine touches the inventory from then on.
+// owns, items and yang. Only the connection's goroutine touches either from then on.
 func (s *session) loadInventory(ctx context.Context, characterID uint32) error {
 	inv, done, err := s.svc.items.ApplyOrders(ctx, characterID)
 	if err != nil {
@@ -34,7 +37,11 @@ func (s *session) loadInventory(ctx context.Context, characterID uint32) error {
 		s.conn.Log().Info("item order carried out", "order", o.ID, "kind", o.Kind, "vnum", o.VNum, "count", o.Count,
 			"item", o.ItemID)
 	}
-	s.inventory = inv
+	gold, err := s.svc.items.Gold(ctx, characterID)
+	if err != nil {
+		return err
+	}
+	s.inventory, s.gold = inv, gold
 	return nil
 }
 

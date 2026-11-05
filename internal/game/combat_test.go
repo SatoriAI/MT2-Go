@@ -47,11 +47,14 @@ func dogDefender(t *testing.T) combat.Defender {
 	return combat.Defender{Level: p.Level, Vitality: p.Vitality, Armour: uint16(p.Armour)}
 }
 
-// aDog is a world with one wild dog at home, and the player at playerX east of it, with
-// what entering showed them read.
+// aDog is a world with one wild dog at home, which leaves nothing when it dies, and the
+// player at playerX east of it, with what entering showed them read.
 func aDog(t *testing.T, playerX int32) (*Service, *monster, net.Conn) {
 	t.Helper()
 	s := worldWith(t, world.Spawn{VNum: 101, X: homeX, Y: homeY, Count: 1})
+	bare := *s.monsters[0].proto
+	bare.Drops, bare.Yang = nil, mob.Yang{} // so only what a test is about arrives
+	s.monsters[0].proto = &bare
 	shown := addSize
 	if playerX-homeX > viewRange {
 		shown = 0

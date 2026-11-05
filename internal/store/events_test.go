@@ -22,7 +22,7 @@ func freshEvents(t *testing.T) Events {
 var christmasEve = time.Date(2026, 12, 24, 0, 0, 0, 0, time.UTC)
 
 func christmas() event.Event {
-	return event.Event{Name: "Boże Narodzenie", ExpPercent: 200, Start: christmasEve, End: christmasEve.AddDate(0, 0, 3)}
+	return event.Event{Name: "Boże Narodzenie", ExpPercent: 200, YangPercent: 150, Start: christmasEve, End: christmasEve.AddDate(0, 0, 3)}
 }
 
 // An event runs from its first moment up to, not including, its end.
@@ -49,7 +49,7 @@ func TestAnEventRunsFromItsStartUntilItsEnd(t *testing.T) {
 }
 
 func sameEvent(a, b event.Event) bool {
-	return a.ID == b.ID && a.Name == b.Name && a.ExpPercent == b.ExpPercent && a.Start.Equal(b.Start) && a.End.Equal(b.End)
+	return a.ID == b.ID && a.Name == b.Name && a.ExpPercent == b.ExpPercent && a.YangPercent == b.YangPercent && a.Start.Equal(b.Start) && a.End.Equal(b.End)
 }
 
 // One event runs at a time; one may start the moment another ends.
@@ -90,5 +90,14 @@ func TestADeletedEventNoLongerRuns(t *testing.T) {
 	}
 	if deleted, err := events.Delete(ctx, id); err != nil || deleted {
 		t.Fatalf("deleting it again: got %v, %v; want nothing deleted", deleted, err)
+	}
+}
+
+// The database refuses an event that multiplies nothing, as the game does.
+func TestAnEventThatGivesNothingIsRefused(t *testing.T) {
+	e := christmas()
+	e.ExpPercent, e.YangPercent = 100, 100
+	if _, err := freshEvents(t).Create(context.Background(), e); err == nil {
+		t.Fatal("stored")
 	}
 }

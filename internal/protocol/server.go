@@ -155,7 +155,7 @@ func EncodePoints(p CharacterPoints) []byte {
 	for index, v := range map[int]uint32{
 		1: p.Level, 3: p.Exp, 4: p.NextExp,
 		5: p.HP, 6: p.MaxHP, 7: p.SP, 8: p.MaxSP, 9: p.Stamina, 10: p.MaxStamina,
-		11: p.Gold, PointST: p.ST, PointHT: p.HT, PointDX: p.DX, PointIQ: p.IQ,
+		PointGold: p.Gold, PointST: p.ST, PointHT: p.HT, PointDX: p.DX, PointIQ: p.IQ,
 		17: p.AttackSpeed, 19: p.MoveSpeed, PointDefence: p.Defence, PointStatPoints: p.StatPoints,
 	} {
 		points[index] = v
@@ -178,6 +178,7 @@ const (
 	PointMaxHP      Point = 6
 	PointSP         Point = 7
 	PointMaxSP      Point = 8
+	PointGold       Point = 11 // yang
 	PointST         Point = 12
 	PointHT         Point = 13
 	PointDX         Point = 14

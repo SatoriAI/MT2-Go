@@ -287,3 +287,26 @@ func TestARemovedItemIsForgotten(t *testing.T) {
 		t.Fatalf("kept %+v", inv)
 	}
 }
+
+// A character starts with no yang; yang added is kept and the balance returned, and more
+// than a character may hold is refused, leaving what it had.
+func TestYangIsKeptUpToWhatACharacterMayHold(t *testing.T) {
+	s, cid := hendrasItems(t)
+	ctx := context.Background()
+	if gold, err := s.Gold(ctx, cid); err != nil || gold != 0 {
+		t.Fatalf("starts with %d, %v", gold, err)
+	}
+
+	if _, err := s.AddGold(ctx, cid, 20); err != nil {
+		t.Fatal(err)
+	}
+	if gold, err := s.AddGold(ctx, cid, 5); err != nil || gold != 25 {
+		t.Fatalf("added up to %d, %v", gold, err)
+	}
+	if _, err := s.AddGold(ctx, cid, 2_000_000_000); err == nil {
+		t.Fatal("kept more than a character may hold")
+	}
+	if gold, err := s.Gold(ctx, cid); err != nil || gold != 25 {
+		t.Fatalf("has %d, %v", gold, err)
+	}
+}

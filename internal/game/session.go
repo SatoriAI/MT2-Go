@@ -97,6 +97,7 @@ type session struct {
 	empire    account.Empire // the account's kingdom as this connection last knew it
 	playing   *character     // set once the player pressed Start
 	inventory item.Inventory // what playing owns, read on Start
+	gold      uint32         // playing's yang, read with the inventory and kept as it changes
 	claim     *claim         // this connection's hold on playing
 	flood     floodLimit     // the lines this player said lately, to others
 	// leftWorld is set from change character until the next Start: the client may still

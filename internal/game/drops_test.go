@@ -89,6 +89,7 @@ func TestADeathLeavesWhatItsDropsRoll(t *testing.T) {
 	m := s.monsters[0]
 	rolled := *m.proto
 	rolled.Drops = []mob.Drop{{VNum: 27001, Count: 1, Chance: 10000}, {VNum: 27004, Count: 1, Chance: 1}}
+	rolled.Yang = mob.Yang{}
 	m.proto = &rolled
 	beside, _ := aPlayer(t, s, 1000, 7, "Hendra", 100)
 	read(t, beside, addSize) // the dog
@@ -170,7 +171,7 @@ func TestADropIsFreedThenClearedAway(t *testing.T) {
 // Who may pick the item up: its owner, beside it; nobody else before it is freed, and
 // anyone after; nobody too far, nor dead, nor twice.
 func TestOnlyTheOwnerPicksADropUpUntilItIsFreed(t *testing.T) {
-	everywhere := func(uint32, uint8) bool { return true }
+	everywhere := func(*groundItem) bool { return true }
 	s := worldWith(t)
 	_, hendra := aPlayer(t, s, 1000, 7, "Hendra", 30000)
 	aPlayer(t, s, 1001, 8, "Kira", 30100)
@@ -210,7 +211,7 @@ func TestAnItemWithNoRoomStaysOnTheGround(t *testing.T) {
 	_, hendra := aPlayer(t, s, 1000, 7, "Hendra", 100)
 	hendrasPotion(s, hendra)
 
-	if _, got := s.presence.pickUp(1000, 5000, func(uint32, uint8) bool { return false }); got != pickNoRoom {
+	if _, got := s.presence.pickUp(1000, 5000, func(*groundItem) bool { return false }); got != pickNoRoom {
 		t.Fatalf("got %v", got)
 	}
 	if s.presence.ground[5000] == nil {

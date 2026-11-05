@@ -32,6 +32,14 @@ type Proto struct {
 	RegenCycle   uint8
 	RegenPercent uint8
 	Drops        []Drop // what it may leave when it dies, each rolled on its own
+	Yang         Yang   // and the yang, rolled once
+}
+
+// Yang is the yang a monster may leave when it dies: with a chance of Chance in 10,000, an
+// amount from Min to Max, before an event multiplies it.
+type Yang struct {
+	Chance   uint16
+	Min, Max uint32
 }
 
 // Drop is an item a monster may leave when it dies: Count of item VNum, with a chance of
@@ -75,19 +83,19 @@ var protos = map[uint16]Proto{
 	101: {VNum: 101, Name: "Dziki Pies", Kind: Monster, MoveSpeed: 100, AttackSpeed: 100,
 		Level: 1, MaxHP: 126, Vitality: 5, Armour: 4, Exp: 15,
 		Strength: 3, DamageMin: 20, DamageMax: 24, AttackRange: 175,
-		RegenCycle: 6, RegenPercent: 7, Drops: potions},
+		RegenCycle: 6, RegenPercent: 7, Drops: potions, Yang: Yang{Chance: 6000, Min: 5, Max: 12}},
 	102: {VNum: 102, Name: "Wilk", Kind: Monster, MoveSpeed: 100, AttackSpeed: 100,
 		Level: 3, MaxHP: 162, Vitality: 7, Armour: 6, Exp: 39,
 		Strength: 4, DamageMin: 23, DamageMax: 28, AttackRange: 175,
-		RegenCycle: 6, RegenPercent: 7, Drops: potions},
+		RegenCycle: 6, RegenPercent: 7, Drops: potions, Yang: Yang{Chance: 6000, Min: 8, Max: 18}},
 	103: {VNum: 103, Name: "Alfa Wilk", Kind: Monster, MoveSpeed: 130, AttackSpeed: 100,
 		Level: 4, MaxHP: 182, Vitality: 10, Armour: 7, Exp: 51,
 		Strength: 8, DamageMin: 25, DamageMax: 30, AttackRange: 175,
-		RegenCycle: 6, RegenPercent: 7, Drops: gear},
+		RegenCycle: 6, RegenPercent: 7, Drops: gear, Yang: Yang{Chance: 6000, Min: 10, Max: 25}},
 	108: {VNum: 108, Name: "Dzik", Kind: Monster, MoveSpeed: 100, AttackSpeed: 80,
 		Level: 7, MaxHP: 248, Vitality: 10, Armour: 11, Exp: 87,
 		Strength: 14, DamageMin: 30, DamageMax: 37, AttackRange: 175,
-		RegenCycle: 6, RegenPercent: 7, Drops: gear},
+		RegenCycle: 6, RegenPercent: 7, Drops: gear, Yang: Yang{Chance: 6000, Min: 20, Max: 40}},
 
 	9001: {VNum: 9001, Name: "Handlarz Bronią", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100},
 	9002: {VNum: 9002, Name: "Handlarz Zbrojami", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100},

@@ -3,7 +3,7 @@
 //
 //	mt2go serve
 //	mt2go account create <name>   (password read from standard input)
-//	mt2go event create <name> <multiplier> <start> <end> | event list | event delete <id>
+//	mt2go event create <name> <exp multiplier> <yang multiplier> <start> <end> | event list | event delete <id>
 //	mt2go item give <character> <vnum> [count] | item take <character> <item-id> | item list <character>
 package main
 
@@ -26,7 +26,7 @@ import (
 	"github.com/SatoriAI/MT2-Go/internal/store"
 )
 
-const usage = "usage: mt2go serve | mt2go account create <name> | mt2go event create <name> <multiplier> <start> <end> | " +
+const usage = "usage: mt2go serve | mt2go account create <name> | mt2go event create <name> <exp multiplier> <yang multiplier> <start> <end> | " +
 	"mt2go event list | mt2go event delete <id> | mt2go item give <character> <vnum> [count] | " +
 	"mt2go item take <character> <item-id> | mt2go item list <character>"
 

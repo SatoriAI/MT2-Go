@@ -1,5 +1,5 @@
 // Package event holds the game's scheduled events: spans of time in which kills give more
-// experience, such as Christmas at twice the usual.
+// experience or yang, such as Christmas at twice the usual.
 package event
 
 import (
@@ -25,19 +25,20 @@ func mustLoad(name string) *time.Location {
 	return z
 }
 
-// Event is a span of time in which every kill's experience is multiplied. Only experience
-// is, for now: drops and gold become further multipliers once they exist.
+// Event is a span of time in which every kill's experience, the yang monsters drop, or
+// both, are multiplied.
 type Event struct {
-	ID         int64
-	Name       string
-	ExpPercent uint32    // the multiplier, in percent: 200 doubles
-	Start, End time.Time // End is the first moment the event no longer runs
+	ID   int64
+	Name string
+	// The multipliers, in percent: 200 doubles, 100 leaves it as it is.
+	ExpPercent, YangPercent uint32
+	Start, End              time.Time // End is the first moment the event no longer runs
 }
 
 // The bounds of an event, which the events table checks too.
 const (
 	MaxNameLength = 64
-	MinPercent    = 101 // an event gives more, or it is no event
+	MinPercent    = 100 // unchanged; an event must raise one of its multipliers above it
 	MaxPercent    = 1000
 )
 
@@ -48,14 +49,19 @@ var ErrOverlap = errors.New("event: overlaps another event")
 // Exp is n experience multiplied by the event, rounded down.
 func (e Event) Exp(n uint64) uint64 { return n * uint64(e.ExpPercent) / 100 }
 
-// Check is whether the event can be stored: a name of 1 to 64 characters, a multiplier
-// above 1 and at most 10, and an end after its start.
+// Yang is n yang multiplied by the event, rounded down.
+func (e Event) Yang(n uint32) uint32 { return uint32(uint64(n) * uint64(e.YangPercent) / 100) } //nolint:gosec // at most ten times a drop
+
+// Check is whether the event can be stored: a name of 1 to 64 characters, multipliers of
+// 1 to 10 with at least one above 1, and an end after its start.
 func (e Event) Check() error {
 	switch {
 	case e.Name == "" || utf8.RuneCountInString(e.Name) > MaxNameLength:
 		return fmt.Errorf("event: the name must be 1 to %d characters", MaxNameLength)
-	case e.ExpPercent < MinPercent || e.ExpPercent > MaxPercent:
-		return errors.New("event: the multiplier must be above 1 and at most 10")
+	case !inBounds(e.ExpPercent) || !inBounds(e.YangPercent):
+		return errors.New("event: each multiplier must be 1 to 10")
+	case e.ExpPercent == MinPercent && e.YangPercent == MinPercent:
+		return errors.New("event: it must multiply experience or yang")
 	case !e.End.After(e.Start):
 		return errors.New("event: the end must come after the start")
 	}
@@ -74,11 +80,11 @@ func ParseMultiplier(s string) (uint32, error) {
 	}
 	whole, _ := strconv.Atoi(m[1])
 	cents, _ := strconv.Atoi((m[2] + "00")[:2]) // "5" is 50 hundredths; "" is none
-	p := whole*100 + cents
-	if p < MinPercent || p > MaxPercent {
-		return 0, fmt.Errorf("event: the multiplier %q is not above 1 and at most 10", s)
+	p := uint32(whole*100 + cents)              //nolint:gosec // at most 9999
+	if !inBounds(p) {
+		return 0, fmt.Errorf("event: the multiplier %q is not 1 to 10", s)
 	}
-	return uint32(p), nil
+	return p, nil
 }
 
 // Multiplier writes percent as a multiplier with a decimal comma, as Polish players read
@@ -86,3 +92,5 @@ func ParseMultiplier(s string) (uint32, error) {
 func Multiplier(percent uint32) string {
 	return strings.Replace(strconv.FormatFloat(float64(percent)/100, 'f', -1, 64), ".", ",", 1)
 }
+
+func inBounds(percent uint32) bool { return percent >= MinPercent && percent <= MaxPercent }

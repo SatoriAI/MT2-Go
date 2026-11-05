@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/SatoriAI/MT2-Go/internal/event"
@@ -68,10 +69,18 @@ func (w *presence) switchEvent(e event.Event, running bool) {
 	}
 }
 
-// eventNotice tells a player an event is running, until when, and what it gives.
+// eventNotice tells a player an event is running, until when, and what it gives: only
+// what it multiplies is named.
 func eventNotice(e event.Event) []byte {
-	return notice(fmt.Sprintf("Wydarzenie „%s” trwa do %s: doświadczenie ×%s.", e.Name,
-		e.End.In(event.Zone).Format("02.01 15:04"), event.Multiplier(e.ExpPercent)))
+	var gives []string
+	if e.ExpPercent > event.MinPercent {
+		gives = append(gives, "doświadczenie ×"+event.Multiplier(e.ExpPercent))
+	}
+	if e.YangPercent > event.MinPercent {
+		gives = append(gives, "yang ×"+event.Multiplier(e.YangPercent))
+	}
+	return notice(fmt.Sprintf("Wydarzenie „%s” trwa do %s: %s.", e.Name, e.End.In(event.Zone).Format("02.01 15:04"),
+		strings.Join(gives, ", ")))
 }
 
 // notice is a line from the server itself: from vid 0, which the client shows at the top
