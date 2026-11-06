@@ -47,6 +47,8 @@ Drops lie on the ground in a table of their own under the world's lock, not in t
 
 Yang lies on the ground as a drop does, with its amount in the ground item, and is rolled in the same loop step as a monster's items; a player's yang is the connection's own, beside the inventory, not the record's. Measured against main, alternately and with the client closed, every benchmark stayed within 2%, a move among drops included.
 
+What players drop is laid down by their connection under the world's lock, and its clearing is handed to the loop with the news it already takes once a tick, so an idle tick takes no more locks. Measured against main, three rounds alternately with the client closed, the moves, strolls and idle tick stayed within 3%; a first round on a busy machine had shown up to 9% either way on code the change does not touch.
+
 A move costs about 20 ns per character in the world, as the scan predicts. The world lock is held for every move, so the share of each second it is held is the moves per second times their cost:
 
 - **Today:** 100 player moves and 11 strolls a second hold the lock for 0.4 ms of each second: 0.04%.

@@ -6,6 +6,8 @@ A monster may leave something when it dies: yang more often than not, a potion n
 
 Clicking an item walks the character to it and picks it up, and the pick-up key takes the nearest one. A potion joins the stack of its kind in the bag when the whole of it fits there; anything else takes the first free cells. With no room, the chat says «Nie masz miejsca w ekwipunku.» and the item stays where it lies. A potion picked up is drunk with a double-click ([potions.md](potions.md)).
 
+A player can drop things too. Dragging an item out of the bag onto the ground, or yang from the money field, asks first; on yes, it lies beside them, with no name over it, for anyone to pick up at once, and is gone after a minute.
+
 Yang lies on the ground as the client draws its kind 1, labelled with that kind's name, kept for its owner the same way. Picked up, it never needs room in the bag: it is added to the yang shown at the foot of the inventory window, and the chat says «Otrzymałeś 9 Yang.»
 
 ## What the client does
@@ -17,6 +19,7 @@ Yang lies on the ground as the client draws its kind 1, labelled with that kind'
   - A click walks to the item, then sends PICKUP. The pick-up key takes the nearest item within 300 without walking (`PythonPlayerInput.cpp`).
   - The client sends at most one pick-up every half second.
 - **Yang is an item of kind 1** on the ground (`VNUM_MONEY`, `PythonItem.h`): GROUND_ADD with vnum 1, labelled with that kind's name, with no amount. It is picked up with the same PICKUP. The yang the player has is point 11 (`POINT_GOLD`); a POINT_CHANGE for it with a positive amount makes the client print «Otrzymałeś N Yang.» itself, and a zero or negative one changes it silently (`PythonNetworkStreamPhaseGame.cpp`, `game.py`).
+- **Dropping** (`game.py`, `RequestDropItem`): the client asks the player first. On yes it sends ITEM_DROP2, with the item's bag position and the count dragged, which may be part of a stack, or, for yang, the reserved window 0 at cell 0 with the amount. It moves nothing itself and waits to be told. It refuses some drops itself, with a popup and nothing sent: 1000 yang or more at once, and anything while the player sets up a private shop. The older ITEM_DROP its scripts never send.
 - **Laying an item down twice** leaves a copy the client never removes, while taking away an item it doesn't have does nothing. So the server takes items away when a player leaves, and shows them again when they come back.
 
 ## The bytes
@@ -28,6 +31,7 @@ Yang lies on the ground as the client draws its kind 1, labelled with that kind'
 | OWNERSHIP `1F` | 30 | vid u32, name char[25]; empty for anyone |
 | PICKUP `0F`, client | 5, then the sequence byte | vid u32 |
 | POINT_CHANGE `11` | 17 | yang is point 11: the amount picked up, then the new balance |
+| ITEM_DROP2 `14`, client | 9, then the sequence byte | position: window u8, cell u16; yang u32; count u8 |
 
 Seen from the real client: a red potion laid at (977491, 272599) is `1a 53ea0e00 d7280400 00000000 a1bb0d00 79690000`, and a click on vid 900002 sends `0f a2bb0d00`.
 
@@ -69,7 +73,12 @@ Seen from the real client: a red potion laid at (977491, 272599) is `1a 53ea0e00
   - The item is then written, as a new item or the stack's new count, and the bag shows it.
   - An item that cannot be written goes back on the ground, with its owner if their time isn't up, unless its minute is over, judged when the write gives up, which may be seconds after the click. A write that timed out after the database took it would leave the item both kept and on the ground; that's a known limit for now.
 - **Yang picked up** follows the same rules of owner, reach and time, but needs no room: it is added to the character's yang. A character holds at most 2,000,000,000, a round cap under what the client's signed 32-bit points hold, which the database checks too: yang that would take them past it is left lying, and they are told nothing. Otherwise it is written and the player is told the amount and their new balance. Yang that cannot be kept goes back on the ground as an item does. Only the connection's own goroutine reads or changes a character's yang, as with its inventory, so no lock is needed: it is read with the inventory on entering and written as it changes.
-- **Nothing on the ground is stored:** a crash loses at most a minute of loot.
+- **Dropping,** on the connection's goroutine:
+  - an item in a bag cell may be dropped, all of its stack or part, by a living player; a worn item, an empty cell, none or more than the stack holds is refused without a word, and the client still shows it where it was;
+  - yang may be dropped from 1 to what the player has;
+  - it is written first, the item forgotten or its stack lowered, or the yang spent, and the player told; the taskbar follows ([taskbar.md](taskbar.md)). A write that fails changes nothing and lays nothing down; once written, it is laid down even if telling the player failed, so nothing written is lost;
+  - then it is laid within 100 of the player with no owner, so anyone may pick it up at once, as a player hands something to a friend beside them, and shown to everyone who sees it. The world loop takes what players dropped with the rest of its news, one lock a tick, and clears each away a minute after it was dropped. A player's drop is timed from when their connection laid it, which can fall after the time of the tick it reaches the loop in, so each is put into the queue in order of when it is due, as a monster's drop is.
+- **Nothing on the ground is stored:** a crash loses at most a minute of loot, and what players dropped in that minute.
 
 ## How we know
 
@@ -77,6 +86,7 @@ Seen from the real client: a red potion laid at (977491, 272599) is `1a 53ea0e00
   - **Confirmed live:** two potions laid down on entering lay on the grass with «Kira's» and «Szepta's» over them. Once the first was freed, a click walked Szepta to it and sent PICKUP, and taking it away removed it.
   - **From the source only:** that the client refuses another player's item before it is freed.
 - **Yang, by bot as Szepta** against the running server: three of six kills left yang, shown as kind 1 with her name, and picking each up told her +7, +6 and +5, a balance of 18, which she entered with again. During an event of yang ×2 the notice named only yang, and two piles brought 22 and 16. Yang's look and label, and the client's line «Otrzymałeś N Yang.», come from its source and have not been seen in the real client.
+- **Dropping, by bots:** Szepta dropped one of her 52 red potions and 5 of her 30 yang; each lay beside her with no name, and Botka beside her picked up both at once, the potion into its bag and the yang to a balance of 5. The client's question before a drop, and the items on the grass, have not been seen in the real client.
 - **The rules** are this server's own: open-mt2 gives a drop to the killer and keeps it 15 s of 30, and the original weighs drops by monster rank and level gap.
 
 ## What proves it
@@ -99,15 +109,16 @@ Seen from the real client: a red potion laid at (977491, 272599) is `1a 53ea0e00
 - `internal/store/items_test.go`: yang added and the balance returned, and more than a character may hold refused.
 - `internal/game/yang_test.go`: yang falling near the body, shown as kind 1 with its owner; rolled within its range, and none without a chance; multiplied by an event; picked up into her yang with her bag full; left lying past what she may hold; put back when it cannot be kept.
 - `internal/server/experience_test.go`: entering with the yang kept.
+- `internal/game/playerdrop_test.go`: a stack dropped beside her for anyone, shown to a neighbour, its taskbar slot emptied; part of a stack leaving the rest; a worn item, an empty cell, none, too many, and a dead player refused; a write that fails laying nothing; yang dropped spent and lying as yang, and more than she has or none refused; cleared a minute after, and a player's drop and a monster's in one tick each cleared when due; picked up by another at once.
+- `internal/server/playerdrop_test.go` (real sockets and database): a potion Hendra dropped picked up by Kira, each keeping one.
 - `internal/server/items_test.go`: a pick-up of nothing ignored, the connection kept.
 - `internal/game/world_bench_test.go`: a player's move with drops lying about.
 
 ## Not done yet
 
-- Dropping yang from the inventory. It is spent in shops ([shops.md](shops.md)).
 - Events raising drop chances.
 - Parties sharing loot.
-- Players dropping their own items.
 - Drops with a range of counts.
 - Splitting a stack across cells.
 - Ground items kept by map, if there are ever thousands.
+- A limit on how often or how little a player drops, for a public server: a modified client could fill the ground with single potions or 1 yang at a time.

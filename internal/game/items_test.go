@@ -26,6 +26,14 @@ type keptItems struct {
 
 func (k *keptItems) Gold(context.Context, uint32) (uint32, error) { return k.gold, k.fail }
 
+func (k *keptItems) SpendGold(_ context.Context, _, amount uint32) (uint32, error) {
+	if k.fail != nil {
+		return 0, k.fail
+	}
+	k.gold -= amount
+	return k.gold, nil
+}
+
 func (k *keptItems) Buy(_ context.Context, _, price uint32, into item.Item) (item.Item, uint32, error) {
 	if k.fail != nil {
 		return item.Item{}, 0, k.fail

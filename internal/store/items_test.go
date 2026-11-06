@@ -310,3 +310,23 @@ func TestYangIsKeptUpToWhatACharacterMayHold(t *testing.T) {
 		t.Fatalf("has %d, %v", gold, err)
 	}
 }
+
+// Yang spent is taken and the balance returned; more than the character has is refused,
+// leaving what it had.
+func TestYangIsSpentUpToWhatTheCharacterHas(t *testing.T) {
+	s, cid := hendrasItems(t)
+	ctx := context.Background()
+	if _, err := s.AddGold(ctx, cid, 25); err != nil {
+		t.Fatal(err)
+	}
+
+	if gold, err := s.SpendGold(ctx, cid, 5); err != nil || gold != 20 {
+		t.Fatalf("left %d, %v", gold, err)
+	}
+	if _, err := s.SpendGold(ctx, cid, 21); err == nil {
+		t.Fatal("spent more than she has")
+	}
+	if gold, _ := s.Gold(ctx, cid); gold != 20 {
+		t.Fatalf("has %d", gold)
+	}
+}

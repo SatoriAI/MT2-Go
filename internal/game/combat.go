@@ -135,15 +135,15 @@ type death struct {
 	owner owner
 }
 
-// takeNews hands the world loop what happened to monsters since it last asked: those that
-// died, and the blows that landed on living ones. The loop learns of them without looking
-// at every monster under the lock, and with one lock a tick.
-func (w *presence) takeNews() ([]death, []provocation) {
+// takeNews hands the world loop what happened since it last asked: the monsters that died,
+// the blows that landed on living ones, and the items players dropped, each with when it
+// is to be cleared away. The loop learns of them with one lock a tick.
+func (w *presence) takeNews() ([]death, []provocation, []timed) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	fallen, provoked := w.fallen, w.provoked
-	w.fallen, w.provoked = nil, nil
-	return fallen, provoked
+	fallen, provoked, laid := w.fallen, w.provoked, w.laid
+	w.fallen, w.provoked, w.laid = nil, nil, nil
+	return fallen, provoked, laid
 }
 
 func within(p, o *present, reach int64) bool {

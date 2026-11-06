@@ -230,6 +230,21 @@ func DecodeItemUse(body []byte) (ItemPos, error) {
 	return at, r.Err()
 }
 
+// ItemDrop is what the player drops to the ground, having said yes to the client's
+// question: Count of the item at Pos, or, with the reserved window, Gold yang.
+type ItemDrop struct {
+	Pos   ItemPos
+	Gold  uint32
+	Count uint8
+}
+
+// DecodeItemDrop2 reads a drop.
+func DecodeItemDrop2(body []byte) (ItemDrop, error) {
+	r := NewReader(body)
+	d := ItemDrop{Pos: r.itemPos(), Gold: r.U32(), Count: r.U8()}
+	return d, r.Err()
+}
+
 // DecodeItemPickup reads the vid of the item on the ground the player picks up.
 func DecodeItemPickup(body []byte) (uint32, error) {
 	r := NewReader(body)
