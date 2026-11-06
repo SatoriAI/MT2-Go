@@ -2,6 +2,8 @@
 // one in the world. Only the kinds the world spawns are listed.
 package mob
 
+import "github.com/SatoriAI/MT2-Go/internal/account"
+
 // Kind is what a mob is to the player.
 type Kind string
 
@@ -34,6 +36,8 @@ type Proto struct {
 	Drops        []Drop // what it may leave when it dies, each rolled on its own
 	Yang         Yang   // and the yang, rolled once
 	Sells        []Ware // what an NPC's shop holds, for a shopkeeper
+	// Teaches is the skill group a class teacher takes a character on in, or "".
+	Teaches account.SkillGroup
 }
 
 // Ware is what one cell of a shop holds: Count of item VNum. Each cell is written out, so
@@ -117,10 +121,16 @@ var protos = map[uint16]Proto{
 		Strength: 14, DamageMin: 30, DamageMax: 37, AttackRange: 175,
 		RegenCycle: 6, RegenPercent: 7, Drops: gear, Yang: Yang{Chance: 6000, Min: 20, Max: 40}},
 
-	9001: {VNum: 9001, Name: "Handlarz Bronią", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100, Sells: weapons},
-	9002: {VNum: 9002, Name: "Handlarz Zbrojami", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100, Sells: armours},
-	9003: {VNum: 9003, Name: "Handlarka Różności", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100, Sells: sundries},
-	9005: {VNum: 9005, Name: "Dozorca", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100},
-	9006: {VNum: 9006, Name: "Starsza Pani", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100},
-	9009: {VNum: 9009, Name: "Rybak", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100},
+	9001:  {VNum: 9001, Name: "Handlarz Bronią", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100, Sells: weapons},
+	9002:  {VNum: 9002, Name: "Handlarz Zbrojami", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100, Sells: armours},
+	9003:  {VNum: 9003, Name: "Handlarka Różności", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100, Sells: sundries},
+	20304: {VNum: 20304, Name: "Trener Mocy Broni", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100, Teaches: "weaponry"},
+	20305: {VNum: 20305, Name: "Trener Mocy Czarn. Magii", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100, Teaches: "black_magic"},
+	20324: {VNum: 20324, Name: "Trener Mocy Broni", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100, Teaches: "weaponry"},
+	20325: {VNum: 20325, Name: "Trener Mocy Czarn. Magii", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100, Teaches: "black_magic"},
+	20344: {VNum: 20344, Name: "Trener Mocy Broni", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100, Teaches: "weaponry"},
+	20345: {VNum: 20345, Name: "Trener Mocy Czarn. Magii", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100, Teaches: "black_magic"},
+	9005:  {VNum: 9005, Name: "Dozorca", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100},
+	9006:  {VNum: 9006, Name: "Starsza Pani", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100},
+	9009:  {VNum: 9009, Name: "Rybak", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100},
 }

@@ -63,6 +63,7 @@ internal/mob/       what each kind of monster and NPC is
 internal/combat/    how much a blow takes: attack, defence, damage
 internal/event/     scheduled events: what one is, and its multiplier
 internal/item/      what each kind of item is, what a character owns, where in the inventory it fits
+internal/skill/     what each skill is, whose, and how many skill points a character has
 internal/server/    wires everything and runs both ports; the end-to-end tests live here
 docs/mechanics/     how each mechanic works
 docs/decisions/     why the rules here are what they are

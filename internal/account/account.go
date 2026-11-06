@@ -77,6 +77,9 @@ const (
 // SkillGroup is the path of skills a character follows; "" until it chooses one.
 type SkillGroup string
 
+// Skill is one of the skills a skill group teaches, by name.
+type Skill string
+
 // Block is something a character refuses from other players, chosen in the options.
 type Block string
 
@@ -117,5 +120,8 @@ type Character struct {
 	Hair       uint16
 	X, Y       int32
 	SkillGroup SkillGroup
-	Blocks     Blocks
+	// Skills is each skill learnt, at its level from 1; read on Start, as they are kept
+	// apart from the character's row.
+	Skills map[Skill]uint8
+	Blocks Blocks
 }

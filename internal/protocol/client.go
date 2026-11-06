@@ -319,3 +319,11 @@ func DecodeQuickslotSwap(body []byte) (uint8, uint8, error) {
 	a, b := r.U8(), r.U8()
 	return a, b, r.Err()
 }
+
+// DecodeScriptAnswer reads the button the player picked in an NPC's dialog, counted from
+// 0; 254 is the dialog's own Continue or Cancel.
+func DecodeScriptAnswer(body []byte) (uint8, error) {
+	r := NewReader(body)
+	answer := r.U8()
+	return answer, r.Err()
+}

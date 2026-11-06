@@ -45,7 +45,8 @@ func (s *session) onChat(ctx context.Context, body []byte) error {
 }
 
 // onCommand carries out the commands the system menu sends: exit, log out and change
-// character, what the options window blocks, and the restart dialog after dying. Leaving
+// character, what the options window blocks, the restart dialog after dying, and the
+// character and skill windows' + buttons. Leaving
 // acts at once: the original counts down to keep a player from leaving a fight, which
 // this server does not yet. Every other command, and the buttons send many, is ignored.
 func (s *session) onCommand(ctx context.Context, command string) error {
@@ -63,6 +64,8 @@ func (s *session) onCommand(ctx context.Context, command string) error {
 	case "stat":
 		s.svc.presence.spendStatPoint(s.playing.vid, arg)
 		return nil
+	case "skillup":
+		return s.raiseSkill(ctx, arg)
 	case "restart_here", "restart_town":
 		// The restart dialog's buttons, which the client shows once its character died.
 		town := name == "restart_town"

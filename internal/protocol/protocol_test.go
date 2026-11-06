@@ -224,11 +224,52 @@ func TestPointsAreSentWholeWithEachValueAtItsIndex(t *testing.T) {
 	}
 }
 
-func TestSkillLevelsAreSentAllUnlearnt(t *testing.T) {
-	skills := EncodeSkillLevels()
+// SKILL_LEVEL_NEW is 255 skills of 6 bytes, each at the client's number for it: master
+// type 0, the level, a reading time of 0. Dragon Swirl (62) at 3 is the only one learnt.
+func TestSkillLevelsAreSentAtEachSkillsNumber(t *testing.T) {
+	var levels SkillLevels
+	levels[62] = 3
 
-	if len(skills) != 1531 || skills[0] != 0x4C || !bytes.Equal(skills[1:], make([]byte, 1530)) {
-		t.Fatalf("got %d bytes starting %x", len(skills), skills[:2])
+	skills := EncodeSkillLevels(levels)
+
+	want := make([]byte, 1531)
+	want[0], want[1+62*6+1] = 0x4C, 3
+	if !bytes.Equal(skills, want) {
+		t.Fatalf("got %d bytes, 62 at %x", len(skills), skills[1+62*6:1+63*6])
+	}
+}
+
+// Skill points go at the client's index for them, 28.
+func TestSkillPointsAreSentAtTheirIndex(t *testing.T) {
+	points := EncodePoints(CharacterPoints{SkillPoints: 2})[1:]
+
+	if got := binary.LittleEndian.Uint32(points[4*PointSkillPoints:]); got != 2 || PointSkillPoints != 28 {
+		t.Fatalf("skill points %d at %d", got, PointSkillPoints)
+	}
+}
+
+// SCRIPT is its size, the skin, the text's length, then the text; the client reads it by
+// the size.
+func TestAnNPCsDialogIsItsSkinAndText(t *testing.T) {
+	got := EncodeScript(ScriptDialog, []byte("Hi[ENTER][DONE]"))
+	want := append(mustHex(t, "2d"+"1500"+"01"+"0f00"), []byte("Hi[ENTER][DONE]")...)
+	if !bytes.Equal(got, want) {
+		t.Fatalf("got  %x\nwant %x", got, want)
+	}
+}
+
+// The skill group chosen is one byte; the answer to a dialog is the button's index, framed
+// with its sequence byte.
+func TestTheSkillGroupAndADialogsAnswer(t *testing.T) {
+	if got := EncodeChangeSkillGroup(1); !bytes.Equal(got, mustHex(t, "7001")) {
+		t.Fatalf("group: got %x", got)
+	}
+	frame, used, err := NextFrame([]byte{0x1D, 1, 0xAF})
+	if err != nil || used != 3 {
+		t.Fatalf("framed %d, %v", used, err)
+	}
+	if answer, err := DecodeScriptAnswer(frame.Body); err != nil || answer != 1 {
+		t.Fatalf("answer %d, %v", answer, err)
 	}
 }
 

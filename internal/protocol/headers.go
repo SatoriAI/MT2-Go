@@ -19,6 +19,7 @@ const (
 	ClientItemMove        ClientHeader = 0x0D // an item dragged to another cell
 	ClientItemPickup      ClientHeader = 0x0F // a click on an item on the ground, or the pick-up key
 	ClientShop            ClientHeader = 0x32 // buying, selling or closing a shop, by subheader
+	ClientScriptAnswer    ClientHeader = 0x1D // the button picked in an NPC's dialog
 	ClientQuickslotAdd    ClientHeader = 0x10 // an item or skill dragged to the taskbar
 	ClientQuickslotDel    ClientHeader = 0x11 // a slot dragged off the taskbar
 	ClientQuickslotSwap   ClientHeader = 0x12 // a slot dragged onto another
@@ -69,7 +70,9 @@ const (
 	ServerDead             ServerHeader = 0x0E // a character dies
 	ServerTarget           ServerHeader = 0x3F // the target's hit points, as a percentage
 	ServerDamage           ServerHeader = 0x87 // damage dealt, drawn over the victim
-	ServerSkillLevels      ServerHeader = 0x4C
+	ServerSkillLevels      ServerHeader = 0x4C // every skill's level, by the client's number for it
+	ServerScript           ServerHeader = 0x2D // an NPC's dialog: text, buttons
+	ServerChangeSkillGroup ServerHeader = 0x70 // the skill group chosen
 	ServerCharacterList    ServerHeader = 0x20 // LOGIN_SUCCESS4: four character slots
 	ServerEmpire           ServerHeader = 0x5A
 	ServerAuthSuccess      ServerHeader = 0x96

@@ -9,21 +9,31 @@ import (
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
 )
 
-// shopReach is how near a shopkeeper a click opens their shop from: the client walks to
-// within 500 before it sends the click, and the rest is room for moves still on their way.
-const shopReach = 1000
+// npcReach is how near an NPC a click reaches them from: the client walks to within 500
+// before it sends the click, and the rest is room for moves still on their way.
+const npcReach = 1000
 
-// onClick answers a click on a character: a shopkeeper near the player opens their shop.
-// Any other click is not answered yet.
+// onClick answers a click on an NPC near the player: a shopkeeper opens their shop, and a
+// class teacher talks of the skill group they teach. Any other click is not answered yet.
 func (s *session) onClick(body []byte) error {
 	vid, err := protocol.DecodeOnClick(body)
 	if err != nil {
 		return err
 	}
-	keeper, ok := s.svc.presence.shopkeeper(s.playing.vid, vid)
-	if !ok {
+	npc, ok := s.svc.presence.npcInReach(s.playing.vid, vid)
+	switch {
+	case !ok:
 		return nil
+	case len(npc.Sells) > 0:
+		return s.openShop(vid, npc)
+	case npc.Teaches != "":
+		return s.teach(vid, npc)
 	}
+	return nil
+}
+
+// openShop opens the shop of the shopkeeper vid.
+func (s *session) openShop(vid uint32, keeper mob.Proto) error {
 	s.shop = keeper.VNum
 	var cells [protocol.ShopCells]protocol.ShopItem
 	for _, w := range keeper.Sells {
@@ -33,17 +43,17 @@ func (s *session) onClick(body []byte) error {
 	return s.conn.Send(protocol.EncodeShopStart(vid, cells))
 }
 
-// shopkeeper returns the kind of the character vid, if it keeps a shop, which only an
-// NPC's kind does, and stands within reach of the player, alive, on their map.
-func (w *presence) shopkeeper(playerVID, vid uint32) (mob.Proto, bool) {
+// npcInReach returns the kind of the character vid, if it stands within reach of the
+// player, alive, on their map. Only an NPC's kind sells or teaches, so a monster or a
+// player found here is answered with nothing.
+func (w *presence) npcInReach(playerVID, vid uint32) (mob.Proto, bool) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	p, npc := w.all[playerVID], w.all[vid]
-	if npc == nil || p.dead() || npc.world != p.world || !near(p.add.X, p.add.Y, npc.add.X, npc.add.Y, shopReach+1) {
+	if npc == nil || p.dead() || npc.world != p.world || !near(p.add.X, p.add.Y, npc.add.X, npc.add.Y, npcReach+1) {
 		return mob.Proto{}, false
 	}
-	keeper, _ := mob.Lookup(npc.add.Race)
-	return keeper, len(keeper.Sells) > 0
+	return mob.Lookup(npc.add.Race)
 }
 
 // onShop carries out what the player does in the shop they opened: closing it, buying a

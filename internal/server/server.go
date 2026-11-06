@@ -72,7 +72,7 @@ func Serve(ctx context.Context, ports Ports, pool *pgxpool.Pool, spawns []world.
 	keys := account.NewKeys(time.Now)
 	clock := handshake.NewClock()
 	authSvc := auth.NewService(accounts, keys, clock)
-	gameSvc := game.NewService(accounts, store.Whispers{Pool: pool}, items, store.Taskbar{Pool: pool}, keys, clock, cfg.GamePublic, spawns)
+	gameSvc := game.NewService(accounts, store.Whispers{Pool: pool}, items, store.Taskbar{Pool: pool}, store.Skills{Pool: pool}, keys, clock, cfg.GamePublic, spawns)
 
 	log.Info("listening", "auth", ports.Auth.Addr().String(), "game", ports.Game.Addr().String(),
 		"game_public", cfg.GamePublic.String())

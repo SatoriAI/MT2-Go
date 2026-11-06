@@ -139,6 +139,7 @@ type CharacterPoints struct {
 	Gold                uint32
 	ST, HT, DX, IQ      uint32
 	StatPoints          uint32
+	SkillPoints         uint32
 	AttackSpeed         uint32
 	MoveSpeed           uint32
 	Defence             uint32 // the character window's DEF
@@ -156,7 +157,7 @@ func EncodePoints(p CharacterPoints) []byte {
 		1: p.Level, 3: p.Exp, 4: p.NextExp,
 		5: p.HP, 6: p.MaxHP, 7: p.SP, 8: p.MaxSP, 9: p.Stamina, 10: p.MaxStamina,
 		PointGold: p.Gold, PointST: p.ST, PointHT: p.HT, PointDX: p.DX, PointIQ: p.IQ,
-		17: p.AttackSpeed, 19: p.MoveSpeed, PointDefence: p.Defence, PointStatPoints: p.StatPoints,
+		17: p.AttackSpeed, 19: p.MoveSpeed, PointDefence: p.Defence, PointStatPoints: p.StatPoints, PointSkillPoints: p.SkillPoints,
 	} {
 		points[index] = v
 	}
@@ -171,20 +172,21 @@ func EncodePoints(p CharacterPoints) []byte {
 type Point = int
 
 const (
-	PointLevel      Point = 1
-	PointExp        Point = 3
-	PointNextExp    Point = 4
-	PointHP         Point = 5
-	PointMaxHP      Point = 6
-	PointSP         Point = 7
-	PointMaxSP      Point = 8
-	PointGold       Point = 11 // yang
-	PointST         Point = 12
-	PointHT         Point = 13
-	PointDX         Point = 14
-	PointIQ         Point = 15
-	PointDefence    Point = 20 // DEF_GRADE, the character window's DEF
-	PointStatPoints Point = 26 // earned and not yet spent; the character window's + buttons show while above 0
+	PointLevel       Point = 1
+	PointExp         Point = 3
+	PointNextExp     Point = 4
+	PointHP          Point = 5
+	PointMaxHP       Point = 6
+	PointSP          Point = 7
+	PointMaxSP       Point = 8
+	PointGold        Point = 11 // yang
+	PointST          Point = 12
+	PointHT          Point = 13
+	PointDX          Point = 14
+	PointIQ          Point = 15
+	PointDefence     Point = 20 // DEF_GRADE, the character window's DEF
+	PointStatPoints  Point = 26 // earned and not yet spent; the character window's + buttons show while above 0
+	PointSkillPoints Point = 28 // skill points earned and not yet spent; the skill window's + buttons show while above 0
 )
 
 // EncodePointChange sets one of a character's points to value, amount being how much it
@@ -204,11 +206,18 @@ func EncodePointChange(vid uint32, point Point, amount, value int32) []byte {
 // skillCount is how many skills the client's skill-level packet covers.
 const skillCount = 255
 
-// EncodeSkillLevels sends every skill unlearnt: master type, level and next reading time
-// all 0, 6 bytes per skill.
-func EncodeSkillLevels() []byte {
+// SkillLevels is each skill's level, at the client's number for it; 0 is unlearnt.
+type SkillLevels [skillCount]uint8
+
+// EncodeSkillLevels sends every skill's level, 6 bytes each: its master type, which stays
+// 0, its level, and a next reading time this server has no use for.
+func EncodeSkillLevels(levels SkillLevels) []byte {
 	w := NewWriter(byte(ServerSkillLevels), 1+6*skillCount)
-	w.Raw(make([]byte, 6*skillCount))
+	for _, level := range levels {
+		w.U8(0)
+		w.U8(level)
+		w.U32(0)
+	}
 	return w.Bytes()
 }
 
@@ -594,5 +603,30 @@ func EncodeQuickslotSwap(a, b uint8) []byte {
 	w := NewWriter(byte(ServerQuickslotSwap), 3)
 	w.U8(a)
 	w.U8(b)
+	return w.Bytes()
+}
+
+// Skins of an NPC's dialog: a window, the one this server uses.
+const ScriptDialog uint8 = 1
+
+// EncodeScript opens an NPC's dialog with text already in the client's code page, written
+// in its markup: [ENTER] for a new line, [QUESTION a;Yes|b;No] for buttons, [DONE] for an
+// OK that answers nothing. The client reads the text by the packet's size and ends it
+// itself.
+func EncodeScript(skin uint8, text []byte) []byte {
+	size := 1 + 2 + 1 + 2 + len(text)
+	w := NewWriter(byte(ServerScript), size)
+	w.U16(uint16(size)) //nolint:gosec // a dialog is far under 64 KiB
+	w.U8(skin)
+	w.U16(uint16(len(text))) //nolint:gosec // as above
+	w.Raw(text)
+	return w.Bytes()
+}
+
+// EncodeChangeSkillGroup tells the client the skill group chosen, 1 or 2, or 0 for none.
+// The client then forgets every skill's level, so the levels must follow it.
+func EncodeChangeSkillGroup(group uint8) []byte {
+	w := NewWriter(byte(ServerChangeSkillGroup), 2)
+	w.U8(group)
 	return w.Bytes()
 }
