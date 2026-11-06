@@ -104,7 +104,7 @@ Seen from the real client: a red potion laid at (977491, 272599) is `1a 53ea0e00
 
 ## Not done yet
 
-- Spending yang, which comes with shops; dropping it from the inventory.
+- Dropping yang from the inventory. It is spent in shops ([shops.md](shops.md)).
 - Events raising drop chances.
 - Parties sharing loot.
 - Players dropping their own items.

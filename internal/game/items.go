@@ -24,6 +24,10 @@ type Items interface {
 	// Gold returns the character's yang; AddGold keeps more of it and returns the balance.
 	Gold(ctx context.Context, characterID uint32) (uint32, error)
 	AddGold(ctx context.Context, characterID, amount uint32) (uint32, error)
+	// Buy takes price yang and keeps what was bought; Sell pays and keeps what is left.
+	// Each returns the yang the character then has.
+	Buy(ctx context.Context, characterID, price uint32, into item.Item) (item.Item, uint32, error)
+	Sell(ctx context.Context, characterID, pay uint32, left item.Item) (uint32, error)
 }
 
 // loadInventory carries out the orders waiting for the character, and keeps what it then

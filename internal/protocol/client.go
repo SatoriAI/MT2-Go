@@ -236,3 +236,44 @@ func DecodeItemPickup(body []byte) (uint32, error) {
 	vid := r.U32()
 	return vid, r.Err()
 }
+
+// DecodeOnClick reads the vid of the character clicked.
+func DecodeOnClick(body []byte) (uint32, error) {
+	r := NewReader(body)
+	vid := r.U32()
+	return vid, r.Err()
+}
+
+// The client's SHOP subheaders: the window closed, a buy of a shop cell, and two sales.
+// The scripts send only the second sale, SELL2, which names a count.
+const (
+	ShopEnd   byte = 0
+	ShopBuy   byte = 1
+	ShopSell  byte = 2
+	ShopSell2 byte = 3
+)
+
+// ShopRequest is a client SHOP: its subheader, and for a buy the shop cell, for a sale
+// the inventory cell and how many.
+type ShopRequest struct {
+	Sub   byte
+	Pos   uint8 // the shop cell bought
+	Cell  uint8 // the inventory cell sold from
+	Count uint8 // how many are sold
+}
+
+// DecodeShop reads a SHOP the framing has cut to its subheader's size.
+func DecodeShop(body []byte) (ShopRequest, error) {
+	r := NewReader(body)
+	q := ShopRequest{Sub: r.U8()}
+	switch q.Sub {
+	case ShopBuy:
+		r.U8() // a count, which the client always sends as 1
+		q.Pos = r.U8()
+	case ShopSell:
+		q.Cell = r.U8()
+	case ShopSell2:
+		q.Cell, q.Count = r.U8(), r.U8()
+	}
+	return q, r.Err()
+}

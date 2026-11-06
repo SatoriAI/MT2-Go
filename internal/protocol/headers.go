@@ -18,6 +18,7 @@ const (
 	ClientItemDrop        ClientHeader = 0x0C
 	ClientItemMove        ClientHeader = 0x0D // an item dragged to another cell
 	ClientItemPickup      ClientHeader = 0x0F // a click on an item on the ground, or the pick-up key
+	ClientShop            ClientHeader = 0x32 // buying, selling or closing a shop, by subheader
 	ClientQuickslotAdd    ClientHeader = 0x10 // an item or skill dragged to the taskbar
 	ClientQuickslotDel    ClientHeader = 0x11
 	ClientQuickslotSwap   ClientHeader = 0x12
@@ -55,6 +56,7 @@ const (
 	ServerGroundAdd        ServerHeader = 0x1A // an item lying on the ground comes into view
 	ServerGroundDel        ServerHeader = 0x1B // an item on the ground is gone from view
 	ServerItemOwner        ServerHeader = 0x1F // who alone may pick an item up, or nobody
+	ServerShop             ServerHeader = 0x26 // a shop opening, or why a buy or sale was refused
 	ServerWhisper          ServerHeader = 0x22
 	ServerSpecialEffect    ServerHeader = 0x72 // an effect drawn on a character, such as a potion's
 	ServerTime             ServerHeader = 0x6A

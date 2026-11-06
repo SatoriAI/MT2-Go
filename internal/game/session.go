@@ -98,6 +98,7 @@ type session struct {
 	playing   *character     // set once the player pressed Start
 	inventory item.Inventory // what playing owns, read on Start
 	gold      uint32         // playing's yang, read with the inventory and kept as it changes
+	shop      uint16         // the kind of the shopkeeper whose shop is open, 0 for none
 	claim     *claim         // this connection's hold on playing
 	flood     floodLimit     // the lines this player said lately, to others
 	// leftWorld is set from change character until the next Start: the client may still
@@ -113,7 +114,7 @@ type session struct {
 // Change character, dropped rather than taken as out of their phase.
 var inFlightAfterLeaving = map[protocol.ClientHeader]bool{
 	protocol.ClientMove: true, protocol.ClientChat: true, protocol.ClientWhisper: true,
-	protocol.ClientAttack: true, protocol.ClientTarget: true, protocol.ClientOnClick: true,
+	protocol.ClientAttack: true, protocol.ClientTarget: true, protocol.ClientOnClick: true, protocol.ClientShop: true,
 }
 
 func (s *session) Open() error { return s.conn.Send(s.sync.Greeting()...) }
@@ -161,7 +162,9 @@ func (s *session) Handle(ctx context.Context, f protocol.Frame) error {
 	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientAttack:
 		return s.onAttack(f.Body)
 	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientOnClick:
-		return nil // clicking a character, to talk to it; nothing answers it yet
+		return s.onClick(f.Body)
+	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientShop:
+		return s.onShop(f.Body)
 	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientItemMove:
 		return s.onItemMove(f.Body)
 	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientItemUse:

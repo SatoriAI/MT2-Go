@@ -7,11 +7,12 @@ import (
 )
 
 // frameSpec is how the client frames one header: its fixed size including the header
-// byte, or, when sized, a u16 total size right after the header; and whether a sequence
-// byte follows it.
+// byte, or, when sized, a u16 total size right after the header, or a size for each
+// subheader, the byte after the header; and whether a sequence byte follows it.
 type frameSpec struct {
 	size      int
 	sized     bool
+	bySub     map[byte]int
 	sequenced bool
 }
 
@@ -58,6 +59,8 @@ var clientFrames = map[ClientHeader]frameSpec{
 	ClientItemUseToItem:   {size: 7, sequenced: true},
 	ClientGiveItem:        {size: 9, sequenced: true},
 	ClientItemPickup:      {size: 5, sequenced: true},
+	ClientShop: {bySub: map[byte]int{ShopEnd: 2, ShopBuy: 4, ShopSell: 3, ShopSell2: 4},
+		sequenced: true},
 }
 
 // ErrIncomplete means the buffer holds only part of the next packet; read more first.
@@ -70,6 +73,10 @@ type UnknownHeaderError struct{ Header byte }
 func (e UnknownHeaderError) Error() string {
 	return fmt.Sprintf("protocol: unknown client header 0x%02X", e.Header)
 }
+
+// ErrUnknownSubheader means a packet framed by its subheader has one this server does not
+// know, so, as with an unknown header, nothing after it can be delimited.
+var ErrUnknownSubheader = errors.New("protocol: unknown subheader")
 
 // Frame is one client packet: its header and the bytes after the header, without the
 // sequence byte.
@@ -89,6 +96,14 @@ func NextFrame(buf []byte) (Frame, int, error) {
 		return Frame{}, 0, UnknownHeaderError{Header: buf[0]}
 	}
 	size, bodyStart := spec.size, 1
+	if spec.bySub != nil {
+		if len(buf) < 2 {
+			return Frame{}, 0, ErrIncomplete
+		}
+		if size, ok = spec.bySub[buf[1]]; !ok {
+			return Frame{}, 0, fmt.Errorf("%w: 0x%02X after header 0x%02X", ErrUnknownSubheader, buf[1], buf[0])
+		}
+	}
 	if spec.sized {
 		if len(buf) < minSized {
 			return Frame{}, 0, ErrIncomplete

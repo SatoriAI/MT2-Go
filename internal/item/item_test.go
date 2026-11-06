@@ -194,3 +194,19 @@ func TestAnItemPickedUpJoinsItsStackOrTakesAFreeCell(t *testing.T) {
 		t.Errorf("a sword: %+v (%v), want a new one at 3", got, ok)
 	}
 }
+
+// Every kind costs what Dawid chose or the client's item_proto says, and a shop pays the
+// client's sell price, never more than it asks, so buying and selling back makes nothing.
+func TestEveryKindHasItsShopPrices(t *testing.T) {
+	want := map[uint32][2]uint32{
+		10: {100, 0}, 1000: {100, 0}, 2000: {100, 0}, 3000: {100, 0}, 7000: {100, 0},
+		11200: {3000, 600}, 11400: {3000, 600}, 11600: {3000, 600}, 11800: {3000, 600},
+		27001: {32, 6}, 27002: {96, 18}, 27004: {96, 24},
+	}
+	for _, vnum := range VNums() {
+		p, _ := Lookup(vnum)
+		if got := [2]uint32{p.Price, p.SellPrice}; got != want[vnum] || p.SellPrice > p.Price {
+			t.Errorf("kind %d: %v, want %v", vnum, got, want[vnum])
+		}
+	}
+}

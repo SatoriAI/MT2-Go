@@ -574,3 +574,69 @@ func TestAPotionsEffectIsDrawnOnTheCharacter(t *testing.T) {
 		t.Errorf("got %x, want %x", got, want)
 	}
 }
+
+// A SHOP from the client is as long as its subheader says, then its sequence byte: a buy
+// of cell 7, a sale of 5 from inventory cell 12, and the window closing.
+func TestAShopRequestIsFramedByItsSubheader(t *testing.T) {
+	stream := []byte{0x32, 1, 1, 7, 0xAF, 0x32, 3, 12, 5, 0xAF, 0x32, 0, 0xAF}
+	want := []ShopRequest{{Sub: ShopBuy, Pos: 7}, {Sub: ShopSell2, Cell: 12, Count: 5}, {Sub: ShopEnd}}
+	for _, w := range want {
+		frame, used, err := NextFrame(stream)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got, err := DecodeShop(frame.Body)
+		if err != nil || got != w {
+			t.Fatalf("got %+v, %v; want %+v", got, err, w)
+		}
+		stream = stream[used:]
+	}
+	if len(stream) != 0 {
+		t.Fatalf("%d bytes left", len(stream))
+	}
+}
+
+// A SHOP with a subheader the server does not know cannot be delimited, and one cut
+// before its subheader waits for it.
+func TestAShopRequestWithAnUnknownSubheaderIsRefused(t *testing.T) {
+	if _, _, err := NextFrame([]byte{0x32, 9, 0, 0, 0xAF}); !errors.Is(err, ErrUnknownSubheader) {
+		t.Fatalf("got %v", err)
+	}
+	if _, _, err := NextFrame([]byte{0x32}); !errors.Is(err, ErrIncomplete) {
+		t.Fatalf("got %v", err)
+	}
+}
+
+// START is 1728 bytes: the header, its size, subheader 0 and the owner, then forty cells
+// of 43 bytes, each where its index puts it.
+func TestAShopOpensWithItsCells(t *testing.T) {
+	var cells [ShopCells]ShopItem
+	cells[0] = ShopItem{VNum: 27001, Price: 32, Count: 1}
+	cells[5] = ShopItem{VNum: 27001, Price: 640, Count: 20}
+
+	got := EncodeShopStart(900001, cells)
+
+	head := mustHex(t, "26"+"c006"+"00"+"a1bb0d00")
+	entry := func(vnum, price uint32, count uint8) []byte {
+		e := binary.LittleEndian.AppendUint32(nil, vnum)
+		e = binary.LittleEndian.AppendUint32(e, price)
+		return append(append(e, count), make([]byte, 34)...)
+	}
+	if len(got) != 1728 || !bytes.Equal(got[:8], head) || !bytes.Equal(got[8:8+43], entry(27001, 32, 1)) ||
+		!bytes.Equal(got[8+5*43:8+6*43], entry(27001, 640, 20)) || !bytes.Equal(got[8+43:8+2*43], make([]byte, 43)) {
+		t.Fatalf("got %d bytes: %x", len(got), got[:8+6*43])
+	}
+}
+
+func TestAShopRefusalIsItsReason(t *testing.T) {
+	if got, want := EncodeShopError(ShopNotEnoughYang), mustHex(t, "26"+"0400"+"05"); !bytes.Equal(got, want) {
+		t.Fatalf("got %x, want %x", got, want)
+	}
+}
+
+// ON_CLICK names the character clicked.
+func TestAClickNamesTheCharacter(t *testing.T) {
+	if vid, err := DecodeOnClick(mustHex(t, "a1bb0d00")); err != nil || vid != 900001 {
+		t.Fatalf("got %d, %v", vid, err)
+	}
+}

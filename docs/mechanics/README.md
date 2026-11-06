@@ -23,6 +23,7 @@ Pages state facts in our own words. They never paste code from another server or
 | [experience.md](experience.md) | Experience from kills, shared by damage; levels, stat points and their buttons |
 | [equipment.md](equipment.md) | Putting on and taking off a weapon and body armour, others seeing them, and what they add in a fight |
 | [drops.md](drops.md) | What monsters leave, items and yang, who it is kept for, what lies on the ground, and picking it up |
+| [shops.md](shops.md) | The village shopkeepers: opening a shop, buying and selling, and the prices |
 | [potions.md](potions.md) | Drinking red and blue potions: healing, mana, the stack and the effect |
 | [items.md](items.md) | Item kinds, what a character owns, the inventory window, moving items, and giving or taking them on the command line |
 | [events.md](events.md) | Scheduled events multiplying experience and yang, their command line and their notices |

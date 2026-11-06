@@ -521,3 +521,53 @@ func EncodeSpecialEffect(e Effect, vid uint32) []byte {
 	w.U32(vid)
 	return w.Bytes()
 }
+
+// ShopCells is how many cells a shop window has: five across and eight down.
+const ShopCells = 40
+
+// ShopItem is what one cell of a shop holds: Count of kind VNum, for Price yang in all.
+// An empty cell is the zero item.
+type ShopItem struct {
+	VNum  uint32
+	Price uint32
+	Count uint8
+}
+
+// EncodeShopStart opens the shop of the character owner with its cells: each entry is the
+// cell its index names, its sockets and bonuses empty.
+func EncodeShopStart(owner uint32, cells [ShopCells]ShopItem) []byte {
+	const size = 1 + 2 + 1 + 4 + ShopCells*shopEntrySize
+	w := NewWriter(byte(ServerShop), size)
+	w.U16(size)
+	w.U8(0) // START
+	w.U32(owner)
+	for _, c := range cells {
+		w.U32(c.VNum)
+		w.U32(c.Price)
+		w.U8(c.Count)
+		w.Raw(make([]byte, shopEntrySize-9)) // where it is shown, which a shop of an NPC ignores, then sockets and bonuses
+	}
+	return w.Bytes()
+}
+
+// shopEntrySize is one cell's entry: vnum, price, count, position, three sockets and
+// seven bonuses of a type and a value.
+const shopEntrySize = 4 + 4 + 1 + 1 + 3*4 + 7*3
+
+// ShopError is why the client is told a buy or sale was refused, which it shows in a
+// window of its own.
+type ShopError uint8
+
+const (
+	ShopNotEnoughYang ShopError = 5
+	ShopBagFull       ShopError = 7
+	ShopInvalid       ShopError = 8
+)
+
+// EncodeShopError tells the client why its buy or sale was refused.
+func EncodeShopError(e ShopError) []byte {
+	w := NewWriter(byte(ServerShop), 4)
+	w.U16(4)
+	w.U8(uint8(e))
+	return w.Bytes()
+}
