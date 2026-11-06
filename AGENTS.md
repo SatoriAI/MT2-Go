@@ -1,6 +1,6 @@
 # MT2 Go — working conventions
 
-A Metin2 server written from scratch in Go, compatible with the original TMP4 game client, built so that every mechanic is understood and written down. Go 1.27 + PostgreSQL 17.
+A Metin2 server written from scratch in Go for its own client, MT2-Godot, built so that every mechanic is understood and written down. Go 1.27 + PostgreSQL 17.
 
 **This file is the rules, for every agent and person working here; `CLAUDE.md` only imports it. The reasoning is in `docs/decisions/`**, indexed at the bottom. Read the one file covering the area you are working in; do not load them all. **Commits, pull requests and where code may come from are in [`CONTRIBUTING.md`](CONTRIBUTING.md)**, written for people and agents alike; follow it, and do not repeat it here.
 
@@ -39,7 +39,7 @@ Every game mechanic has a page in `docs/mechanics/`: what the client does, the e
 - **Interfaces are declared where they are consumed** (`auth.Accounts` and `game.Accounts` are what each port needs from `store.Accounts`), and kept to the methods actually called.
 - **`internal/protocol` is pure:** bytes in, values out, no sockets, no database, no clock. Every packet test compares exact bytes.
 - **Header types are per direction** (`ClientHeader`, `ServerHeader`): numbers are reused across directions.
-- **Game types and wire types stay apart.** `internal/account` holds the game's own types (`Empire`, `Character`, `Class`, `Sex`, `SkillGroup`); `internal/protocol` holds packet layouts. The game port converts between them in `internal/game/wire.go`, the one place the client's numbers for named things appear. It is an adapter for the original client and goes when our own client replaces it, so never let those numbers into the model; the store never imports `protocol`.
+- **Game types and wire types stay apart.** `internal/account` holds the game's own types (`Empire`, `Character`, `Class`, `Sex`, `SkillGroup`); `internal/protocol` holds packet layouts. The game port converts between them in `internal/game/wire.go`, the one place the client's numbers for named things appear. It is an adapter for the original client's encoding and goes when the protocol stops carrying those numbers, so never let them into the model; the store never imports `protocol`.
 - **What the game names is stored by name**, as text with a CHECK listing the allowed values (`empire IN ('shinsoo', 'chunjo', 'jinno')`), so the tables read without a lookup. NULL means not chosen yet; the store reads it as `""`. Quantities stay numbers.
 - **The schema guarantees what the wire needs.** A column sent to the client has a CHECK matching its field (`level` 1–255 for a u8, name length in bytes), so no stored row can fail to encode. Names are unique on `lower(name)`.
 - **The environment is read only in `internal/config`** (forbidigo enforces it), and `.env.example` documents exactly the variables it reads (a config test enforces that).
@@ -86,7 +86,7 @@ A connection's goroutine is the only one that touches its session, so session st
 | Process layout, database, migrations, dependencies | `architecture.md` |
 | Sending to a connection from elsewhere | `connections.md` |
 | Anything on a timer: the world loop | `world-loop.md` |
-| Converting between names and the original client's numbers | `client-adapter.md` |
+| Converting between names and the original client's numbers; extending the protocol with MT2-Godot | `client-adapter.md` |
 | The comment length guard | `comment-blocks.md` |
 | The size of this file | `instructions-budget.md` |
 | How a packet or mechanic works | the page in `docs/mechanics/` |
