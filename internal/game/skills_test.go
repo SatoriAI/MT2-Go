@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net"
 	"testing"
+	"time"
 
 	"github.com/SatoriAI/MT2-Go/internal/account"
 	"github.com/SatoriAI/MT2-Go/internal/network"
@@ -263,7 +264,7 @@ func TestASkillThatCannotBeRaisedIsNot(t *testing.T) {
 	}
 
 	s, _, client, _, _ := training(t, account.Sura, 10, "weaponry", nil)
-	if err := s.onCommand(context.Background(), "skillup 61"); err != nil {
+	if err := s.onCommand(context.Background(), "skillup 64"); err != nil {
 		t.Fatal(err)
 	}
 	line := textToClient("Tej umiejętności nie można jeszcze rozwijać.")
@@ -380,4 +381,36 @@ func TestTheClientIsToldTheCastingSpeedCooldownsAreCountedAt(t *testing.T) {
 	if got := binary.LittleEndian.Uint32(protocol.EncodePoints(pointsOf(&character{}, 0))[1+4*protocol.PointCastingSpeed:]); got != 100 {
 		t.Fatalf("sent %d at %d", got, protocol.PointCastingSpeed)
 	}
+}
+
+// Enchanted Armour raised while it runs adds at its new level at once, and she is told her
+// defence with it: (5 + 30) × 0.06 is 2, one more than at its first level.
+func TestTheArmourRaisedWhileItRunsTellsHerDefence(t *testing.T) {
+	s, _, client, _, _ := training(t, account.Sura, 10, "weaponry", map[account.Skill]uint8{skill.EnchantedArmour: 1})
+	c := s.svc.presence.all[1000].char
+	c.Intelligence = 5
+	c.Buffs = map[account.Skill]time.Time{skill.EnchantedArmour: noon.Add(time.Minute)}
+	before := defence(c)
+
+	if err := s.onCommand(context.Background(), "skillup 65"); err != nil {
+		t.Fatal(err)
+	}
+
+	read(t, client, 1531+pointChangeSize)
+	if got := read(t, client, pointChangeSize); string(got) != string(defenceTold(before+1)) {
+		t.Fatalf("told %x, defence before %d", got, before)
+	}
+}
+
+// A skill raised with no defence buff running tells no defence.
+func TestASkillRaisedTellsNoDefenceWithoutTheArmour(t *testing.T) {
+	s, _, client, _, _ := training(t, account.Sura, 10, "weaponry", nil)
+	s.svc.presence.all[1000].char.Buffs = map[account.Skill]time.Time{skill.EnchantedBlade: noon.Add(time.Minute)}
+
+	if err := s.onCommand(context.Background(), "skillup 63"); err != nil {
+		t.Fatal(err)
+	}
+
+	read(t, client, 1531+pointChangeSize)
+	expectNothing(t, client)
 }

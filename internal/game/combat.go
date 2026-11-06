@@ -105,19 +105,27 @@ func (w *presence) attack(playerVID, vid uint32, gap time.Duration, r *rand.Rand
 		return blowTooSoon
 	}
 	f.lastAttacker, f.lastBlowAt = p, now
-	return w.strike(p, v, combat.Damage(attackerOf(p.char, now), f.defender, r), now)
+	return w.strike(p, v, combat.Damage(attackerOf(p.char), f.defender, r), now)
 }
 
-// attackerOf is what the player's blows are made of now: their character, the weapon they
-// hold, and Enchanted Blade's bonus while it runs. Called under the lock.
-func attackerOf(c *account.Character, now time.Time) combat.Attacker {
+// attackerOf is what the player's blows are made of: their character, the weapon they
+// hold, and what their running buffs add to the attack. Called under the lock.
+func attackerOf(c *account.Character) combat.Attacker {
 	weapon, _ := item.Lookup(c.Weapon)
-	a := combat.Attacker{Level: c.Level, Class: c.Class, Stats: c.Stats, WeaponMin: weapon.AttackMin,
-		WeaponMax: weapon.AttackMax}
-	if until, on := c.Buffs[skill.EnchantedBlade]; on && now.Before(until) {
-		a.Bonus = skill.Bonus(c.Intelligence, c.Skills[skill.EnchantedBlade])
+	return combat.Attacker{Level: c.Level, Class: c.Class, Stats: c.Stats, WeaponMin: weapon.AttackMin,
+		WeaponMax: weapon.AttackMax, Bonus: buffBonus(c, skill.Attack)}
+}
+
+// buffBonus is what the character's running buffs add to a stat. A buff runs until the
+// world loop ends it. Called under the lock.
+func buffBonus(c *account.Character, stat skill.Stat) uint16 {
+	var bonus uint16
+	for sk := range c.Buffs {
+		if p, _ := skill.Lookup(sk); p.Raises == stat {
+			bonus += p.Bonus(c.Intelligence, c.Skills[sk])
+		}
 	}
-	return a
+	return bonus
 }
 
 // strike takes damage, up to what it has left, from the living monster v for the player p,

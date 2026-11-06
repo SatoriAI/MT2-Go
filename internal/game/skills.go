@@ -135,11 +135,15 @@ func (s *session) raiseSkill(ctx context.Context, arg string) error {
 		s.conn.Log().Error("skill raised not kept", "skill", sk, "err", err)
 		return nil
 	}
-	levels, points := s.svc.presence.raised(s.playing.vid, sk, level)
-	return s.conn.Send(
+	levels, points, def, defended := s.svc.presence.raised(s.playing.vid, sk, level)
+	told := [][]byte{
 		protocol.EncodeSkillLevels(levels),
 		protocol.EncodePointChange(s.playing.vid, protocol.PointSkillPoints, -1, int32(points)), //nolint:gosec // under 2^31
-	)
+	}
+	if defended {
+		told = append(told, protocol.EncodePointChange(s.playing.vid, protocol.PointDefence, 0, int32(def))) //nolint:gosec // small
+	}
+	return s.conn.Send(told...)
 }
 
 // tell shows a line from the NPC the player talks to, with an OK that answers nothing.
@@ -186,14 +190,17 @@ func (w *presence) mayRaise(vid uint32, sk account.Skill) bool {
 	return p.Class == c.Class && p.Group == c.SkillGroup && c.Skills[sk] < skill.MaxLevel && skill.Points(c.Level, c.Skills) > 0
 }
 
-// raised puts the skill at its new level, and returns every skill's level for the client
-// and the points left.
-func (w *presence) raised(vid uint32, sk account.Skill, level uint8) (protocol.SkillLevels, uint32) {
+// raised puts the skill at its new level, and returns every skill's level for the client,
+// the points left, and the player's defence if the skill is a defence buff running, which
+// adds at its level now.
+func (w *presence) raised(vid uint32, sk account.Skill, level uint8) (protocol.SkillLevels, uint32, uint32, bool) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	c := w.all[vid].char
 	c.Skills[sk] = level
-	return skillLevels(c.Skills), skill.Points(c.Level, c.Skills)
+	p, _ := skill.Lookup(sk)
+	_, running := c.Buffs[sk]
+	return skillLevels(c.Skills), skill.Points(c.Level, c.Skills), defence(c), running && p.Raises == skill.Defence
 }
 
 // skillPoints is what the skill window shows: the points the character has once it has

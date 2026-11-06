@@ -241,10 +241,16 @@ func (w *presence) dress(vid, weapon, body uint32) {
 }
 
 // defence is what a character sets against a bite, as the character window's DEF shows
-// it: their level, vitality and the armour they wear.
+// it: their level, vitality, the armour they wear and what their buffs add.
 func defence(c *account.Character) uint32 {
+	return uint32(c.Level) + uint32(c.Vitality) + uint32(armourOf(c))
+}
+
+// armourOf is the armour a character sets against a bite: their body armour's and their
+// buffs'.
+func armourOf(c *account.Character) uint16 {
 	armour, _ := item.Lookup(c.Body)
-	return uint32(c.Level) + uint32(c.Vitality) + uint32(armour.Defence)
+	return armour.Defence + buffBonus(c, skill.Defence)
 }
 
 // wear puts on the character what the inventory has worn, as it enters the world.
