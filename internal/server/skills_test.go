@@ -129,3 +129,22 @@ func TestASuraSwirlsTheDogsBesideHer(t *testing.T) {
 		}
 	}
 }
+
+// Hendra puts Dragon Swirl on her taskbar's first slot; after Change character it is
+// there still, shown as the skill at its place in the skill window.
+func TestASkillOnTheTaskbarIsKeptOverChangeCharacter(t *testing.T) {
+	h := start(t)
+	hendra, _ := h.hendraInWorld()
+	hendra.changeCharacter()
+	h.exec(`UPDATE characters SET level = 6, skill_group = 'weaponry' WHERE name = 'Hendra'`)
+	h.exec(`INSERT INTO skills (character_id, skill, level) SELECT id, 'dragon_swirl', 1 FROM characters WHERE name = 'Hendra'`)
+	hendra.startAgain()
+
+	hendra.send([]byte{byte(protocol.ClientQuickslotAdd), 0, 2, 2, sequenceByte})
+	swirl := protocol.EncodeQuickslotAdd(protocol.QuickslotAdd{Slot: 0, Type: 2, Position: 2})
+	hendra.expect(swirl)
+
+	hendra.changeCharacter()
+	hendra.startAgain()
+	hendra.expect(swirl)
+}
