@@ -39,6 +39,10 @@ type Proto struct {
 
 	// What a potion restores when it is drunk; a kind restoring neither is not drunk.
 	HP, SP uint16
+
+	// What a shop asks for one, and pays for one: the client's item_proto sell price
+	// divided by 5, as its tooltip works it out, so what it shows is what is paid.
+	Price, SellPrice uint32
 }
 
 var (
@@ -71,31 +75,32 @@ func VNums() []uint32 { return slices.Sorted(maps.Keys(protos)) }
 // protos are the client's item_proto values (its --dump_proto--/item_proto.txt): size,
 // ITEM_STACKABLE for the stacks; for what is worn, its ITEM_WEAR, the classes its
 // ANTI_ flags leave, a weapon's attack (VALUE3 to VALUE4) and armour's
-// defence (VALUE1). Only each class's first weapon and armour are listed, none of which
-// needs a level; a level check comes with the first that does. The names are the Polish client's own, from its locale
-// item_proto (docs/mechanics/items.md says how they were read), in UTF-8.
+// defence (VALUE1); the shop prices, but 100 for each first weapon, which it gives none.
+// Only each class's first weapon and armour are listed, none of which needs a level; a
+// level check comes with the first that does. The names are the Polish client's own, from
+// its locale item_proto (docs/mechanics/items.md says how they were read), in UTF-8.
 var protos = map[uint32]Proto{
 	10: {VNum: 10, Name: "Miecz+0", Size: 2, Stack: 1, Wear: Weapon,
-		Classes: []account.Class{account.Warrior, account.Ninja, account.Sura}, AttackMin: 13, AttackMax: 15},
+		Classes: []account.Class{account.Warrior, account.Ninja, account.Sura}, AttackMin: 13, AttackMax: 15, Price: 100, SellPrice: 0},
 	1000: {VNum: 1000, Name: "Sztylet+0", Size: 1, Stack: 1, Wear: Weapon,
-		Classes: []account.Class{account.Ninja}, AttackMin: 8, AttackMax: 11},
+		Classes: []account.Class{account.Ninja}, AttackMin: 8, AttackMax: 11, Price: 100, SellPrice: 0},
 	2000: {VNum: 2000, Name: "Łuk+0", Size: 2, Stack: 1, Wear: Weapon,
-		Classes: []account.Class{account.Ninja}, AttackMin: 7, AttackMax: 29},
+		Classes: []account.Class{account.Ninja}, AttackMin: 7, AttackMax: 29, Price: 100, SellPrice: 0},
 	3000: {VNum: 3000, Name: "Glewia+0", Size: 3, Stack: 1, Wear: Weapon,
-		Classes: []account.Class{account.Warrior}, AttackMin: 14, AttackMax: 22},
+		Classes: []account.Class{account.Warrior}, AttackMin: 14, AttackMax: 22, Price: 100, SellPrice: 0},
 	7000: {VNum: 7000, Name: "Wachlarz+0", Size: 1, Stack: 1, Wear: Weapon,
-		Classes: []account.Class{account.Shaman}, AttackMin: 11, AttackMax: 15},
+		Classes: []account.Class{account.Shaman}, AttackMin: 11, AttackMax: 15, Price: 100, SellPrice: 0},
 	11200: {VNum: 11200, Name: "Mnisia Zbr. Płyt.+0", Size: 2, Stack: 1, Wear: Body,
-		Classes: []account.Class{account.Warrior}, Defence: 12},
+		Classes: []account.Class{account.Warrior}, Defence: 12, Price: 3000, SellPrice: 600},
 	11400: {VNum: 11400, Name: "Błękitne Ubranie+0", Size: 2, Stack: 1, Wear: Body,
-		Classes: []account.Class{account.Ninja}, Defence: 12},
+		Classes: []account.Class{account.Ninja}, Defence: 12, Price: 3000, SellPrice: 600},
 	11600: {VNum: 11600, Name: "Żałobna Zbr. Płyt.+0", Size: 2, Stack: 1, Wear: Body,
-		Classes: []account.Class{account.Sura}, Defence: 12},
+		Classes: []account.Class{account.Sura}, Defence: 12, Price: 3000, SellPrice: 600},
 	11800: {VNum: 11800, Name: "Błękitna Szata+0", Size: 2, Stack: 1, Wear: Body,
-		Classes: []account.Class{account.Shaman}, Defence: 12},
-	27001: {VNum: 27001, Name: "Czerwona Mikstura(M)", Size: 1, Stack: MaxStack, HP: 300},
-	27002: {VNum: 27002, Name: "Czerwona Mikstura(Ś)", Size: 1, Stack: MaxStack, HP: 800},
-	27004: {VNum: 27004, Name: "Niebieska Mikstura(M)", Size: 1, Stack: MaxStack, SP: 100},
+		Classes: []account.Class{account.Shaman}, Defence: 12, Price: 3000, SellPrice: 600},
+	27001: {VNum: 27001, Name: "Czerwona Mikstura(M)", Size: 1, Stack: MaxStack, HP: 300, Price: 32, SellPrice: 6},
+	27002: {VNum: 27002, Name: "Czerwona Mikstura(Ś)", Size: 1, Stack: MaxStack, HP: 800, Price: 96, SellPrice: 18},
+	27004: {VNum: 27004, Name: "Niebieska Mikstura(M)", Size: 1, Stack: MaxStack, SP: 100, Price: 96, SellPrice: 24},
 }
 
 // Item is one item a character owns: a kind, how many of it, and either the inventory

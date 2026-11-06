@@ -33,6 +33,16 @@ type Proto struct {
 	RegenPercent uint8
 	Drops        []Drop // what it may leave when it dies, each rolled on its own
 	Yang         Yang   // and the yang, rolled once
+	Sells        []Ware // what an NPC's shop holds, for a shopkeeper
+}
+
+// Ware is what one cell of a shop holds: Count of item VNum. Each cell is written out, so
+// those a tall item covers below it are left empty on purpose, as the client draws it
+// over them.
+type Ware struct {
+	VNum  uint32
+	Count uint8
+	Cell  uint8
 }
 
 // Yang is the yang a monster may leave when it dies: with a chance of Chance in 10,000, an
@@ -49,6 +59,16 @@ type Drop struct {
 	Count  uint8
 	Chance uint16
 }
+
+// The village shops: the weapon trader's first weapons and the armour trader's first
+// armours along the top row, the cells below left to the taller ones, and the general
+// store's potions, singly on the top row and twenty to a pack on the next.
+var (
+	weapons  = []Ware{{VNum: 10, Count: 1, Cell: 0}, {VNum: 1000, Count: 1, Cell: 1}, {VNum: 2000, Count: 1, Cell: 2}, {VNum: 3000, Count: 1, Cell: 3}, {VNum: 7000, Count: 1, Cell: 4}}
+	armours  = []Ware{{VNum: 11200, Count: 1, Cell: 0}, {VNum: 11400, Count: 1, Cell: 1}, {VNum: 11600, Count: 1, Cell: 2}, {VNum: 11800, Count: 1, Cell: 3}}
+	sundries = []Ware{{VNum: 27001, Count: 1, Cell: 0}, {VNum: 27002, Count: 1, Cell: 1}, {VNum: 27004, Count: 1, Cell: 2},
+		{VNum: 27001, Count: 20, Cell: 5}, {VNum: 27002, Count: 20, Cell: 6}, {VNum: 27004, Count: 20, Cell: 7}}
+)
 
 // potions is what every monster of the first villages may leave: a red and a blue potion,
 // each 8 times in 100.
@@ -97,9 +117,9 @@ var protos = map[uint16]Proto{
 		Strength: 14, DamageMin: 30, DamageMax: 37, AttackRange: 175,
 		RegenCycle: 6, RegenPercent: 7, Drops: gear, Yang: Yang{Chance: 6000, Min: 20, Max: 40}},
 
-	9001: {VNum: 9001, Name: "Handlarz Bronią", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100},
-	9002: {VNum: 9002, Name: "Handlarz Zbrojami", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100},
-	9003: {VNum: 9003, Name: "Handlarka Różności", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100},
+	9001: {VNum: 9001, Name: "Handlarz Bronią", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100, Sells: weapons},
+	9002: {VNum: 9002, Name: "Handlarz Zbrojami", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100, Sells: armours},
+	9003: {VNum: 9003, Name: "Handlarka Różności", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100, Sells: sundries},
 	9005: {VNum: 9005, Name: "Dozorca", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100},
 	9006: {VNum: 9006, Name: "Starsza Pani", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100},
 	9009: {VNum: 9009, Name: "Rybak", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100},

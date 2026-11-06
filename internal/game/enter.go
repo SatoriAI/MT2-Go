@@ -189,8 +189,7 @@ func (s *session) leaveWorld() {
 		s.svc.leaveAndSave(s.playing, s.empire, s.conn.Log())
 	}
 	s.svc.release(s.claim)
-	s.claim = nil
-	s.playing = nil
+	s.claim, s.playing, s.shop = nil, nil, 0
 }
 
 // inventoryShown fills the inventory window, an item to a packet.

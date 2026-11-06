@@ -26,6 +26,33 @@ type keptItems struct {
 
 func (k *keptItems) Gold(context.Context, uint32) (uint32, error) { return k.gold, k.fail }
 
+func (k *keptItems) Buy(_ context.Context, _, price uint32, into item.Item) (item.Item, uint32, error) {
+	if k.fail != nil {
+		return item.Item{}, 0, k.fail
+	}
+	k.gold -= price
+	if into.ID == 0 {
+		k.added = append(k.added, into)
+		into.ID = int64(100 + len(k.added))
+	} else {
+		k.count[into.ID] = into.Count
+	}
+	return into, k.gold, nil
+}
+
+func (k *keptItems) Sell(_ context.Context, _, pay uint32, left item.Item) (uint32, error) {
+	if k.fail != nil {
+		return 0, k.fail
+	}
+	k.gold += pay
+	if left.Count == 0 {
+		k.gone = append(k.gone, left.ID)
+	} else {
+		k.count[left.ID] = left.Count
+	}
+	return k.gold, nil
+}
+
 func (k *keptItems) AddGold(_ context.Context, _, amount uint32) (uint32, error) {
 	if k.fail != nil {
 		return 0, k.fail

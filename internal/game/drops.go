@@ -304,5 +304,5 @@ func (s *session) pickGold(ctx context.Context, it groundItem) error {
 		return nil
 	}
 	s.gold = gold
-	return s.conn.Send(protocol.EncodePointChange(s.playing.vid, protocol.PointGold, int32(it.gold), int32(gold))) //nolint:gosec // under 2^31
+	return s.conn.Send(s.yangChanged(int64(it.gold)))
 }

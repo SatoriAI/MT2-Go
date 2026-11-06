@@ -74,3 +74,32 @@ func TestEveryMonstersYangIsAChanceOfARange(t *testing.T) {
 		}
 	}
 }
+
+// shopCells and shopRow are the client's shop window: forty cells, five to a row.
+const shopCells, shopRow = 40, 5
+
+// Every ware is a kind the game has, in a count one item holds, at a price that fits the
+// client's u32, in the shop window with every cell it stands in free of the others; only
+// the three traders sell.
+func TestEveryWareFitsTheShopWindow(t *testing.T) {
+	for vnum, p := range protos {
+		if (len(p.Sells) > 0) != (vnum == 9001 || vnum == 9002 || vnum == 9003) {
+			t.Errorf("%d sells %v", vnum, p.Sells)
+		}
+		taken := map[int]bool{}
+		for _, w := range p.Sells {
+			kind, ok := item.Lookup(w.VNum)
+			if !ok || w.Count < 1 || w.Count > kind.Stack || uint64(kind.Price)*uint64(w.Count) > 1<<32-1 {
+				t.Errorf("%d sells %+v", vnum, w)
+				continue
+			}
+			for row := range int(kind.Size) {
+				cell := int(w.Cell) + row*shopRow
+				if cell >= shopCells || taken[cell] {
+					t.Errorf("%d: %+v runs off the window or onto another ware at %d", vnum, w, cell)
+				}
+				taken[cell] = true
+			}
+		}
+	}
+}
