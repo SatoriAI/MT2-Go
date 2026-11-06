@@ -58,3 +58,21 @@ func TestTheDatabaseRefusesWhatSkillsCannotBe(t *testing.T) {
 		t.Error("a sura chose the shaman's healing")
 	}
 }
+
+// Every skill the game has is kept, the rest of Weaponry with the first two.
+func TestEveryWeaponrySkillIsKept(t *testing.T) {
+	items, cid := hendrasItems(t)
+	s := Skills(items)
+	ctx := context.Background()
+	names := []account.Skill{"finger_strike", "dragon_swirl", "enchanted_blade", "enchanted_armour"}
+
+	for _, sk := range names {
+		if _, err := s.Raise(ctx, cid, sk); err != nil {
+			t.Fatalf("%s: %v", sk, err)
+		}
+	}
+
+	if learnt, err := s.Learnt(ctx, cid); err != nil || len(learnt) != len(names) {
+		t.Fatalf("learnt %v, %v", learnt, err)
+	}
+}

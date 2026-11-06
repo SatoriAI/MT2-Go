@@ -11,10 +11,12 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
 - **Who is turned away.** A teacher tells anyone of another class, anyone below level 5, and anyone already on their path, why not.
 
 **Raising a skill.** The + beside a skill raises it a level for a point, up to 20, where the + goes. Each level from 5 brings one more point.
-- **What can be raised:** only Dragon Swirl and Enchanted Blade so far. The group's four other skills show in the window, but raising one says «Tej umiejętności nie można jeszcze rozwijać.»
-**Using a skill.** Dragon Swirl and Enchanted Blade are used from the skill window, as the client uses any skill.
+- **What can be raised:** Weaponry's Finger Strike, Dragon Swirl, Enchanted Blade and Enchanted Armour. Fear and Dispel show in the window, but raising one says «Tej umiejętności nie można jeszcze rozwijać.»
+**Using a skill.** The four are used from the skill window or the taskbar, as the client uses any skill.
+- **Finger Strike:** on the monster she has picked, within a blow's reach, one strike of two and a half blows and more at the first level, four and a quarter at 20. It can't be used again for 10 seconds.
 - **Dragon Swirl:** the sura spins her blade, and every monster around her within 500 is struck at once. Each blow is more than two of hers at the first level, three and a half at 20. Every monster struck turns on her. It costs mana and can't be used again for 15 seconds.
 - **Enchanted Blade:** with a sword in hand, the blade glows, for her and everyone near, and her blows and swirls hit harder for three minutes, by what its tooltip says. Using it again turns it off for nothing. Dying ends it, and so do taking the sword out of hand and leaving the world.
+- **Enchanted Armour:** a shimmer for her and everyone near, and her defence higher for 36 seconds at the first level, 90 at 20. It waits longer to be cast again than it lasts, so it drops for a few seconds between casts. It runs alongside the blade.
 
 ## What the client does
 
@@ -37,7 +39,7 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
   - The client checks its own rules first: the skill learnt, the weapon, mana against its own cost, the cooldown.
   - It then plays the motion and sends MOVE with `FUNC_SKILL` and the motion, which others replay, and USE_SKILL with the skill's number.
   - During the motion it reports its own hits as ATTACK with the skill's number, which this server drops.
-- **The glow:** an effect bit in CHARACTER_ADD and CHARACTER_UPDATE draws Enchanted Blade's glow on the character. For the player's own character it also lights the skill's slot as on. Bit 19 is the blade's (`InstanceBase.h`).
+- **The glow:** an effect bit in CHARACTER_ADD and CHARACTER_UPDATE draws a buff's effect on the character, Enchanted Blade's glow or Enchanted Armour's shimmer. For the player's own character it also lights the skill's slot as on. Bit 19 is the blade's, 21 the armour's (`InstanceBase.h`).
 
 ## The bytes
 
@@ -50,13 +52,13 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
 | POINT_CHANGE `11` | 17 | skill points are point 28 |
 | USE_SKILL `34`, client | 9, then the sequence byte | the skill's number u32, its target's vid u32 (ignored; a toggle turned off may carry other numbers there) |
 | POINTS `10` | 1021 | casting speed at point 21: 100 |
-| CHARACTER_ADD `01`, CHARACTER_UPDATE `13` | 35 each | the effects, two u32 words: bit 19 of the first is Enchanted Blade |
+| CHARACTER_ADD `01`, CHARACTER_UPDATE `13` | 35 each | the effects, two u32 words: bit 19 of the first is Enchanted Blade, 21 Enchanted Armour |
 
 ## What the server does
 
 `internal/skill` says what each skill is; `internal/game/skills.go` runs the teachers and the + button; `internal/store/skills.go` keeps it.
 
-- **The skills the game has** are a table, each by name, with its class and group: `dragon_swirl` and `enchanted_blade`, the sura's Weaponry. The client's numbers for them, 62 and 63, are in `internal/game/wire.go`.
+- **The skills the game has** are a table, each by name, with its class and group: `finger_strike`, `dragon_swirl`, `enchanted_blade` and `enchanted_armour`, the sura's Weaponry. The client's numbers for them, 61, 62, 63 and 65, are in `internal/game/wire.go`.
 - **The teachers** are NPC kinds that teach a group (`mob.Proto.Teaches`): 20304, 20324 and 20344 teach Weaponry, and 20305, 20325 and 20345 Black Magic, one of each per village (`internal/world/spawns.go`).
   - Their spots are this server's own, beside the old lady. open-mt2's come from the original server's data, which this repository keeps out ([monsters.md](monsters.md)). Unlike the monster areas, they have not been checked against the client's terrain; the Jinno pair was seen standing by a bot.
   - A click reaches them from 1000, as it does a shopkeeper.
@@ -72,11 +74,14 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
   - A number the game has no skill for is told «Tej umiejętności nie można jeszcze rozwijać.»
 - **On the taskbar,** a skill learnt is kept by name, and its key sends USE_SKILL like the skill window ([taskbar.md](taskbar.md)).
 - **Using a skill,** on USE_SKILL:
-  - **Checks:** the skill's cooldown is the character's, kept by the server rather than the connection, so changing character or logging in again does not end it. The rest is checked under the world's lock: the player alive, the skill learnt, the sword Enchanted Blade needs in hand, and its mana. A refusal is dropped without a word, since the client checked the same first.
+  - **Checks:** the skill's cooldown is the character's, kept by the server rather than the connection, so changing character or logging in again does not end it. The rest is checked under the world's lock: the player alive, the skill learnt, the sword Enchanted Blade needs in hand, the monster Finger Strike strikes, and its mana. The cooldown is only noted once the skill is used. A refusal is dropped without a word, since the client checked the same first.
   - **The cooldown the client counts:** it works a skill's cooldown out at the character's casting speed, point 21, and doubles it at 0, so POINTS sends 100, at which it waits what its table says, as this server does.
   - **Mana** is spent and told. Costs follow the client's own formulas at the skill's power `k`, its table by level (0.05 at 1, 0.40 at 19, 0.50 at 20), so its check and ours agree:
-    - Dragon Swirl: 50 + 150k.
-    - Enchanted Blade: 20 + 240k.
+    - Finger Strike: 30 + 140k, and 10 s to cool down.
+    - Dragon Swirl: 50 + 150k, and 15 s.
+    - Enchanted Blade: 20 + 240k, a toggle with none.
+    - Enchanted Armour: 70 + 170k, and 33 + 140k s.
+  - **Finger Strike:** the target the client names in USE_SKILL must be a living monster the player sees within 300, a blow's reach; otherwise nothing is spent. It is struck once for (250 + 350k)% of a normal blow, the veteran's number, through the same `strike`. The skilltable's four is victims per motion, so it is not four strikes; it does not pierce yet.
   - **Dragon Swirl:** every living monster the player sees within 500 is struck, with no cap. Each blow is the player's normal blow, then (200 + 300k)% of it. A struck monster turns on them, counts the damage towards its drops and experience, and dies for everyone if it is killed, as a blow does: both go through one `strike`.
     - The damage lands as the skill is used; the client's motion swings a little later.
     - The client's own hit reports are dropped.
@@ -84,6 +89,8 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
     - **Showing it:** its effect bit is worked out from the buffs a character has running whenever it is shown, so the record's entries keep their size. It is shown in CHARACTER_UPDATE to the player and everyone who sees them as it starts and ends, in every later CHARACTER_ADD, and in the update a change of armour sends.
     - **Its end** is handed to the world loop with its news, and queued in order of when it ends. The loop ends it then, if it is still the same run.
     - **Using it again** ends it, for nothing, as the client turns it off without checking mana. Death ends it. It is not stored, so leaving the world ends it too.
+  - **Enchanted Armour:** the client's skilltable throughout. It runs 30 + 120k seconds and adds (INT + 30)·k to the armour set against every bite, rounded down. It is not a toggle: its cooldown always outlasts it, so using it again while it runs is refused. Its effect bit is 21, shown as the blade's is, and the player is told their defence, point 20, as it starts and ends, and when a point of intelligence or a level of the skill raises it.
+  - **Bonuses come from the buffs running:** each buff raises the attack or the defence, and what the running ones add is worked out whenever a blow or bite needs it, so the blade and the armour stack. A buff runs until the world loop ends it.
 - **Held under the world's lock:** a character's group and skills are on its record, which the world's lock guards, since its level changes there. They are read with the character on entering, and changed only through the world record.
 
 ## How we know
@@ -100,7 +107,7 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
 
 ## What proves it
 
-- `internal/skill/skill_test.go`: every skill of a group of its class; points earned from level 5, less those spent; the client's power table; mana costs equal to the client's formulas at every level; the blade's bonus as its tooltip shows it.
+- `internal/skill/skill_test.go`: every skill of a group of its class; points earned from level 5, less those spent; the client's power table; mana, cooldowns and runs equal to the client's formulas at every level; the armour ending before it can be cast again; the blade's bonus as its tooltip shows it, and the armour's as its skilltable.
 - `internal/combat/combat_test.go`: a buff's bonus adding to the attack.
 - `internal/protocol/protocol_test.go`:
   - SKILL_LEVEL_NEW at a skill's number;
@@ -122,6 +129,8 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
   - a level up telling the points of one with a group, and not of one without;
   - points shown once a group is chosen.
 - `internal/game/skilluse_test.go`:
+  - Finger Strike striking the dog she picked, and not the one beside it, for its share;
+  - Finger Strike not used on nothing, on a dog too far, on a dead one or on a player;
   - Dragon Swirl striking both dogs within 500 and not the one beyond, each turning on her, and its mana told;
   - a swirl's blow stronger than a normal blow;
   - a swirl killing what it strikes to death;
@@ -137,11 +146,13 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
     - a later run outlasting the first's end;
     - ended by death;
     - its glow shown to a newcomer, and kept when she dresses.
+  - Enchanted Armour: its effect, its mana and the defence told, a bite met with more armour, and refused while it runs; ended by the world loop at 36 seconds with the defence told again; the defence told when intelligence raises it.
+  - The blade and the armour running together, each bit shown and each bonus added.
 - `internal/server/skills_test.go` (real sockets and database): a level-6 sura taking up Weaponry, raising Dragon Swirl twice, and entering again with it at 2 and no points left; an answer still in flight after Change character ending nothing; an offer left open over Change character forgotten; a Weaponry sura's Dragon Swirl spending its mana and striking both dogs beside her.
 
 ## Not done yet
 
-- The sura's other skills, Black Magic, the other classes and their teachers.
+- Fear and Dispel, which only matter against players; Enchanted Armour's reflect; Finger Strike's pierce. Black Magic, the other classes and their teachers.
 - Damage at the motion's hit, and no blows during a skill's motion.
 - The mana Enchanted Blade drains while it runs in the original, and keeping it over a relog.
 - Ranks past 20: Grand and Perfect.

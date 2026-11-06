@@ -3,6 +3,7 @@ package game
 import (
 	"github.com/SatoriAI/MT2-Go/internal/account"
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
+	"github.com/SatoriAI/MT2-Go/internal/skill"
 )
 
 // shareExp gives out a dead monster's experience, multiplied by the running event: each
@@ -103,6 +104,10 @@ func (w *presence) spendStatPoint(vid uint32, name string) {
 			protocol.EncodePointChange(vid, protocol.PointDefence, 0, int32(defence(c)))) //nolint:gosec // small
 	case "iq":
 		packets = append(packets, protocol.EncodePointChange(vid, protocol.PointMaxSP, 0, int32(points.MaxSP))) //nolint:gosec // small
+		// a defence buff grows with intelligence
+		if buffBonus(c, skill.Defence) > 0 {
+			packets = append(packets, protocol.EncodePointChange(vid, protocol.PointDefence, 0, int32(defence(c)))) //nolint:gosec // small
+		}
 	}
 	p.send(packets...)
 }

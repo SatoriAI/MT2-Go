@@ -204,8 +204,10 @@ func placeFromWire(at protocol.ItemPos) (uint16, item.Wear, bool) {
 // skillVNums are the client's numbers for the skills the game has, by which its skill
 // window, skill levels and + buttons know them.
 var skillVNums = map[account.Skill]uint8{
-	skill.DragonSwirl:    62,
-	skill.EnchantedBlade: 63,
+	skill.FingerStrike:    61,
+	skill.DragonSwirl:     62,
+	skill.EnchantedBlade:  63,
+	skill.EnchantedArmour: 65,
 }
 
 // castingSpeed is what the client is told a character's casting speed is: 100, at which it
@@ -215,7 +217,8 @@ const castingSpeed = 100
 // affectBits are the bits a buff sets in a character's effects, which the client draws:
 // 19 is the glow Enchanted Blade puts on the blade.
 var affectBits = map[account.Skill]uint64{
-	skill.EnchantedBlade: 1 << 19,
+	skill.EnchantedBlade:  1 << 19,
+	skill.EnchantedArmour: 1 << 21,
 }
 
 // affectsOf is the effects the client draws on a character: a bit for each buff running.
@@ -260,8 +263,10 @@ const (
 // skillWindowSlots are where the client's skill window shows each skill: the sura's
 // Weaponry skills from 1, in the order its playersettingmodule lists them.
 var skillWindowSlots = map[account.Skill]uint8{
-	skill.DragonSwirl:    2,
-	skill.EnchantedBlade: 3,
+	skill.FingerStrike:    1,
+	skill.DragonSwirl:     2,
+	skill.EnchantedBlade:  3,
+	skill.EnchantedArmour: 5,
 }
 
 // skillByWindowSlot is the skill at a place in the skill window, if the game has it.

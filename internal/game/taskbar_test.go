@@ -92,7 +92,7 @@ func TestOnlyPotionsFillATaskbarSlot(t *testing.T) {
 	for name, body := range map[string][]byte{
 		"a sword":       slotAdded(3, 1, 0),
 		"an empty cell": slotAdded(3, 1, 9),
-		"a skill":       slotAdded(3, 2, 1),
+		"a skill":       slotAdded(3, 2, 4),
 		"slot 36":       slotAdded(36, 1, 1),
 	} {
 		s, _, client := carrying(t)
