@@ -140,6 +140,25 @@ func TestATaskbarSlotFollowsItsPotionsAsTheyMove(t *testing.T) {
 	}
 }
 
+// A potion drunk from a stack that stays where it is tells the taskbar nothing: the slot
+// still holds it, at the same cell.
+func TestATaskbarSlotIsNotToldAgainWhenItsPotionsStay(t *testing.T) {
+	s, _, client, _ := thirsty(t, 1, 50, 1)
+	onTheTaskbar(t, s, 10)
+
+	if err := s.onItemUse(doubleClicked(10)); err != nil {
+		t.Fatal(err)
+	}
+
+	want := string(itemSet(item.Item{ID: 10, VNum: 27001, Count: 49, Cell: 10})) +
+		string(protocol.EncodePointChange(1000, protocol.PointHP, 300, 301)) +
+		string(protocol.EncodeSpecialEffect(protocol.EffectRedPotion, 1000))
+	if got := read(t, client, itemSetSize+pointChangeSize+effectSize); string(got) != want {
+		t.Fatalf("got  %x\nwant %x", got, want)
+	}
+	expectNothing(t, client)
+}
+
 // The last potion drunk empties its slot; so does a stack sold.
 func TestATaskbarSlotIsEmptiedWhenItsPotionsAreGone(t *testing.T) {
 	drinker, _, drinkerClient, _ := thirsty(t, 1, 1, 1)

@@ -46,7 +46,7 @@ func (s *session) loadInventory(ctx context.Context, characterID uint32) error {
 		return err
 	}
 	s.inventory, s.gold = inv, gold
-	return s.loadTaskbar(ctx, characterID)
+	return nil
 }
 
 // onItemMove carries out a drag: an item moved, whole, to cells where all of it fits,

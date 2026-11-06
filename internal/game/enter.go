@@ -47,6 +47,9 @@ func (s *session) onSelectCharacter(ctx context.Context, body []byte) error {
 	if err := s.loadInventory(ctx, c.ID); err != nil {
 		return err
 	}
+	if err := s.loadTaskbar(ctx, c.ID); err != nil {
+		return err
+	}
 	wear(&c, s.inventory)
 	points, ok := c.Points()
 	if !ok {

@@ -34,7 +34,7 @@ The bar at the foot of the screen has eight slots, for keys 1 to 4 and F1 to F4,
   - The connection keeps each slot's item and the cell the client was last told, which only its goroutine touches, as with the inventory.
 - **Filling:** a slot below 36 is filled with the item at a bag cell, if its kind is drunk. It replaces whatever the slot held, is kept, and is told back. A skill, an emotion, any other item or an empty cell is refused without a word, since the game has no skills yet.
 - **Emptying and swapping** are kept, then told back. A swap is one transaction, and either slot may be empty.
-- **Following the items:** after anything that changes the bag — a move, a potion drunk, a sale — each slot whose item is gone is emptied, and each whose item moved is told its new cell.
+- **Following the items:** after anything that changes the bag — a move, a potion drunk, a sale — each slot whose item is gone is emptied, and each whose item moved is told its new cell. A buy or a pick-up only raises a stack where it stands or adds a new item, so neither can move a slot's item. Anything later that moves or takes an item out of the bag, such as splitting a stack, dropping or trading, must follow the taskbar too.
 - **Entering:** the slots are read with the inventory, and each is told after it.
 - **A write that fails** changes nothing and tells the client nothing, so the bar stays as it was.
 
@@ -60,7 +60,7 @@ The bar at the foot of the screen has eight slots, for keys 1 to 4 and F1 to F4,
   - potions dragged on filling a slot;
   - a sword, an empty cell, a skill and slot 36 refused;
   - slots emptied and swapped;
-  - a slot following its potions as they move;
+  - a slot following its potions as they move, and not told again when they stay;
   - emptied when the last is drunk or the stack is sold;
   - a failed write changing nothing.
 - `internal/server/taskbar_test.go` (real sockets and database): potions on the first slot, key 1, kept over Change character, told on entering after the inventory, and drunk by a use of their cell, as the key sends it.
@@ -68,3 +68,4 @@ The bar at the foot of the screen has eight slots, for keys 1 to 4 and F1 to F4,
 ## Not done yet
 
 - Skills and emotions on the bar, with the skills themselves.
+- Tying a slot's item to its character in the database, for when items change hands: today a slot is only ever filled from its own character's bag.
