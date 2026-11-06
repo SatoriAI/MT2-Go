@@ -60,10 +60,11 @@ The header alone.
 | 5, 6 | hit points, max hit points | 12–15 | strength, vitality, dexterity, intelligence |
 | 7, 8 | mana, max mana | 17, 19 | attack speed, move speed |
 | 20 | DEF: level, vitality and armour ([equipment.md](equipment.md)) | | |
+| 28 | skill points left, once a skill group is chosen ([skills.md](skills.md)) | | |
 
 ### SKILL_LEVEL — server, `4C`, 1531 bytes
 
-255 skills × 6 bytes (master type u8, level u8, next reading time i32), all `0` for now.
+255 skills × 6 bytes (master type u8, level u8, next reading time i32), each at the client's number for the skill: the levels of the skills learnt, all else `0` ([skills.md](skills.md)).
 
 ### TIME — server, `6A`, 5 bytes; CHANNEL — server, `79`, 2 bytes
 

@@ -13,6 +13,7 @@ import (
 	"github.com/SatoriAI/MT2-Go/internal/item"
 	"github.com/SatoriAI/MT2-Go/internal/mob"
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
+	"github.com/SatoriAI/MT2-Go/internal/skill"
 )
 
 var empireNumbers = map[account.Empire]uint8{
@@ -198,6 +199,32 @@ func placeFromWire(at protocol.ItemPos) (uint16, item.Wear, bool) {
 		}
 	}
 	return 0, "", false
+}
+
+// skillVNums are the client's numbers for the skills the game has, by which its skill
+// window, skill levels and + buttons know them.
+var skillVNums = map[account.Skill]uint8{
+	skill.DragonSwirl:    62,
+	skill.EnchantedBlade: 63,
+}
+
+// skillByVNum is the skill the client's number names, if the game has it.
+func skillByVNum(vnum int) (account.Skill, bool) {
+	for s, v := range skillVNums {
+		if int(v) == vnum {
+			return s, true
+		}
+	}
+	return "", false
+}
+
+// skillLevels lays out the levels of the skills learnt as the client takes them.
+func skillLevels(learnt map[account.Skill]uint8) protocol.SkillLevels {
+	var levels protocol.SkillLevels
+	for s, level := range learnt {
+		levels[skillVNums[s]] = level
+	}
+	return levels
 }
 
 // taskbarItem is the client's type for a taskbar slot that holds an inventory cell.

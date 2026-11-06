@@ -34,7 +34,8 @@ func (w *presence) shareExp(f *fight, killer *present) {
 }
 
 // gainExp adds experience to a player and tells them; on a level up, tells them their new
-// level, needs, stat points and maximums, and everyone who sees them the new level.
+// level, needs, stat and skill points and maximums, and everyone who sees them the new
+// level.
 func (w *presence) gainExp(p *present, gain uint32) {
 	c := p.char
 	levels := c.GainExp(gain)
@@ -57,6 +58,9 @@ func (w *presence) gainExp(p *present, gain uint32) {
 		protocol.EncodePointChange(vid, protocol.PointSP, 0, int32(points.MaxSP)),    //nolint:gosec // small
 		protocol.EncodePointChange(vid, protocol.PointDefence, 0, int32(defence(c))), //nolint:gosec // small
 	)
+	if c.SkillGroup != "" {
+		p.send(protocol.EncodePointChange(vid, protocol.PointSkillPoints, 0, int32(skillPoints(c)))) //nolint:gosec // small
+	}
 	toViewers(p, protocol.EncodePointChange(vid, protocol.PointLevel, gained, int32(c.Level)))
 }
 

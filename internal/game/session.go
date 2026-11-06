@@ -49,6 +49,7 @@ type Service struct {
 	whispers Whispers
 	items    Items
 	taskbar  Taskbar
+	skills   Skills
 	keys     *account.Keys
 	clock    handshake.Clock
 	// public is the address the client is told to connect to for this game server. It
@@ -78,9 +79,9 @@ type Service struct {
 }
 
 // NewService makes the game port's shared state; Run puts spawns' mobs in the world.
-func NewService(store Accounts, whispers Whispers, items Items, taskbar Taskbar, keys *account.Keys, clock handshake.Clock, public netip.AddrPort,
+func NewService(store Accounts, whispers Whispers, items Items, taskbar Taskbar, skills Skills, keys *account.Keys, clock handshake.Clock, public netip.AddrPort,
 	spawns []world.Spawn) *Service {
-	return &Service{store: store, whispers: whispers, items: items, taskbar: taskbar, keys: keys, clock: clock, public: public, claims: map[uint32]*claim{},
+	return &Service{store: store, whispers: whispers, items: items, taskbar: taskbar, skills: skills, keys: keys, clock: clock, public: public, claims: map[uint32]*claim{},
 		presence: presence{all: map[uint32]*present{}, byName: map[string]*present{}, ground: map[uint32]*groundItem{}}, spawns: spawns, rand: newRand(), now: time.Now,
 		byPresent: map[*present]*monster{}}
 }
@@ -101,6 +102,7 @@ type session struct {
 	gold      uint32              // playing's yang, read with the inventory and kept as it changes
 	shop      uint16              // the kind of the shopkeeper whose shop is open, 0 for none
 	taskbar   map[uint8]shownSlot // playing's taskbar, by slot, read with the inventory
+	talking   *talk               // what the NPC the player talks to asked them, or nil
 	claim     *claim              // this connection's hold on playing
 	flood     floodLimit          // the lines this player said lately, to others
 	// leftWorld is set from change character until the next Start: the client may still
@@ -116,7 +118,7 @@ type session struct {
 // Change character, dropped rather than taken as out of their phase.
 var inFlightAfterLeaving = map[protocol.ClientHeader]bool{
 	protocol.ClientMove: true, protocol.ClientChat: true, protocol.ClientWhisper: true,
-	protocol.ClientAttack: true, protocol.ClientTarget: true, protocol.ClientOnClick: true, protocol.ClientShop: true,
+	protocol.ClientAttack: true, protocol.ClientTarget: true, protocol.ClientOnClick: true, protocol.ClientShop: true, protocol.ClientScriptAnswer: true,
 }
 
 func (s *session) Open() error { return s.conn.Send(s.sync.Greeting()...) }
@@ -167,6 +169,8 @@ func (s *session) Handle(ctx context.Context, f protocol.Frame) error {
 		return s.onClick(f.Body)
 	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientShop:
 		return s.onShop(f.Body)
+	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientScriptAnswer:
+		return s.onScriptAnswer(ctx, f.Body)
 	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientQuickslotAdd:
 		return s.onQuickslotAdd(f.Body)
 	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientQuickslotDel:

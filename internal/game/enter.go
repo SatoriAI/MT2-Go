@@ -50,6 +50,9 @@ func (s *session) onSelectCharacter(ctx context.Context, body []byte) error {
 	if err := s.loadTaskbar(ctx, c.ID); err != nil {
 		return err
 	}
+	if c.Skills, err = s.svc.skills.Learnt(ctx, c.ID); err != nil {
+		return err
+	}
 	wear(&c, s.inventory)
 	points, ok := c.Points()
 	if !ok {
@@ -71,7 +74,7 @@ func (s *session) onSelectCharacter(ctx context.Context, body []byte) error {
 			SkillGroup: skillGroupNumber(c.Class, c.SkillGroup),
 		}),
 		protocol.EncodePoints(pointsOf(s.playing, s.gold)),
-		protocol.EncodeSkillLevels(),
+		protocol.EncodeSkillLevels(skillLevels(c.Skills)),
 	)
 }
 
@@ -179,6 +182,7 @@ func pointsOf(p *character, gold uint32) protocol.CharacterPoints {
 		MoveSpeed:   uint32(p.points.MoveSpeed),
 		Defence:     defence(&p.Character),
 		Gold:        gold,
+		SkillPoints: skillPoints(&p.Character),
 	}
 }
 
@@ -192,7 +196,7 @@ func (s *session) leaveWorld() {
 		s.svc.leaveAndSave(s.playing, s.empire, s.conn.Log())
 	}
 	s.svc.release(s.claim)
-	s.claim, s.playing, s.shop = nil, nil, 0
+	s.claim, s.playing, s.shop, s.talking = nil, nil, 0, nil
 }
 
 // inventoryShown fills the inventory window, an item to a packet.

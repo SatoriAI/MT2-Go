@@ -74,7 +74,7 @@ func TestAClickOnAShopkeeperOpensTheShop(t *testing.T) {
 
 // Nothing opens from too far, to the dead, on a monster, or on an NPC who sells nothing.
 func TestOnlyAShopkeeperWithinReachOpensAShop(t *testing.T) {
-	far, _, farClient, store := shopping(t, shopReach+1, 0, nil)
+	far, _, farClient, store := shopping(t, npcReach+1, 0, nil)
 	if err := far.onClick(vidBody(store)); err != nil {
 		t.Fatal(err)
 	}

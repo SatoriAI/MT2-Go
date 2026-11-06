@@ -1,0 +1,371 @@
+package game
+
+import (
+	"context"
+	"errors"
+	"net"
+	"testing"
+
+	"github.com/SatoriAI/MT2-Go/internal/account"
+	"github.com/SatoriAI/MT2-Go/internal/network"
+	"github.com/SatoriAI/MT2-Go/internal/protocol"
+	"github.com/SatoriAI/MT2-Go/internal/skill"
+	"github.com/SatoriAI/MT2-Go/internal/world"
+)
+
+// keptSkills stands in for the store's skills, and fails every write with fail set.
+type keptSkills struct {
+	group  account.SkillGroup
+	learnt map[account.Skill]uint8
+	fail   error
+}
+
+func (k *keptSkills) Learnt(context.Context, uint32) (map[account.Skill]uint8, error) {
+	return k.learnt, k.fail
+}
+
+func (k *keptSkills) Choose(_ context.Context, _ uint32, group account.SkillGroup) error {
+	if k.fail == nil {
+		k.group, k.learnt = group, map[account.Skill]uint8{}
+	}
+	return k.fail
+}
+
+func (k *keptSkills) Raise(_ context.Context, _ uint32, s account.Skill) (uint8, error) {
+	if k.fail != nil {
+		return 0, k.fail
+	}
+	k.learnt[s]++
+	return k.learnt[s], nil
+}
+
+// training is Hendra, a sura of level and skill group, learnt as given, beside the
+// Weaponry teacher (20304) and with the Black Magic one (20305) beside him; it returns
+// both teachers' vids.
+func training(t *testing.T, class account.Class, level uint8, group account.SkillGroup,
+	learnt map[account.Skill]uint8) (*session, *keptSkills, net.Conn, uint32, uint32) {
+	t.Helper()
+	s := worldWith(t, world.Spawn{VNum: 20304, X: homeX, Y: homeY, Count: 1}, world.Spawn{VNum: 20305, X: homeX + 100, Y: homeY, Count: 1})
+	if learnt == nil {
+		learnt = map[account.Skill]uint8{}
+	}
+	kept := &keptSkills{group: group, learnt: learnt}
+	s.skills = kept
+	client, hendra := aPlayer(t, s, 1000, 7, "Hendra", 100)
+	hendra.char.Class, hendra.char.Level, hendra.char.SkillGroup, hendra.char.Skills = class, level, group, learnt
+	read(t, client, 2*(addSize+infoSize)) // the two teachers
+	sess := &session{svc: s, conn: hendra.out.(*network.Conn), phase: protocol.PhaseGame,
+		playing: &character{vid: 1000, Character: *hendra.char}}
+	return sess, kept, client, 1, 2
+}
+
+// expectSaid reads an NPC's dialog of exactly text.
+func expectSaid(t *testing.T, c net.Conn, text string) {
+	t.Helper()
+	want := script(text)
+	if got := read(t, c, len(want)); string(got) != string(want) {
+		t.Fatalf("got  %q\nwant %q", got, want)
+	}
+}
+
+func answered(button uint8) []byte { return []byte{button} }
+
+// A sura without a group is offered the teacher's path, asked whether she is sure, and on
+// yes takes it: kept, then the client told the group, the levels after it, and her points.
+func TestASuraTakesUpTheTeachersGroup(t *testing.T) {
+	s, kept, client, weaponry, _ := training(t, account.Sura, 6, "", nil)
+
+	if err := s.onClick(vidBody(weaponry)); err != nil {
+		t.Fatal(err)
+	}
+	expectSaid(t, client, "Mogę nauczyć cię drogi Mocy Broni. Czy chcesz nią podążać?[ENTER][QUESTION 1;Tak|2;Nie]")
+	if err := s.onScriptAnswer(context.Background(), answered(0)); err != nil {
+		t.Fatal(err)
+	}
+	expectSaid(t, client, "Czy na pewno? Wybór drogi Mocy Broni to poważna decyzja.[ENTER][QUESTION 1;Tak|2;Nie]")
+	if err := s.onScriptAnswer(context.Background(), answered(0)); err != nil {
+		t.Fatal(err)
+	}
+
+	want := string(protocol.EncodeChangeSkillGroup(1)) + string(protocol.EncodeSkillLevels(protocol.SkillLevels{})) +
+		string(protocol.EncodePointChange(1000, protocol.PointSkillPoints, 0, 2)) +
+		string(script("Od dziś podążasz drogą Mocy Broni.[ENTER][DONE]"))
+	if got := read(t, client, len(want)); string(got) != want {
+		t.Fatalf("got  %x\nwant %x", got, want)
+	}
+	if kept.group != "weaponry" || s.svc.presence.all[1000].char.SkillGroup != "weaponry" || s.talking != nil {
+		t.Fatalf("kept %q, in play %q", kept.group, s.svc.presence.all[1000].char.SkillGroup)
+	}
+}
+
+// No, the escape key, or an answer to nothing asked ends the talk and takes nothing up.
+func TestATeachersOfferDeclinedTakesNothingUp(t *testing.T) {
+	for name, answers := range map[string][]uint8{
+		"no to the offer":        {1},
+		"no when asked if sure":  {0, 1},
+		"the dialog's own close": {254},
+		"an answer to nothing":   {},
+	} {
+		s, kept, client, weaponry, _ := training(t, account.Sura, 6, "", nil)
+		if name != "an answer to nothing" {
+			if err := s.onClick(vidBody(weaponry)); err != nil {
+				t.Fatal(err)
+			}
+			read(t, client, len(script("Mogę nauczyć cię drogi Mocy Broni. Czy chcesz nią podążać?[ENTER][QUESTION 1;Tak|2;Nie]")))
+		}
+		for i, a := range answers {
+			if i == 1 {
+				read(t, client, len(script("Czy na pewno? Wybór drogi Mocy Broni to poważna decyzja.[ENTER][QUESTION 1;Tak|2;Nie]")))
+			}
+			if err := s.onScriptAnswer(context.Background(), answered(a)); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if err := s.onScriptAnswer(context.Background(), answered(0)); err != nil { // a stale yes
+			t.Fatal(err)
+		}
+
+		expectNothing(t, client)
+		if kept.group != "" || s.svc.presence.all[1000].char.SkillGroup != "" || s.talking != nil {
+			t.Errorf("%s: took up %q", name, kept.group)
+		}
+	}
+}
+
+// A teacher tells, and offers nothing to, the wrong class, the too young, one already on
+// their path, and one of the other path from level 20.
+func TestATeacherTellsWhyNot(t *testing.T) {
+	cases := []struct {
+		name  string
+		class account.Class
+		level uint8
+		group account.SkillGroup
+		said  string
+	}{
+		{"a warrior", account.Warrior, 10, "", "Nie uczę twojej klasy."},
+		{"below level 5", account.Sura, 4, "", "Wróć, gdy osiągniesz 5 poziom."},
+		{"already Weaponry", account.Sura, 10, "weaponry", "Ćwicz dalej, a twoja droga Mocy Broni zaprowadzi cię daleko."},
+		{"Black Magic at 20", account.Sura, 20, "black_magic", "Twoja droga jest już wybrana."},
+	}
+	for _, c := range cases {
+		s, _, client, weaponry, _ := training(t, c.class, c.level, c.group, nil)
+
+		if err := s.onClick(vidBody(weaponry)); err != nil {
+			t.Fatal(err)
+		}
+
+		expectSaid(t, client, c.said+"[ENTER][DONE]")
+		if s.talking != nil {
+			t.Errorf("%s: asked something", c.name)
+		}
+	}
+}
+
+// One of the other path below level 20 may change, forgetting what she learnt and getting
+// every point back.
+func TestASuraBelowTwentyChangesPathAndGetsHerPointsBack(t *testing.T) {
+	s, kept, client, _, blackMagic := training(t, account.Sura, 10, "weaponry", map[account.Skill]uint8{skill.DragonSwirl: 4})
+
+	if err := s.onClick(vidBody(blackMagic)); err != nil {
+		t.Fatal(err)
+	}
+	expectSaid(t, client, "Chcesz porzucić swoją drogę i uczyć się drogi Czarnej Magii? Zapomnisz to, czego się nauczyłeś, ale odzyskasz wszystkie punkty.[ENTER][QUESTION 1;Tak|2;Nie]")
+	for range 2 {
+		if err := s.onScriptAnswer(context.Background(), answered(0)); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	read(t, client, len(script("Czy na pewno? Wybór drogi Czarnej Magii to poważna decyzja.[ENTER][QUESTION 1;Tak|2;Nie]")))
+	if got := read(t, client, 2+1531+pointChangeSize); string(got[2+1531:]) != string(protocol.EncodePointChange(1000, protocol.PointSkillPoints, 0, 6)) ||
+		got[1] != 2 {
+		t.Fatalf("told group %d, points %x", got[1], got[2+1531:])
+	}
+	if c := s.svc.presence.all[1000].char; kept.group != "black_magic" || len(c.Skills) != 0 || len(kept.learnt) != 0 {
+		t.Fatalf("kept %q %v, in play %v", kept.group, kept.learnt, c.Skills)
+	}
+}
+
+// A group that cannot be kept is not taken up.
+func TestAGroupThatCannotBeKeptIsNotTakenUp(t *testing.T) {
+	s, kept, client, weaponry, _ := training(t, account.Sura, 6, "", nil)
+	kept.fail = errors.New("the database is gone")
+	if err := s.onClick(vidBody(weaponry)); err != nil {
+		t.Fatal(err)
+	}
+	read(t, client, len(script("Mogę nauczyć cię drogi Mocy Broni. Czy chcesz nią podążać?[ENTER][QUESTION 1;Tak|2;Nie]")))
+	if err := s.onScriptAnswer(context.Background(), answered(0)); err != nil {
+		t.Fatal(err)
+	}
+	read(t, client, len(script("Czy na pewno? Wybór drogi Mocy Broni to poważna decyzja.[ENTER][QUESTION 1;Tak|2;Nie]")))
+
+	if err := s.onScriptAnswer(context.Background(), answered(0)); err != nil {
+		t.Fatal(err)
+	}
+
+	expectNothing(t, client)
+	if s.svc.presence.all[1000].char.SkillGroup != "" {
+		t.Fatal("taken up in play")
+	}
+}
+
+// The + button raises a skill of her path a level, kept, and she is shown the levels and
+// the points left.
+func TestASkillIsRaisedWithAPoint(t *testing.T) {
+	s, kept, client, _, _ := training(t, account.Sura, 6, "weaponry", map[account.Skill]uint8{skill.DragonSwirl: 1})
+
+	if err := s.onCommand(context.Background(), "skillup 62"); err != nil {
+		t.Fatal(err)
+	}
+
+	var levels protocol.SkillLevels
+	levels[62] = 2
+	want := string(protocol.EncodeSkillLevels(levels)) + string(protocol.EncodePointChange(1000, protocol.PointSkillPoints, -1, 0))
+	if got := read(t, client, len(want)); string(got) != want || kept.learnt[skill.DragonSwirl] != 2 ||
+		s.svc.presence.all[1000].char.Skills[skill.DragonSwirl] != 2 {
+		t.Fatalf("got %x, kept %v", got[len(got)-pointChangeSize:], kept.learnt)
+	}
+}
+
+// A skill is not raised with no point free, at its last level, of another group, with no
+// group, or if it cannot be kept; one the game does not have yet is not raised, and she is
+// told.
+func TestASkillThatCannotBeRaisedIsNot(t *testing.T) {
+	cases := []struct {
+		name   string
+		level  uint8
+		group  account.SkillGroup
+		learnt map[account.Skill]uint8
+		fail   bool
+	}{
+		{"no point free", 6, "weaponry", map[account.Skill]uint8{skill.DragonSwirl: 2}, false},
+		{"at its last level", 30, "weaponry", map[account.Skill]uint8{skill.DragonSwirl: skill.MaxLevel}, false},
+		{"of the other group", 10, "black_magic", nil, false},
+		{"with no group", 10, "", nil, false},
+		{"not kept", 10, "weaponry", nil, true},
+	}
+	for _, c := range cases {
+		s, kept, client, _, _ := training(t, account.Sura, c.level, c.group, c.learnt)
+		if c.fail {
+			kept.fail = errors.New("the database is gone")
+		}
+		before := s.svc.presence.all[1000].char.Skills[skill.DragonSwirl]
+
+		if err := s.onCommand(context.Background(), "skillup 62"); err != nil {
+			t.Fatal(err)
+		}
+
+		expectNothing(t, client)
+		if s.svc.presence.all[1000].char.Skills[skill.DragonSwirl] != before {
+			t.Errorf("%s: raised", c.name)
+		}
+	}
+
+	s, _, client, _, _ := training(t, account.Sura, 10, "weaponry", nil)
+	if err := s.onCommand(context.Background(), "skillup 61"); err != nil {
+		t.Fatal(err)
+	}
+	line := textToClient("Tej umiejętności nie można jeszcze rozwijać.")
+	if got := read(t, client, chatHeaderSize+len(line)+1); string(got) != string(protocol.EncodeChat(protocol.ChatInfo, 0, 0, line)) {
+		t.Fatalf("told %q", got)
+	}
+}
+
+// A level up past 5 with a group tells her her new skill points; without one, it does not.
+func TestALevelUpTellsTheSkillPointsOfOneWithAGroup(t *testing.T) {
+	s, _, client, _, _ := training(t, account.Sura, 6, "weaponry", nil)
+	p := s.svc.presence.all[1000]
+	s.svc.presence.mu.Lock()
+	s.svc.presence.gainExp(p, 1_000_000)
+	level := p.char.Level
+	s.svc.presence.mu.Unlock()
+
+	got := read(t, client, 10*pointChangeSize) // the experience, eight points of the level, then the skill points
+	want := protocol.EncodePointChange(1000, protocol.PointSkillPoints, 0, int32(level)-skill.FirstLevel+1)
+	if string(got[9*pointChangeSize:]) != string(want) {
+		t.Fatalf("got %x\nwant %x", got[9*pointChangeSize:], want)
+	}
+}
+
+// Without a group, a level up says nothing of skill points.
+func TestALevelUpWithoutAGroupSaysNothingOfSkillPoints(t *testing.T) {
+	s, _, client, _, _ := training(t, account.Sura, 6, "", nil)
+	p := s.svc.presence.all[1000]
+	s.svc.presence.mu.Lock()
+	s.svc.presence.gainExp(p, 1_000_000)
+	s.svc.presence.mu.Unlock()
+
+	read(t, client, 9*pointChangeSize)
+	expectNothing(t, client)
+}
+
+// The skill window shows the points of a character that has chosen a group, and none
+// before, as they are for its skills.
+func TestSkillPointsAreShownOnceAGroupIsChosen(t *testing.T) {
+	c := &character{Character: account.Character{Class: account.Sura, Level: 10}}
+	if got := pointsOf(c, 0).SkillPoints; got != 0 {
+		t.Fatalf("no group: %d points", got)
+	}
+	c.SkillGroup = "weaponry"
+	if got := pointsOf(c, 0).SkillPoints; got != 6 {
+		t.Fatalf("Weaponry at 10: %d points", got)
+	}
+}
+
+// A sura is offered a path from level 5 exactly, and a change of path up to level 19.
+func TestATeacherOffersFromLevelFiveAndAChangeUpToNineteen(t *testing.T) {
+	young, _, youngClient, weaponry, _ := training(t, account.Sura, 5, "", nil)
+	if err := young.onClick(vidBody(weaponry)); err != nil {
+		t.Fatal(err)
+	}
+	expectSaid(t, youngClient, "Mogę nauczyć cię drogi Mocy Broni. Czy chcesz nią podążać?[ENTER][QUESTION 1;Tak|2;Nie]")
+
+	older, _, olderClient, _, blackMagic := training(t, account.Sura, 19, "weaponry", nil)
+	if err := older.onClick(vidBody(blackMagic)); err != nil {
+		t.Fatal(err)
+	}
+	expectSaid(t, olderClient, "Chcesz porzucić swoją drogę i uczyć się drogi Czarnej Magii? Zapomnisz to, czego się nauczyłeś, ale odzyskasz wszystkie punkty.[ENTER][QUESTION 1;Tak|2;Nie]")
+}
+
+// An offer kept open while she reached level 20 is not taken: her yes is told no, as a
+// click would be now.
+func TestAnOfferKeptOpenPastTwentyIsNotTaken(t *testing.T) {
+	s, kept, client, _, blackMagic := training(t, account.Sura, 19, "weaponry", nil)
+	if err := s.onClick(vidBody(blackMagic)); err != nil {
+		t.Fatal(err)
+	}
+	read(t, client, len(script("Chcesz porzucić swoją drogę i uczyć się drogi Czarnej Magii? Zapomnisz to, czego się nauczyłeś, ale odzyskasz wszystkie punkty.[ENTER][QUESTION 1;Tak|2;Nie]")))
+	s.svc.presence.mu.Lock()
+	s.svc.presence.all[1000].char.Level = 20
+	s.svc.presence.mu.Unlock()
+
+	if err := s.onScriptAnswer(context.Background(), answered(0)); err != nil {
+		t.Fatal(err)
+	}
+
+	expectSaid(t, client, "Twoja droga jest już wybrana.[ENTER][DONE]")
+	if kept.group != "weaponry" || s.talking != nil {
+		t.Fatalf("kept %q", kept.group)
+	}
+}
+
+// A yes from out of the teacher's reach takes nothing up.
+func TestAYesFromOutOfReachTakesNothingUp(t *testing.T) {
+	s, kept, client, weaponry, _ := training(t, account.Sura, 6, "", nil)
+	if err := s.onClick(vidBody(weaponry)); err != nil {
+		t.Fatal(err)
+	}
+	read(t, client, len(script("Mogę nauczyć cię drogi Mocy Broni. Czy chcesz nią podążać?[ENTER][QUESTION 1;Tak|2;Nie]")))
+	s.svc.presence.mu.Lock()
+	s.svc.presence.all[1000].add.X += 2 * npcReach
+	s.svc.presence.mu.Unlock()
+
+	if err := s.onScriptAnswer(context.Background(), answered(0)); err != nil {
+		t.Fatal(err)
+	}
+
+	expectNothing(t, client)
+	if kept.group != "" || s.talking != nil {
+		t.Fatalf("took up %q", kept.group)
+	}
+}
