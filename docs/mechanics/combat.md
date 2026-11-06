@@ -65,7 +65,7 @@ A level-1 sura without a weapon takes about 10 to 12 off a wild dog a blow, so a
 - **Death:** a blow that takes the last hit point sends the attacker its damage, everyone who picked the monster its 0%, and everyone who sees it its death; the picks end. The body cannot be hit, picked or moved.
 - **A body** is shown lying, with the client's dead state in its ADD, to anyone who arrives while it lies there.
 - **The world loop** owns every monster that can be killed, wandering or not, and takes the body away two seconds after the death, with DELETE to those who see it, as open-mt2 does, and twenty seconds after the death puts a new monster of the kind at a random point of its spawn's area, with a new vid and all its hit points: this server's pause, chosen for the village fields.
-- **Skills** (an ATTACK with a skill) are dropped. Blows and picks the client sent before it took in Change character are dropped, as moves and chat are.
+- **Skills** (an ATTACK with a skill) are dropped: a skill's victims are this server's to pick when it is used, and a blow and a skill's strike go through the same `strike` ([skills.md](skills.md)). While Enchanted Blade runs, its bonus adds to every blow's attack. Blows and picks the client sent before it took in Change character are dropped, as moves and chat are.
 
 ### Monsters fighting back
 

@@ -76,6 +76,8 @@ type Service struct {
 	now func() time.Time
 	// The drops on the ground, in the order they fell, to free and to clear away.
 	freeing, vanishing []timed
+	buffEnds           []buffEnd
+	cooldowns          cooldowns
 }
 
 // NewService makes the game port's shared state; Run puts spawns' mobs in the world.
@@ -118,7 +120,7 @@ type session struct {
 // Change character, dropped rather than taken as out of their phase.
 var inFlightAfterLeaving = map[protocol.ClientHeader]bool{
 	protocol.ClientMove: true, protocol.ClientChat: true, protocol.ClientWhisper: true,
-	protocol.ClientAttack: true, protocol.ClientTarget: true, protocol.ClientOnClick: true, protocol.ClientShop: true, protocol.ClientScriptAnswer: true,
+	protocol.ClientAttack: true, protocol.ClientTarget: true, protocol.ClientOnClick: true, protocol.ClientShop: true, protocol.ClientScriptAnswer: true, protocol.ClientUseSkill: true,
 }
 
 func (s *session) Open() error { return s.conn.Send(s.sync.Greeting()...) }
@@ -171,6 +173,8 @@ func (s *session) Handle(ctx context.Context, f protocol.Frame) error {
 		return s.onShop(f.Body)
 	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientScriptAnswer:
 		return s.onScriptAnswer(ctx, f.Body)
+	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientUseSkill:
+		return s.onUseSkill(f.Body)
 	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientQuickslotAdd:
 		return s.onQuickslotAdd(f.Body)
 	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientQuickslotDel:

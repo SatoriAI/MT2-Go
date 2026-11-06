@@ -59,7 +59,8 @@ The range is open-mt2's choice; the client takes any, and draws characters up to
 - **Moving:** the position and facing are kept, so a later arrival sees the character where it stands, facing the way it last moved. Then, against everyone else on the map: those who came into range and the mover are shown to each other, and those who left it and the mover get each other's DELETE; the mover gets all of that in one send. Last, the move goes to everyone in range, with the fields as the mover's client sent them, so someone just met has the character before its move. It is not sent back to the mover.
 - **Chat:** a line goes to the speaker and to everyone in range, with the speaker's vid, so the bubble shows. Commands stay the speaker's.
 - **Leaving:** every way out of the world goes through `leaveWorld`, which takes the player out and sends DELETE to everyone who had them in view: the record of whom each has been shown, rather than the range at that moment, so nobody is left holding a character that is gone. A character taken over by a new login leaves before the new connection's claim is granted, so the old vid disappears before the new one appears.
-- **ON_CLICK and TARGET** are accepted and ignored in the world.
+- **Effects:** a character's ADD carries the effects of the buffs it has running, such as Enchanted Blade's glow, and an UPDATE tells everyone who sees it when one starts or ends ([skills.md](skills.md)). A skill's motion is a MOVE like any other, passed on as the client sent it.
+- **ON_CLICK and TARGET** are accepted and ignored in the world, except a click on an NPC who sells or teaches.
 
 **Order.** Every packet about other players is sent while the record is locked, so everyone is told of the same things in the same order, and nobody receives a move for a character before the character. Sending only queues: each connection has its own queue and writer (see `docs/decisions/connections.md`), so a slow client never holds the lock.
 

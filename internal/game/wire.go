@@ -208,6 +208,29 @@ var skillVNums = map[account.Skill]uint8{
 	skill.EnchantedBlade: 63,
 }
 
+// castingSpeed is what the client is told a character's casting speed is: 100, at which it
+// counts a skill's cooldown as its table says, as this server does; at 0 it doubles it.
+const castingSpeed = 100
+
+// affectBits are the bits a buff sets in a character's effects, which the client draws:
+// 19 is the glow Enchanted Blade puts on the blade.
+var affectBits = map[account.Skill]uint64{
+	skill.EnchantedBlade: 1 << 19,
+}
+
+// affectsOf is the effects the client draws on a character: a bit for each buff running.
+// A monster has none.
+func affectsOf(c *account.Character) uint64 {
+	if c == nil {
+		return 0
+	}
+	var bits uint64
+	for sk := range c.Buffs {
+		bits |= affectBits[sk]
+	}
+	return bits
+}
+
 // skillByVNum is the skill the client's number names, if the game has it.
 func skillByVNum(vnum int) (account.Skill, bool) {
 	for s, v := range skillVNums {

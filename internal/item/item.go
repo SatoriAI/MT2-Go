@@ -36,6 +36,7 @@ type Proto struct {
 	AttackMin uint16 // a weapon's attack, rolled for each blow
 	AttackMax uint16
 	Defence   uint16 // armour's
+	Sword     bool   // a one-handed sword, which some skills need in hand
 
 	// What a potion restores when it is drunk; a kind restoring neither is not drunk.
 	HP, SP uint16
@@ -81,7 +82,8 @@ func VNums() []uint32 { return slices.Sorted(maps.Keys(protos)) }
 // its locale item_proto (docs/mechanics/items.md says how they were read), in UTF-8.
 var protos = map[uint32]Proto{
 	10: {VNum: 10, Name: "Miecz+0", Size: 2, Stack: 1, Wear: Weapon,
-		Classes: []account.Class{account.Warrior, account.Ninja, account.Sura}, AttackMin: 13, AttackMax: 15, Price: 100, SellPrice: 0},
+		Classes: []account.Class{account.Warrior, account.Ninja, account.Sura}, AttackMin: 13, AttackMax: 15, Sword: true,
+		Price: 100, SellPrice: 0},
 	1000: {VNum: 1000, Name: "Sztylet+0", Size: 1, Stack: 1, Wear: Weapon,
 		Classes: []account.Class{account.Ninja}, AttackMin: 8, AttackMax: 11, Price: 100, SellPrice: 0},
 	2000: {VNum: 2000, Name: "Łuk+0", Size: 2, Stack: 1, Wear: Weapon,

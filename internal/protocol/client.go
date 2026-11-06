@@ -327,3 +327,17 @@ func DecodeScriptAnswer(body []byte) (uint8, error) {
 	answer := r.U8()
 	return answer, r.Err()
 }
+
+// UseSkill is a skill the player used, by the client's number for it, at the character it
+// targets, 0 for none. For a toggle turned off the client may send other numbers there.
+type UseSkill struct {
+	VNum   uint32
+	Target uint32
+}
+
+// DecodeUseSkill reads a skill used.
+func DecodeUseSkill(body []byte) (UseSkill, error) {
+	r := NewReader(body)
+	u := UseSkill{VNum: r.U32(), Target: r.U32()}
+	return u, r.Err()
+}

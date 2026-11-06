@@ -44,7 +44,7 @@ func doubleClicked(cell uint16) []byte { return binary.LittleEndian.AppendUint16
 func expectDressed(t *testing.T, c net.Conn, body, weapon uint16) {
 	t.Helper()
 	want := protocol.EncodeCharacterUpdate(protocol.CharacterInfo{VID: 1000, Name: "Hendra", BodyPart: body,
-		WeaponPart: weapon}, 150, 150)
+		WeaponPart: weapon}, protocol.CharacterAdd{MoveSpeed: 150, AttackSpeed: 150}, 0)
 	if got := read(t, c, updateSize); string(got) != string(want) {
 		t.Fatalf("got  %x\nwant %x", got, want)
 	}

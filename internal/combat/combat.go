@@ -12,13 +12,14 @@ import (
 	"github.com/SatoriAI/MT2-Go/internal/account"
 )
 
-// Attacker is what a player's blow is made of: their level, class and stats, and the
-// attack of the weapon they hold, 0 to 0 bare-handed.
+// Attacker is what a player's blow is made of: their level, class and stats, the attack
+// of the weapon they hold, 0 to 0 bare-handed, and what a running buff adds.
 type Attacker struct {
 	Level uint8
 	Class account.Class
 	account.Stats
 	WeaponMin, WeaponMax uint16
+	Bonus                uint16
 }
 
 // Defender is what is set against a blow: a monster's, from its mob_proto, or a player's,
@@ -63,9 +64,10 @@ func raceStat(a Attacker) uint8 {
 }
 
 // Attack is the strength of a's blow: twice the level, and a third of four times strength
-// plus twice the class's own stat, as the client's character window counts the stat part.
+// plus twice the class's own stat, as the client's character window counts the stat part,
+// and what a buff adds.
 func Attack(a Attacker) float64 {
-	return 2*float64(a.Level) + (4*float64(a.Strength)+2*float64(raceStat(a)))/3
+	return 2*float64(a.Level) + (4*float64(a.Strength)+2*float64(raceStat(a)))/3 + float64(a.Bonus)
 }
 
 // Defence is what a monster sets against every blow.

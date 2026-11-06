@@ -123,5 +123,7 @@ type Character struct {
 	// Skills is each skill learnt, at its level from 1; read on Start, as they are kept
 	// apart from the character's row.
 	Skills map[Skill]uint8
+	// Buffs are in play only: each buff skill running, until when.
+	Buffs  map[Skill]time.Time
 	Blocks Blocks
 }

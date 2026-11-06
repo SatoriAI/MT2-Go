@@ -2,6 +2,7 @@ package game
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"net"
 	"testing"
@@ -367,5 +368,16 @@ func TestAYesFromOutOfReachTakesNothingUp(t *testing.T) {
 	expectNothing(t, client)
 	if kept.group != "" || s.talking != nil {
 		t.Fatalf("took up %q", kept.group)
+	}
+}
+
+// The client is told a casting speed of 100, at which it counts a skill's cooldown as its
+// table says: at 0 it would wait twice as long as this server.
+func TestTheClientIsToldTheCastingSpeedCooldownsAreCountedAt(t *testing.T) {
+	if got := pointsOf(&character{}, 0).CastingSpeed; got != 100 {
+		t.Fatalf("casting speed %d", got)
+	}
+	if got := binary.LittleEndian.Uint32(protocol.EncodePoints(pointsOf(&character{}, 0))[1+4*protocol.PointCastingSpeed:]); got != 100 {
+		t.Fatalf("sent %d at %d", got, protocol.PointCastingSpeed)
 	}
 }

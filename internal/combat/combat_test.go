@@ -161,3 +161,13 @@ func TestArmourTakesItsShareOffABite(t *testing.T) {
 		t.Fatalf("bites from %d to %d, want 24 to 28", low, high)
 	}
 }
+
+// A buff's bonus adds to the attack, whole.
+func TestABuffsBonusAddsToTheAttack(t *testing.T) {
+	a := Attacker{Level: 1, Class: account.Sura, Stats: account.Stats{Strength: 5, Intelligence: 5}}
+	plain := Attack(a)
+	a.Bonus = 13
+	if got := Attack(a); got != plain+13 {
+		t.Fatalf("got %v, want %v", got, plain+13)
+	}
+}

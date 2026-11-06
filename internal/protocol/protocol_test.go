@@ -293,7 +293,7 @@ func TestMainCharacterPlacesEveryFieldWhereTheClientReadsIt(t *testing.T) {
 
 func TestCharacterAddPlacesEveryFieldWhereTheClientReadsIt(t *testing.T) {
 	got := EncodeCharacterAdd(CharacterAdd{VID: 7, Rotation: 90, X: 963400, Y: 278200, Type: EntityPlayer,
-		Race: 2, MoveSpeed: 150, AttackSpeed: 140})
+		Race: 2, MoveSpeed: 150, AttackSpeed: 140}, 0)
 
 	want := mustHex(t, "01"+"07000000"+"0000b442"+ // header, vid, rotation 90.0
 		"48b30e00"+"b83e0400"+"00000000"+ // x, y, height
@@ -475,7 +475,7 @@ func TestDeathNamesTheCharacter(t *testing.T) {
 
 // A body is sent with the client's dead state, so it is drawn lying.
 func TestABodyIsAddedWithTheDeadState(t *testing.T) {
-	if got := EncodeCharacterAdd(CharacterAdd{VID: 7, Dead: true})[26]; got != 1 {
+	if got := EncodeCharacterAdd(CharacterAdd{VID: 7, Dead: true}, 0)[26]; got != 1 {
 		t.Fatalf("state %d, want 1", got)
 	}
 }
@@ -546,7 +546,7 @@ func TestAnItemIsSetInACell(t *testing.T) {
 // CHARACTER_UPDATE re-dresses Hendra in the armour 11600 and the sword 10, with her speeds;
 // the rest is 0.
 func TestACharacterIsReDressed(t *testing.T) {
-	got := EncodeCharacterUpdate(CharacterInfo{VID: 7, BodyPart: 11600, WeaponPart: 10, HairPart: 3}, 150, 150)
+	got := EncodeCharacterUpdate(CharacterInfo{VID: 7, BodyPart: 11600, WeaponPart: 10, HairPart: 3}, CharacterAdd{MoveSpeed: 150, AttackSpeed: 150}, 0)
 
 	want := mustHex(t, "13"+"07000000"+"502d"+"0a00"+"0000"+"0300"+ // vid, armour, weapon, head, hair
 		"96"+"96"+"00"+ // move and attack speed, state
@@ -712,5 +712,28 @@ func TestADropNamesAnItemOrYang(t *testing.T) {
 	}
 	if d, err := DecodeItemDrop2(mustHex(t, "00"+"0000"+"05000000"+"00")); err != nil || d != (ItemDrop{Gold: 5}) {
 		t.Fatalf("yang: %+v, %v", d, err)
+	}
+}
+
+// USE_SKILL names the skill and its target, then the sequence byte.
+func TestASkillUsedNamesItAndItsTarget(t *testing.T) {
+	frame, used, err := NextFrame(mustHex(t, "34"+"3e000000"+"00000000"+"af"))
+	if err != nil || used != 10 {
+		t.Fatalf("framed %d, %v", used, err)
+	}
+	if u, err := DecodeUseSkill(frame.Body); err != nil || u != (UseSkill{VNum: 62}) {
+		t.Fatalf("got %+v, %v", u, err)
+	}
+}
+
+// The effects on a character go as two words, in ADD and UPDATE alike: bit 19 is the low
+// word's.
+func TestACharactersEffectsGoInItsAddAndUpdate(t *testing.T) {
+	add := CharacterAdd{VID: 7}
+	if got := EncodeCharacterAdd(add, 1<<19)[27:35]; !bytes.Equal(got, mustHex(t, "00000800"+"00000000")) {
+		t.Fatalf("ADD effects %x", got)
+	}
+	if got := EncodeCharacterUpdate(CharacterInfo{VID: 7}, add, 1<<19)[16:24]; !bytes.Equal(got, mustHex(t, "00000800"+"00000000")) {
+		t.Fatalf("UPDATE effects %x", got)
 	}
 }

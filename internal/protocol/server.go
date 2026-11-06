@@ -140,6 +140,7 @@ type CharacterPoints struct {
 	ST, HT, DX, IQ      uint32
 	StatPoints          uint32
 	SkillPoints         uint32
+	CastingSpeed        uint32
 	AttackSpeed         uint32
 	MoveSpeed           uint32
 	Defence             uint32 // the character window's DEF
@@ -157,7 +158,7 @@ func EncodePoints(p CharacterPoints) []byte {
 		1: p.Level, 3: p.Exp, 4: p.NextExp,
 		5: p.HP, 6: p.MaxHP, 7: p.SP, 8: p.MaxSP, 9: p.Stamina, 10: p.MaxStamina,
 		PointGold: p.Gold, PointST: p.ST, PointHT: p.HT, PointDX: p.DX, PointIQ: p.IQ,
-		17: p.AttackSpeed, 19: p.MoveSpeed, PointDefence: p.Defence, PointStatPoints: p.StatPoints, PointSkillPoints: p.SkillPoints,
+		17: p.AttackSpeed, 19: p.MoveSpeed, PointDefence: p.Defence, PointStatPoints: p.StatPoints, PointSkillPoints: p.SkillPoints, PointCastingSpeed: p.CastingSpeed,
 	} {
 		points[index] = v
 	}
@@ -172,21 +173,22 @@ func EncodePoints(p CharacterPoints) []byte {
 type Point = int
 
 const (
-	PointLevel       Point = 1
-	PointExp         Point = 3
-	PointNextExp     Point = 4
-	PointHP          Point = 5
-	PointMaxHP       Point = 6
-	PointSP          Point = 7
-	PointMaxSP       Point = 8
-	PointGold        Point = 11 // yang
-	PointST          Point = 12
-	PointHT          Point = 13
-	PointDX          Point = 14
-	PointIQ          Point = 15
-	PointDefence     Point = 20 // DEF_GRADE, the character window's DEF
-	PointStatPoints  Point = 26 // earned and not yet spent; the character window's + buttons show while above 0
-	PointSkillPoints Point = 28 // skill points earned and not yet spent; the skill window's + buttons show while above 0
+	PointLevel        Point = 1
+	PointExp          Point = 3
+	PointNextExp      Point = 4
+	PointHP           Point = 5
+	PointMaxHP        Point = 6
+	PointSP           Point = 7
+	PointMaxSP        Point = 8
+	PointGold         Point = 11 // yang
+	PointST           Point = 12
+	PointHT           Point = 13
+	PointDX           Point = 14
+	PointIQ           Point = 15
+	PointDefence      Point = 20 // DEF_GRADE, the character window's DEF
+	PointStatPoints   Point = 26 // earned and not yet spent; the character window's + buttons show while above 0
+	PointCastingSpeed Point = 21 // the percent a skill's cooldown is worked out at; the client doubles it at 0
+	PointSkillPoints  Point = 28 // skill points earned and not yet spent; the skill window's + buttons show while above 0
 )
 
 // EncodePointChange sets one of a character's points to value, amount being how much it
@@ -284,8 +286,9 @@ func state(dead bool) uint8 {
 	return 0
 }
 
-// EncodeCharacterAdd sends a character standing still with no effects on it.
-func EncodeCharacterAdd(c CharacterAdd) []byte {
+// EncodeCharacterAdd sends a character standing still, with the effects on it, a bit
+// each, as two little-endian words.
+func EncodeCharacterAdd(c CharacterAdd, affects uint64) []byte {
 	w := NewWriter(byte(ServerCharacterAdd), 35)
 	w.U32(c.VID)
 	w.F32(c.Rotation)
@@ -297,7 +300,8 @@ func EncodeCharacterAdd(c CharacterAdd) []byte {
 	w.U8(c.MoveSpeed)
 	w.U8(c.AttackSpeed)
 	w.U8(state(c.Dead))
-	w.Raw(make([]byte, 8)) // effects
+	w.U32(uint32(affects)) //nolint:gosec // the low word
+	w.U32(uint32(affects >> 32))
 	return w.Bytes()
 }
 
@@ -466,18 +470,18 @@ func EncodeItemSet(at ItemPos, vnum uint32, count uint8) []byte {
 // EncodeCharacterUpdate re-dresses a character the client already shows: its armour,
 // weapon and hair, as CHARACTER_INFO names them, and its speeds. The rest, state, affects,
 // guild, alignment, player-kill mode and mount, are 0 for now.
-func EncodeCharacterUpdate(c CharacterInfo, moveSpeed, attackSpeed uint8) []byte {
+func EncodeCharacterUpdate(c CharacterInfo, a CharacterAdd, affects uint64) []byte {
 	w := NewWriter(byte(ServerCharacterUpdate), 35)
 	w.U32(c.VID)
 	w.U16(c.BodyPart)
 	w.U16(c.WeaponPart)
 	w.U16(0) // head
 	w.U16(c.HairPart)
-	w.U8(moveSpeed)
-	w.U8(attackSpeed)
-	w.U8(0)  // state
-	w.U32(0) // affects
-	w.U32(0)
+	w.U8(a.MoveSpeed)
+	w.U8(a.AttackSpeed)
+	w.U8(0)                // state
+	w.U32(uint32(affects)) //nolint:gosec // the low word
+	w.U32(uint32(affects >> 32))
 	w.U32(0) // guild
 	w.U16(0) // alignment
 	w.U8(0)  // player-kill mode

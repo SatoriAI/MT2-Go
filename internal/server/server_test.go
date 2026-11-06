@@ -652,7 +652,7 @@ func (c *client) expectLoading() {
 		X: 963400, Y: 278200, Empire: 3}))
 	c.expect(protocol.EncodePoints(protocol.CharacterPoints{Level: 1, NextExp: 300,
 		HP: 950, MaxHP: 950, SP: 850, MaxSP: 850, Stamina: 1000, MaxStamina: 1000, // a level-1 sura's
-		ST: 5, HT: 3, DX: 3, IQ: 5, AttackSpeed: 150, MoveSpeed: 150, Defence: 1 + 3})) // DEF: level and vitality
+		ST: 5, HT: 3, DX: 3, IQ: 5, AttackSpeed: 150, MoveSpeed: 150, Defence: 1 + 3, CastingSpeed: 100})) // DEF: level and vitality
 	c.expect(protocol.EncodeSkillLevels(protocol.SkillLevels{}))
 }
 
@@ -670,7 +670,7 @@ func TestStartLoadsTheWorldAndEnteringPutsThePlayerInIt(t *testing.T) {
 	}
 	game.expect(protocol.EncodeChannel(1))
 	game.expect(protocol.EncodeCharacterAdd(protocol.CharacterAdd{VID: 1, X: 963400, Y: 278200,
-		Type: protocol.EntityPlayer, Race: 6, MoveSpeed: 150, AttackSpeed: 150}))
+		Type: protocol.EntityPlayer, Race: 6, MoveSpeed: 150, AttackSpeed: 150}, 0))
 	game.expect(protocol.EncodeCharacterInfo(protocol.CharacterInfo{VID: 1, Name: "Hendra", BodyPart: 1,
 		Empire: 3, Level: 1}))
 	game.expect(protocol.EncodeChat(protocol.ChatCommand, 1, 3, "setblockmode 0"))
