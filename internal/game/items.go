@@ -24,6 +24,8 @@ type Items interface {
 	// Gold returns the character's yang; AddGold keeps more of it and returns the balance.
 	Gold(ctx context.Context, characterID uint32) (uint32, error)
 	AddGold(ctx context.Context, characterID, amount uint32) (uint32, error)
+	// SpendGold takes yang from the character and returns the balance.
+	SpendGold(ctx context.Context, characterID, amount uint32) (uint32, error)
 	// Buy takes price yang and keeps what was bought; Sell pays and keeps what is left.
 	// Each returns the yang the character then has.
 	Buy(ctx context.Context, characterID, price uint32, into item.Item) (item.Item, uint32, error)
@@ -206,8 +208,8 @@ func (s *session) itemAt(at protocol.ItemPos) (item.Item, bool) {
 }
 
 // itemPackets are the packets the client sends from its inventory window and taskbar.
-// Those the game does not do yet, dropping an item, trading and giving to an NPC, are
-// dropped, and so is any of them still in flight after Change character.
+// Those the game does not do yet, the old drop its scripts never send, trading and giving
+// to an NPC, are dropped, and so is any of them still in flight after Change character.
 var itemPackets = map[protocol.ClientHeader]bool{
 	protocol.ClientItemUse: true, protocol.ClientItemDrop: true, protocol.ClientItemMove: true,
 	protocol.ClientQuickslotAdd: true, protocol.ClientQuickslotDel: true, protocol.ClientQuickslotSwap: true,

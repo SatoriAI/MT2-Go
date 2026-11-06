@@ -179,6 +179,8 @@ func (s *session) Handle(ctx context.Context, f protocol.Frame) error {
 		return s.onItemUse(f.Body)
 	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientItemPickup:
 		return s.onItemPickup(f.Body)
+	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientItemDrop2:
+		return s.onItemDrop(f.Body)
 	case s.phase == protocol.PhaseGame && itemPackets[f.Header]:
 		s.conn.Log().Debug("item packet not handled yet", "header", byte(f.Header))
 		return nil

@@ -126,7 +126,10 @@ func (s *Service) newMob(proto mob.Proto, x, y int32, facing float32) *present {
 // walks every living monster whose stroll is due, has those that were hit fight back, and
 // heals the hurt.
 func (s *Service) tick(now time.Time) {
-	fallen, provoked := s.presence.takeNews()
+	fallen, provoked, laid := s.presence.takeNews()
+	for _, t := range laid {
+		s.vanishing = inOrder(s.vanishing, t)
+	}
 	for _, d := range fallen {
 		m := s.byPresent[d.p]
 		m.diedAt, m.chase = d.at, nil

@@ -171,6 +171,15 @@ func (s Items) AddGold(ctx context.Context, characterID, amount uint32) (uint32,
 	return gold, err
 }
 
+// SpendGold takes amount yang from the character, and returns how much it has left. The
+// database refuses more than it has.
+func (s Items) SpendGold(ctx context.Context, characterID, amount uint32) (uint32, error) {
+	var gold uint32
+	err := s.Pool.QueryRow(ctx, `UPDATE characters SET gold = gold - $2 WHERE id = $1 RETURNING gold`,
+		characterID, amount).Scan(&gold)
+	return gold, err
+}
+
 // UnknownKinds returns the kinds owned or ordered that are not among known, in order.
 func (s Items) UnknownKinds(ctx context.Context, known []uint32) ([]uint32, error) {
 	rows, err := s.Pool.Query(ctx, `

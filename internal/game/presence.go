@@ -26,6 +26,7 @@ type presence struct {
 	byName   map[string]*present    // players, by lower-cased name: unique regardless of case
 	fallen   []death                // monsters killed since the world loop last asked
 	provoked []provocation          // blows on living monsters since the world loop last asked
+	laid     []timed                // items players dropped since the world loop last asked, to clear away
 	event    *event.Event           // the event running; nil for none
 	ground   map[uint32]*groundItem // items lying in the world, by vid
 }

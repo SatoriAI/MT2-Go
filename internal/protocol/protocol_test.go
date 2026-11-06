@@ -662,3 +662,14 @@ func TestTheTaskbarsPacketsAreReadAndWritten(t *testing.T) {
 		}
 	}
 }
+
+// ITEM_DROP2 drops part of a stack from a bag cell, or yang from the reserved window 0.
+func TestADropNamesAnItemOrYang(t *testing.T) {
+	if d, err := DecodeItemDrop2(mustHex(t, "01"+"0700"+"00000000"+"03")); err != nil ||
+		d != (ItemDrop{Pos: ItemPos{Window: 1, Cell: 7}, Count: 3}) {
+		t.Fatalf("item: %+v, %v", d, err)
+	}
+	if d, err := DecodeItemDrop2(mustHex(t, "00"+"0000"+"05000000"+"00")); err != nil || d != (ItemDrop{Gold: 5}) {
+		t.Fatalf("yang: %+v, %v", d, err)
+	}
+}

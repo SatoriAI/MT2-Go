@@ -2,6 +2,7 @@ package game
 
 import (
 	"context"
+	"slices"
 	"time"
 
 	"github.com/SatoriAI/MT2-Go/internal/item"
@@ -80,8 +81,20 @@ func (s *Service) dropFrom(m *monster, d death, now time.Time) {
 	s.presence.drop(m.p, fallen)
 	for _, it := range fallen {
 		s.freeing = append(s.freeing, timed{it.vid, now.Add(ownedFor)})
-		s.vanishing = append(s.vanishing, timed{it.vid, now.Add(lieFor)})
+		s.vanishing = inOrder(s.vanishing, timed{it.vid, now.Add(lieFor)})
 	}
+}
+
+// inOrder puts t into the queue in order of when it is due. A player's drop is timed from
+// when their connection laid it, which can fall after the tick it reaches the loop in, so
+// it may be due after what the loop then drops itself; most come last, so the search is
+// from the end.
+func inOrder(queue []timed, t timed) []timed {
+	i := len(queue)
+	for i > 0 && queue[i-1].at.After(t.at) {
+		i--
+	}
+	return slices.Insert(queue, i, t)
 }
 
 // keepGround frees the drops whose owner's time is up and clears away those that have lain
@@ -111,6 +124,19 @@ func (w *presence) drop(body *present, items []*groundItem) {
 		w.ground[it.vid] = it
 		w.toNear(it, shown(it)...)
 	}
+}
+
+// layDown puts an item the player dropped on the ground, dx and dy from where they stand,
+// shows it to everyone who sees it, and leaves it for the world loop to clear away in its
+// time. It has no owner, so anyone may pick it up at once.
+func (w *presence) layDown(playerVID uint32, it *groundItem, dx, dy int32) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	p := w.all[playerVID]
+	it.world, it.x, it.y = p.world, p.add.X+dx, p.add.Y+dy
+	w.ground[it.vid] = it
+	w.toNear(it, shown(it)...)
+	w.laid = append(w.laid, timed{it.vid, it.dropped.Add(lieFor)})
 }
 
 // free lets anyone pick the item up, if it still lies there.
