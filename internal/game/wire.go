@@ -250,12 +250,37 @@ func skillLevels(learnt map[account.Skill]uint8) protocol.SkillLevels {
 	return levels
 }
 
-// taskbarItem is the client's type for a taskbar slot that holds an inventory cell.
-const taskbarItem uint8 = 1
+// The client's types for a taskbar slot: an inventory cell, or a skill by its place in
+// the skill window.
+const (
+	taskbarItem  uint8 = 1
+	taskbarSkill uint8 = 2
+)
 
-// slotFilled tells the client the taskbar slot holds the item at the bag cell.
-func slotFilled(slot uint8, cell uint16) []byte {
-	return protocol.EncodeQuickslotAdd(protocol.QuickslotAdd{Slot: slot, Type: taskbarItem, Position: uint8(cell)}) //nolint:gosec // bag cells are under 90
+// skillWindowSlots are where the client's skill window shows each skill: the sura's
+// Weaponry skills from 1, in the order its playersettingmodule lists them.
+var skillWindowSlots = map[account.Skill]uint8{
+	skill.DragonSwirl:    2,
+	skill.EnchantedBlade: 3,
+}
+
+// skillByWindowSlot is the skill at a place in the skill window, if the game has it.
+func skillByWindowSlot(slot uint8) (account.Skill, bool) {
+	for s, at := range skillWindowSlots {
+		if at == slot {
+			return s, true
+		}
+	}
+	return "", false
+}
+
+// slotShown tells the client what the taskbar slot holds: a skill, or the item at its bag
+// cell.
+func slotShown(slot uint8, shown shownSlot) []byte {
+	if shown.held.Skill != "" {
+		return protocol.EncodeQuickslotAdd(protocol.QuickslotAdd{Slot: slot, Type: taskbarSkill, Position: skillWindowSlots[shown.held.Skill]})
+	}
+	return protocol.EncodeQuickslotAdd(protocol.QuickslotAdd{Slot: slot, Type: taskbarItem, Position: uint8(shown.cell)}) //nolint:gosec // bag cells are under 90
 }
 
 // yangVNum is the kind the client draws yang on the ground as, labelled with its name.

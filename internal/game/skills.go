@@ -100,8 +100,8 @@ func (s *session) onScriptAnswer(ctx context.Context, body []byte) error {
 }
 
 // choose takes up the skill group, forgetting what was learnt: it is kept, then the client
-// is told the group, the levels, all 0 now, after it, as it forgets them on the group, and
-// the points the character has.
+// is told the group, the levels, all 0 now, after it, as it forgets them on the group, the
+// points the character has, and the taskbar's skill slots emptied.
 func (s *session) choose(ctx context.Context, group account.SkillGroup) error {
 	if err := s.svc.skills.Choose(ctx, s.playing.ID, group); err != nil {
 		s.conn.Log().Error("skill group not kept", "group", group, "err", err)
@@ -109,12 +109,12 @@ func (s *session) choose(ctx context.Context, group account.SkillGroup) error {
 	}
 	points := s.svc.presence.chooseGroup(s.playing.vid, group)
 	s.conn.Log().Info("skill group chosen", "character", s.playing.Name, "group", group)
-	return s.conn.Send(
+	return s.conn.Send(append([][]byte{
 		protocol.EncodeChangeSkillGroup(skillGroupNumber(s.playing.Class, group)),
 		protocol.EncodeSkillLevels(skillLevels(nil)),
 		protocol.EncodePointChange(s.playing.vid, protocol.PointSkillPoints, 0, int32(points)), //nolint:gosec // under 2^31
-		script("Od dziś podążasz drogą "+paths[group]+".[ENTER][DONE]"),
-	)
+		script("Od dziś podążasz drogą " + paths[group] + ".[ENTER][DONE]"),
+	}, s.forgetSkillSlots()...)...)
 }
 
 // raiseSkill raises the skill the skill window's + button names by the client's number for

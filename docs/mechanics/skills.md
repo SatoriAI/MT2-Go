@@ -70,6 +70,7 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
   - The skill is checked under the world's lock: of the player's class and group, below 20, and a point free.
   - It is then written one level higher, and the player is shown the levels and the points left.
   - A number the game has no skill for is told «Tej umiejętności nie można jeszcze rozwijać.»
+- **On the taskbar,** a skill learnt is kept by name, and its key sends USE_SKILL like the skill window ([taskbar.md](taskbar.md)).
 - **Using a skill,** on USE_SKILL:
   - **Checks:** the skill's cooldown is the character's, kept by the server rather than the connection, so changing character or logging in again does not end it. The rest is checked under the world's lock: the player alive, the skill learnt, the sword Enchanted Blade needs in hand, and its mana. A refusal is dropped without a word, since the client checked the same first.
   - **The cooldown the client counts:** it works a skill's cooldown out at the character's casting speed, point 21, and doubles it at 0, so POINTS sends 100, at which it waits what its table says, as this server does.
@@ -143,7 +144,6 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
 - The sura's other skills, Black Magic, the other classes and their teachers.
 - Damage at the motion's hit, and no blows during a skill's motion.
 - The mana Enchanted Blade drains while it runs in the original, and keeping it over a relog.
-- Skills on the taskbar.
 - Ranks past 20: Grand and Perfect.
 - Support and horse skills.
 - A reset item.

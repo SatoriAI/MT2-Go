@@ -5,6 +5,7 @@ import (
 	"maps"
 	"testing"
 
+	"github.com/SatoriAI/MT2-Go/internal/account"
 	"github.com/SatoriAI/MT2-Go/internal/item"
 )
 
@@ -24,7 +25,7 @@ func hendrasTaskbar(t *testing.T) (Taskbar, uint32, int64, int64) {
 	return Taskbar(items), cid, red, blue
 }
 
-func (s Taskbar) mustHold(t *testing.T, cid uint32, want map[uint8]int64) {
+func (s Taskbar) mustHold(t *testing.T, cid uint32, want map[uint8]account.Shortcut) {
 	t.Helper()
 	got, err := s.Slots(context.Background(), cid)
 	if err != nil || !maps.Equal(got, want) {
@@ -37,48 +38,48 @@ func TestATaskbarSlotIsSetReplacedAndCleared(t *testing.T) {
 	s, cid, red, blue := hendrasTaskbar(t)
 	ctx := context.Background()
 
-	if err := s.Set(ctx, cid, 0, red); err != nil {
+	if err := s.Set(ctx, cid, 0, account.Shortcut{Item: red}); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.Set(ctx, cid, 0, blue); err != nil {
+	if err := s.Set(ctx, cid, 0, account.Shortcut{Item: blue}); err != nil {
 		t.Fatal(err)
 	}
-	s.mustHold(t, cid, map[uint8]int64{0: blue})
+	s.mustHold(t, cid, map[uint8]account.Shortcut{0: {Item: blue}})
 	if err := s.Clear(ctx, cid, 0); err != nil {
 		t.Fatal(err)
 	}
-	s.mustHold(t, cid, map[uint8]int64{})
+	s.mustHold(t, cid, map[uint8]account.Shortcut{})
 }
 
 // Two slots swap what they hold, and a slot moved onto an empty one leaves its own empty.
 func TestTaskbarSlotsSwap(t *testing.T) {
 	s, cid, red, blue := hendrasTaskbar(t)
 	ctx := context.Background()
-	if err := s.Set(ctx, cid, 0, red); err != nil {
+	if err := s.Set(ctx, cid, 0, account.Shortcut{Item: red}); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.Set(ctx, cid, 1, blue); err != nil {
+	if err := s.Set(ctx, cid, 1, account.Shortcut{Item: blue}); err != nil {
 		t.Fatal(err)
 	}
 
 	if err := s.Swap(ctx, cid, 0, 1); err != nil {
 		t.Fatal(err)
 	}
-	s.mustHold(t, cid, map[uint8]int64{0: blue, 1: red})
+	s.mustHold(t, cid, map[uint8]account.Shortcut{0: {Item: blue}, 1: {Item: red}})
 	if err := s.Swap(ctx, cid, 1, 7); err != nil {
 		t.Fatal(err)
 	}
-	s.mustHold(t, cid, map[uint8]int64{0: blue, 7: red})
+	s.mustHold(t, cid, map[uint8]account.Shortcut{0: {Item: blue}, 7: {Item: red}})
 }
 
 // A slot goes with its item: the last potion drunk takes the slot holding it.
 func TestATaskbarSlotGoesWithItsItem(t *testing.T) {
 	s, cid, red, blue := hendrasTaskbar(t)
 	ctx := context.Background()
-	if err := s.Set(ctx, cid, 0, red); err != nil {
+	if err := s.Set(ctx, cid, 0, account.Shortcut{Item: red}); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.Set(ctx, cid, 1, blue); err != nil {
+	if err := s.Set(ctx, cid, 1, account.Shortcut{Item: blue}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -86,7 +87,7 @@ func TestATaskbarSlotGoesWithItsItem(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	s.mustHold(t, cid, map[uint8]int64{1: blue})
+	s.mustHold(t, cid, map[uint8]account.Shortcut{1: {Item: blue}})
 }
 
 // Each character's slots are their own.
@@ -100,13 +101,81 @@ func TestTaskbarSlotsAreEachCharactersOwn(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := s.Set(ctx, cid, 0, red); err != nil {
+	if err := s.Set(ctx, cid, 0, account.Shortcut{Item: red}); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.Clear(ctx, kira, 0); err != nil {
 		t.Fatal(err)
 	}
 
-	s.mustHold(t, cid, map[uint8]int64{0: red})
-	s.mustHold(t, kira, map[uint8]int64{})
+	s.mustHold(t, cid, map[uint8]account.Shortcut{0: {Item: red}})
+	s.mustHold(t, kira, map[uint8]account.Shortcut{})
+}
+
+// learnDragonSwirl puts Hendra on Weaponry with Dragon Swirl learnt.
+func learnDragonSwirl(t *testing.T, s Taskbar, cid uint32) {
+	t.Helper()
+	skills := Skills(s)
+	if err := skills.Choose(context.Background(), cid, "weaponry"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := skills.Raise(context.Background(), cid, "dragon_swirl"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// A slot holds a skill learnt, and swaps like any other.
+func TestATaskbarSlotHoldsASkillLearnt(t *testing.T) {
+	s, cid, red, _ := hendrasTaskbar(t)
+	ctx := context.Background()
+	learnDragonSwirl(t, s, cid)
+	if err := s.Set(ctx, cid, 4, account.Shortcut{Skill: "dragon_swirl"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Set(ctx, cid, 0, account.Shortcut{Item: red}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := s.Swap(ctx, cid, 4, 5); err != nil {
+		t.Fatal(err)
+	}
+
+	s.mustHold(t, cid, map[uint8]account.Shortcut{0: {Item: red}, 5: {Skill: "dragon_swirl"}})
+}
+
+// A skill's slot goes when choosing a skill group forgets the skill; an item's stays.
+func TestATaskbarSlotOfASkillGoesWhenTheSkillIsForgotten(t *testing.T) {
+	s, cid, red, _ := hendrasTaskbar(t)
+	ctx := context.Background()
+	learnDragonSwirl(t, s, cid)
+	for slot, held := range map[uint8]account.Shortcut{0: {Item: red}, 4: {Skill: "dragon_swirl"}} {
+		if err := s.Set(ctx, cid, slot, held); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := Skills(s).Choose(ctx, cid, "black_magic"); err != nil {
+		t.Fatal(err)
+	}
+
+	s.mustHold(t, cid, map[uint8]account.Shortcut{0: {Item: red}})
+}
+
+// The database refuses a slot of a skill not learnt, of nothing, or of both an item and a
+// skill.
+func TestTheDatabaseRefusesASlotThatIsNoShortcut(t *testing.T) {
+	s, cid, red, _ := hendrasTaskbar(t)
+	ctx := context.Background()
+	if err := Skills(s).Choose(ctx, cid, "weaponry"); err != nil {
+		t.Fatal(err)
+	}
+	for name, held := range map[string]account.Shortcut{
+		"a skill not learnt": {Skill: "dragon_swirl"},
+		"nothing":            {},
+		"both":               {Item: red, Skill: "dragon_swirl"},
+	} {
+		if err := s.Set(ctx, cid, 4, held); err == nil {
+			t.Errorf("%s: kept", name)
+		}
+	}
 }

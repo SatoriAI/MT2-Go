@@ -2,6 +2,7 @@ package game
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"net"
 	"testing"
@@ -9,20 +10,23 @@ import (
 	"github.com/SatoriAI/MT2-Go/internal/account"
 	"github.com/SatoriAI/MT2-Go/internal/item"
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
+	"github.com/SatoriAI/MT2-Go/internal/skill"
 )
 
 // keptTaskbar stands in for the store's taskbar: it keeps what each slot holds, and fails
 // every write with fail set.
 type keptTaskbar struct {
-	slots map[uint8]int64
+	slots map[uint8]account.Shortcut
 	fail  error
 }
 
-func (k *keptTaskbar) Slots(context.Context, uint32) (map[uint8]int64, error) { return k.slots, k.fail }
+func (k *keptTaskbar) Slots(context.Context, uint32) (map[uint8]account.Shortcut, error) {
+	return k.slots, k.fail
+}
 
-func (k *keptTaskbar) Set(_ context.Context, _ uint32, slot uint8, itemID int64) error {
+func (k *keptTaskbar) Set(_ context.Context, _ uint32, slot uint8, held account.Shortcut) error {
 	if k.fail == nil {
-		k.slots[slot] = itemID
+		k.slots[slot] = held
 	}
 	return k.fail
 }
@@ -54,7 +58,7 @@ func (k *keptTaskbar) Swap(_ context.Context, _ uint32, a, b uint8) error {
 // entering reads it, and Hendra as its player if it has none.
 func onTheTaskbar(t *testing.T, s *session, id int64) *keptTaskbar {
 	t.Helper()
-	kept := &keptTaskbar{slots: map[uint8]int64{0: id}}
+	kept := &keptTaskbar{slots: map[uint8]account.Shortcut{0: {Item: id}}}
 	s.svc.taskbar = kept
 	if s.playing == nil {
 		s.playing = &character{vid: 1000, Character: account.Character{ID: 7, Name: "Hendra"}}
@@ -77,7 +81,7 @@ func TestPotionsDraggedToTheTaskbarFillASlot(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if got := read(t, client, 4); string(got) != string(slotFilled(3, 1)) || bar.slots[3] != 2 || s.taskbar[3] != (shownSlot{2, 1}) {
+	if got := read(t, client, 4); string(got) != string(slotShown(3, shownSlot{cell: 1})) || bar.slots[3] != (account.Shortcut{Item: 2}) || s.taskbar[3] != (shownSlot{account.Shortcut{Item: 2}, 1}) {
 		t.Fatalf("told %x, kept %v", got, bar.slots)
 	}
 }
@@ -113,8 +117,8 @@ func TestTaskbarSlotsAreEmptiedAndSwapped(t *testing.T) {
 	if err := s.onQuickslotSwap([]byte{0, 5}); err != nil {
 		t.Fatal(err)
 	}
-	if got := read(t, client, 3); string(got) != string(protocol.EncodeQuickslotSwap(0, 5)) || bar.slots[5] != 2 ||
-		s.taskbar[5].item != 2 || len(s.taskbar) != 1 {
+	if got := read(t, client, 3); string(got) != string(protocol.EncodeQuickslotSwap(0, 5)) || bar.slots[5] != (account.Shortcut{Item: 2}) ||
+		s.taskbar[5].held.Item != 2 || len(s.taskbar) != 1 {
 		t.Fatalf("told %x, kept %v", got, bar.slots)
 	}
 	if err := s.onQuickslotDel([]byte{5}); err != nil {
@@ -135,7 +139,7 @@ func TestATaskbarSlotFollowsItsPotionsAsTheyMove(t *testing.T) {
 	}
 
 	read(t, client, 2*itemSetSize)
-	if got := read(t, client, 4); string(got) != string(slotFilled(0, 17)) || s.taskbar[0].cell != 17 {
+	if got := read(t, client, 4); string(got) != string(slotShown(0, shownSlot{cell: 17})) || s.taskbar[0].cell != 17 {
 		t.Fatalf("told %x, shown %+v", got, s.taskbar[0])
 	}
 }
@@ -204,7 +208,100 @@ func TestATaskbarWriteThatFailsChangesNothing(t *testing.T) {
 	}
 
 	expectNothing(t, client)
-	if len(s.taskbar) != 1 || s.taskbar[0].item != 2 {
+	if len(s.taskbar) != 1 || s.taskbar[0].held.Item != 2 {
 		t.Fatalf("taskbar %v", s.taskbar)
 	}
+}
+
+// onTheTaskbarWithSkills gives a session a taskbar holding nothing yet.
+func onTheTaskbarWithSkills(s *session) *keptTaskbar {
+	kept := &keptTaskbar{slots: map[uint8]account.Shortcut{}}
+	s.svc.taskbar, s.taskbar = kept, map[uint8]shownSlot{}
+	return kept
+}
+
+// Dragon Swirl, dragged from the skill window's second place, fills a slot: kept as the
+// skill and shown as it.
+func TestASkillLearntFillsATaskbarSlot(t *testing.T) {
+	s, client, _ := swirling(t)
+	bar := onTheTaskbarWithSkills(s)
+
+	if err := s.onQuickslotAdd(slotAdded(3, 2, 2)); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := read(t, client, 4); string(got) != string(mustHexIn(t, "1c030202")) ||
+		bar.slots[3] != (account.Shortcut{Skill: skill.DragonSwirl}) {
+		t.Fatalf("told %x, kept %v", got, bar.slots)
+	}
+}
+
+// A skill she has not learnt does not fill a slot.
+func TestASkillNotLearntFillsNoTaskbarSlot(t *testing.T) {
+	s, client, _ := swirling(t)
+	bar := onTheTaskbarWithSkills(s)
+	delete(s.svc.presence.all[1000].char.Skills, skill.EnchantedBlade)
+
+	if err := s.onQuickslotAdd(slotAdded(4, 2, 3)); err != nil {
+		t.Fatal(err)
+	}
+
+	expectNothing(t, client)
+	if _, held := bar.slots[4]; held {
+		t.Fatal("kept a skill not learnt")
+	}
+}
+
+// A skill's slot follows no item: a change in the bag leaves it as it is.
+func TestASkillsSlotStaysWhenTheBagChanges(t *testing.T) {
+	s, _, _ := swirling(t)
+	onTheTaskbarWithSkills(s)
+	s.taskbar[3] = shownSlot{held: account.Shortcut{Skill: skill.DragonSwirl}}
+
+	if packets := s.followTaskbar(); len(packets) != 0 || s.taskbar[3].held.Skill != skill.DragonSwirl {
+		t.Fatalf("told %x, taskbar %v", packets, s.taskbar)
+	}
+}
+
+// A change of skill group empties the slots of the skills it forgets, and keeps items'.
+func TestAChangeOfGroupEmptiesTheSkillsSlots(t *testing.T) {
+	s, _, client, _, blackMagic := training(t, account.Sura, 10, "weaponry", map[account.Skill]uint8{skill.DragonSwirl: 1})
+	onTheTaskbarWithSkills(s)
+	s.taskbar[3] = shownSlot{held: account.Shortcut{Skill: skill.DragonSwirl}}
+	s.taskbar[0] = shownSlot{held: account.Shortcut{Item: 9}}
+	if err := s.onClick(vidBody(blackMagic)); err != nil {
+		t.Fatal(err)
+	}
+	for range 2 {
+		if err := s.onScriptAnswer(context.Background(), answered(0)); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	read(t, client, len(script("Chcesz porzucić swoją drogę i uczyć się drogi Czarnej Magii? Zapomnisz to, czego się nauczyłeś, ale odzyskasz wszystkie punkty.[ENTER][QUESTION 1;Tak|2;Nie]"))+
+		len(script("Czy na pewno? Wybór drogi Czarnej Magii to poważna decyzja.[ENTER][QUESTION 1;Tak|2;Nie]"))+
+		2+1531+pointChangeSize+len(script("Od dziś podążasz drogą Czarnej Magii.[ENTER][DONE]")))
+	if got := read(t, client, 2); string(got) != string(protocol.EncodeQuickslotDel(3)) {
+		t.Fatalf("got %x, want slot 3 emptied", got)
+	}
+	if _, held := s.taskbar[3]; held || s.taskbar[0].held.Item != 9 {
+		t.Fatalf("taskbar %v", s.taskbar)
+	}
+}
+
+// A skill's slot is shown as the skill at its place in the skill window: Enchanted Blade
+// at 3.
+func TestASkillsSlotIsShownAtItsPlaceInTheSkillWindow(t *testing.T) {
+	if got := slotShown(5, shownSlot{held: account.Shortcut{Skill: skill.EnchantedBlade}}); string(got) != string(mustHexIn(t, "1c050203")) {
+		t.Fatalf("got %x", got)
+	}
+}
+
+func mustHexIn(t *testing.T, s string) []byte {
+	t.Helper()
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return b
 }

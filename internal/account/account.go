@@ -80,6 +80,13 @@ type SkillGroup string
 // Skill is one of the skills a skill group teaches, by name.
 type Skill string
 
+// Shortcut is what a taskbar slot holds: an item the character owns, by its id, or a
+// skill it has learnt.
+type Shortcut struct {
+	Item  int64
+	Skill Skill
+}
+
 // Block is something a character refuses from other players, chosen in the options.
 type Block string
 
