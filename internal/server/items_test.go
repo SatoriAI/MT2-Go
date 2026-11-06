@@ -76,14 +76,13 @@ func TestADraggedItemStaysWhereItWasPut(t *testing.T) {
 }
 
 // Whatever else the inventory window sends is taken without ending the connection: a
-// double-click, a drop to the ground, a drag to the taskbar, a trade, a gift to an NPC.
+// double-click, a drop to the ground, a trade, a gift to an NPC.
 func TestTheInventoryWindowsOtherPacketsDoNotDisconnect(t *testing.T) {
 	h := start(t)
 	hendra, _ := h.hendraInWorld()
 
 	for header, size := range map[protocol.ClientHeader]int{
-		protocol.ClientItemUse: 4, protocol.ClientItemDrop: 8, protocol.ClientQuickslotAdd: 4,
-		protocol.ClientQuickslotDel: 2, protocol.ClientQuickslotSwap: 3, protocol.ClientItemDrop2: 9,
+		protocol.ClientItemUse: 4, protocol.ClientItemDrop: 8, protocol.ClientItemDrop2: 9,
 		protocol.ClientExchange: 10, protocol.ClientItemUseToItem: 7, protocol.ClientGiveItem: 9,
 	} {
 		hendra.send([]byte{byte(header)}, make([]byte, size-1), []byte{sequenceByte})

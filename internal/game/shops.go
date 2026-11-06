@@ -130,7 +130,7 @@ func (s *session) sell(cell, count uint8) error {
 		s.inventory.Replace(left)
 	}
 	s.gold = gold
-	return s.conn.Send(shown, s.yangChanged(int64(pay)))
+	return s.conn.Send(append([][]byte{shown, s.yangChanged(int64(pay))}, s.followTaskbar()...)...)
 }
 
 // yangChanged tells the player their yang changed by amount, to what they have now. The

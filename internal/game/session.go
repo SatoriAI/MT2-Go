@@ -48,6 +48,7 @@ type Service struct {
 	store    Accounts
 	whispers Whispers
 	items    Items
+	taskbar  Taskbar
 	keys     *account.Keys
 	clock    handshake.Clock
 	// public is the address the client is told to connect to for this game server. It
@@ -77,9 +78,9 @@ type Service struct {
 }
 
 // NewService makes the game port's shared state; Run puts spawns' mobs in the world.
-func NewService(store Accounts, whispers Whispers, items Items, keys *account.Keys, clock handshake.Clock, public netip.AddrPort,
+func NewService(store Accounts, whispers Whispers, items Items, taskbar Taskbar, keys *account.Keys, clock handshake.Clock, public netip.AddrPort,
 	spawns []world.Spawn) *Service {
-	return &Service{store: store, whispers: whispers, items: items, keys: keys, clock: clock, public: public, claims: map[uint32]*claim{},
+	return &Service{store: store, whispers: whispers, items: items, taskbar: taskbar, keys: keys, clock: clock, public: public, claims: map[uint32]*claim{},
 		presence: presence{all: map[uint32]*present{}, byName: map[string]*present{}, ground: map[uint32]*groundItem{}}, spawns: spawns, rand: newRand(), now: time.Now,
 		byPresent: map[*present]*monster{}}
 }
@@ -93,14 +94,15 @@ type session struct {
 	conn      *network.Conn
 	sync      *handshake.Sync
 	phase     protocol.Phase
-	accountID int64          // set once the login key is redeemed
-	empire    account.Empire // the account's kingdom as this connection last knew it
-	playing   *character     // set once the player pressed Start
-	inventory item.Inventory // what playing owns, read on Start
-	gold      uint32         // playing's yang, read with the inventory and kept as it changes
-	shop      uint16         // the kind of the shopkeeper whose shop is open, 0 for none
-	claim     *claim         // this connection's hold on playing
-	flood     floodLimit     // the lines this player said lately, to others
+	accountID int64               // set once the login key is redeemed
+	empire    account.Empire      // the account's kingdom as this connection last knew it
+	playing   *character          // set once the player pressed Start
+	inventory item.Inventory      // what playing owns, read on Start
+	gold      uint32              // playing's yang, read with the inventory and kept as it changes
+	shop      uint16              // the kind of the shopkeeper whose shop is open, 0 for none
+	taskbar   map[uint8]shownSlot // playing's taskbar, by slot, read with the inventory
+	claim     *claim              // this connection's hold on playing
+	flood     floodLimit          // the lines this player said lately, to others
 	// leftWorld is set from change character until the next Start: the client may still
 	// send moves and chat it wrote before it took in the select phase.
 	leftWorld bool
@@ -165,6 +167,12 @@ func (s *session) Handle(ctx context.Context, f protocol.Frame) error {
 		return s.onClick(f.Body)
 	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientShop:
 		return s.onShop(f.Body)
+	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientQuickslotAdd:
+		return s.onQuickslotAdd(f.Body)
+	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientQuickslotDel:
+		return s.onQuickslotDel(f.Body)
+	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientQuickslotSwap:
+		return s.onQuickslotSwap(f.Body)
 	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientItemMove:
 		return s.onItemMove(f.Body)
 	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientItemUse:

@@ -47,6 +47,9 @@ func (s *session) onSelectCharacter(ctx context.Context, body []byte) error {
 	if err := s.loadInventory(ctx, c.ID); err != nil {
 		return err
 	}
+	if err := s.loadTaskbar(ctx, c.ID); err != nil {
+		return err
+	}
 	wear(&c, s.inventory)
 	points, ok := c.Points()
 	if !ok {
@@ -129,7 +132,7 @@ func (s *session) onEnterGame() error {
 		protocol.EncodePhase(protocol.PhaseGame),
 		protocol.EncodeTime(s.svc.clock.Now()),
 		protocol.EncodeChannel(1),
-	}, append(append(me.appearance(), s.blockMode()), s.inventoryShown()...)...)...)
+	}, append(append(append(me.appearance(), s.blockMode()), s.inventoryShown()...), s.taskbarShown()...)...)...)
 	if err != nil {
 		return err
 	}

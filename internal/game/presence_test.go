@@ -58,7 +58,7 @@ func conns(t *testing.T, n int) []*network.Conn {
 // it must not touch the others.
 func TestAPlayerWhoseEntryFailedLeavesWithoutDisturbingTheOthers(t *testing.T) {
 	c := conns(t, 2)
-	svc := NewService(nil, nil, nil, nil, handshake.NewClock(), netip.AddrPort{}, nil)
+	svc := NewService(nil, nil, nil, nil, nil, handshake.NewClock(), netip.AddrPort{}, nil)
 	svc.presence.enter(&present{out: c[0], add: protocol.CharacterAdd{VID: 1}})
 	c[1].Close()
 	s := &session{svc: svc, conn: c[1], phase: protocol.PhaseLoading,

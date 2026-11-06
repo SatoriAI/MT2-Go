@@ -277,3 +277,30 @@ func DecodeShop(body []byte) (ShopRequest, error) {
 	}
 	return q, r.Err()
 }
+
+// QuickslotAdd is a taskbar slot the client asks to fill: with the item at an inventory
+// position, or a skill or an emotion, by its type.
+type QuickslotAdd struct {
+	Slot, Type, Position uint8
+}
+
+// DecodeQuickslotAdd reads which slot, and what to put in it.
+func DecodeQuickslotAdd(body []byte) (QuickslotAdd, error) {
+	r := NewReader(body)
+	q := QuickslotAdd{Slot: r.U8(), Type: r.U8(), Position: r.U8()}
+	return q, r.Err()
+}
+
+// DecodeQuickslotDel reads which slot is emptied.
+func DecodeQuickslotDel(body []byte) (uint8, error) {
+	r := NewReader(body)
+	slot := r.U8()
+	return slot, r.Err()
+}
+
+// DecodeQuickslotSwap reads the two slots swapped; either may be empty.
+func DecodeQuickslotSwap(body []byte) (uint8, uint8, error) {
+	r := NewReader(body)
+	a, b := r.U8(), r.U8()
+	return a, b, r.Err()
+}
