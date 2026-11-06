@@ -25,8 +25,8 @@ const exclusionViolation = "23P01"
 // refused with event.ErrOverlap.
 func (s Events) Create(ctx context.Context, e event.Event) (int64, error) {
 	var id int64
-	err := s.Pool.QueryRow(ctx, `INSERT INTO events (name, exp_percent, starts_at, ends_at)
-		VALUES ($1, $2, $3, $4) RETURNING id`, e.Name, e.ExpPercent, e.Start, e.End).Scan(&id)
+	err := s.Pool.QueryRow(ctx, `INSERT INTO events (name, exp_percent, yang_percent, starts_at, ends_at)
+		VALUES ($1, $2, $3, $4, $5) RETURNING id`, e.Name, e.ExpPercent, e.YangPercent, e.Start, e.End).Scan(&id)
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == exclusionViolation {
 		return 0, event.ErrOverlap
@@ -36,7 +36,7 @@ func (s Events) Create(ctx context.Context, e event.Event) (int64, error) {
 
 // List returns every event, past and to come, by when it starts.
 func (s Events) List(ctx context.Context) ([]event.Event, error) {
-	rows, err := s.Pool.Query(ctx, `SELECT id, name, exp_percent, starts_at, ends_at FROM events ORDER BY starts_at`)
+	rows, err := s.Pool.Query(ctx, `SELECT id, name, exp_percent, yang_percent, starts_at, ends_at FROM events ORDER BY starts_at`)
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +52,7 @@ func (s Events) Delete(ctx context.Context, id int64) (bool, error) {
 
 // Running returns the event running at now, if any.
 func (s Events) Running(ctx context.Context, now time.Time) (event.Event, bool, error) {
-	rows, err := s.Pool.Query(ctx, `SELECT id, name, exp_percent, starts_at, ends_at FROM events
+	rows, err := s.Pool.Query(ctx, `SELECT id, name, exp_percent, yang_percent, starts_at, ends_at FROM events
 		WHERE tstzrange(starts_at, ends_at) @> $1::timestamptz`, now)
 	if err != nil {
 		return event.Event{}, false, err
@@ -69,6 +69,6 @@ func (s Events) Running(ctx context.Context, now time.Time) (event.Event, bool, 
 
 func scanEvent(row pgx.CollectableRow) (event.Event, error) {
 	var e event.Event
-	err := row.Scan(&e.ID, &e.Name, &e.ExpPercent, &e.Start, &e.End)
+	err := row.Scan(&e.ID, &e.Name, &e.ExpPercent, &e.YangPercent, &e.Start, &e.End)
 	return e, err
 }

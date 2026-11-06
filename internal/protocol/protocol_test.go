@@ -524,6 +524,15 @@ func TestTheDefenceIsSentAtItsIndex(t *testing.T) {
 	}
 }
 
+// Yang goes at the client's index for gold, 11.
+func TestYangIsSentAtItsIndex(t *testing.T) {
+	points := EncodePoints(CharacterPoints{Gold: 1234})[1:]
+
+	if got := binary.LittleEndian.Uint32(points[4*PointGold:]); got != 1234 || PointGold != 11 {
+		t.Fatalf("yang %d at %d", got, PointGold)
+	}
+}
+
 // GROUND_ADD as the real client took it: a red potion at (977491, 272599), height 0.
 func TestAnItemIsLaidOnTheGround(t *testing.T) {
 	want := mustHex(t, "1a"+"53ea0e00"+"d7280400"+"00000000"+"a1bb0d00"+"79690000")

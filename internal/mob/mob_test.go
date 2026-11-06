@@ -63,3 +63,14 @@ func TestEveryDropIsAnItemTheGameHas(t *testing.T) {
 		}
 	}
 }
+
+// Every monster's yang is a chance in 10,000 of an amount from its least to its most, and
+// every one of the first villages leaves some.
+func TestEveryMonstersYangIsAChanceOfARange(t *testing.T) {
+	for vnum, p := range protos {
+		y := p.Yang
+		if y.Chance > 10000 || y.Min > y.Max || (p.Kind == Monster) != (y.Chance > 0 && y.Min > 0) {
+			t.Errorf("%d leaves %+v", vnum, y)
+		}
+	}
+}

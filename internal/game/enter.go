@@ -67,7 +67,7 @@ func (s *session) onSelectCharacter(ctx context.Context, body []byte) error {
 			Empire:     empireNumbers[s.empire],
 			SkillGroup: skillGroupNumber(c.Class, c.SkillGroup),
 		}),
-		protocol.EncodePoints(pointsOf(s.playing)),
+		protocol.EncodePoints(pointsOf(s.playing, s.gold)),
 		protocol.EncodeSkillLevels(),
 	)
 }
@@ -155,8 +155,8 @@ func (s *session) onMove(body []byte) error {
 }
 
 // pointsOf fills the client's points array for the character, with the hit points and
-// mana it has now.
-func pointsOf(p *character) protocol.CharacterPoints {
+// mana it has now, and its yang.
+func pointsOf(p *character, gold uint32) protocol.CharacterPoints {
 	return protocol.CharacterPoints{
 		Level:       uint32(p.Level),
 		Exp:         p.Exp,
@@ -175,6 +175,7 @@ func pointsOf(p *character) protocol.CharacterPoints {
 		AttackSpeed: uint32(p.points.AttackSpeed),
 		MoveSpeed:   uint32(p.points.MoveSpeed),
 		Defence:     defence(&p.Character),
+		Gold:        gold,
 	}
 }
 

@@ -200,6 +200,17 @@ func placeFromWire(at protocol.ItemPos) (uint16, item.Wear, bool) {
 	return 0, "", false
 }
 
+// yangVNum is the kind the client draws yang on the ground as, labelled with its name.
+const yangVNum = 1
+
+// groundVNum is the kind the client is told a ground item is: its own, or yang's.
+func groundVNum(it *groundItem) uint32 {
+	if it.gold > 0 {
+		return yangVNum
+	}
+	return it.vnum
+}
+
 // itemPos is where the client shows an item: its cell, or its place among what is worn.
 func itemPos(it item.Item) protocol.ItemPos {
 	if it.Worn != "" {

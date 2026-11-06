@@ -20,7 +20,7 @@ const eventTime = "2006-01-02T15:04"
 func runEvent(ctx context.Context, cfg config.Config, args []string) error {
 	var do func(store.Events) error
 	switch {
-	case len(args) == 5 && args[0] == "create":
+	case len(args) == 6 && args[0] == "create":
 		do = func(events store.Events) error { return createEvent(ctx, events, args[1:]) }
 	case len(args) == 1 && args[0] == "list":
 		do = func(events store.Events) error { return listEvents(ctx, events) }
@@ -41,19 +41,23 @@ func createEvent(ctx context.Context, events store.Events, args []string) error 
 	if !game.ClientCanShow(args[0]) {
 		return errors.New("the name has characters the game client cannot show")
 	}
-	percent, err := event.ParseMultiplier(args[1])
+	exp, err := event.ParseMultiplier(args[1])
 	if err != nil {
 		return err
 	}
-	start, err := time.ParseInLocation(eventTime, args[2], event.Zone)
+	yang, err := event.ParseMultiplier(args[2])
+	if err != nil {
+		return err
+	}
+	start, err := time.ParseInLocation(eventTime, args[3], event.Zone)
 	if err != nil {
 		return fmt.Errorf("the start must be written as %s: %w", eventTime, err)
 	}
-	end, err := time.ParseInLocation(eventTime, args[3], event.Zone)
+	end, err := time.ParseInLocation(eventTime, args[4], event.Zone)
 	if err != nil {
 		return fmt.Errorf("the end must be written as %s: %w", eventTime, err)
 	}
-	e := event.Event{Name: args[0], ExpPercent: percent, Start: start, End: end}
+	e := event.Event{Name: args[0], ExpPercent: exp, YangPercent: yang, Start: start, End: end}
 	if err := e.Check(); err != nil {
 		return err
 	}
@@ -93,6 +97,6 @@ func deleteEvent(ctx context.Context, events store.Events, arg string) error {
 }
 
 func describe(e event.Event) string {
-	return fmt.Sprintf("%q, experience ×%s, %s to %s", e.Name, event.Multiplier(e.ExpPercent),
+	return fmt.Sprintf("%q, experience ×%s, yang ×%s, %s to %s", e.Name, event.Multiplier(e.ExpPercent), event.Multiplier(e.YangPercent),
 		e.Start.In(event.Zone).Format(eventTime), e.End.In(event.Zone).Format(eventTime))
 }
