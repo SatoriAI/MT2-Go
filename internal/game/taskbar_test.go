@@ -1,0 +1,191 @@
+package game
+
+import (
+	"context"
+	"errors"
+	"net"
+	"testing"
+
+	"github.com/SatoriAI/MT2-Go/internal/account"
+	"github.com/SatoriAI/MT2-Go/internal/item"
+	"github.com/SatoriAI/MT2-Go/internal/protocol"
+)
+
+// keptTaskbar stands in for the store's taskbar: it keeps what each slot holds, and fails
+// every write with fail set.
+type keptTaskbar struct {
+	slots map[uint8]int64
+	fail  error
+}
+
+func (k *keptTaskbar) Slots(context.Context, uint32) (map[uint8]int64, error) { return k.slots, k.fail }
+
+func (k *keptTaskbar) Set(_ context.Context, _ uint32, slot uint8, itemID int64) error {
+	if k.fail == nil {
+		k.slots[slot] = itemID
+	}
+	return k.fail
+}
+
+func (k *keptTaskbar) Clear(_ context.Context, _ uint32, slot uint8) error {
+	if k.fail == nil {
+		delete(k.slots, slot)
+	}
+	return k.fail
+}
+
+func (k *keptTaskbar) Swap(_ context.Context, _ uint32, a, b uint8) error {
+	if k.fail == nil {
+		heldA, okA := k.slots[a]
+		heldB, okB := k.slots[b]
+		delete(k.slots, a)
+		delete(k.slots, b)
+		if okA {
+			k.slots[b] = heldA
+		}
+		if okB {
+			k.slots[a] = heldB
+		}
+	}
+	return k.fail
+}
+
+// onTheTaskbar gives the session a taskbar whose slot 0 holds the item id, read as
+// entering reads it, and Hendra as its player if it has none.
+func onTheTaskbar(t *testing.T, s *session, id int64) *keptTaskbar {
+	t.Helper()
+	kept := &keptTaskbar{slots: map[uint8]int64{0: id}}
+	s.svc.taskbar = kept
+	if s.playing == nil {
+		s.playing = &character{vid: 1000, Character: account.Character{ID: 7, Name: "Hendra"}}
+	}
+	if err := s.loadTaskbar(context.Background(), 7); err != nil {
+		t.Fatal(err)
+	}
+	return kept
+}
+
+func slotAdded(slot, typ, position uint8) []byte { return []byte{slot, typ, position} }
+
+// Her potions dragged to slot 3 fill it: kept, and shown at their cell.
+func TestPotionsDraggedToTheTaskbarFillASlot(t *testing.T) {
+	s, _, client := carrying(t)
+	bar := onTheTaskbar(t, s, 99)
+	delete(bar.slots, 0)
+
+	if err := s.onQuickslotAdd(slotAdded(3, 1, 1)); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := read(t, client, 4); string(got) != string(slotFilled(3, 1)) || bar.slots[3] != 2 || s.taskbar[3] != (shownSlot{2, 1}) {
+		t.Fatalf("told %x, kept %v", got, bar.slots)
+	}
+}
+
+// Only what is drunk goes on the taskbar from the bag: not a sword, not an empty cell; a
+// skill or emotion is not kept yet, nor a slot past the client's 36.
+func TestOnlyPotionsFillATaskbarSlot(t *testing.T) {
+	for name, body := range map[string][]byte{
+		"a sword":       slotAdded(3, 1, 0),
+		"an empty cell": slotAdded(3, 1, 9),
+		"a skill":       slotAdded(3, 2, 1),
+		"slot 36":       slotAdded(36, 1, 1),
+	} {
+		s, _, client := carrying(t)
+		bar := onTheTaskbar(t, s, 2)
+
+		if err := s.onQuickslotAdd(body); err != nil {
+			t.Fatal(err)
+		}
+
+		expectNothing(t, client)
+		if len(bar.slots) != 1 || len(s.taskbar) != 1 {
+			t.Errorf("%s: kept %v", name, bar.slots)
+		}
+	}
+}
+
+// A slot dragged off the taskbar is emptied, and one dragged onto another swaps with it.
+func TestTaskbarSlotsAreEmptiedAndSwapped(t *testing.T) {
+	s, _, client := carrying(t)
+	bar := onTheTaskbar(t, s, 2)
+
+	if err := s.onQuickslotSwap([]byte{0, 5}); err != nil {
+		t.Fatal(err)
+	}
+	if got := read(t, client, 3); string(got) != string(protocol.EncodeQuickslotSwap(0, 5)) || bar.slots[5] != 2 ||
+		s.taskbar[5].item != 2 || len(s.taskbar) != 1 {
+		t.Fatalf("told %x, kept %v", got, bar.slots)
+	}
+	if err := s.onQuickslotDel([]byte{5}); err != nil {
+		t.Fatal(err)
+	}
+	if got := read(t, client, 2); string(got) != string(protocol.EncodeQuickslotDel(5)) || len(bar.slots) != 0 || len(s.taskbar) != 0 {
+		t.Fatalf("told %x, kept %v", got, bar.slots)
+	}
+}
+
+// A slot follows its potions: moved to another cell, the client is shown the slot there.
+func TestATaskbarSlotFollowsItsPotionsAsTheyMove(t *testing.T) {
+	s, _, client := carrying(t)
+	onTheTaskbar(t, s, 2)
+
+	if err := s.onItemMove(dragged(1, 17, 50)); err != nil {
+		t.Fatal(err)
+	}
+
+	read(t, client, 2*itemSetSize)
+	if got := read(t, client, 4); string(got) != string(slotFilled(0, 17)) || s.taskbar[0].cell != 17 {
+		t.Fatalf("told %x, shown %+v", got, s.taskbar[0])
+	}
+}
+
+// The last potion drunk empties its slot; so does a stack sold.
+func TestATaskbarSlotIsEmptiedWhenItsPotionsAreGone(t *testing.T) {
+	drinker, _, drinkerClient, _ := thirsty(t, 1, 1, 1)
+	onTheTaskbar(t, drinker, 10)
+	if err := drinker.onItemUse(doubleClicked(10)); err != nil {
+		t.Fatal(err)
+	}
+	read(t, drinkerClient, itemSetSize)
+	expectSlotEmptied(t, drinkerClient, drinker)
+
+	seller, _, sellerClient, store := shopping(t, 100, 10, item.Inventory{{ID: 1, VNum: 27001, Count: 5, Cell: 0}})
+	onTheTaskbar(t, seller, 1)
+	open(t, seller, sellerClient, store)
+	if err := seller.onShop(sold(0, 5)); err != nil {
+		t.Fatal(err)
+	}
+	read(t, sellerClient, itemSetSize+pointChangeSize)
+	expectSlotEmptied(t, sellerClient, seller)
+}
+
+func expectSlotEmptied(t *testing.T, c net.Conn, s *session) {
+	t.Helper()
+	if got := read(t, c, 2); string(got) != string(protocol.EncodeQuickslotDel(0)) || len(s.taskbar) != 0 {
+		t.Fatalf("got %x, taskbar %v", got, s.taskbar)
+	}
+}
+
+// A slot that cannot be kept filled, emptied or swapped stays as it was, and the client
+// is told nothing.
+func TestATaskbarWriteThatFailsChangesNothing(t *testing.T) {
+	s, _, client := carrying(t)
+	bar := onTheTaskbar(t, s, 2)
+	bar.fail = errors.New("the database is gone")
+
+	for _, do := range []func() error{
+		func() error { return s.onQuickslotAdd(slotAdded(3, 1, 1)) },
+		func() error { return s.onQuickslotDel([]byte{0}) },
+		func() error { return s.onQuickslotSwap([]byte{0, 3}) },
+	} {
+		if err := do(); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	expectNothing(t, client)
+	if len(s.taskbar) != 1 || s.taskbar[0].item != 2 {
+		t.Fatalf("taskbar %v", s.taskbar)
+	}
+}

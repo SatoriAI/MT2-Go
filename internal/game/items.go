@@ -46,7 +46,7 @@ func (s *session) loadInventory(ctx context.Context, characterID uint32) error {
 		return err
 	}
 	s.inventory, s.gold = inv, gold
-	return nil
+	return s.loadTaskbar(ctx, characterID)
 }
 
 // onItemMove carries out a drag: an item moved, whole, to cells where all of it fits,
@@ -176,7 +176,7 @@ func (s *session) place(changed ...item.Item) error {
 	for _, it := range changed {
 		packets = append(packets, itemSet(it))
 	}
-	if err := s.conn.Send(packets...); err != nil {
+	if err := s.conn.Send(append(packets, s.followTaskbar()...)...); err != nil {
 		return err
 	}
 	if dressed {
@@ -205,9 +205,9 @@ func (s *session) itemAt(at protocol.ItemPos) (item.Item, bool) {
 	return s.inventory.At(cell)
 }
 
-// itemPackets are the packets the client sends from its inventory window. Those other
-// than a move are about what the game does not do yet, using an item, dropping it, the
-// taskbar, trading and giving to an NPC, and are dropped.
+// itemPackets are the packets the client sends from its inventory window and taskbar.
+// Those the game does not do yet, dropping an item, trading and giving to an NPC, are
+// dropped, and so is any of them still in flight after Change character.
 var itemPackets = map[protocol.ClientHeader]bool{
 	protocol.ClientItemUse: true, protocol.ClientItemDrop: true, protocol.ClientItemMove: true,
 	protocol.ClientQuickslotAdd: true, protocol.ClientQuickslotDel: true, protocol.ClientQuickslotSwap: true,

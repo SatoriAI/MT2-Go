@@ -129,7 +129,7 @@ func (s *session) onEnterGame() error {
 		protocol.EncodePhase(protocol.PhaseGame),
 		protocol.EncodeTime(s.svc.clock.Now()),
 		protocol.EncodeChannel(1),
-	}, append(append(me.appearance(), s.blockMode()), s.inventoryShown()...)...)...)
+	}, append(append(append(me.appearance(), s.blockMode()), s.inventoryShown()...), s.taskbarShown()...)...)...)
 	if err != nil {
 		return err
 	}

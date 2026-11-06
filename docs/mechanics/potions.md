@@ -2,7 +2,7 @@
 
 ## What the player sees
 
-A double-click on a red potion in the bag heals the character, and one on a blue potion restores mana. A red swirl, or a blue one, rises around the character for them and everyone near, with the potion sound for the one who drank. The stack shows one fewer, and the last one empties its cell. It works in the middle of a fight, which is what potions are for.
+A double-click on a red potion in the bag, or its key on the taskbar ([taskbar.md](taskbar.md)), heals the character, and one on a blue potion restores mana. A red swirl, or a blue one, rises around the character for them and everyone near, with the potion sound for the one who drank. The stack shows one fewer, and the last one empties its cell. It works in the middle of a fight, which is what potions are for.
 
 A potion that would do nothing isn't used up: a red one at full hit points, a blue one at full mana, or any potion once the character is dead.
 
@@ -66,5 +66,4 @@ A potion that would do nothing isn't used up: a red one at full hit points, a bl
 
 ## Not done yet
 
-- The taskbar (F1–F4): dragging a potion there sends QUICKSLOT_ADD, which is still dropped, and it needs its own stored table.
 - Potions that heal over time, automatic potions, and other usable items.

@@ -37,7 +37,7 @@ func (s *session) drink(it item.Item) error {
 	} else {
 		s.inventory.Replace(left)
 	}
-	if err := s.conn.Send(shown); err != nil {
+	if err := s.conn.Send(append([][]byte{shown}, s.followTaskbar()...)...); err != nil {
 		return err
 	}
 	s.svc.presence.drink(s.playing.vid, p)

@@ -640,3 +640,25 @@ func TestAClickNamesTheCharacter(t *testing.T) {
 		t.Fatalf("got %d, %v", vid, err)
 	}
 }
+
+// The taskbar's packets each way: a slot filled with inventory cell 2, emptied, and swapped.
+func TestTheTaskbarsPacketsAreReadAndWritten(t *testing.T) {
+	if q, err := DecodeQuickslotAdd([]byte{3, 1, 2}); err != nil || q != (QuickslotAdd{Slot: 3, Type: 1, Position: 2}) {
+		t.Fatalf("add %+v, %v", q, err)
+	}
+	if slot, err := DecodeQuickslotDel([]byte{3}); err != nil || slot != 3 {
+		t.Fatalf("del %d, %v", slot, err)
+	}
+	if a, b, err := DecodeQuickslotSwap([]byte{3, 9}); err != nil || a != 3 || b != 9 {
+		t.Fatalf("swap %d %d, %v", a, b, err)
+	}
+	for got, want := range map[string]string{
+		string(EncodeQuickslotAdd(QuickslotAdd{Slot: 3, Type: 1, Position: 2})): "1c030102",
+		string(EncodeQuickslotDel(3)):                                           "1d03",
+		string(EncodeQuickslotSwap(3, 9)):                                       "1e0309",
+	} {
+		if got != string(mustHex(t, want)) {
+			t.Errorf("got %x, want %s", got, want)
+		}
+	}
+}

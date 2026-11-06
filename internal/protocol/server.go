@@ -571,3 +571,28 @@ func EncodeShopError(e ShopError) []byte {
 	w.U8(uint8(e))
 	return w.Bytes()
 }
+
+// EncodeQuickslotAdd fills the taskbar slot: the client shows what is at position of the
+// kind its type names, and changes its bar only when told.
+func EncodeQuickslotAdd(q QuickslotAdd) []byte {
+	w := NewWriter(byte(ServerQuickslotAdd), 4)
+	w.U8(q.Slot)
+	w.U8(q.Type)
+	w.U8(q.Position)
+	return w.Bytes()
+}
+
+// EncodeQuickslotDel empties the taskbar slot.
+func EncodeQuickslotDel(slot uint8) []byte {
+	w := NewWriter(byte(ServerQuickslotDel), 2)
+	w.U8(slot)
+	return w.Bytes()
+}
+
+// EncodeQuickslotSwap swaps two taskbar slots, either of which may be empty.
+func EncodeQuickslotSwap(a, b uint8) []byte {
+	w := NewWriter(byte(ServerQuickslotSwap), 3)
+	w.U8(a)
+	w.U8(b)
+	return w.Bytes()
+}

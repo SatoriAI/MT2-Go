@@ -20,8 +20,8 @@ const (
 	ClientItemPickup      ClientHeader = 0x0F // a click on an item on the ground, or the pick-up key
 	ClientShop            ClientHeader = 0x32 // buying, selling or closing a shop, by subheader
 	ClientQuickslotAdd    ClientHeader = 0x10 // an item or skill dragged to the taskbar
-	ClientQuickslotDel    ClientHeader = 0x11
-	ClientQuickslotSwap   ClientHeader = 0x12
+	ClientQuickslotDel    ClientHeader = 0x11 // a slot dragged off the taskbar
+	ClientQuickslotSwap   ClientHeader = 0x12 // a slot dragged onto another
 	ClientItemDrop2       ClientHeader = 0x14 // an item dragged out onto the ground
 	ClientExchange        ClientHeader = 0x1B // a trade with another player, from dragging an item onto them
 	ClientItemUseToItem   ClientHeader = 0x3C // an item dropped onto another
@@ -57,6 +57,9 @@ const (
 	ServerGroundDel        ServerHeader = 0x1B // an item on the ground is gone from view
 	ServerItemOwner        ServerHeader = 0x1F // who alone may pick an item up, or nobody
 	ServerShop             ServerHeader = 0x26 // a shop opening, or why a buy or sale was refused
+	ServerQuickslotAdd     ServerHeader = 0x1C // a taskbar slot filled
+	ServerQuickslotDel     ServerHeader = 0x1D // a taskbar slot emptied
+	ServerQuickslotSwap    ServerHeader = 0x1E // two taskbar slots swapped
 	ServerWhisper          ServerHeader = 0x22
 	ServerSpecialEffect    ServerHeader = 0x72 // an effect drawn on a character, such as a potion's
 	ServerTime             ServerHeader = 0x6A

@@ -200,6 +200,14 @@ func placeFromWire(at protocol.ItemPos) (uint16, item.Wear, bool) {
 	return 0, "", false
 }
 
+// taskbarItem is the client's type for a taskbar slot that holds an inventory cell.
+const taskbarItem uint8 = 1
+
+// slotFilled tells the client the taskbar slot holds the item at the bag cell.
+func slotFilled(slot uint8, cell uint16) []byte {
+	return protocol.EncodeQuickslotAdd(protocol.QuickslotAdd{Slot: slot, Type: taskbarItem, Position: uint8(cell)}) //nolint:gosec // bag cells are under 90
+}
+
 // yangVNum is the kind the client draws yang on the ground as, labelled with its name.
 const yangVNum = 1
 
