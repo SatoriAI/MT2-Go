@@ -20,6 +20,7 @@ const (
 	ClientItemPickup      ClientHeader = 0x0F // a click on an item on the ground, or the pick-up key
 	ClientShop            ClientHeader = 0x32 // buying, selling or closing a shop, by subheader
 	ClientScriptAnswer    ClientHeader = 0x1D // the button picked in an NPC's dialog
+	ClientUseSkill        ClientHeader = 0x34 // a skill used, by the client's number for it
 	ClientQuickslotAdd    ClientHeader = 0x10 // an item or skill dragged to the taskbar
 	ClientQuickslotDel    ClientHeader = 0x11 // a slot dragged off the taskbar
 	ClientQuickslotSwap   ClientHeader = 0x12 // a slot dragged onto another

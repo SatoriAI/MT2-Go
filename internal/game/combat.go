@@ -5,9 +5,11 @@ import (
 	"math/rand/v2"
 	"time"
 
+	"github.com/SatoriAI/MT2-Go/internal/account"
 	"github.com/SatoriAI/MT2-Go/internal/combat"
 	"github.com/SatoriAI/MT2-Go/internal/item"
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
+	"github.com/SatoriAI/MT2-Go/internal/skill"
 )
 
 // attackReach is how far from its victim a blow may land: open-mt2's, a little more than
@@ -102,11 +104,32 @@ func (w *presence) attack(playerVID, vid uint32, gap time.Duration, r *rand.Rand
 	if f.lastAttacker == p && now.Sub(f.lastBlowAt) < gap {
 		return blowTooSoon
 	}
-	f.lastAttacker, f.lastBlowAt, p.char.LastFought = p, now, now
-	weapon, _ := item.Lookup(p.char.Weapon)
-	a := combat.Attacker{Level: p.char.Level, Class: p.char.Class, Stats: p.char.Stats,
-		WeaponMin: weapon.AttackMin, WeaponMax: weapon.AttackMax}
-	damage := min(combat.Damage(a, f.defender, r), f.hp)
+	f.lastAttacker, f.lastBlowAt = p, now
+	return w.strike(p, v, combat.Damage(attackerOf(p.char, now), f.defender, r), now)
+}
+
+// attackerOf is what the player's blows are made of now: their character, the weapon they
+// hold, and Enchanted Blade's bonus while it runs. Called under the lock.
+func attackerOf(c *account.Character, now time.Time) combat.Attacker {
+	weapon, _ := item.Lookup(c.Weapon)
+	a := combat.Attacker{Level: c.Level, Class: c.Class, Stats: c.Stats, WeaponMin: weapon.AttackMin,
+		WeaponMax: weapon.AttackMax}
+	if until, on := c.Buffs[skill.EnchantedBlade]; on && now.Before(until) {
+		a.Bonus = skill.Bonus(c.Intelligence, c.Skills[skill.EnchantedBlade])
+	}
+	return a
+}
+
+// strike takes damage, up to what it has left, from the living monster v for the player p,
+// a blow's or a skill's: p is told the damage, whoever targets v its hit points, and the
+// damage counts towards its drops and experience. A monster left alive turns on p; one
+// killed dies for everyone who sees it, its drops and experience given. Called under the
+// lock.
+func (w *presence) strike(p, v *present, damage int, now time.Time) blow {
+	f := v.fight
+	vid := v.add.VID
+	p.char.LastFought = now
+	damage = min(damage, f.hp)
 	f.hp -= damage
 	f.damageBy[p] += damage
 	p.send(protocol.EncodeDamage(vid, protocol.DamageNormal, int32(damage))) //nolint:gosec // at most the hit points
@@ -135,15 +158,23 @@ type death struct {
 	owner owner
 }
 
-// takeNews hands the world loop what happened since it last asked: the monsters that died,
-// the blows that landed on living ones, and the items players dropped, each with when it
-// is to be cleared away. The loop learns of them with one lock a tick.
-func (w *presence) takeNews() ([]death, []provocation, []timed) {
+// news is what happened since the world loop last asked: the monsters that died, the
+// blows that landed on living ones, the items players dropped, each with when it is to be
+// cleared away, and the buffs they started, with when each ends.
+type news struct {
+	fallen   []death
+	provoked []provocation
+	laid     []timed
+	buffs    []buffEnd
+}
+
+// takeNews hands the world loop the news, with one lock a tick.
+func (w *presence) takeNews() news {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	fallen, provoked, laid := w.fallen, w.provoked, w.laid
-	w.fallen, w.provoked, w.laid = nil, nil, nil
-	return fallen, provoked, laid
+	n := news{w.fallen, w.provoked, w.laid, w.buffs}
+	w.fallen, w.provoked, w.laid, w.buffs = nil, nil, nil, nil
+	return n
 }
 
 func within(p, o *present, reach int64) bool {

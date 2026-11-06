@@ -46,6 +46,8 @@ type timed struct {
 	at  time.Time
 }
 
+func (t timed) due() time.Time { return t.at }
+
 // dropOwner is who a dead monster's drops are kept for: the player who took the most of
 // its hit points among those still in the world and alive, the killer on a tie, so a last
 // blow does not take a drop from whoever fought it. Called under the lock.
@@ -85,13 +87,13 @@ func (s *Service) dropFrom(m *monster, d death, now time.Time) {
 	}
 }
 
-// inOrder puts t into the queue in order of when it is due. A player's drop is timed from
-// when their connection laid it, which can fall after the tick it reaches the loop in, so
-// it may be due after what the loop then drops itself; most come last, so the search is
-// from the end.
-func inOrder(queue []timed, t timed) []timed {
+// inOrder puts t into the queue in order of when it is due. What a player's connection
+// starts, a drop or a buff, is timed from then, which can fall after the tick it reaches
+// the loop in, so it may be due after what the loop then queues itself; most come last, so
+// the search is from the end.
+func inOrder[T interface{ due() time.Time }](queue []T, t T) []T {
 	i := len(queue)
-	for i > 0 && queue[i-1].at.After(t.at) {
+	for i > 0 && queue[i-1].due().After(t.due()) {
 		i--
 	}
 	return slices.Insert(queue, i, t)

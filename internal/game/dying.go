@@ -14,6 +14,7 @@ func (w *presence) die(p *present) {
 	if p.target != nil {
 		untarget(p, p.target)
 	}
+	w.endBuffs(p)
 	if lost := p.char.LoseExpOnDeath(); lost > 0 {
 		p.send(protocol.EncodePointChange(vid, protocol.PointExp, -int32(lost), int32(p.char.Exp))) //nolint:gosec // under 2^31
 	}

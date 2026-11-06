@@ -49,6 +49,8 @@ Yang lies on the ground as a drop does, with its amount in the ground item, and 
 
 What players drop is laid down by their connection under the world's lock, and its clearing is handed to the loop with the news it already takes once a tick, so an idle tick takes no more locks. Measured against main, three rounds alternately with the client closed, the moves, strolls and idle tick stayed within 3%; a first round on a busy machine had shown up to 9% either way on code the change does not touch.
 
+Skills add no field to the record's entries: a buff's end is handed to the loop with its news, into a queue in order, and a character's effects are worked out from its running buffs when it is shown, rather than kept on its entry, which would have grown every monster's too. The character gained a map of its buffs, beside its skills. Measured against main, three rounds alternately with the client closed, every benchmark stayed within 3%; a regeneration round first read up to 7% slower, and three more rounds of it alone read 0 to 3%.
+
 A move costs about 20 ns per character in the world, as the scan predicts. The world lock is held for every move, so the share of each second it is held is the moves per second times their cost:
 
 - **Today:** 100 player moves and 11 strolls a second hold the lock for 0.4 ms of each second: 0.04%.

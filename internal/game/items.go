@@ -6,6 +6,7 @@ import (
 	"github.com/SatoriAI/MT2-Go/internal/account"
 	"github.com/SatoriAI/MT2-Go/internal/item"
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
+	"github.com/SatoriAI/MT2-Go/internal/skill"
 )
 
 // Items is where the game port keeps what characters own. Each change is written as it
@@ -219,7 +220,7 @@ var itemPackets = map[protocol.ClientHeader]bool{
 
 // dress puts the weapon and armour, by vnum, 0 for none, on the player's character: their
 // blows and the bites on them use them from then on, and they and everyone who sees them
-// see the change. The player is told their new DEF when the armour changed.
+// see the change. Enchanted Blade ends with the sword taken out of hand. The player is told their new DEF when the armour changed.
 func (w *presence) dress(vid, weapon, body uint32) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -227,8 +228,11 @@ func (w *presence) dress(vid, weapon, body uint32) {
 	c := p.char
 	armourChanged := c.Body != body
 	c.Weapon, c.Body = weapon, body
+	if held, _ := item.Lookup(weapon); !held.Sword {
+		delete(c.Buffs, skill.EnchantedBlade) // it runs only with a sword in hand
+	}
 	p.info.BodyPart, p.info.WeaponPart = bodyPart(*c), weaponPart(*c)
-	update := protocol.EncodeCharacterUpdate(p.info, p.add.MoveSpeed, p.add.AttackSpeed)
+	update := protocol.EncodeCharacterUpdate(p.info, p.add, affectsOf(c))
 	p.send(update)
 	if armourChanged {
 		p.send(protocol.EncodePointChange(vid, protocol.PointDefence, 0, int32(defence(c)))) //nolint:gosec // small

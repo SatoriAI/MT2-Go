@@ -27,6 +27,7 @@ type presence struct {
 	fallen   []death                // monsters killed since the world loop last asked
 	provoked []provocation          // blows on living monsters since the world loop last asked
 	laid     []timed                // items players dropped since the world loop last asked, to clear away
+	buffs    []buffEnd              // buffs players started since the world loop last asked, to end
 	event    *event.Event           // the event running; nil for none
 	ground   map[uint32]*groundItem // items lying in the world, by vid
 }
@@ -62,9 +63,9 @@ func (p *present) appearance() [][]byte {
 	add := p.add
 	add.Dead = p.dead() // a body is shown lying until it is taken away
 	if add.Type == protocol.EntityMonster {
-		return [][]byte{protocol.EncodeCharacterAdd(add)}
+		return [][]byte{protocol.EncodeCharacterAdd(add, 0)}
 	}
-	return [][]byte{protocol.EncodeCharacterAdd(add), protocol.EncodeCharacterInfo(p.info)}
+	return [][]byte{protocol.EncodeCharacterAdd(add, affectsOf(p.char)), protocol.EncodeCharacterInfo(p.info)}
 }
 
 func (p *present) isPlayer() bool { return p.out != nil }

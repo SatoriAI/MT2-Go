@@ -103,3 +103,29 @@ func TestAnOfferIsForgottenOnChangeCharacter(t *testing.T) {
 		t.Fatalf("got %q, want the offer afresh", text)
 	}
 }
+
+// Hendra, on Weaponry with Dragon Swirl at 1, swirls the two dogs beside her: her mana
+// goes down by its cost, and both take damage.
+func TestASuraSwirlsTheDogsBesideHer(t *testing.T) {
+	h := startWith(t, []world.Spawn{{VNum: 101, X: startX + 100, Y: startY, Count: 2}})
+	hendra, _ := h.enterWorld("admin", "Hendra", 3, 6)
+	hendra.read(2 * 35) // the dogs
+	hendra.changeCharacter()
+	h.exec(`UPDATE characters SET level = 6, skill_group = 'weaponry', sp = 500 WHERE name = 'Hendra'`)
+	h.exec(`INSERT INTO skills (character_id, skill, level) SELECT id, 'dragon_swirl', 1 FROM characters WHERE name = 'Hendra'`)
+	hendra.startAgain()
+	hendra.read(2 * 35)
+
+	hendra.send(binary.LittleEndian.AppendUint32(binary.LittleEndian.AppendUint32([]byte{byte(protocol.ClientUseSkill)}, 62), 0),
+		[]byte{sequenceByte})
+
+	mana := hendra.read(pointChangeSize)
+	if mana[8] != byte(protocol.PointSP) || binary.LittleEndian.Uint32(mana[9:]) != uint32(1<<32-57) { // -57
+		t.Fatalf("got %x, want 57 mana spent", mana)
+	}
+	for range 2 {
+		if hit := hendra.read(damageSize); hit[0] != byte(protocol.ServerDamage) {
+			t.Fatalf("got %x, want a dog struck", hit)
+		}
+	}
+}
