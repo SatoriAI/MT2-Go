@@ -40,7 +40,7 @@ Every game mechanic has a page in `docs/mechanics/`: what the client does, the e
 - One purpose per pull request, and about 400 changed lines of handwritten code at most. Generated files, lockfiles, fixtures and mechanical moves do not count.
 - Title it by its concrete outcome. Open with a short summary of what is now true, why it matters and the key design decision.
 - Group the changes by behaviour or package, not by file or commit.
-- Report evidence as **Verified**, **Tested**, **Measured** or **Not checked**, and name the blind spots, for example "not tried with the real client".
+- Report evidence as **Verified**, **Tested**, **Measured** or **Not checked**, and name the blind spots, for example "not tried with MT2-Godot".
 - Point reviewers at the risks: what a hostile client could do, data and migration concerns, compatibility with the client, and what is deliberately left out.
 - Record tangential findings as follow-ups instead of widening the change. Answer each review comment with accept, reject or defer, and a reason.
 - Do not merge with red or pending checks, unresolved blocking comments or conflicts.

@@ -1,6 +1,6 @@
 # The original client is adapted to, not modelled
 
-The server talks to the original TMP4 client today, and a client of our own is being built to replace it. The server's model therefore follows the game, not that client's protocol.
+The server began by talking to the original TMP4 client, and its own client, MT2-Godot, now speaks the same protocol. The server's model follows the game, not that client's protocol.
 
 ## What the old client imposes, and where it stops
 
@@ -10,7 +10,9 @@ So the database and `internal/account` hold names (`'sura'`, `'female'`, `'jinno
 
 ## When it goes
 
-While both clients exist, the server speaks both: our client gets its own protocol, with separate class and sex and names rather than numbers, and needs no such table. When the original client is no longer supported, `wire.go` and the TMP4 layouts in `internal/protocol` are deleted, and nothing else should have to change but `cmd/mt2go`, which refuses event names the old client cannot show (`ClientCanShow`) and drops that check with it.
+On 2026-11-06 we decided that the original client is no longer a goal: the protocol is the contract between this server and MT2-Godot, and either side may add or change a packet, landing in both at once with each side's test vector. The TMP4 layouts stay where they serve, and the original client still connects today, but nothing here waits on it any more.
+
+`wire.go` goes when the protocol stops carrying the original's numbers: once a packet names class, sex or kingdom rather than numbering them, its conversion goes with it, and nothing else should have to change but `cmd/mt2go`, which refuses event names the old client cannot show (`ClientCanShow`) and can drop that check once no client it serves needs it.
 
 ## The lesson that came with it
 
