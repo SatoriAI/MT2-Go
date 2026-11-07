@@ -18,13 +18,11 @@ type spawnAt struct {
 	count  int
 }
 
-// The village NPCs stand at the client's own minimap marks for them
-// (locale/pl/map/metin2_map_*_point.txt): weapons 9001, armour 9002, general store 9003,
-// the storekeeper 9005, the old lady 9006, and the fishermen 9009. The sura's teachers and
-// the blacksmith 20016, which the marks leave out, are this server's: a few steps east of
-// the old lady, not checked against the terrain. The monster areas are this server's too: open ground 10000 to 30000 from each start and 7000 from its
-// shops, where the client's terrain (attr.atr, height.raw) has no blocked or water cell
-// within reach of a stroll and only gentle slopes (docs/mechanics/monsters.md).
+// The village NPCs stand at the client's minimap marks (locale/pl/map/*_point.txt). The
+// sura's teachers and the blacksmith, which the marks leave out, stand east of the old
+// lady at this server's spots, not checked against the terrain. The monster areas are on
+// open, gentle ground of the client's terrain: a ring 10000 to 30000 from each start, and
+// one of stronger kinds 30000 to 55000 out (docs/mechanics/monsters.md).
 var spawnsByMap = map[string][]spawnAt{
 	"metin2_map_a1": {
 		{vnum: 9001, x: 59600, y: 55700}, {vnum: 9002, x: 59600, y: 60500}, {vnum: 9003, x: 67800, y: 56500},
@@ -37,6 +35,10 @@ var spawnsByMap = map[string][]spawnAt{
 		{vnum: 101, x: 64000, y: 80500, spread: 2000, count: 6}, {vnum: 101, x: 83500, y: 71500, spread: 2000, count: 6},
 		{vnum: 102, x: 80500, y: 58000, spread: 2000, count: 6}, {vnum: 103, x: 53500, y: 88000, spread: 2000, count: 6},
 		{vnum: 108, x: 83500, y: 82000, spread: 2000, count: 6},
+		{vnum: 104, x: 46000, y: 95500, spread: 2000, count: 6},
+		{vnum: 105, x: 35500, y: 92500, spread: 2000, count: 3}, {vnum: 109, x: 35500, y: 92500, spread: 2000, count: 3},
+		{vnum: 110, x: 26500, y: 50500, spread: 2000, count: 3}, {vnum: 111, x: 26500, y: 50500, spread: 2000, count: 3},
+		{vnum: 114, x: 20500, y: 43000, spread: 2000, count: 6},
 	},
 	"metin2_map_b1": {
 		{vnum: 9001, x: 67600, y: 66200}, {vnum: 9002, x: 67600, y: 61700}, {vnum: 9003, x: 59000, y: 68900},
@@ -48,6 +50,10 @@ var spawnsByMap = map[string][]spawnAt{
 		{vnum: 101, x: 64000, y: 44500, spread: 2000, count: 6}, {vnum: 101, x: 65500, y: 35500, spread: 2000, count: 6},
 		{vnum: 102, x: 38500, y: 55000, spread: 2000, count: 6}, {vnum: 103, x: 58000, y: 31000, spread: 2000, count: 6},
 		{vnum: 108, x: 88000, y: 64000, spread: 2000, count: 6},
+		{vnum: 104, x: 85000, y: 73000, spread: 2000, count: 6},
+		{vnum: 105, x: 35500, y: 28000, spread: 2000, count: 3}, {vnum: 109, x: 35500, y: 28000, spread: 2000, count: 3},
+		{vnum: 110, x: 37000, y: 91000, spread: 2000, count: 3}, {vnum: 111, x: 37000, y: 91000, spread: 2000, count: 3},
+		{vnum: 114, x: 77500, y: 7000, spread: 2000, count: 6},
 	},
 	"metin2_map_c1": {
 		{vnum: 9001, x: 43000, y: 60800}, {vnum: 9002, x: 40300, y: 58500}, {vnum: 9003, x: 38300, y: 69300},
@@ -59,6 +65,10 @@ var spawnsByMap = map[string][]spawnAt{
 		{vnum: 101, x: 56500, y: 67000, spread: 2000, count: 6}, {vnum: 101, x: 61000, y: 77500, spread: 2000, count: 6},
 		{vnum: 102, x: 22000, y: 70000, spread: 2000, count: 6}, {vnum: 103, x: 40000, y: 94000, spread: 2000, count: 6},
 		{vnum: 108, x: 20500, y: 88000, spread: 2000, count: 6},
+		{vnum: 104, x: 73000, y: 67000, spread: 2000, count: 6},
+		{vnum: 105, x: 64000, y: 43000, spread: 2000, count: 3}, {vnum: 109, x: 64000, y: 43000, spread: 2000, count: 3},
+		{vnum: 110, x: 35500, y: 31000, spread: 2000, count: 3}, {vnum: 111, x: 35500, y: 31000, spread: 2000, count: 3},
+		{vnum: 114, x: 67000, y: 116500, spread: 2000, count: 6},
 	},
 }
 

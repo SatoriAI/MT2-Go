@@ -93,7 +93,7 @@ var gear = append(append([]Drop{}, potions...),
 	Drop{VNum: 11800, Count: 1, Chance: 20})
 
 // The materials upgrades take from +5 on: wolves leave a claw, for weapons, and boars a
-// tooth, for armour, each 5 times in 100.
+// tooth, for armour, each 5 times in 100. Bears and tigers leave the first gear.
 var (
 	wolfDrops      = append(append([]Drop{}, potions...), Drop{VNum: 30028, Count: 1, Chance: 500})
 	alphaWolfDrops = append(append([]Drop{}, gear...), Drop{VNum: 30028, Count: 1, Chance: 500})
@@ -133,6 +133,30 @@ var protos = map[uint16]Proto{
 		Level: 7, MaxHP: 248, Vitality: 10, Armour: 11, Exp: 87,
 		Strength: 14, DamageMin: 30, DamageMax: 37, AttackRange: 175,
 		RegenCycle: 6, RegenPercent: 7, Drops: boarDrops, Yang: Yang{Chance: 6000, Min: 20, Max: 40}},
+	104: {VNum: 104, Name: "Nieb. Wilk", Kind: Monster, MoveSpeed: 100, AttackSpeed: 100,
+		Level: 6, MaxHP: 225, Vitality: 6, Armour: 9, Exp: 75,
+		Strength: 9, DamageMin: 25, DamageMax: 38, AttackRange: 175,
+		RegenCycle: 6, RegenPercent: 7, Drops: wolfDrops, Yang: Yang{Chance: 6000, Min: 15, Max: 30}},
+	105: {VNum: 105, Name: "Nieb. Alfa Wilk", Kind: Monster, MoveSpeed: 100, AttackSpeed: 80,
+		Level: 9, MaxHP: 297, Vitality: 16, Armour: 13, Exp: 111,
+		Strength: 14, DamageMin: 33, DamageMax: 41, AttackRange: 175,
+		RegenCycle: 6, RegenPercent: 7, Drops: alphaWolfDrops, Yang: Yang{Chance: 6000, Min: 20, Max: 40}},
+	109: {VNum: 109, Name: "Czerw. Dzik", Kind: Monster, MoveSpeed: 100, AttackSpeed: 80,
+		Level: 10, MaxHP: 389, Vitality: 13, Armour: 14, Exp: 148,
+		Strength: 22, DamageMin: 35, DamageMax: 43, AttackRange: 175,
+		RegenCycle: 3, RegenPercent: 7, Drops: boarDrops, Yang: Yang{Chance: 6000, Min: 30, Max: 55}},
+	110: {VNum: 110, Name: "Niedźwiedź", Kind: Monster, MoveSpeed: 70, AttackSpeed: 100,
+		Level: 12, MaxHP: 381, Vitality: 20, Armour: 16, Exp: 147,
+		Strength: 20, DamageMin: 39, DamageMax: 47, AttackRange: 175,
+		RegenCycle: 6, RegenPercent: 7, Drops: gear, Yang: Yang{Chance: 6000, Min: 25, Max: 45}},
+	111: {VNum: 111, Name: "Niedźw. Grizzly", Kind: Monster, MoveSpeed: 100, AttackSpeed: 100,
+		Level: 15, MaxHP: 572, Vitality: 34, Armour: 19, Exp: 220,
+		Strength: 14, DamageMin: 44, DamageMax: 53, AttackRange: 175,
+		RegenCycle: 6, RegenPercent: 7, Drops: gear, Yang: Yang{Chance: 6000, Min: 40, Max: 70}},
+	114: {VNum: 114, Name: "Tygrys", Kind: Monster, MoveSpeed: 100, AttackSpeed: 100,
+		Level: 18, MaxHP: 585, Vitality: 27, Armour: 22, Exp: 365,
+		Strength: 18, DamageMin: 49, DamageMax: 60, AttackRange: 175,
+		RegenCycle: 6, RegenPercent: 12, Drops: gear, Yang: Yang{Chance: 6000, Min: 35, Max: 60}},
 
 	9001:  {VNum: 9001, Name: "Handlarz Bronią", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100, Sells: weapons},
 	9002:  {VNum: 9002, Name: "Handlarz Zbrojami", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100, Sells: armours},
