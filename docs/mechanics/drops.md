@@ -47,6 +47,10 @@ Seen from the real client: a red potion laid at (977491, 272599) is `1a 53ea0e00
   | Wilk (102) | the same, and a Szpon Wilka (30028), 5 in 100 |
   | Alfa Wilk (103) | the potions; each class's first weapon and armour, 2 in 1,000 each, about 2 in 100 for any one; and a Szpon Wilka, 5 in 100 |
   | Dzik (108) | the potions and the first gear, as Alfa Wilk, and a Ząb Dzika (30004), 5 in 100 |
+  | Nieb. Wilk (104) | as Wilk |
+  | Nieb. Alfa Wilk (105) | as Alfa Wilk |
+  | Czerw. Dzik (109) | as Dzik |
+  | Niedźwiedź (110), Niedźw. Grizzly (111), Tygrys (114) | the potions and the first gear |
 
   The claw and the tooth are the materials of the later upgrades ([upgrading.md](upgrading.md)).
 
@@ -58,6 +62,14 @@ Seen from the real client: a red potion laid at (977491, 272599) is `1a 53ea0e00
   | Wilk (102) | 8 to 18, 6 in 10 |
   | Alfa Wilk (103) | 10 to 25, 6 in 10 |
   | Dzik (108) | 20 to 40, 6 in 10 |
+  | Nieb. Wilk (104) | 15 to 30, 6 in 10 |
+  | Nieb. Alfa Wilk (105) | 20 to 40, 6 in 10 |
+  | Czerw. Dzik (109) | 30 to 55, 6 in 10 |
+  | Niedźwiedź (110) | 25 to 45, 6 in 10 |
+  | Niedźw. Grizzly (111) | 40 to 70, 6 in 10 |
+  | Tygrys (114) | 35 to 60, 6 in 10 |
+
+  The amounts are this server's, below the client's mob_proto gold and rising with it: the tiger leaves less than the grizzly there too.
 
   A small red potion costs 32 in a shop, about six dogs.
 - **Who it is kept for:**
@@ -95,7 +107,7 @@ Seen from the real client: a red potion laid at (977491, 272599) is `1a 53ea0e00
 
 ## What proves it
 
-- `internal/mob/mob_test.go`: every drop an item the game has, in a count it holds.
+- `internal/mob/mob_test.go`: every drop an item the game has, in a count it holds; the wolves and boars, blue and red ones too, leaving the materials of upgrades.
 - `internal/item/item_test.go`: an item picked up joining its stack or taking a free cell.
 - `internal/protocol/protocol_test.go`: GROUND_ADD, GROUND_DEL and OWNERSHIP byte for byte; PICKUP cut and read as the real client sent it.
 - `internal/store/items_test.go`: a new item and a stack's count kept.
