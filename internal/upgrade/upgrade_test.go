@@ -29,11 +29,13 @@ func TestASwordIsUpgradedByTheVeteransTable(t *testing.T) {
 	}
 }
 
-// Armour takes a boar's tooth where a weapon takes a claw.
+// Armour, a helmet and shoes take a boar's tooth where a weapon takes a claw.
 func TestArmourTakesABoarsTooth(t *testing.T) {
-	p, _ := item.Lookup(11604)
-	if got, _ := Of(p); got.Material != WildBoarTooth || got.Count != 1 || got.Into != 11605 {
-		t.Fatalf("%+v", got)
+	for _, vnum := range []uint32{11604, 12484, 15004} {
+		p, _ := item.Lookup(vnum)
+		if got, _ := Of(p); got.Material != WildBoarTooth || got.Count != 1 || got.Into != vnum+1 {
+			t.Errorf("%d: %+v", vnum, got)
+		}
 	}
 }
 

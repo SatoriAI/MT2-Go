@@ -179,10 +179,11 @@ func textFromClient(text string) string {
 
 // inventoryWindow is the client's number for the inventory among its item windows
 // (GameType.h, INVENTORY): its cells 0 to 89 are the game's own, and what is worn is in
-// the cells after them, the body at 90 and the weapon at 94.
+// the cells after them, by the client's WEAR_ places: the body at 90, the head at 91, the
+// feet at 92 and the weapon at 94 (ItemData.h).
 const inventoryWindow uint8 = 1
 
-var wornCells = map[item.Wear]uint16{item.Body: 90, item.Weapon: 94}
+var wornCells = map[item.Wear]uint16{item.Body: 90, item.Head: 91, item.Feet: 92, item.Weapon: 94}
 
 // placeFromWire returns where a position the client names is: an inventory cell, or
 // where an item is worn. False for another window, or a cell the game does not use.

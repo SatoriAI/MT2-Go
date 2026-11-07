@@ -194,9 +194,20 @@ func (s *session) place(changed ...item.Item) error {
 // dress puts what the inventory has worn on the character, for the fights and for
 // everyone who sees them.
 func (s *session) dress() {
-	weapon, _ := s.inventory.WornIn(item.Weapon)
-	body, _ := s.inventory.WornIn(item.Body)
-	s.svc.presence.dress(s.playing.vid, weapon.VNum, body.VNum)
+	s.svc.presence.dress(s.playing.vid, outfitOf(s.inventory))
+}
+
+// outfit is what a character wears, each by vnum, 0 for nothing.
+type outfit struct {
+	weapon, body, head, feet uint32
+}
+
+func outfitOf(inv item.Inventory) outfit {
+	worn := func(place item.Wear) uint32 {
+		it, _ := inv.WornIn(place)
+		return it.VNum
+	}
+	return outfit{weapon: worn(item.Weapon), body: worn(item.Body), head: worn(item.Head), feet: worn(item.Feet)}
 }
 
 // itemAt returns the item at a position the client names, in a cell or worn.
@@ -221,17 +232,21 @@ var itemPackets = map[protocol.ClientHeader]bool{
 	protocol.ClientGiveItem: true, protocol.ClientItemPickup: true,
 }
 
-// dress puts the weapon and armour, by vnum, 0 for none, on the player's character: their
-// blows and the bites on them use them from then on, and they and everyone who sees them
-// see the change. Enchanted Blade ends with the sword taken out of hand. The player is told their new DEF when the armour changed.
-func (w *presence) dress(vid, weapon, body uint32) {
+// dress puts the outfit on the player's character: their blows and the bites on them use
+// it from then on, and they and everyone who sees them see the change, at the speed their
+// shoes give. Enchanted Blade ends with the sword taken out of hand. The player is told
+// their new DEF when what they wear against bites changed, and their speed when their
+// shoes did.
+func (w *presence) dress(vid uint32, o outfit) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	p := w.all[vid]
 	c := p.char
-	armourChanged := c.Body != body
-	c.Weapon, c.Body = weapon, body
-	if held, _ := item.Lookup(weapon); !held.Sword {
+	armourChanged := c.Body != o.body || c.Head != o.head || c.Feet != o.feet
+	shoesChanged := c.Feet != o.feet
+	c.Weapon, c.Body, c.Head, c.Feet = o.weapon, o.body, o.head, o.feet
+	p.add.MoveSpeed = moveSpeed(c)
+	if held, _ := item.Lookup(o.weapon); !held.Sword {
 		delete(c.Buffs, skill.EnchantedBlade) // it runs only with a sword in hand
 	}
 	p.info.BodyPart, p.info.WeaponPart = bodyPart(*c), weaponPart(*c)
@@ -239,6 +254,9 @@ func (w *presence) dress(vid, weapon, body uint32) {
 	p.send(update)
 	if armourChanged {
 		p.send(protocol.EncodePointChange(vid, protocol.PointDefence, 0, int32(defence(c)))) //nolint:gosec // small
+	}
+	if shoesChanged {
+		p.send(protocol.EncodePointChange(vid, protocol.PointMoveSpeed, 0, int32(p.add.MoveSpeed)))
 	}
 	toViewers(p, update)
 }
@@ -249,16 +267,26 @@ func defence(c *account.Character) uint32 {
 	return uint32(c.Level) + uint32(c.Vitality) + uint32(armourOf(c))
 }
 
-// armourOf is the armour a character sets against a bite: their body armour's and their
-// buffs'.
+// armourOf is the armour a character sets against a bite: their body armour's, helmet's
+// and shoes', and their buffs'.
 func armourOf(c *account.Character) uint16 {
-	armour, _ := item.Lookup(c.Body)
-	return armour.Defence + buffBonus(c, skill.Defence)
+	defence := buffBonus(c, skill.Defence)
+	for _, vnum := range []uint32{c.Body, c.Head, c.Feet} {
+		worn, _ := item.Lookup(vnum)
+		defence += worn.Defence
+	}
+	return defence
+}
+
+// moveSpeed is the speed the character moves at: everyone's, and what their shoes add.
+func moveSpeed(c *account.Character) uint8 {
+	points, _ := c.Points()
+	shoes, _ := item.Lookup(c.Feet)
+	return points.MoveSpeed + shoes.MoveSpeed
 }
 
 // wear puts on the character what the inventory has worn, as it enters the world.
 func wear(c *account.Character, inv item.Inventory) {
-	weapon, _ := inv.WornIn(item.Weapon)
-	body, _ := inv.WornIn(item.Body)
-	c.Weapon, c.Body = weapon.VNum, body.VNum
+	o := outfitOf(inv)
+	c.Weapon, c.Body, c.Head, c.Feet = o.weapon, o.body, o.head, o.feet
 }

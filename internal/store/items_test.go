@@ -330,3 +330,23 @@ func TestYangIsSpentUpToWhatTheCharacterHas(t *testing.T) {
 		t.Fatalf("has %d", gold)
 	}
 }
+
+// A helmet and shoes are kept worn on the head and feet.
+func TestAHelmetAndShoesAreKeptWorn(t *testing.T) {
+	s, cid := hendrasItems(t)
+	s.mustOrder(t, item.Order{Kind: item.Give, VNum: 12480, Count: 1})
+	s.mustOrder(t, item.Order{Kind: item.Give, VNum: 15000, Count: 1})
+	inv, _ := s.mustApply(t, cid)
+	inv[0].Worn, inv[1].Worn = item.Head, item.Feet
+
+	if err := s.Place(context.Background(), inv...); err != nil {
+		t.Fatal(err)
+	}
+
+	got, _, _ := s.Owned(context.Background(), "Hendra")
+	helmet, _ := got.WornIn(item.Head)
+	shoes, _ := got.WornIn(item.Feet)
+	if len(got) != 2 || helmet.VNum != 12480 || shoes.VNum != 15000 {
+		t.Fatalf("kept %+v", got)
+	}
+}

@@ -1,6 +1,7 @@
 package mob
 
 import (
+	"maps"
 	"slices"
 	"testing"
 
@@ -125,5 +126,19 @@ func TestOnlyTheBlacksmithUpgrades(t *testing.T) {
 		if p.Upgrades != (vnum == 20016) || (p.Upgrades && p.Kind != NPC) {
 			t.Errorf("%d: %+v", vnum, p)
 		}
+	}
+}
+
+// The armour trader sells the four armours along the top row and, on the third row below
+// them, the four helmets and the shoes.
+func TestTheArmourTraderSellsHelmetsAndShoesBelowTheArmours(t *testing.T) {
+	trader, _ := Lookup(9002)
+	cells := map[uint32]uint8{}
+	for _, w := range trader.Sells {
+		cells[w.VNum] = w.Cell
+	}
+	want := map[uint32]uint8{11200: 0, 11400: 1, 11600: 2, 11800: 3, 12200: 10, 12340: 11, 12480: 12, 12620: 13, 15000: 14}
+	if !maps.Equal(cells, want) {
+		t.Fatalf("sells %v", cells)
 	}
 }

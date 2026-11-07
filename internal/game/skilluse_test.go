@@ -338,7 +338,7 @@ func TestDressingKeepsTheBladesGlow(t *testing.T) {
 	}
 	read(t, client, pointChangeSize+updateSize)
 
-	s.svc.presence.dress(1000, 10, 0)
+	s.svc.presence.dress(1000, outfit{weapon: 10})
 
 	expectGlow(t, client, true)
 }
@@ -351,7 +351,7 @@ func TestTakingTheSwordOffEndsTheBlade(t *testing.T) {
 	}
 	read(t, client, pointChangeSize+updateSize)
 
-	s.svc.presence.dress(1000, 0, 0)
+	s.svc.presence.dress(1000, outfit{})
 
 	expectGlow(t, client, false)
 	if c := s.svc.presence.all[1000].char; len(c.Buffs) != 0 {
