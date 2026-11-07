@@ -341,3 +341,34 @@ func DecodeUseSkill(body []byte) (UseSkill, error) {
 	u := UseSkill{VNum: r.U32(), Target: r.U32()}
 	return u, r.Err()
 }
+
+// GiveItem is an item dragged onto an NPC: the NPC, where the item is, and how many of it.
+type GiveItem struct {
+	To    uint32
+	Pos   ItemPos
+	Count uint8
+}
+
+// DecodeGiveItem reads GIVE_ITEM.
+func DecodeGiveItem(body []byte) (GiveItem, error) {
+	r := NewReader(body)
+	g := GiveItem{To: r.U32(), Pos: r.itemPos(), Count: r.U8()}
+	return g, r.Err()
+}
+
+// RefineCancel is the cell and type the refine dialog sends when it is closed without an
+// upgrade.
+const RefineCancel = 255
+
+// Refine is an answer from the refine dialog: the bag cell of the item to upgrade and the
+// type the dialog was opened with, or RefineCancel for both.
+type Refine struct {
+	Cell, Type uint8
+}
+
+// DecodeRefine reads REFINE.
+func DecodeRefine(body []byte) (Refine, error) {
+	r := NewReader(body)
+	q := Refine{Cell: r.U8(), Type: r.U8()}
+	return q, r.Err()
+}

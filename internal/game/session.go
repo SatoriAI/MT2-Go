@@ -103,6 +103,7 @@ type session struct {
 	inventory item.Inventory      // what playing owns, read on Start
 	gold      uint32              // playing's yang, read with the inventory and kept as it changes
 	shop      uint16              // the kind of the shopkeeper whose shop is open, 0 for none
+	upgrading *upgrading          // the item given a blacksmith, whose refine dialog is open
 	taskbar   map[uint8]shownSlot // playing's taskbar, by slot, read with the inventory
 	talking   *talk               // what the NPC the player talks to asked them, or nil
 	claim     *claim              // this connection's hold on playing
@@ -121,6 +122,7 @@ type session struct {
 var inFlightAfterLeaving = map[protocol.ClientHeader]bool{
 	protocol.ClientMove: true, protocol.ClientChat: true, protocol.ClientWhisper: true,
 	protocol.ClientAttack: true, protocol.ClientTarget: true, protocol.ClientOnClick: true, protocol.ClientShop: true, protocol.ClientScriptAnswer: true, protocol.ClientUseSkill: true,
+	protocol.ClientRefine: true,
 }
 
 func (s *session) Open() error { return s.conn.Send(s.sync.Greeting()...) }
@@ -189,6 +191,10 @@ func (s *session) Handle(ctx context.Context, f protocol.Frame) error {
 		return s.onItemPickup(f.Body)
 	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientItemDrop2:
 		return s.onItemDrop(f.Body)
+	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientGiveItem:
+		return s.onGiveItem(f.Body)
+	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientRefine:
+		return s.onRefine(ctx, f.Body)
 	case s.phase == protocol.PhaseGame && itemPackets[f.Header]:
 		s.conn.Log().Debug("item packet not handled yet", "header", byte(f.Header))
 		return nil

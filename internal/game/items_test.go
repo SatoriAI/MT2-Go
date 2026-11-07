@@ -22,6 +22,18 @@ type keptItems struct {
 	gone  []int64
 	gold  uint32
 	fail  error
+	// what the last upgrade kept: the item and the stacks of material spent
+	upgraded item.Item
+	spent    []item.Item
+}
+
+func (k *keptItems) Upgrade(_ context.Context, _, cost uint32, upgraded item.Item, spent []item.Item) (uint32, error) {
+	if k.fail != nil {
+		return 0, k.fail
+	}
+	k.gold -= cost
+	k.upgraded, k.spent = upgraded, spent
+	return k.gold, nil
 }
 
 func (k *keptItems) Gold(context.Context, uint32) (uint32, error) { return k.gold, k.fail }

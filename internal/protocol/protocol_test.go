@@ -737,3 +737,41 @@ func TestACharactersEffectsGoInItsAddAndUpdate(t *testing.T) {
 		t.Fatalf("UPDATE effects %x", got)
 	}
 }
+
+// GIVE_ITEM names the NPC, the item's place and its count, then the sequence byte.
+func TestAGiveNamesTheNPCAndTheItem(t *testing.T) {
+	frame, used, err := NextFrame(mustHex(t, "53"+"07000000"+"01"+"0c00"+"01"+"af"))
+	if err != nil || used != 10 {
+		t.Fatalf("framed %d, %v", used, err)
+	}
+	if g, err := DecodeGiveItem(frame.Body); err != nil || g != (GiveItem{To: 7, Pos: ItemPos{Window: 1, Cell: 12}, Count: 1}) {
+		t.Fatalf("got %+v, %v", g, err)
+	}
+}
+
+// REFINE names the bag cell and the dialog's type, then the sequence byte; closing the
+// dialog sends 255 for both.
+func TestARefineNamesTheCellAndType(t *testing.T) {
+	frame, used, err := NextFrame(mustHex(t, "60"+"0c"+"05"+"af"))
+	if err != nil || used != 4 {
+		t.Fatalf("framed %d, %v", used, err)
+	}
+	if q, err := DecodeRefine(frame.Body); err != nil || q != (Refine{Cell: 12, Type: RefineNoQuestion}) {
+		t.Fatalf("got %+v, %v", q, err)
+	}
+	if q, _ := DecodeRefine(mustHex(t, "ffff")); q != (Refine{Cell: RefineCancel, Type: RefineCancel}) {
+		t.Fatalf("closed: %+v", q)
+	}
+}
+
+// REFINE_INFORMATION_NEW is 60 bytes: type, cell, the kinds from and into, the count of
+// materials, cost, chance, and five places of material, the unused ones empty.
+func TestTheRefineDialogIsSixtyBytes(t *testing.T) {
+	got := EncodeRefineInfo(RefineInfo{Type: RefineMayDowngrade, Cell: 12, From: 14, Into: 15, Cost: 3000, Chance: 60,
+		Materials: []Material{{VNum: 30028, Count: 1}}})
+	want := mustHex(t, "77"+"02"+"0c"+"0e000000"+"0f000000"+"01"+"b80b0000"+"3c000000"+
+		"4c750000"+"01000000"+strings.Repeat("00", 32))
+	if !bytes.Equal(got, want) {
+		t.Fatalf("got  %x\nwant %x", got, want)
+	}
+}

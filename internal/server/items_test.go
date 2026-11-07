@@ -107,7 +107,7 @@ func TestTheServerRefusesToStartWithItemsOfKindsItDoesNotHave(t *testing.T) {
 		INSERT INTO accounts (name, password_hash) VALUES ('admin', 'x');
 		INSERT INTO characters (account_id, slot, name, class, sex, strength, vitality, dexterity, intelligence, x, y)
 		VALUES (1, 0, 'Hendra', 'sura', 'female', 5, 3, 3, 5, 0, 0);
-		INSERT INTO items (character_id, vnum, count, cell) VALUES (1, 11, 1, 0)`); err != nil {
+		INSERT INTO items (character_id, vnum, count, cell) VALUES (1, 20, 1, 0)`); err != nil {
 		t.Fatal(err)
 	}
 
@@ -116,7 +116,7 @@ func TestTheServerRefusesToStartWithItemsOfKindsItDoesNotHave(t *testing.T) {
 	err = Serve(serving, Ports{Auth: listen(t), Game: listen(t)}, pool, nil,
 		config.Config{GamePublic: netip.MustParseAddrPort("127.0.0.1:1")}, slog.New(slog.DiscardHandler))
 
-	if err == nil || !strings.Contains(err.Error(), "[11]") {
+	if err == nil || !strings.Contains(err.Error(), "[20]") {
 		t.Fatalf("started with %v", err)
 	}
 }

@@ -28,6 +28,7 @@ const (
 	ClientExchange        ClientHeader = 0x1B // a trade with another player, from dragging an item onto them
 	ClientItemUseToItem   ClientHeader = 0x3C // an item dropped onto another
 	ClientGiveItem        ClientHeader = 0x53 // an item dragged onto an NPC
+	ClientRefine          ClientHeader = 0x60 // an upgrade asked for in the refine dialog, or the dialog closed
 	ClientWhisper         ClientHeader = 0x13
 	ClientOnClick         ClientHeader = 0x1A // a click on a character, for talking to it
 	ClientTarget          ClientHeader = 0x3D // a character picked as target, or 0 for none
@@ -73,6 +74,7 @@ const (
 	ServerDamage           ServerHeader = 0x87 // damage dealt, drawn over the victim
 	ServerSkillLevels      ServerHeader = 0x4C // every skill's level, by the client's number for it
 	ServerScript           ServerHeader = 0x2D // an NPC's dialog: text, buttons
+	ServerRefineInfo       ServerHeader = 0x77 // the refine dialog: what upgrading an item takes
 	ServerChangeSkillGroup ServerHeader = 0x70 // the skill group chosen
 	ServerCharacterList    ServerHeader = 0x20 // LOGIN_SUCCESS4: four character slots
 	ServerEmpire           ServerHeader = 0x5A

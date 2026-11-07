@@ -43,8 +43,12 @@ Seen from the real client: a red potion laid at (977491, 272599) is `1a 53ea0e00
 
   | Monster | Drops |
   |---|---|
-  | Dziki Pies (101), Wilk (102) | red potion, 8 in 100; blue potion, 8 in 100 |
-  | Alfa Wilk (103), Dzik (108) | the same, and each class's first weapon and armour, 2 in 1,000 each: about 2 in 100 for any one |
+  | Dziki Pies (101) | red potion, 8 in 100; blue potion, 8 in 100 |
+  | Wilk (102) | the same, and a Szpon Wilka (30028), 5 in 100 |
+  | Alfa Wilk (103) | the potions; each class's first weapon and armour, 2 in 1,000 each, about 2 in 100 for any one; and a Szpon Wilka, 5 in 100 |
+  | Dzik (108) | the potions and the first gear, as Alfa Wilk, and a Ząb Dzika (30004), 5 in 100 |
+
+  The claw and the tooth are the materials of the later upgrades ([upgrading.md](upgrading.md)).
 
 - **Yang:** each monster kind has a chance in 10,000 of leaving an amount from its least to its most, rolled once as it dies, after its items, and multiplied by a running event, rounded down ([events.md](events.md)).
 

@@ -58,6 +58,7 @@ var clientFrames = map[ClientHeader]frameSpec{
 	ClientExchange:        {size: 10, sequenced: true},
 	ClientItemUseToItem:   {size: 7, sequenced: true},
 	ClientGiveItem:        {size: 9, sequenced: true},
+	ClientRefine:          {size: 3, sequenced: true},
 	ClientItemPickup:      {size: 5, sequenced: true},
 	ClientScriptAnswer:    {size: 2, sequenced: true},
 	ClientUseSkill:        {size: 9, sequenced: true},

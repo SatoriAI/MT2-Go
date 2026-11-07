@@ -56,6 +56,8 @@ The client's SHOP is the one packet framed by its subheader. A subheader the ser
   | Niebieska Mikstura(M) (27004) | 96 | 24 |
   | the first weapons (10, 1000, 2000, 3000, 7000) | 100 | 0 |
   | the first armours (11200, 11400, 11600, 11800) | 3000 | 600 |
+  | their grades +1 to +9 ([upgrading.md](upgrading.md)) | not sold | a weapon 20 at +1 to 150 at +9; armour 1000 at +1 to 16000 at +9 |
+  | Szpon Wilka (30028), Ząb Dzika (30004) | not sold | 100 |
 
   - **The price** is the client's item_proto shop price, but 100 for each first weapon, which it prices at nothing or 100.
   - **What a shop pays** is the client's sell value divided by 5, exactly what the tooltip shows. A gate test checks it is never more than the price, so buying and selling back never makes yang.

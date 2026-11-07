@@ -634,3 +634,52 @@ func EncodeChangeSkillGroup(group uint8) []byte {
 	w.U8(group)
 	return w.Bytes()
 }
+
+// The refine dialog's types this server opens it with: the client asks no confirmation
+// for RefineNoQuestion and warns of a lower grade for RefineMayDowngrade.
+const (
+	RefineMayDowngrade uint8 = 2
+	RefineNoQuestion   uint8 = 5
+)
+
+// RefineMaterials is the most kinds of material the refine dialog lists.
+const RefineMaterials = 5
+
+// Material is a count of a kind an upgrade takes.
+type Material struct {
+	VNum  uint32
+	Count uint32
+}
+
+// RefineInfo is what the refine dialog shows for the item in bag cell Cell: what it
+// becomes, for Cost yang and the materials, with a Chance in 100. Type decides the
+// dialog's question, and the client sends it back.
+type RefineInfo struct {
+	Type, Cell uint8
+	From, Into uint32
+	Cost       uint32
+	Chance     uint8
+	Materials  []Material
+}
+
+// EncodeRefineInfo opens the refine dialog, REFINE_INFORMATION_NEW: 60 bytes, the
+// materials' five places all sent, those past their count empty.
+func EncodeRefineInfo(q RefineInfo) []byte {
+	w := NewWriter(byte(ServerRefineInfo), 60)
+	w.U8(q.Type)
+	w.U8(q.Cell)
+	w.U32(q.From)
+	w.U32(q.Into)
+	w.U8(uint8(len(q.Materials))) //nolint:gosec // at most RefineMaterials
+	w.U32(q.Cost)
+	w.U32(uint32(q.Chance))
+	for i := range RefineMaterials {
+		var m Material
+		if i < len(q.Materials) {
+			m = q.Materials[i]
+		}
+		w.U32(m.VNum)
+		w.U32(m.Count)
+	}
+	return w.Bytes()
+}
