@@ -160,7 +160,7 @@ func TestEveryWornKindHasItsClassesAndStats(t *testing.T) {
 	for _, vnum := range VNums() {
 		p, _ := Lookup(vnum)
 		weapon := p.Wear == Weapon && p.AttackMin > 0 && p.AttackMin <= p.AttackMax && p.Defence == 0
-		armour := p.Wear == Body && p.Defence > 0 && p.AttackMax == 0
+		armour := p.Wear != Weapon && p.Defence > 0 && p.AttackMax == 0
 		if p.Wear != "" && (len(p.Classes) == 0 || p.Stack != 1 || (!weapon && !armour)) {
 			t.Errorf("kind %d: %+v", vnum, p)
 		}
@@ -207,6 +207,8 @@ func TestEveryKindHasItsShopPrices(t *testing.T) {
 		27001: {32, 6}, 27002: {96, 18}, 27004: {96, 24},
 		11: {0, 20}, 14: {0, 30}, 19: {0, 150}, 3005: {0, 40}, 11201: {0, 1000}, 11605: {0, 2000}, 11809: {0, 16000},
 		30004: {0, 100}, 30028: {0, 100},
+		12200: {500, 100}, 12340: {500, 100}, 12480: {500, 100}, 12620: {500, 100}, 15000: {500, 100},
+		12201: {0, 160}, 12209: {0, 4000}, 15005: {0, 800},
 	}
 	for vnum, w := range want {
 		p, _ := Lookup(vnum)
@@ -223,7 +225,8 @@ func TestEveryKindHasItsShopPrices(t *testing.T) {
 
 // Every first weapon and armour comes in grades +0 to +9, each the next vnum, of its
 // class, named and as strong as the client's item_proto and tooltip have it: VALUE5 added
-// to both ends of a weapon's attack, twice to armour's defence.
+// to both ends of a weapon's attack, twice to armour's and a helmet's defence; shoes'
+// grades move faster, by the client's APPLY_MOV_SPEED.
 func TestGearComesInTheClientsNineGrades(t *testing.T) {
 	want := map[uint32]Proto{
 		19:    {Name: "Miecz+9", AttackMin: 76, AttackMax: 78},
@@ -233,12 +236,17 @@ func TestGearComesInTheClientsNineGrades(t *testing.T) {
 		7009:  {Name: "Wachlarz+9", AttackMin: 74, AttackMax: 78},
 		11201: {Name: "Mnisia Zbr. Płyt.+1", Defence: 18},
 		11609: {Name: "Żałobna Zbr. Płyt.+9", Defence: 66},
+		12483: {Name: "Krwawy Hełm+3", Defence: 17},
+		12629: {Name: "Czapka Mnicha+9", Defence: 41},
+		15000: {Name: "Skórzane Buty+0", Defence: 1, MoveSpeed: 2},
+		15006: {Name: "Skórzane Buty+6", Defence: 1, MoveSpeed: 9},
+		15009: {Name: "Skórzane Buty+9", Defence: 1, MoveSpeed: 15},
 	}
 	for vnum, w := range want {
 		p, _ := Lookup(vnum)
 		base, _ := Lookup(vnum - uint32(p.Grade))
 		got := Proto{Name: p.Name, AttackMin: p.AttackMin, AttackMax: p.AttackMax, Defence: p.Defence}
-		if got.Name != w.Name || got.AttackMin != w.AttackMin || got.AttackMax != w.AttackMax || got.Defence != w.Defence ||
+		if got.Name != w.Name || got.AttackMin != w.AttackMin || got.AttackMax != w.AttackMax || got.Defence != w.Defence || p.MoveSpeed != w.MoveSpeed ||
 			uint32(p.Grade) != vnum%10 || !p.Graded || base.Grade != 0 || !slices.Equal(p.Classes, base.Classes) || p.Sword != base.Sword {
 			t.Errorf("kind %d: %+v", vnum, p)
 		}
@@ -246,6 +254,24 @@ func TestGearComesInTheClientsNineGrades(t *testing.T) {
 	for _, vnum := range VNums() {
 		if p, _ := Lookup(vnum); p.Graded != (p.Wear != "") {
 			t.Errorf("kind %d graded %v", vnum, p.Graded)
+		}
+	}
+}
+
+// Each class has its own helmet, 5 at +0 and 4 more each grade, and every class wears the
+// first shoes.
+func TestEachClassHasItsHelmetAndAllWearTheShoes(t *testing.T) {
+	for base, class := range map[uint32]account.Class{12200: account.Warrior, 12340: account.Ninja, 12480: account.Sura, 12620: account.Shaman} {
+		helmet, _ := Lookup(base)
+		top, _ := Lookup(base + MaxGrade)
+		if helmet.Wear != Head || !slices.Equal(helmet.Classes, []account.Class{class}) || helmet.Defence != 5 || top.Defence != 41 {
+			t.Errorf("helmet %d: %+v, +9 %d", base, helmet, top.Defence)
+		}
+	}
+	shoes, _ := Lookup(15000)
+	for _, class := range []account.Class{account.Warrior, account.Ninja, account.Sura, account.Shaman} {
+		if shoes.CanWear(class) != nil {
+			t.Errorf("a %s cannot wear the shoes", class)
 		}
 	}
 }

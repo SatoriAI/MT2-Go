@@ -203,7 +203,7 @@ func TestWhatIsPutOnCountsInTheFight(t *testing.T) {
 	c := &account.Character{Level: 1, Class: account.Sura, HP: 1000,
 		Stats: account.Stats{Strength: 5, Vitality: 3, Dexterity: 3, Intelligence: 5}}
 	s.presence.all[1000].char = c
-	s.presence.dress(1000, 10, 11600)
+	s.presence.dress(1000, outfit{weapon: 10, body: 11600})
 	read(t, client, updateSize+pointChangeSize) // her new look, and DEF
 
 	s.presence.attack(1000, dog.p.add.VID, 0, someRand, noon)
@@ -217,5 +217,86 @@ func TestWhatIsPutOnCountsInTheFight(t *testing.T) {
 	b := protocol.NewReader(read(t, client, damageSize)[1:])
 	if _, _, damage := b.U32(), b.U8(), b.I32(); damage < 24 || damage > 28 {
 		t.Fatalf("a bite through the armour took %d, want 24 to 28", damage)
+	}
+}
+
+// A sura's helmet double-clicked goes on her head: shown worn at the head's place, and her
+// DEF rises by its 5, to 1 + 3 + 5. Kira sees no change of look, but is told she is
+// dressed again.
+func TestAHelmetIsPutOnAndAddsItsDefence(t *testing.T) {
+	s, kept, client, viewer := dressing(t)
+	s.inventory = append(s.inventory, item.Item{ID: 5, VNum: 12480, Count: 1, Cell: 4})
+
+	if err := s.onItemUse(doubleClicked(4)); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := read(t, client, 2*itemSetSize); string(got[itemSetSize:]) != string(protocol.EncodeItemSet(protocol.ItemPos{Window: 1, Cell: 91}, 12480, 1)) {
+		t.Fatalf("told %x", got)
+	}
+	expectDressed(t, client, 0, 0)
+	if point, _, value := pointChange(t, client, 1000); point != protocol.PointDefence || value != 9 {
+		t.Fatalf("told point %d at %d, want DEF 9", point, value)
+	}
+	expectDressed(t, viewer, 0, 0)
+	if kept.worn[5] != item.Head || s.playing.Head != 12480 {
+		t.Fatalf("kept %q, wearing %d", kept.worn[5], s.playing.Head)
+	}
+}
+
+// Shoes +6 go on her feet: her DEF rises by their 1, and she moves 9 faster, at 159, told
+// to her and shown to Kira; taken off, she is back at 150.
+func TestShoesAreFasterByTheirGrade(t *testing.T) {
+	s, _, client, viewer := dressing(t)
+	s.inventory = append(s.inventory, item.Item{ID: 5, VNum: 15006, Count: 1, Cell: 4})
+	faster := protocol.EncodeCharacterUpdate(protocol.CharacterInfo{VID: 1000, Name: "Hendra"},
+		protocol.CharacterAdd{MoveSpeed: 159, AttackSpeed: 150}, 0)
+
+	if err := s.onItemUse(doubleClicked(4)); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := read(t, client, 2*itemSetSize); string(got[itemSetSize:]) != string(protocol.EncodeItemSet(protocol.ItemPos{Window: 1, Cell: 92}, 15006, 1)) {
+		t.Fatalf("told %x", got)
+	}
+	if got := read(t, client, updateSize); string(got) != string(faster) {
+		t.Fatalf("got %x", got)
+	}
+	if point, _, value := pointChange(t, client, 1000); point != protocol.PointDefence || value != 5 {
+		t.Fatalf("told point %d at %d, want DEF 5", point, value)
+	}
+	if point, _, value := pointChange(t, client, 1000); point != protocol.PointMoveSpeed || value != 159 {
+		t.Fatalf("told point %d at %d, want speed 159", point, value)
+	}
+	if got := read(t, viewer, updateSize); string(got) != string(faster) {
+		t.Fatalf("Kira got %x", got)
+	}
+	if shown := s.svc.presence.all[1000].add.MoveSpeed; shown != 159 { // what anyone arriving is shown
+		t.Fatalf("shown at %d", shown)
+	}
+
+	if err := s.onItemUse(doubleClicked(92)); err != nil {
+		t.Fatal(err)
+	}
+
+	read(t, client, 2*itemSetSize+updateSize+pointChangeSize)
+	if point, _, value := pointChange(t, client, 1000); point != protocol.PointMoveSpeed || value != 150 {
+		t.Fatalf("told point %d at %d, want speed 150", point, value)
+	}
+}
+
+// Shoes, a helmet +3 and armour +9 all count against a bite: 1 + 17 + 66.
+func TestEverythingWornCountsAgainstABite(t *testing.T) {
+	c := &account.Character{Body: 11609, Head: 12483, Feet: 15000}
+	if got := armourOf(c); got != 84 {
+		t.Fatalf("armour %d, want 84", got)
+	}
+}
+
+// A sura entering in shoes +9 moves at 165, in her points.
+func TestShoesWornOnEnteringSetHerSpeed(t *testing.T) {
+	p := &character{Character: account.Character{Class: account.Sura, Level: 1, Feet: 15009}}
+	if got := pointsOf(p, 0).MoveSpeed; got != 165 || moveSpeed(&p.Character) != 165 {
+		t.Fatalf("speed %d", got)
 	}
 }

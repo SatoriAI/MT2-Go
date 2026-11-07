@@ -22,6 +22,8 @@ type Wear string
 const (
 	Weapon Wear = "weapon"
 	Body   Wear = "body" // armour
+	Head   Wear = "head" // a helmet
+	Feet   Wear = "feet" // shoes
 )
 
 // Proto is one kind of item, as the client's item_proto describes it.
@@ -37,7 +39,8 @@ type Proto struct {
 	Classes   []account.Class
 	AttackMin uint16 // a weapon's attack, rolled for each blow
 	AttackMax uint16
-	Defence   uint16 // armour's
+	Defence   uint16 // armour's, a helmet's or shoes'
+	MoveSpeed uint8  // what shoes add to the speed the character moves at
 	Sword     bool   // a one-handed sword, which some skills need in hand
 	// Grade is how far the kind is upgraded, from +0 to MaxGrade, and Graded that it is
 	// upgraded at all: each grade is the next vnum, as the client numbers them.
@@ -82,13 +85,11 @@ const MaxGrade = 9
 // VNums are the kinds the game has, in order.
 func VNums() []uint32 { return slices.Sorted(maps.Keys(protos)) }
 
-// protos are the client's item_proto values (its --dump_proto--/item_proto.txt): size,
-// ITEM_STACKABLE for the stacks; for what is worn, its ITEM_WEAR, the classes its
-// ANTI_ flags leave, a weapon's attack (VALUE3 to VALUE4) and armour's
-// defence (VALUE1); the shop prices, but 100 for each first weapon, which it gives none.
-// Only each class's first weapon and armour are listed, with their grades, none of which
-// needs a level; a level check comes with the first that does. The names are the Polish client's own, from
-// its locale item_proto (docs/mechanics/items.md says how they were read), in UTF-8.
+// protos are the client's item_proto values (--dump_proto--/item_proto.txt): size,
+// stacking, ITEM_WEAR, the classes its ANTI_ flags leave, VALUE3 to VALUE4 for a weapon,
+// VALUE1 for the rest, and its prices, but 100 for each first weapon, which it gives none.
+// Only the first gear and its grades are listed, none needing a level. The names are the
+// Polish client's own, from its locale item_proto (docs/mechanics/items.md), in UTF-8.
 var protos = withGrades(map[uint32]Proto{
 	10: {VNum: 10, Name: "Miecz+0", Size: 2, Stack: 1, Wear: Weapon,
 		Classes: []account.Class{account.Warrior, account.Ninja, account.Sura}, AttackMin: 13, AttackMax: 15, Sword: true,
@@ -109,6 +110,17 @@ var protos = withGrades(map[uint32]Proto{
 		Classes: []account.Class{account.Sura}, Defence: 12, Price: 3000, SellPrice: 600},
 	11800: {VNum: 11800, Name: "Błękitna Szata+0", Size: 2, Stack: 1, Wear: Body,
 		Classes: []account.Class{account.Shaman}, Defence: 12, Price: 3000, SellPrice: 600},
+	12200: {VNum: 12200, Name: "Tradycyjny Hełm+0", Size: 1, Stack: 1, Wear: Head,
+		Classes: []account.Class{account.Warrior}, Defence: 5, Price: 500, SellPrice: 100},
+	12340: {VNum: 12340, Name: "Skórzana Maska+0", Size: 1, Stack: 1, Wear: Head,
+		Classes: []account.Class{account.Ninja}, Defence: 5, Price: 500, SellPrice: 100},
+	12480: {VNum: 12480, Name: "Krwawy Hełm+0", Size: 1, Stack: 1, Wear: Head,
+		Classes: []account.Class{account.Sura}, Defence: 5, Price: 500, SellPrice: 100},
+	12620: {VNum: 12620, Name: "Czapka Mnicha+0", Size: 1, Stack: 1, Wear: Head,
+		Classes: []account.Class{account.Shaman}, Defence: 5, Price: 500, SellPrice: 100},
+	15000: {VNum: 15000, Name: "Skórzane Buty+0", Size: 1, Stack: 1, Wear: Feet,
+		Classes: []account.Class{account.Warrior, account.Ninja, account.Sura, account.Shaman}, Defence: 1, MoveSpeed: 2,
+		Price: 500, SellPrice: 100},
 	27001: {VNum: 27001, Name: "Czerwona Mikstura(M)", Size: 1, Stack: MaxStack, HP: 300, Price: 32, SellPrice: 6},
 	27002: {VNum: 27002, Name: "Czerwona Mikstura(Ś)", Size: 1, Stack: MaxStack, HP: 800, Price: 96, SellPrice: 18},
 	27004: {VNum: 27004, Name: "Niebieska Mikstura(M)", Size: 1, Stack: MaxStack, SP: 100, Price: 96, SellPrice: 24},
@@ -116,19 +128,26 @@ var protos = withGrades(map[uint32]Proto{
 	30028: {VNum: 30028, Name: "Szpon Wilka", Size: 1, Stack: MaxStack, SellPrice: 100},
 })
 
-// gradeSteps are what each grade of a first weapon or armour adds over its +0: the
-// client's item_proto VALUE5 per grade, which its tooltip adds to both ends of a weapon's
-// attack and, twice, to armour's defence.
-var gradeSteps = map[uint32]uint16{10: 7, 1000: 4, 2000: 8, 3000: 8, 7000: 7, 11200: 3, 11400: 3, 11600: 3, 11800: 3}
+// gradeSteps are what each grade of the first gear adds over its +0: the client's
+// item_proto VALUE5 per grade, which its tooltip adds to both ends of a weapon's attack
+// and, twice, to the defence of anything else. Shoes add none; their grades are faster.
+var gradeSteps = map[uint32]uint16{10: 7, 1000: 4, 2000: 8, 3000: 8, 7000: 7, 11200: 3, 11400: 3, 11600: 3, 11800: 3,
+	12200: 2, 12340: 2, 12480: 2, 12620: 2, 15000: 0}
+
+// shoeSpeeds are what each grade of shoes adds to the speed: the client's APPLY_MOV_SPEED.
+var shoeSpeeds = [MaxGrade + 1]uint8{2, 3, 4, 5, 6, 7, 9, 11, 13, 15}
 
 // gradeSales are what a shop pays for each grade, before the client's division by 5: its
-// item_proto sell prices, the same for every first weapon and for every first armour.
+// item_proto sell prices, the same for every first weapon, every first armour, and every
+// helmet and pair of shoes.
 var gradeSales = map[Wear][MaxGrade + 1]uint32{
 	Weapon: {0, 100, 100, 150, 150, 200, 250, 350, 500, 750},
 	Body:   {3000, 5000, 5000, 5000, 5000, 10000, 10000, 20000, 40000, 80000},
+	Head:   {500, 800, 1100, 1700, 2500, 4000, 6000, 9000, 13000, 20000},
+	Feet:   {500, 800, 1100, 1700, 2500, 4000, 6000, 9000, 13000, 20000},
 }
 
-// withGrades adds each first weapon's and armour's grades +1 to +9 to the kinds: named as
+// withGrades adds the grades +1 to +9 of each piece of the first gear to the kinds: named as
 // the client names them, its +0's name with its grade, and no shop sells them.
 func withGrades(kinds map[uint32]Proto) map[uint32]Proto {
 	for vnum, step := range gradeSteps {
@@ -141,9 +160,12 @@ func withGrades(kinds map[uint32]Proto) map[uint32]Proto {
 			p.Name = strings.TrimSuffix(base.Name, "+0") + "+" + strconv.Itoa(int(g))
 			p.SellPrice = gradeSales[base.Wear][g] / 5
 			bonus := uint16(g) * step
-			if p.Wear == Weapon {
+			switch p.Wear {
+			case Weapon:
 				p.AttackMin, p.AttackMax = base.AttackMin+bonus, base.AttackMax+bonus
-			} else {
+			case Feet:
+				p.MoveSpeed = shoeSpeeds[g]
+			default:
 				p.Defence = base.Defence + 2*bonus
 			}
 			kinds[p.VNum] = p
