@@ -33,21 +33,21 @@ func TestOnlyMonstersWander(t *testing.T) {
 	}
 }
 
-// Every monster the world spawns can be fought: it has hit points and a level; NPCs
-// cannot be.
+// Every monster and stone the world spawns can be fought: it has hit points and a level;
+// NPCs cannot be.
 func TestEveryMonsterCanBeFoughtAndNoNPC(t *testing.T) {
 	for _, s := range world.Spawns() {
 		p, _ := Lookup(s.VNum)
-		if p.Fightable() != (p.Kind == Monster) || (p.Fightable() && (p.MaxHP == 0 || p.Level == 0)) {
+		if p.Fightable() != (p.Kind != NPC) || (p.Fightable() && (p.MaxHP == 0 || p.Level == 0)) {
 			t.Errorf("%d: %+v", s.VNum, p)
 		}
 	}
 }
 
-// Every monster can bite: dice that run upwards and a reach.
+// Every monster can bite: dice that run upwards and a reach. Stones never bite.
 func TestEveryMonsterCanBite(t *testing.T) {
 	for _, s := range world.Spawns() {
-		if p, _ := Lookup(s.VNum); p.Fightable() && (p.DamageMin == 0 || p.DamageMax < p.DamageMin || p.AttackRange == 0) {
+		if p, _ := Lookup(s.VNum); p.Kind == Monster && (p.DamageMin == 0 || p.DamageMax < p.DamageMin || p.AttackRange == 0) {
 			t.Errorf("%d: dice %d to %d, reach %d", s.VNum, p.DamageMin, p.DamageMax, p.AttackRange)
 		}
 	}
@@ -63,6 +63,14 @@ func TestEveryDropIsAnItemTheGameHas(t *testing.T) {
 				t.Errorf("%d drops %+v (%v)", vnum, d, ok)
 			}
 		}
+		for _, pick := range p.Picks {
+			for _, v := range pick.From {
+				kind, ok := item.Lookup(v)
+				if !ok || pick.Count < 1 || pick.Count > kind.Stack || pick.Chance < 1 || pick.Chance > 10000 {
+					t.Errorf("%d picks %d of %+v (%v)", vnum, v, pick, ok)
+				}
+			}
+		}
 	}
 }
 
@@ -71,7 +79,7 @@ func TestEveryDropIsAnItemTheGameHas(t *testing.T) {
 func TestEveryMonstersYangIsAChanceOfARange(t *testing.T) {
 	for vnum, p := range protos {
 		y := p.Yang
-		if y.Chance > 10000 || y.Min > y.Max || (p.Kind == Monster) != (y.Chance > 0 && y.Min > 0) {
+		if y.Chance > 10000 || y.Min > y.Max || (p.Kind != NPC) != (y.Chance > 0 && y.Min > 0) {
 			t.Errorf("%d leaves %+v", vnum, y)
 		}
 	}
@@ -140,5 +148,44 @@ func TestTheArmourTraderSellsHelmetsAndShoesBelowTheArmours(t *testing.T) {
 	want := map[uint32]uint8{11200: 0, 11400: 1, 11600: 2, 11800: 3, 12200: 10, 12340: 11, 12480: 12, 12620: 13, 15000: 14}
 	if !maps.Equal(cells, want) {
 		t.Fatalf("sells %v", cells)
+	}
+}
+
+// Each stone calls out monsters there are, of no higher level than its own, and comes back
+// after a while; only stones call waves, and they never wander.
+func TestEveryStoneCallsWavesOfMonstersNoStrongerThanItself(t *testing.T) {
+	for vnum, p := range protos {
+		if (p.Kind == Stone) != (len(p.Wave) > 0) || (p.Kind == Stone) != (p.Respawn > 0) || (p.Kind == Stone && p.Wanders()) {
+			t.Errorf("%d: %+v", vnum, p)
+		}
+		for _, w := range p.Wave {
+			called, ok := Lookup(w)
+			if !ok || called.Kind != Monster || called.Level > p.Level {
+				t.Errorf("%d calls %d: %+v", vnum, w, called)
+			}
+		}
+	}
+}
+
+// A stone always leaves potions and materials, each of one kind, and may leave a piece of
+// the first gear; the last also, rarely, one at +3.
+func TestAStoneLeavesPotionsMaterialsAndMaybeGear(t *testing.T) {
+	cases := map[uint16][]Pick{
+		8001: {{potionKinds, 3, 10000}, {materials, 2, 10000}, {firstGear, 1, 1500}},
+		8002: {{potionKinds, 4, 10000}, {materials, 3, 10000}, {firstGear, 1, 2500}},
+		8003: {{potionKinds, 5, 10000}, {materials, 4, 10000}, {firstGear, 1, 3500}, {firstGearP3, 1, 500}},
+	}
+	for vnum, want := range cases {
+		p, _ := Lookup(vnum)
+		if !slices.EqualFunc(p.Picks, want, func(a, b Pick) bool {
+			return slices.Equal(a.From, b.From) && a.Count == b.Count && a.Chance == b.Chance
+		}) || p.Yang.Chance != 10000 {
+			t.Errorf("%d leaves %+v and %+v", vnum, p.Picks, p.Yang)
+		}
+	}
+	for i, v := range firstGearP3 {
+		if v != firstGear[i]+3 {
+			t.Errorf("%d at +3 is %d", firstGear[i], v)
+		}
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/SatoriAI/MT2-Go/internal/combat"
+	"github.com/SatoriAI/MT2-Go/internal/mob"
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
 )
 
@@ -37,9 +38,9 @@ type chase struct {
 }
 
 // engage answers the blows landed since the last tick: the monster is hurt, so it heals
-// from then on, and one that is not fighting takes the player who hit it as its target;
-// one fighting them fights on, however long since its last bite. Blows from others are
-// not answered while it fights.
+// from then on, and one that is not fighting takes the player who hit it as its target,
+// unless it is a stone; one fighting them fights on, however long since its last bite.
+// Blows from others are not answered while it fights.
 func (s *Service) engage(provoked []provocation, now time.Time) {
 	for _, pr := range provoked {
 		m := s.byPresent[pr.monster]
@@ -47,6 +48,9 @@ func (s *Service) engage(provoked []provocation, now time.Time) {
 			continue // gone since
 		}
 		s.hurt(m, now)
+		if m.proto.Kind == mob.Stone {
+			continue // it heals, but never fights back
+		}
 		if m.chase != nil {
 			if m.chase.target == pr.by {
 				m.chase.lastExchange = now

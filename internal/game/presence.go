@@ -28,6 +28,7 @@ type presence struct {
 	provoked []provocation          // blows on living monsters since the world loop last asked
 	laid     []timed                // items players dropped since the world loop last asked, to clear away
 	buffs    []buffEnd              // buffs players started since the world loop last asked, to end
+	calls    []call                 // waves stones called since the world loop last asked
 	event    *event.Event           // the event running; nil for none
 	ground   map[uint32]*groundItem // items lying in the world, by vid
 }
@@ -62,8 +63,11 @@ type present struct {
 func (p *present) appearance() [][]byte {
 	add := p.add
 	add.Dead = p.dead() // a body is shown lying until it is taken away
-	if add.Type == protocol.EntityMonster {
+	switch add.Type {
+	case protocol.EntityMonster:
 		return [][]byte{protocol.EncodeCharacterAdd(add, 0)}
+	case protocol.EntityStone:
+		return [][]byte{protocol.EncodeCharacterAdd(add, p.fight.smoke)}
 	}
 	return [][]byte{protocol.EncodeCharacterAdd(add, affectsOf(p.char)), protocol.EncodeCharacterInfo(p.info)}
 }
@@ -206,6 +210,30 @@ func (w *presence) leaveLocked(p *present) {
 	toViewers(p, protocol.EncodeCharacterDelete(vid))
 	for _, other := range p.sees {
 		unlink(p, other)
+	}
+}
+
+// sendOff takes the monster out of the world, unless it has died there. It reports whether
+// it was taken.
+func (w *presence) sendOff(p *present) bool {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if p.dead() {
+		return false
+	}
+	w.leaveLocked(p)
+	return true
+}
+
+// tellMap shows a notice to every player on the map p stands on.
+func (w *presence) tellMap(p *present, line string) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	notice := protocol.EncodeChat(protocol.ChatNotice, 0, 0, textToClient(line))
+	for _, other := range w.byName {
+		if other.world == p.world {
+			other.send(notice)
+		}
 	}
 }
 

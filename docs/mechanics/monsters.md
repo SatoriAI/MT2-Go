@@ -68,7 +68,7 @@ What a monster leaves when it dies is on [drops.md](drops.md).
 ## Not done yet
 
 - Aggressive monsters noticing players.
-- Metin stones, bosses and groups of monsters.
+- Bosses and groups of monsters. Metin stones have their own page, [stones.md](stones.md).
 - Warps, and the other maps.
 - Shops and talking to NPCs.
 - Terrain: the server has no heights or walls of its own. The areas are chosen so that no stroll can reach a blocked or water cell, but a monster does not avoid anything itself.

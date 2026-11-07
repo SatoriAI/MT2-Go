@@ -16,6 +16,7 @@ import (
 	"github.com/SatoriAI/MT2-Go/internal/account"
 	"github.com/SatoriAI/MT2-Go/internal/handshake"
 	"github.com/SatoriAI/MT2-Go/internal/item"
+	"github.com/SatoriAI/MT2-Go/internal/mob"
 	"github.com/SatoriAI/MT2-Go/internal/network"
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
 	"github.com/SatoriAI/MT2-Go/internal/world"
@@ -70,6 +71,11 @@ type Service struct {
 	byPresent map[*present]*monster // the same monsters, by what the world record holds of them
 	fighting  []*monster            // the monsters fighting a player, which the loop steps
 	healing   []healing             // the hurt monsters, which the loop heals
+	kinds     map[uint16]*mob.Proto // the protos of the kinds in the world, one each
+	// called is what each stone called out, while it stands; forget is that a monster a
+	// stone called is gone for good, for the tick to drop.
+	called map[*monster][]*monster
+	forget bool
 	// nextPlayerRegen is when the loop next heals the players.
 	nextPlayerRegen time.Time
 	// now is the time, which tests set.
@@ -85,7 +91,7 @@ func NewService(store Accounts, whispers Whispers, items Items, taskbar Taskbar,
 	spawns []world.Spawn) *Service {
 	return &Service{store: store, whispers: whispers, items: items, taskbar: taskbar, skills: skills, keys: keys, clock: clock, public: public, claims: map[uint32]*claim{},
 		presence: presence{all: map[uint32]*present{}, byName: map[string]*present{}, ground: map[uint32]*groundItem{}}, spawns: spawns, rand: newRand(), now: time.Now,
-		byPresent: map[*present]*monster{}}
+		byPresent: map[*present]*monster{}, kinds: map[uint16]*mob.Proto{}, called: map[*monster][]*monster{}}
 }
 
 func (s *Service) NewSession(conn *network.Conn) network.Session {

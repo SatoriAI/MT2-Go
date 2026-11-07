@@ -48,17 +48,17 @@ type timed struct {
 
 func (t timed) due() time.Time { return t.at }
 
-// dropOwner is who a dead monster's drops are kept for: the player who took the most of
+// topDamager is who a dead monster's drops are kept for: the player who took the most of
 // its hit points among those still in the world and alive, the killer on a tie, so a last
 // blow does not take a drop from whoever fought it. Called under the lock.
-func (w *presence) dropOwner(f *fight, killer *present) owner {
+func (w *presence) topDamager(f *fight, killer *present) *present {
 	best, most := killer, f.damageBy[killer]
 	for p, damage := range f.damageBy {
 		if damage > most && w.all[p.add.VID] == p && !p.dead() {
 			best, most = p, damage
 		}
 	}
-	return owner{id: best.char.ID, name: best.info.Name}
+	return best
 }
 
 // dropFrom rolls what a dead monster leaves, each of its drops on its own, then its yang,
@@ -70,6 +70,12 @@ func (s *Service) dropFrom(m *monster, d death, now time.Time) {
 		if s.rand.IntN(10000) < int(drop.Chance) {
 			fallen = append(fallen, &groundItem{vid: s.lastVID.Add(1), x: m.x + s.spread(dropSpread),
 				y: m.y + s.spread(dropSpread), vnum: drop.VNum, count: drop.Count, owner: d.owner, dropped: now})
+		}
+	}
+	for _, pick := range m.proto.Picks {
+		if s.rand.IntN(10000) < int(pick.Chance) {
+			fallen = append(fallen, &groundItem{vid: s.lastVID.Add(1), x: m.x + s.spread(dropSpread),
+				y: m.y + s.spread(dropSpread), vnum: pick.From[s.rand.IntN(len(pick.From))], count: pick.Count, owner: d.owner, dropped: now})
 		}
 	}
 	if y := m.proto.Yang; s.rand.IntN(10000) < int(y.Chance) {
