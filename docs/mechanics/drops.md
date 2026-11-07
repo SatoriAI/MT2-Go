@@ -54,6 +54,8 @@ Seen from the real client: a red potion laid at (977491, 272599) is `1a 53ea0e00
 
   The claw and the tooth are the materials of the later upgrades ([upgrading.md](upgrading.md)).
 
+  Metin stones leave more, each a set count of one kind picked from a list ([stones.md](stones.md)).
+
 - **Yang:** each monster kind has a chance in 10,000 of leaving an amount from its least to its most, rolled once as it dies, after its items, and multiplied by a running event, rounded down ([events.md](events.md)).
 
   | Monster | Yang |

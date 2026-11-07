@@ -75,8 +75,8 @@ func TestTheTopDamageDealerOwnsADrop(t *testing.T) {
 	for _, c := range cases {
 		c.setup()
 		f := &fight{damageBy: map[*present]int{hendra: c.hendras, kira: 30}}
-		if got := s.presence.dropOwner(f, kira); got.id != c.want {
-			t.Errorf("%s: kept for %d, want %d", c.name, got.id, c.want)
+		if got := s.presence.topDamager(f, kira); got.char.ID != c.want {
+			t.Errorf("%s: kept for %d, want %d", c.name, got.char.ID, c.want)
 		}
 	}
 }

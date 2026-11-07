@@ -112,3 +112,35 @@ func TestAWhisperToAnNPCFindsNobody(t *testing.T) {
 
 	hendra.expect(protocol.EncodeWhisper(protocol.WhisperNotOnline, "Handlarz Broni\xb9", ""))
 }
+
+// A player entering beside a Metin stone sees it as the client's stone, with its first
+// wave of monsters about it.
+func TestAPlayerEnteringSeesAStoneWithItsWave(t *testing.T) {
+	h := startWith(t, []world.Spawn{{VNum: 8001, Count: 1, Spots: []world.Spot{{X: startX + 2000, Y: startY}}}})
+	hendra, _ := h.enterWorld("admin", "Hendra", 3, 6)
+
+	var packets [][]byte
+	for range 6 {
+		packets = append(packets, hendra.read(35))
+	}
+
+	stones, wave := 0, 0
+	for _, p := range packets {
+		r := protocol.NewReader(p[1:])
+		r.Skip(4 + 4) // vid, rotation
+		x, y := r.I32(), r.I32()
+		r.Skip(4) // height
+		switch kind, race := r.U8(), r.U16(); {
+		case kind == protocol.EntityStone && race == 8001 && x == startX+2000 && y == startY:
+			stones++
+		case kind == protocol.EntityMonster && (race == 102 || race == 103):
+			wave++
+		default:
+			t.Errorf("shown %d of type %d at (%d, %d)", race, kind, x, y)
+		}
+	}
+	if stones != 1 || wave != 5 {
+		t.Fatalf("shown %d stones and %d of its wave, want the stone and five", stones, wave)
+	}
+	hendra.expectOpen()
+}

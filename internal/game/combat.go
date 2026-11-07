@@ -36,6 +36,12 @@ type fight struct {
 	// damageBy is what each player took off it, which shares its experience out.
 	damageBy map[*present]int
 	exp      uint32
+	hitAt    time.Time // its last blow or skill, from which a stone waits to heal
+	// A stone's own: that it is one, the waves it has called as it was worn down, and the
+	// smoke it shows.
+	stone bool
+	calls uint8
+	smoke uint64
 }
 
 // dead is whether p lies dead: a monster since its death, a player at no hit points.
@@ -140,22 +146,63 @@ func (w *presence) strike(p, v *present, damage int, now time.Time) blow {
 	damage = min(damage, f.hp)
 	f.hp -= damage
 	f.damageBy[p] += damage
+	f.hitAt = now
 	p.send(protocol.EncodeDamage(vid, protocol.DamageNormal, int32(damage))) //nolint:gosec // at most the hit points
 	for t := range f.targetedBy {
 		t.send(protocol.EncodeTarget(vid, f.hpPercent()))
 	}
 	if f.hp > 0 {
 		w.provoked = append(w.provoked, provocation{v, p})
+		if f.stone {
+			w.wear(v, p)
+		}
 		return blowLanded
 	}
 	f.diedAt = now
-	w.fallen = append(w.fallen, death{v, now, w.dropOwner(f, p)})
+	winner := w.topDamager(f, p)
+	w.fallen = append(w.fallen, death{v, now, owner{id: winner.char.ID, name: winner.info.Name}})
+	if f.stone {
+		winner.send(protocol.EncodeChat(protocol.ChatInfo, 0, 0, textToClient("Zniszczyłeś kamień Metin.")))
+	}
 	for t := range f.targetedBy {
 		untarget(t, v)
 	}
 	toViewers(v, protocol.EncodeDead(vid))
 	w.shareExp(f, p)
 	return blowKilled
+}
+
+// stoneWaves is how many waves a stone calls as it is worn down, one each time it loses
+// another fifth of its hit points, and waveCap the most of its monsters alive at once.
+const (
+	stoneWaves = 4
+	waveCap    = 6
+)
+
+// call is a wave a stone called out against the player who wore it down.
+type call struct {
+	stone, by *present
+}
+
+// wear calls the waves the stone owes for the hit points it has lost, at 80, 60, 40 and
+// 20 in a hundred, each once however it heals, and shows its smoke. Called under the
+// lock.
+func (w *presence) wear(v *present, by *present) {
+	f := v.fight
+	for int(f.calls) < min(stoneWaves, (f.maxHP-f.hp)*(stoneWaves+1)/f.maxHP) {
+		f.calls++
+		w.calls = append(w.calls, call{v, by})
+	}
+	w.showSmoke(v)
+}
+
+// showSmoke tells everyone who sees the stone its smoke, if its wear changed it. Called
+// under the lock.
+func (w *presence) showSmoke(v *present) {
+	if smoke := smokeOf(v.fight); smoke != v.fight.smoke {
+		v.fight.smoke = smoke
+		toViewers(v, protocol.EncodeCharacterUpdate(v.info, v.add, smoke))
+	}
 }
 
 // death is a monster that died, for the world loop to take away and bring back, and
@@ -174,14 +221,15 @@ type news struct {
 	provoked []provocation
 	laid     []timed
 	buffs    []buffEnd
+	calls    []call
 }
 
 // takeNews hands the world loop the news, with one lock a tick.
 func (w *presence) takeNews() news {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	n := news{w.fallen, w.provoked, w.laid, w.buffs}
-	w.fallen, w.provoked, w.laid, w.buffs = nil, nil, nil, nil
+	n := news{w.fallen, w.provoked, w.laid, w.buffs, w.calls}
+	w.fallen, w.provoked, w.laid, w.buffs, w.calls = nil, nil, nil, nil, nil
 	return n
 }
 

@@ -139,10 +139,29 @@ func blockMask(blocks account.Blocks) uint32 {
 
 // entityType is the client's number for the kind of mob.
 func entityType(k mob.Kind) uint8 {
-	if k == mob.NPC {
+	switch k {
+	case mob.NPC:
 		return protocol.EntityNPC
+	case mob.Stone:
+		return protocol.EntityStone
 	}
 	return protocol.EntityMonster
+}
+
+// smokeOf is the client's affect bit for a stone's smoke at the share of its hit points
+// left, as the target window rounds it: its thickest at a tenth or less, then at 45 and
+// 85 in a hundred or less, as the client's STONE_SMOKE flags are marked (InstanceBase.h),
+// and none above.
+func smokeOf(f *fight) uint64 {
+	switch hp := f.hpPercent(); {
+	case hp <= 10:
+		return 1 << 7
+	case hp <= 45:
+		return 1 << 4
+	case hp <= 85:
+		return 1 << 1
+	}
+	return 0
 }
 
 // textToClient turns UTF-8 into the client's code page, cp1250, as textFromClient reads

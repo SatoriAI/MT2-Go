@@ -265,6 +265,7 @@ func EncodeChannel(channel uint8) []byte {
 const (
 	EntityMonster uint8 = 0
 	EntityNPC     uint8 = 1
+	EntityStone   uint8 = 2 // a Metin stone: still, fought, its wear shown as smoke
 	EntityPlayer  uint8 = 6
 )
 

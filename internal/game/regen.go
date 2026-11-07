@@ -69,7 +69,7 @@ func (s *Service) healMonsters(now time.Time) {
 			kept = append(kept, h)
 			continue
 		}
-		if h.m.p == h.p && s.presence.heal(h.p, h.m.proto.RegenPercent) {
+		if h.m.p == h.p && s.presence.heal(h.p, h.m.proto.RegenPercent, h.m.proto.HealsAfter, now) {
 			h.next = now.Add(time.Duration(h.m.proto.RegenCycle) * time.Second)
 			kept = append(kept, h)
 			continue
@@ -83,18 +83,24 @@ func (s *Service) healMonsters(now time.Time) {
 }
 
 // heal gives the monster back percent of its hit points, at least one, and tells whoever
-// picked it. It reports whether the monster is still short of them; a dead one is not
-// healed.
-func (w *presence) heal(p *present, percent uint8) bool {
+// picked it, unless it was hit less than after ago. It reports whether the monster is
+// still short of them; a dead one is not healed.
+func (w *presence) heal(p *present, percent uint8, after time.Duration, now time.Time) bool {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	f := p.fight
 	if p.dead() || f.hp >= f.maxHP {
 		return false
 	}
+	if now.Sub(f.hitAt) < after {
+		return true
+	}
 	f.hp = min(f.maxHP, f.hp+max(1, f.maxHP*int(percent)/100))
 	for t := range f.targetedBy {
 		t.send(protocol.EncodeTarget(p.add.VID, f.hpPercent()))
+	}
+	if f.stone {
+		w.showSmoke(p)
 	}
 	return f.hp < f.maxHP
 }

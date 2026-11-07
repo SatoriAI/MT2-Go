@@ -226,15 +226,20 @@ func TestAMonsterMetLaterFacesTheWayItLastWalked(t *testing.T) {
 }
 
 // However far a monster strolls, it stays on its spawn's map: the spawn's spread and a
-// stroll together lie on the map the spawn is on.
+// stroll together lie on the map the spawn is on, and so do a stone's waves, called out
+// around each of its spots, and their strolls.
 func TestNoStrollLeavesTheMapOfItsSpawn(t *testing.T) {
-	reach := int32(wanderRange)
 	for _, sp := range world.Spawns() {
-		home, _ := world.MapAt(sp.X, sp.Y)
-		r := sp.Spread + reach
-		for _, c := range [][2]int32{{-r, -r}, {r, r}, {-r, r}, {r, -r}} {
-			if m, ok := world.MapAt(sp.X+c[0], sp.Y+c[1]); !ok || m.Name != home.Name {
-				t.Errorf("%d at (%d, %d) can stroll to (%d, %d), off %s", sp.VNum, sp.X, sp.Y, sp.X+c[0], sp.Y+c[1], home.Name)
+		centres, r := []world.Spot{{X: sp.X, Y: sp.Y}}, sp.Spread+wanderRange
+		if len(sp.Spots) > 0 {
+			centres, r = sp.Spots, waveFrom+waveDepth+wanderRange
+		}
+		for _, at := range centres {
+			home, _ := world.MapAt(at.X, at.Y)
+			for _, c := range [][2]int32{{-r, -r}, {r, r}, {-r, r}, {r, -r}} {
+				if m, ok := world.MapAt(at.X+c[0], at.Y+c[1]); !ok || m.Name != home.Name {
+					t.Errorf("%d at (%d, %d) can stroll to (%d, %d), off %s", sp.VNum, at.X, at.Y, at.X+c[0], at.Y+c[1], home.Name)
+				}
 			}
 		}
 	}

@@ -2,7 +2,11 @@
 // one in the world. Only the kinds the world spawns are listed.
 package mob
 
-import "github.com/SatoriAI/MT2-Go/internal/account"
+import (
+	"time"
+
+	"github.com/SatoriAI/MT2-Go/internal/account"
+)
 
 // Kind is what a mob is to the player.
 type Kind string
@@ -10,6 +14,9 @@ type Kind string
 const (
 	Monster Kind = "monster"
 	NPC     Kind = "npc" // a villager the player can talk to; it never moves
+	// Stone is a Metin stone: fought, but never moving or biting, it calls monsters out
+	// as it is worn down.
+	Stone Kind = "stone"
 )
 
 // Proto is one kind of mob, as the client's mob_proto describes it.
@@ -34,12 +41,19 @@ type Proto struct {
 	RegenCycle   uint8
 	RegenPercent uint8
 	Drops        []Drop // what it may leave when it dies, each rolled on its own
+	Picks        []Pick // and these, each one kind picked from several
 	Yang         Yang   // and the yang, rolled once
 	Sells        []Ware // what an NPC's shop holds, for a shopkeeper
 	// Teaches is the skill group a class teacher takes a character on in, or "".
 	Teaches account.SkillGroup
 	// Upgrades is that the NPC is a blacksmith, who upgrades gear given to them.
 	Upgrades bool
+
+	// A stone's own: the monsters each of its waves calls out, how long after it is
+	// destroyed it comes back, and how long it must go unhit before it heals.
+	Wave       []uint16
+	Respawn    time.Duration
+	HealsAfter time.Duration
 }
 
 // Ware is what one cell of a shop holds: Count of item VNum. Each cell is written out, so
@@ -62,6 +76,14 @@ type Yang struct {
 // Chance in 10,000.
 type Drop struct {
 	VNum   uint32
+	Count  uint8
+	Chance uint16
+}
+
+// Pick is Count of one kind of item, picked evenly from From, that a monster may leave
+// when it dies, with a chance of Chance in 10,000.
+type Pick struct {
+	From   []uint32
 	Count  uint8
 	Chance uint16
 }
@@ -100,8 +122,24 @@ var (
 	boarDrops      = append(append([]Drop{}, gear...), Drop{VNum: 30004, Count: 1, Chance: 500})
 )
 
+// firstGear is each class's first weapon and armour, which the stones leave one of, and
+// the same at +3, which the last of them may.
+var (
+	firstGear   = []uint32{10, 1000, 2000, 3000, 7000, 11200, 11400, 11600, 11800}
+	firstGearP3 = []uint32{13, 1003, 2003, 3003, 7003, 11203, 11403, 11603, 11803}
+	potionKinds = []uint32{27001, 27004}
+	materials   = []uint32{30028, 30004}
+)
+
+// stonePicks is what a stone always leaves, potions and materials, each count of one
+// kind, and with a chance in 10,000 one piece of the first gear.
+func stonePicks(potions, materialCount uint8, gear uint16) []Pick {
+	return []Pick{{From: potionKinds, Count: potions, Chance: 10000}, {From: materials, Count: materialCount, Chance: 10000},
+		{From: firstGear, Count: 1, Chance: gear}}
+}
+
 // Fightable reports whether a player can attack the mob.
-func (p Proto) Fightable() bool { return p.Kind == Monster }
+func (p Proto) Fightable() bool { return p.Kind != NPC }
 
 // Wanders reports whether the mob strolls around where it was spawned.
 func (p Proto) Wanders() bool { return p.Kind == Monster }
@@ -113,9 +151,9 @@ func Lookup(vnum uint16) (Proto, bool) {
 }
 
 // protos are the client's mob_proto values (its --dump_proto--/mob_proto.txt): speeds,
-// and a monster's level, hit points, HT, DEF, ST, damage, attack range and healing. The
-// names are the Polish client's own, from its locale mob_proto (docs/mechanics/monsters.md
-// says how they were read), in UTF-8.
+// and a monster's level, hit points, HT, DEF, ST, damage, attack range and healing. A
+// stone's hit points, experience and drops are this server's (docs/mechanics/stones.md).
+// The names are the Polish client's own, from its locale mob_proto, in UTF-8.
 var protos = map[uint16]Proto{
 	101: {VNum: 101, Name: "Dziki Pies", Kind: Monster, MoveSpeed: 100, AttackSpeed: 100,
 		Level: 1, MaxHP: 126, Vitality: 5, Armour: 4, Exp: 15,
@@ -157,6 +195,19 @@ var protos = map[uint16]Proto{
 		Level: 18, MaxHP: 585, Vitality: 27, Armour: 22, Exp: 365,
 		Strength: 18, DamageMin: 49, DamageMax: 60, AttackRange: 175,
 		RegenCycle: 6, RegenPercent: 12, Drops: gear, Yang: Yang{Chance: 6000, Min: 35, Max: 60}},
+
+	8001: {VNum: 8001, Name: "Metin Cierpienia", Kind: Stone, MoveSpeed: 109, AttackSpeed: 104,
+		Level: 5, MaxHP: 7000, Vitality: 6, Armour: 8, Exp: 900, RegenCycle: 5, RegenPercent: 1,
+		Picks: stonePicks(3, 2, 1500), Yang: Yang{Chance: 10000, Min: 500, Max: 800},
+		Wave: []uint16{102, 102, 102, 103, 103}, Respawn: 10 * time.Minute, HealsAfter: 10 * time.Second},
+	8002: {VNum: 8002, Name: "Metin Walki", Kind: Stone, MoveSpeed: 114, AttackSpeed: 110,
+		Level: 10, MaxHP: 11500, Vitality: 12, Armour: 14, Exp: 2200, RegenCycle: 5, RegenPercent: 1,
+		Picks: stonePicks(4, 3, 2500), Yang: Yang{Chance: 10000, Min: 900, Max: 1400},
+		Wave: []uint16{104, 104, 104, 105, 105}, Respawn: 10 * time.Minute, HealsAfter: 10 * time.Second},
+	8003: {VNum: 8003, Name: "Metin Bitwy", Kind: Stone, MoveSpeed: 121, AttackSpeed: 115,
+		Level: 15, MaxHP: 17000, Vitality: 18, Armour: 19, Exp: 3300, RegenCycle: 5, RegenPercent: 1,
+		Picks: append(stonePicks(5, 4, 3500), Pick{From: firstGearP3, Count: 1, Chance: 500}), Yang: Yang{Chance: 10000, Min: 1500, Max: 2200},
+		Wave: []uint16{109, 109, 110, 110, 111}, Respawn: 10 * time.Minute, HealsAfter: 10 * time.Second},
 
 	9001:  {VNum: 9001, Name: "Handlarz Bronią", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100, Sells: weapons},
 	9002:  {VNum: 9002, Name: "Handlarz Zbrojami", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100, Sells: armours},
