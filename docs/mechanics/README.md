@@ -24,8 +24,9 @@ Pages state facts in our own words. They never paste code from another server or
 | [equipment.md](equipment.md) | Putting on and taking off a weapon and body armour, others seeing them, and what they add in a fight |
 | [drops.md](drops.md) | What monsters leave and players drop, items and yang, who it is kept for, what lies on the ground, and picking it up |
 | [taskbar.md](taskbar.md) | The bar of keys 1–4 and F1–F4: potions put on it, swapped, kept between logins, and following their items |
-| [skills.md](skills.md) | Skill groups chosen at a class teacher, skill points, raising skills, and using Dragon Swirl and Enchanted Blade |
+| [skills.md](skills.md) | Skill groups chosen at a class teacher, skill points, raising skills, and using Weaponry's skills |
 | [shops.md](shops.md) | The village shopkeepers: opening a shop, buying and selling, and the prices |
+| [upgrading.md](upgrading.md) | The blacksmith: upgrading the first gear to +9, its cost, chance and materials, and the grades |
 | [potions.md](potions.md) | Drinking red and blue potions: healing, mana, the stack and the effect |
 | [items.md](items.md) | Item kinds, what a character owns, the inventory window, moving items, and giving or taking them on the command line |
 | [events.md](events.md) | Scheduled events multiplying experience and yang, their command line and their notices |

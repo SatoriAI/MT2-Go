@@ -30,3 +30,18 @@ func TestSpawnsAreInWorldCoordinatesWithAtLeastOneMob(t *testing.T) {
 		t.Fatalf("the Jinno weapon dealer: got %+v, want at (964600, 265600)", weaponsInJinno)
 	}
 }
+
+// Each first village has its blacksmith, beside the sura's teachers.
+func TestEveryFirstVillageHasItsBlacksmith(t *testing.T) {
+	for _, village := range []string{"metin2_map_a1", "metin2_map_b1", "metin2_map_c1"} {
+		smiths := 0
+		for _, s := range spawnsByMap[village] {
+			if s.vnum == 20016 {
+				smiths++
+			}
+		}
+		if smiths != 1 {
+			t.Errorf("%s: %d blacksmiths", village, smiths)
+		}
+	}
+}

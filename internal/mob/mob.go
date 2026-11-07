@@ -38,6 +38,8 @@ type Proto struct {
 	Sells        []Ware // what an NPC's shop holds, for a shopkeeper
 	// Teaches is the skill group a class teacher takes a character on in, or "".
 	Teaches account.SkillGroup
+	// Upgrades is that the NPC is a blacksmith, who upgrades gear given to them.
+	Upgrades bool
 }
 
 // Ware is what one cell of a shop holds: Count of item VNum. Each cell is written out, so
@@ -87,6 +89,14 @@ var gear = append(append([]Drop{}, potions...),
 	Drop{VNum: 11400, Count: 1, Chance: 20}, Drop{VNum: 11600, Count: 1, Chance: 20},
 	Drop{VNum: 11800, Count: 1, Chance: 20})
 
+// The materials upgrades take from +5 on: wolves leave a claw, for weapons, and boars a
+// tooth, for armour, each 5 times in 100.
+var (
+	wolfDrops      = append(append([]Drop{}, potions...), Drop{VNum: 30028, Count: 1, Chance: 500})
+	alphaWolfDrops = append(append([]Drop{}, gear...), Drop{VNum: 30028, Count: 1, Chance: 500})
+	boarDrops      = append(append([]Drop{}, gear...), Drop{VNum: 30004, Count: 1, Chance: 500})
+)
+
 // Fightable reports whether a player can attack the mob.
 func (p Proto) Fightable() bool { return p.Kind == Monster }
 
@@ -111,15 +121,15 @@ var protos = map[uint16]Proto{
 	102: {VNum: 102, Name: "Wilk", Kind: Monster, MoveSpeed: 100, AttackSpeed: 100,
 		Level: 3, MaxHP: 162, Vitality: 7, Armour: 6, Exp: 39,
 		Strength: 4, DamageMin: 23, DamageMax: 28, AttackRange: 175,
-		RegenCycle: 6, RegenPercent: 7, Drops: potions, Yang: Yang{Chance: 6000, Min: 8, Max: 18}},
+		RegenCycle: 6, RegenPercent: 7, Drops: wolfDrops, Yang: Yang{Chance: 6000, Min: 8, Max: 18}},
 	103: {VNum: 103, Name: "Alfa Wilk", Kind: Monster, MoveSpeed: 130, AttackSpeed: 100,
 		Level: 4, MaxHP: 182, Vitality: 10, Armour: 7, Exp: 51,
 		Strength: 8, DamageMin: 25, DamageMax: 30, AttackRange: 175,
-		RegenCycle: 6, RegenPercent: 7, Drops: gear, Yang: Yang{Chance: 6000, Min: 10, Max: 25}},
+		RegenCycle: 6, RegenPercent: 7, Drops: alphaWolfDrops, Yang: Yang{Chance: 6000, Min: 10, Max: 25}},
 	108: {VNum: 108, Name: "Dzik", Kind: Monster, MoveSpeed: 100, AttackSpeed: 80,
 		Level: 7, MaxHP: 248, Vitality: 10, Armour: 11, Exp: 87,
 		Strength: 14, DamageMin: 30, DamageMax: 37, AttackRange: 175,
-		RegenCycle: 6, RegenPercent: 7, Drops: gear, Yang: Yang{Chance: 6000, Min: 20, Max: 40}},
+		RegenCycle: 6, RegenPercent: 7, Drops: boarDrops, Yang: Yang{Chance: 6000, Min: 20, Max: 40}},
 
 	9001:  {VNum: 9001, Name: "Handlarz Bronią", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100, Sells: weapons},
 	9002:  {VNum: 9002, Name: "Handlarz Zbrojami", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100, Sells: armours},
@@ -130,6 +140,7 @@ var protos = map[uint16]Proto{
 	20325: {VNum: 20325, Name: "Trener Mocy Czarn. Magii", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100, Teaches: "black_magic"},
 	20344: {VNum: 20344, Name: "Trener Mocy Broni", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100, Teaches: "weaponry"},
 	20345: {VNum: 20345, Name: "Trener Mocy Czarn. Magii", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100, Teaches: "black_magic"},
+	20016: {VNum: 20016, Name: "Kowal", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100, Upgrades: true},
 	9005:  {VNum: 9005, Name: "Dozorca", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100},
 	9006:  {VNum: 9006, Name: "Starsza Pani", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100},
 	9009:  {VNum: 9009, Name: "Rybak", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100},

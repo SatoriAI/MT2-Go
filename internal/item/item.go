@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"strconv"
+	"strings"
 
 	"github.com/SatoriAI/MT2-Go/internal/account"
 )
@@ -37,6 +39,10 @@ type Proto struct {
 	AttackMax uint16
 	Defence   uint16 // armour's
 	Sword     bool   // a one-handed sword, which some skills need in hand
+	// Grade is how far the kind is upgraded, from +0 to MaxGrade, and Graded that it is
+	// upgraded at all: each grade is the next vnum, as the client numbers them.
+	Grade  uint8
+	Graded bool
 
 	// What a potion restores when it is drunk; a kind restoring neither is not drunk.
 	HP, SP uint16
@@ -70,6 +76,9 @@ func Lookup(vnum uint32) (Proto, bool) {
 	return p, ok
 }
 
+// MaxGrade is the last grade gear is upgraded to.
+const MaxGrade = 9
+
 // VNums are the kinds the game has, in order.
 func VNums() []uint32 { return slices.Sorted(maps.Keys(protos)) }
 
@@ -77,10 +86,10 @@ func VNums() []uint32 { return slices.Sorted(maps.Keys(protos)) }
 // ITEM_STACKABLE for the stacks; for what is worn, its ITEM_WEAR, the classes its
 // ANTI_ flags leave, a weapon's attack (VALUE3 to VALUE4) and armour's
 // defence (VALUE1); the shop prices, but 100 for each first weapon, which it gives none.
-// Only each class's first weapon and armour are listed, none of which needs a level; a
-// level check comes with the first that does. The names are the Polish client's own, from
+// Only each class's first weapon and armour are listed, with their grades, none of which
+// needs a level; a level check comes with the first that does. The names are the Polish client's own, from
 // its locale item_proto (docs/mechanics/items.md says how they were read), in UTF-8.
-var protos = map[uint32]Proto{
+var protos = withGrades(map[uint32]Proto{
 	10: {VNum: 10, Name: "Miecz+0", Size: 2, Stack: 1, Wear: Weapon,
 		Classes: []account.Class{account.Warrior, account.Ninja, account.Sura}, AttackMin: 13, AttackMax: 15, Sword: true,
 		Price: 100, SellPrice: 0},
@@ -103,6 +112,44 @@ var protos = map[uint32]Proto{
 	27001: {VNum: 27001, Name: "Czerwona Mikstura(M)", Size: 1, Stack: MaxStack, HP: 300, Price: 32, SellPrice: 6},
 	27002: {VNum: 27002, Name: "Czerwona Mikstura(Ś)", Size: 1, Stack: MaxStack, HP: 800, Price: 96, SellPrice: 18},
 	27004: {VNum: 27004, Name: "Niebieska Mikstura(M)", Size: 1, Stack: MaxStack, SP: 100, Price: 96, SellPrice: 24},
+	30004: {VNum: 30004, Name: "Ząb Dzika", Size: 1, Stack: MaxStack, SellPrice: 100},
+	30028: {VNum: 30028, Name: "Szpon Wilka", Size: 1, Stack: MaxStack, SellPrice: 100},
+})
+
+// gradeSteps are what each grade of a first weapon or armour adds over its +0: the
+// client's item_proto VALUE5 per grade, which its tooltip adds to both ends of a weapon's
+// attack and, twice, to armour's defence.
+var gradeSteps = map[uint32]uint16{10: 7, 1000: 4, 2000: 8, 3000: 8, 7000: 7, 11200: 3, 11400: 3, 11600: 3, 11800: 3}
+
+// gradeSales are what a shop pays for each grade, before the client's division by 5: its
+// item_proto sell prices, the same for every first weapon and for every first armour.
+var gradeSales = map[Wear][MaxGrade + 1]uint32{
+	Weapon: {0, 100, 100, 150, 150, 200, 250, 350, 500, 750},
+	Body:   {3000, 5000, 5000, 5000, 5000, 10000, 10000, 20000, 40000, 80000},
+}
+
+// withGrades adds each first weapon's and armour's grades +1 to +9 to the kinds: named as
+// the client names them, its +0's name with its grade, and no shop sells them.
+func withGrades(kinds map[uint32]Proto) map[uint32]Proto {
+	for vnum, step := range gradeSteps {
+		base := kinds[vnum]
+		base.Graded = true
+		kinds[vnum] = base
+		for g := uint8(1); g <= MaxGrade; g++ {
+			p := base
+			p.VNum, p.Grade, p.Price = vnum+uint32(g), g, 0
+			p.Name = strings.TrimSuffix(base.Name, "+0") + "+" + strconv.Itoa(int(g))
+			p.SellPrice = gradeSales[base.Wear][g] / 5
+			bonus := uint16(g) * step
+			if p.Wear == Weapon {
+				p.AttackMin, p.AttackMax = base.AttackMin+bonus, base.AttackMax+bonus
+			} else {
+				p.Defence = base.Defence + 2*bonus
+			}
+			kinds[p.VNum] = p
+		}
+	}
+	return kinds
 }
 
 // Item is one item a character owns: a kind, how many of it, and either the inventory

@@ -1,6 +1,7 @@
 package mob
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/SatoriAI/MT2-Go/internal/item"
@@ -100,6 +101,29 @@ func TestEveryWareFitsTheShopWindow(t *testing.T) {
 				}
 				taken[cell] = true
 			}
+		}
+	}
+}
+
+// Wolves leave a wolf's claw and boars a boar's tooth, each 5 times in 100: the materials
+// later upgrades take.
+func TestWolvesAndBoarsLeaveTheMaterialsOfUpgrades(t *testing.T) {
+	for vnum, material := range map[uint16]uint32{102: 30028, 103: 30028, 108: 30004} {
+		p, _ := Lookup(vnum)
+		if !slices.Contains(p.Drops, Drop{VNum: material, Count: 1, Chance: 500}) {
+			t.Errorf("%d leaves %+v", vnum, p.Drops)
+		}
+	}
+	if dog, _ := Lookup(101); slices.ContainsFunc(dog.Drops, func(d Drop) bool { return d.VNum == 30028 || d.VNum == 30004 }) {
+		t.Errorf("a dog leaves %+v", dog.Drops)
+	}
+}
+
+// The blacksmith is the one NPC who upgrades.
+func TestOnlyTheBlacksmithUpgrades(t *testing.T) {
+	for vnum, p := range protos {
+		if p.Upgrades != (vnum == 20016) || (p.Upgrades && p.Kind != NPC) {
+			t.Errorf("%d: %+v", vnum, p)
 		}
 	}
 }
