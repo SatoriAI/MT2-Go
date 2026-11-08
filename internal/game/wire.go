@@ -228,17 +228,24 @@ var skillVNums = map[account.Skill]uint8{
 	skill.DragonSwirl:     62,
 	skill.EnchantedBlade:  63,
 	skill.EnchantedArmour: 65,
+	skill.ThreeWayCut:     1,
+	skill.SwordSpin:       2,
+	skill.Berserk:         3,
+	skill.SwordAura:       4,
 }
 
 // castingSpeed is what the client is told a character's casting speed is: 100, at which it
 // counts a skill's cooldown as its table says, as this server does; at 0 it doubles it.
 const castingSpeed = 100
 
-// affectBits are the bits a buff sets in a character's effects, which the client draws:
-// 19 is the glow Enchanted Blade puts on the blade.
+// affectBits are the bits a buff sets in a character's effects, which the client draws,
+// its AFFECT_ numbers (InstanceBase.h): 19 is the glow Enchanted Blade puts on the blade,
+// 14 Berserk's and 15 Sword Aura's.
 var affectBits = map[account.Skill]uint64{
 	skill.EnchantedBlade:  1 << 19,
 	skill.EnchantedArmour: 1 << 21,
+	skill.Berserk:         1 << 14,
+	skill.SwordAura:       1 << 15,
 }
 
 // affectsOf is the effects the client draws on a character: a bit for each buff running.
@@ -280,19 +287,24 @@ const (
 	taskbarSkill uint8 = 2
 )
 
-// skillWindowSlots are where the client's skill window shows each skill: the sura's
-// Weaponry skills from 1, in the order its playersettingmodule lists them.
+// skillWindowSlots are where the client's skill window shows each skill, from 1 in each
+// group, in the order its playersettingmodule lists them; each group has its own.
 var skillWindowSlots = map[account.Skill]uint8{
 	skill.FingerStrike:    1,
 	skill.DragonSwirl:     2,
 	skill.EnchantedBlade:  3,
 	skill.EnchantedArmour: 5,
+	skill.ThreeWayCut:     1,
+	skill.SwordSpin:       2,
+	skill.Berserk:         3,
+	skill.SwordAura:       4,
 }
 
-// skillByWindowSlot is the skill at a place in the skill window, if the game has it.
-func skillByWindowSlot(slot uint8) (account.Skill, bool) {
+// skillByWindowSlot is the skill of the group at a place in the skill window, if the game
+// has it.
+func skillByWindowSlot(g account.SkillGroup, slot uint8) (account.Skill, bool) {
 	for s, at := range skillWindowSlots {
-		if at == slot {
+		if p, _ := skill.Lookup(s); at == slot && p.Group == g {
 			return s, true
 		}
 	}

@@ -127,9 +127,8 @@ func attackerOf(c *account.Character) combat.Attacker {
 func buffBonus(c *account.Character, stat skill.Stat) uint16 {
 	var bonus uint16
 	for sk := range c.Buffs {
-		if p, _ := skill.Lookup(sk); p.Raises == stat {
-			bonus += p.Bonus(c.Intelligence, c.Skills[sk])
-		}
+		p, _ := skill.Lookup(sk)
+		bonus += p.Bonus(stat, skill.Bearer{Strength: c.Strength, Intelligence: c.Intelligence}, c.Skills[sk])
 	}
 	return bonus
 }
@@ -253,10 +252,11 @@ func (s *session) onTarget(body []byte) error {
 	return nil
 }
 
-// onAttack lands a blow the player's client saw hit. Skills are not handled yet. A blow
-// faster than the player's attack speed allows on the same victim is dropped, checked on
-// both sides, as the original does: the attacker's last victim here, and the victim's last
-// attacker in the world record, which catches a player switching between victims.
+// onAttack lands a blow the player's client saw hit; a skill's hits are the server's
+// own. A blow faster than the player's attack speed, Berserk's included, allows on the
+// same victim is dropped, checked on both sides, as the original does: the attacker's last
+// victim here, and the victim's last attacker in the world record, which catches a player
+// switching between victims.
 func (s *session) onAttack(body []byte) error {
 	a, err := protocol.DecodeAttack(body)
 	if err != nil {
@@ -264,11 +264,12 @@ func (s *session) onAttack(body []byte) error {
 	}
 	now := time.Now()
 	p := s.playing
-	if a.Skill != 0 || (a.Victim == s.lastVictim && now.Sub(s.lastBlow) < blowGap(p.points.AttackSpeed)) {
+	gap := blowGap(s.svc.presence.attackSpeedOf(p.vid))
+	if a.Skill != 0 || (a.Victim == s.lastVictim && now.Sub(s.lastBlow) < gap) {
 		return nil
 	}
 	s.lastVictim, s.lastBlow = a.Victim, now
-	if s.svc.presence.attack(p.vid, a.Victim, blowGap(p.points.AttackSpeed), s.rand, now) == blowKilled {
+	if s.svc.presence.attack(p.vid, a.Victim, gap, s.rand, now) == blowKilled {
 		s.conn.Log().Debug("killed", "character", p.Name, "victim", a.Victim)
 	}
 	return nil

@@ -6,15 +6,21 @@ import (
 	"time"
 
 	"github.com/SatoriAI/MT2-Go/internal/account"
+	"github.com/SatoriAI/MT2-Go/internal/item"
 )
 
 // The skills the game has so far: the sura's Weaponry attacks, on one and on many, and its
-// buffs of attack and defence.
+// buffs of attack and defence; the warrior's Body attacks, around a target and around
+// themselves, and its buffs of speed and attack.
 const (
 	FingerStrike    account.Skill = "finger_strike"
 	DragonSwirl     account.Skill = "dragon_swirl"
 	EnchantedBlade  account.Skill = "enchanted_blade"
 	EnchantedArmour account.Skill = "enchanted_armour"
+	ThreeWayCut     account.Skill = "three_way_cut"
+	SwordSpin       account.Skill = "sword_spin"
+	Berserk         account.Skill = "berserk"
+	SwordAura       account.Skill = "sword_aura"
 )
 
 // MaxLevel is the most a skill rises to with points; the client hides its + there.
@@ -33,26 +39,62 @@ type Proto struct {
 	// Mana is what using it costs; Cooldown, in seconds, how long before it may be used
 	// again.
 	Mana, Cooldown Scaled
-	// An attack strikes the one monster the player picked within a blow's reach, with
-	// Target, or every monster within Reach, for Damage percent of a blow.
-	Target bool
-	Reach  int64
-	Damage Scaled
-	// A buff raises what Raises names for Lasts seconds. Toggle is that using it again
-	// ends it; NeedsSword, that it runs only with a sword in hand.
-	Raises     Stat
-	Lasts      Scaled
-	Toggle     bool
-	NeedsSword bool
+	// An attack strikes, for Damage percent of a blow: with Target, the one monster the
+	// player picked within a blow's reach, and with Reach, every monster within Reach of
+	// it, or without Target, of the player. At most Victims are struck, the nearest first,
+	// none for no limit, each Hits times, none for once.
+	Target  bool
+	Reach   int64
+	Victims int
+	Hits    int
+	Damage  Scaled
+	// A buff raises each stat Raises names, by its formula, for Lasts seconds. Toggle is
+	// that using it again ends it.
+	Raises map[Stat]Formula
+	Lasts  Scaled
+	Toggle bool
+	// Wields is the weapon the skill needs in hand, and a buff runs only with it.
+	Wields Wield
 }
 
 // Stat is what a buff raises.
 type Stat string
 
 const (
-	Attack  Stat = "attack"
-	Defence Stat = "defence"
+	Attack      Stat = "attack"
+	Defence     Stat = "defence"
+	AttackSpeed Stat = "attack_speed"
+	MoveSpeed   Stat = "move_speed"
 )
+
+// Formula is what a buff adds to a stat for its bearer at a power k, in hundredths,
+// before it is rounded down.
+type Formula func(b Bearer, k uint32) uint32
+
+// Bearer is what of a character a buff's formula reads.
+type Bearer struct {
+	Strength, Intelligence uint8
+}
+
+// Wield is the weapon a skill needs in hand.
+type Wield string
+
+const (
+	AnyWeapon        Wield = ""
+	Sword            Wield = "sword"               // a one-handed sword
+	SwordOrTwoHanded Wield = "sword_or_two_handed" // the client's SWORD|TWO_HANDED
+)
+
+// Wieldable is whether the skill may be used, or its buff run, with the weapon in hand.
+func (p Proto) Wieldable(weapon item.Proto) bool {
+	switch p.Wields {
+	case Sword:
+		return weapon.Sword
+	case SwordOrTwoHanded:
+		return weapon.Sword || weapon.TwoHanded
+	}
+	return true
+}
 
 // Scaled is a value of Base, plus PerPower times a skill's power in hundredths, divided
 // by 100: the shape of the client's skill formulas.
@@ -73,18 +115,20 @@ func (p Proto) LastsAt(level uint8) time.Duration {
 	return time.Duration(p.Lasts.At(Power(level))) * time.Second
 }
 
-// Bonus is what the buff adds, at its level, for a character of intelligence, as the
-// client shows it, rounded down: Enchanted Blade adds 7 + (5·INT + 13)·k to the attack,
-// its tooltip; Enchanted Armour (INT + 30)·k to the defence, its skilltable.
-func (p Proto) Bonus(intelligence, level uint8) uint16 {
-	k := Power(level)
-	switch p.Raises {
-	case Attack:
-		return uint16(7 + (5*uint32(intelligence)+13)*k/100) //nolint:gosec // at most 7 + 1288/2
-	case Defence:
-		return uint16((uint32(intelligence) + 30) * k / 100) //nolint:gosec // at most 285/2
+// Bonus is what the buff adds to the stat, at its level, for its bearer, rounded down; 0
+// for a stat it does not raise.
+func (p Proto) Bonus(stat Stat, b Bearer, level uint8) uint16 {
+	f, ok := p.Raises[stat]
+	if !ok {
+		return 0
 	}
-	return 0
+	return uint16(f(b, Power(level)) / 100) //nolint:gosec // at most a few hundred
+}
+
+// Raise reports whether the buff raises the stat.
+func (p Proto) Raise(stat Stat) bool {
+	_, ok := p.Raises[stat]
+	return ok
 }
 
 var protos = map[account.Skill]Proto{
@@ -98,12 +142,38 @@ var protos = map[account.Skill]Proto{
 		Reach: 500, Damage: Scaled{200, 300}},
 	// The client's skilltable: 20 + 240k mana, a toggle. It lasts three minutes, as the
 	// veteran argued and Dawid chose, where the client's lasts 50 + 100k seconds.
-	EnchantedBlade: {Class: account.Sura, Group: "weaponry", Mana: Scaled{20, 240}, Raises: Attack,
-		Lasts: Scaled{180, 0}, Toggle: true, NeedsSword: true},
+	EnchantedBlade: {Class: account.Sura, Group: "weaponry", Mana: Scaled{20, 240},
+		Raises: map[Stat]Formula{Attack: func(b Bearer, k uint32) uint32 { return 700 + (5*uint32(b.Intelligence)+13)*k }},
+		Lasts:  Scaled{180, 0}, Toggle: true, Wields: Sword},
 	// The client's skilltable, all of it: 70 + 170k mana, 33 + 140k seconds' cooldown, a
 	// run of 30 + 120k seconds, so it drops for a few between casts.
 	EnchantedArmour: {Class: account.Sura, Group: "weaponry", Mana: Scaled{70, 170}, Cooldown: Scaled{33, 140},
-		Raises: Defence, Lasts: Scaled{30, 120}},
+		Raises: map[Stat]Formula{Defence: func(b Bearer, k uint32) uint32 { return (uint32(b.Intelligence) + 30) * k }},
+		Lasts:  Scaled{30, 120}},
+	// The client's skilltable: 40 + 100k mana, 12 s, up to 5 struck in a splash of 200,
+	// a sword or two-handed weapon. Its tooltip is three cuts of 1.1 + 0.1k of the attack,
+	// and STR: here three hits of (110 + 10k)% of a blow on each.
+	ThreeWayCut: {Class: account.Warrior, Group: "body", Mana: Scaled{40, 100}, Cooldown: Scaled{12, 0},
+		Target: true, Reach: 200, Victims: 5, Hits: 3, Damage: Scaled{110, 10}, Wields: SwordOrTwoHanded},
+	// The client's skilltable: 50 + 130k mana, 15 s, up to 12 struck in a splash of 200
+	// around the warrior. Its tooltip is 3 + 0.8k of the attack, and stats: here
+	// (300 + 80k)% of a blow.
+	SwordSpin: {Class: account.Warrior, Group: "body", Mana: Scaled{50, 130}, Cooldown: Scaled{15, 0},
+		Reach: 200, Victims: 12, Damage: Scaled{300, 80}, Wields: SwordOrTwoHanded},
+	// The client's skilltable: 50 + 140k mana, 63 + 90k seconds' cooldown, a run of
+	// 60 + 90k, 50k attack speed and 20k move speed. The damage it costs the warrior, as
+	// the client's description has it, has no number there, and is not here yet.
+	Berserk: {Class: account.Warrior, Group: "body", Mana: Scaled{50, 140}, Cooldown: Scaled{63, 90},
+		Raises: map[Stat]Formula{
+			AttackSpeed: func(_ Bearer, k uint32) uint32 { return 50 * k },
+			MoveSpeed:   func(_ Bearer, k uint32) uint32 { return 20 * k },
+		},
+		Lasts: Scaled{60, 90}},
+	// The client's skilltable: 100 + 200k mana, 33 + 50k seconds' cooldown, a run of
+	// 30 + 50k, a sword or two-handed weapon; (100 + STR)·k to the attack, its tooltip.
+	SwordAura: {Class: account.Warrior, Group: "body", Mana: Scaled{100, 200}, Cooldown: Scaled{33, 50},
+		Raises: map[Stat]Formula{Attack: func(b Bearer, k uint32) uint32 { return (100 + uint32(b.Strength)) * k }},
+		Lasts:  Scaled{30, 50}, Wields: SwordOrTwoHanded},
 }
 
 // powers is a skill's power at each level, in hundredths: the client's own table, which

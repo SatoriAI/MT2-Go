@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/SatoriAI/MT2-Go/internal/account"
+	"github.com/SatoriAI/MT2-Go/internal/item"
 )
 
 // Every skill is of a class and one of that class's own skill groups.
@@ -60,6 +61,10 @@ func TestASkillCostsAndWaitsWhatTheClientWorksOut(t *testing.T) {
 		{DragonSwirl, func(k float64) float64 { return 50 + 150*k }, func(float64) float64 { return 15 }, func(float64) float64 { return 0 }},
 		{EnchantedBlade, func(k float64) float64 { return 20 + 240*k }, func(float64) float64 { return 0 }, func(float64) float64 { return 180 }},
 		{EnchantedArmour, func(k float64) float64 { return 70 + 170*k }, func(k float64) float64 { return 33 + 140*k }, func(k float64) float64 { return 30 + 120*k }},
+		{ThreeWayCut, func(k float64) float64 { return 40 + 100*k }, func(float64) float64 { return 12 }, func(float64) float64 { return 0 }},
+		{SwordSpin, func(k float64) float64 { return 50 + 130*k }, func(float64) float64 { return 15 }, func(float64) float64 { return 0 }},
+		{Berserk, func(k float64) float64 { return 50 + 140*k }, func(k float64) float64 { return 63 + 90*k }, func(k float64) float64 { return 60 + 90*k }},
+		{SwordAura, func(k float64) float64 { return 100 + 200*k }, func(k float64) float64 { return 33 + 50*k }, func(k float64) float64 { return 30 + 50*k }},
 	}
 	for _, c := range cases {
 		p, _ := Lookup(c.skill)
@@ -96,12 +101,46 @@ func TestBuffsAddWhatTheClientShows(t *testing.T) {
 	blade, _ := Lookup(EnchantedBlade)
 	armour, _ := Lookup(EnchantedArmour)
 	swirl, _ := Lookup(DragonSwirl)
+	sura := Bearer{Intelligence: 5}
 	for level, want := range map[uint8][2]uint16{1: {8, 1}, 20: {26, 17}} {
-		if got := [2]uint16{blade.Bonus(5, level), armour.Bonus(5, level)}; got != want {
+		if got := [2]uint16{blade.Bonus(Attack, sura, level), armour.Bonus(Defence, sura, level)}; got != want {
 			t.Errorf("at %d: %v, want %v", level, got, want)
 		}
 	}
-	if blade.Raises != Attack || armour.Raises != Defence || swirl.Bonus(5, 20) != 0 {
+	if blade.Bonus(Defence, sura, 20) != 0 || armour.Bonus(Attack, sura, 20) != 0 || swirl.Bonus(Attack, sura, 20) != 0 {
 		t.Fatalf("blade %+v, armour %+v", blade, armour)
+	}
+}
+
+// Sword Aura adds (100 + STR)·k to the attack, its tooltip, and Berserk 50k to the attack
+// speed and 20k to the move speed, its skilltable, rounded down: a warrior of STR 30 adds
+// 6 at 1 (6.5) and 65 at 20; Berserk 2 and 1 at 1 (2.5, 1.0), 25 and 10 at 20.
+func TestWarriorBuffsAddWhatTheClientShows(t *testing.T) {
+	aura, _ := Lookup(SwordAura)
+	berserk, _ := Lookup(Berserk)
+	warrior := Bearer{Strength: 30}
+	for level, want := range map[uint8][3]uint16{1: {6, 2, 1}, 20: {65, 25, 10}} {
+		got := [3]uint16{aura.Bonus(Attack, warrior, level), berserk.Bonus(AttackSpeed, warrior, level), berserk.Bonus(MoveSpeed, warrior, level)}
+		if got != want {
+			t.Errorf("at %d: %v, want %v", level, got, want)
+		}
+	}
+	if berserk.Bonus(Attack, warrior, 20) != 0 || aura.Bonus(AttackSpeed, warrior, 20) != 0 {
+		t.Fatal("a buff raises what it should not")
+	}
+}
+
+// Three-Way Cut, Sword Spin and Sword Aura need a sword or a two-handed weapon, as the
+// client's WEAPON_LIMITATION has it; Enchanted Blade a one-handed sword; Berserk any.
+func TestWarriorSkillsNeedASwordOrATwoHandedWeapon(t *testing.T) {
+	sword, glaive, fan := item.Proto{Sword: true}, item.Proto{TwoHanded: true}, item.Proto{}
+	for s, want := range map[account.Skill][3]bool{
+		ThreeWayCut: {true, true, false}, SwordSpin: {true, true, false}, SwordAura: {true, true, false},
+		EnchantedBlade: {true, false, false}, Berserk: {true, true, true},
+	} {
+		p, _ := Lookup(s)
+		if got := [3]bool{p.Wieldable(sword), p.Wieldable(glaive), p.Wieldable(fan)}; got != want {
+			t.Errorf("%s with a sword, glaive, fan: %v, want %v", s, got, want)
+		}
 	}
 }

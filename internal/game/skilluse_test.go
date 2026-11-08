@@ -379,7 +379,7 @@ func TestACooldownOutlastsTheConnection(t *testing.T) {
 
 func bladeBonus(intelligence, level uint8) uint16 {
 	p, _ := skill.Lookup(skill.EnchantedBlade)
-	return p.Bonus(intelligence, level)
+	return p.Bonus(skill.Attack, skill.Bearer{Intelligence: intelligence}, level)
 }
 
 // usedOn is the client using a skill on the monster with vid.

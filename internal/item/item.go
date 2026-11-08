@@ -43,6 +43,7 @@ type Proto struct {
 	Defence   uint16 // armour's, a helmet's, shoes' or a shield's
 	MoveSpeed int8   // what shoes add to the speed the character moves at, and a shield takes off
 	Sword     bool   // a one-handed sword, which some skills need in hand
+	TwoHanded bool   // a two-handed weapon, which some take as a sword
 	// Grade is how far the kind is upgraded, from +0 to MaxGrade, and Graded that it is
 	// upgraded at all: each grade is the next vnum, as the client numbers them.
 	Grade  uint8
@@ -100,7 +101,7 @@ var protos = withGrades(map[uint32]Proto{
 	2000: {VNum: 2000, Name: "Łuk+0", Size: 2, Stack: 1, Wear: Weapon,
 		Classes: []account.Class{account.Ninja}, AttackMin: 7, AttackMax: 29, Price: 100, SellPrice: 0},
 	3000: {VNum: 3000, Name: "Glewia+0", Size: 3, Stack: 1, Wear: Weapon,
-		Classes: []account.Class{account.Warrior}, AttackMin: 14, AttackMax: 22, Price: 100, SellPrice: 0},
+		Classes: []account.Class{account.Warrior}, AttackMin: 14, AttackMax: 22, TwoHanded: true, Price: 100, SellPrice: 0},
 	7000: {VNum: 7000, Name: "Wachlarz+0", Size: 1, Stack: 1, Wear: Weapon,
 		Classes: []account.Class{account.Shaman}, AttackMin: 11, AttackMax: 15, Price: 100, SellPrice: 0},
 	11200: {VNum: 11200, Name: "Mnisia Zbr. Płyt.+0", Size: 2, Stack: 1, Wear: Body,
