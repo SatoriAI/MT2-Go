@@ -276,8 +276,8 @@ func TestANinjaTakesUpDaggerAtItsTeacher(t *testing.T) {
 }
 
 // Fast Attack stamps the dash with the client clock, as every move the server makes, and
-// leaves a ninja already beside her target where she stands.
-func TestFastAttackTimesItsDashAndLeavesTheNearWhereTheyStand(t *testing.T) {
+// moves a ninja nearer than 270 back out to it, as the original's warp does.
+func TestFastAttackTimesItsDashAndBacksTheNearOut(t *testing.T) {
 	s, client := stabbing(t, 1)
 	kira, _ := aPlayer(t, s.svc, 1001, 8, "Kira", 0)
 	read(t, client, addSize+infoSize)
@@ -300,9 +300,8 @@ func TestFastAttackTimesItsDashAndLeavesTheNearWhereTheyStand(t *testing.T) {
 	s.svc.presence.mu.Lock()
 	s.svc.presence.moveLocked(pl, protocol.Move{X: dog.p.add.X - 200, Y: homeY})
 	s.svc.presence.mu.Unlock()
-	x := pl.add.X
 	s.svc.presence.useSkill(1000, skill.FastAttack, dog.p.add.VID, noon, 4243, s.rand, func(time.Duration) bool { return true })
-	if pl.add.X != x {
-		t.Fatalf("moved from %d to %d, already beside it", x, pl.add.X)
+	if pl.add.X != dog.p.add.X-dashStop {
+		t.Fatalf("at %d, want %d", pl.add.X, dog.p.add.X-dashStop)
 	}
 }

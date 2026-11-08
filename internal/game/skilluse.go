@@ -272,12 +272,13 @@ func (w *presence) quicken(v *present, speed uint8) {
 const dashStop = 270
 
 // dash moves the player to dashStop from the monster, on the line between it and where
-// they stood, facing it, for everyone who sees them, at the client clock's time; one already
-// that near stays. The player's own client plays the dash itself. Called under the lock.
+// they stood, facing it, for everyone who sees them, at the client clock's time: from
+// nearer too, back along that line, as the original's warp does; one standing on it, with
+// no line, stays. The player's own client plays the dash itself. Called under the lock.
 func (w *presence) dash(pl, v *present, clock uint32) {
 	dx, dy := float64(pl.add.X-v.add.X), float64(pl.add.Y-v.add.Y)
 	gap := math.Hypot(dx, dy)
-	if gap <= dashStop {
+	if gap == 0 {
 		return
 	}
 	x := v.add.X + int32(dx/gap*dashStop)
