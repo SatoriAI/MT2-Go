@@ -11,7 +11,7 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
 - **Who is turned away.** A teacher tells anyone of another class, anyone below level 5, and anyone already on their path, why not.
 
 **Raising a skill.** The + beside a skill raises it a level for a point, up to 20, where the + goes. Each level from 5 brings one more point.
-- **What can be raised:** Weaponry's Finger Strike, Dragon Swirl, Enchanted Blade and Enchanted Armour, and Body's Three-Way Cut (Trzystronne Cięcie), Sword Spin (Wir Miecza), Berserk and Sword Aura (Aura Miecza). The others show in the window, but raising one says «Tej umiejętności nie można jeszcze rozwijać.»
+- **What can be raised:** Weaponry's Finger Strike, Dragon Swirl, Enchanted Blade and Enchanted Armour, Body's Three-Way Cut (Trzystronne Cięcie), Sword Spin (Wir Miecza), Berserk and Sword Aura (Aura Miecza), and Mental's Spirit Strike (Duchowe Uderzenie), Bash (Walnięcie), Stump (Tąpnięcie), Strong Body (Silne Ciało) and Sword Strike (Uderzenie Miecza). The others show in the window, but raising one says «Tej umiejętności nie można jeszcze rozwijać.»
 **Using a skill.** They are used from the skill window or the taskbar, as the client uses any skill.
 - **Finger Strike:** on the monster she has picked, within a blow's reach, one strike of two and a half blows and more at the first level, four and a quarter at 20. It can't be used again for 10 seconds.
 - **Dragon Swirl:** the sura spins her blade, and every monster around her within 500 is struck at once. Each blow is more than two of hers at the first level, three and a half at 20. Every monster struck turns on her. It costs mana and can't be used again for 15 seconds.
@@ -21,6 +21,12 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
 - **Sword Spin:** with a sword or a glaive, every monster within 200 of him, twelve at most, struck once for three blows and more. 15 seconds before it can be used again.
 - **Berserk:** his blows and his steps faster, for him and as everyone near sees him, for 64 seconds at the first level, 105 at 20. It waits a little longer to be cast again than it lasts.
 - **Sword Aura:** with a sword or a glaive, his blows harder for 32 seconds at the first level, 55 at 20, by (100 + STR)·k, as its tooltip says. It ends when the blade leaves his hand, and runs alongside Berserk.
+- **Spirit Strike:** with a sword or a glaive, a heavy blow on the monster picked and up to three beside it, two and a third blows and more. 15 seconds.
+- **Bash:** with a sword or a glaive, a slam on up to eight in front of him within 200; nothing behind him is touched. 15 seconds.
+- **Stump:** a stamp that strikes up to ten within 400 around him, and may stun each it leaves standing: a stunned monster stands still, sleeping on its feet, and bites nothing for two seconds. 25 seconds.
+- **Strong Body:** his defence higher and his steps slower for 64 seconds at the first level, 105 at 20, its effect shown on him.
+- **Sword Strike:** with a sword or a glaive, a blow from afar on the monster picked within 1200, or the nearest in front of him, and up to nine around it, each perhaps stunned. With nothing to land on, it is not used. 20 seconds.
+- **Berserk's price:** while it runs, every bite takes (5 + 10k)% more of him, 5% at the first level, 10% at 20.
 
 ## What the client does
 
@@ -43,7 +49,8 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
   - The client checks its own rules first: the skill learnt, the weapon, mana against its own cost, the cooldown.
   - It then plays the motion and sends MOVE with `FUNC_SKILL` and the motion, which others replay, and USE_SKILL with the skill's number.
   - During the motion it reports its own hits as ATTACK with the skill's number, which this server drops.
-- **The glow:** an effect bit in CHARACTER_ADD and CHARACTER_UPDATE draws a buff's effect on the character, Enchanted Blade's glow or Enchanted Armour's shimmer. For the player's own character it also lights the skill's slot as on. Bit 19 is the blade's, 21 the armour's, 14 Berserk's and 15 Sword Aura's (`InstanceBase.h`).
+- **The glow:** an effect bit in CHARACTER_ADD and CHARACTER_UPDATE draws a buff's effect on the character, Enchanted Blade's glow or Enchanted Armour's shimmer. For the player's own character it also lights the skill's slot as on. Bit 19 is the blade's, 21 the armour's, 14 Berserk's, 15 Sword Aura's and 16 Strong Body's (`InstanceBase.h`).
+- **A stun** is bit 5 of a monster's effects, AFFECT_STUN, which the client draws as the monster asleep on its feet (`InstanceBaseEffect.cpp`).
 - **The warrior's skills** need a target for Three-Way Cut, and a sword or two-handed weapon for all but Berserk, the client's NEED_TARGET and WEAPON_LIMITATION (`skilldesc.txt`). The skill window lists each group's skills from its first place, so Three-Way Cut is a Body warrior's first as Finger Strike is a Weaponry sura's (`playersettingmodule.py`).
 
 ## The bytes
@@ -57,7 +64,7 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
 | POINT_CHANGE `11` | 17 | skill points are point 28 |
 | USE_SKILL `34`, client | 9, then the sequence byte | the skill's number u32, its target's vid u32 (ignored; a toggle turned off may carry other numbers there) |
 | POINTS `10` | 1021 | casting speed at point 21: 100 |
-| CHARACTER_ADD `01`, CHARACTER_UPDATE `13` | 35 each | the effects, two u32 words: bit 19 of the first is Enchanted Blade, 21 Enchanted Armour, 14 Berserk, 15 Sword Aura; and the move and attack speeds |
+| CHARACTER_ADD `01`, CHARACTER_UPDATE `13` | 35 each | the effects, two u32 words: bit 19 of the first is Enchanted Blade, 21 Enchanted Armour, 14 Berserk, 15 Sword Aura, 16 Strong Body, and on a monster 5 its stun; and the move and attack speeds |
 | POINT_CHANGE `11` | 17 | the attack speed is point 17, the move speed 19 |
 
 ## What the server does
@@ -102,9 +109,17 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
   - **Enchanted Armour:** the client's skilltable throughout. It runs 30 + 120k seconds and adds (INT + 30)·k to the armour set against every bite, rounded down. It is not a toggle: its cooldown always outlasts it, so using it again while it runs is refused. Its effect bit is 21, shown as the blade's is, and the player is told their defence, point 20, as it starts and ends, and when a point of intelligence or a level of the skill raises it.
   - **Three-Way Cut:** the target must be a living monster within a blow's reach, and a sword or two-handed weapon in hand. It and the living monsters the player sees within 200 of it, the nearest first, five in all at most as the client's skilltable has it, are each struck three times for (110 + 10k)% of a normal blow, the hits on one stopping when it dies. The percent follows the client's tooltip, 1.1 + 0.1k of the attack, where its skilltable has 1.1 + 0.5k; the STR term is left out, as the sura's skills leave theirs. The skilltable marks no splash for it, so the 200 around the target, from its splash range and five victims per motion, is this server's reading.
   - **Sword Spin:** as Dragon Swirl, but within 200 of the player, twelve at most, the nearest first, for (300 + 80k)% of a blow, with a sword or two-handed weapon. Twelve is the client's number of victims; Dragon Swirl, whose skilltable says the same, has no cap yet.
-  - **Berserk:** the client's skilltable: it runs 60 + 90k seconds and adds 50k to the attack speed and 20k to the move speed, rounded down. As it starts and ends, the speeds go into the player's record, so the update everyone is sent and every later CHARACTER_ADD carry them, and the player is told both, points 17 and 19. The time a player's blows must leave between them on one victim follows the speed. The damage the client's description says it costs has no number in the client's data, and is not taken yet.
+  - **Berserk:** the client's skilltable: it runs 60 + 90k seconds and adds 50k to the attack speed and 20k to the move speed, rounded down. As it starts and ends, the speeds go into the player's record, so the update everyone is sent and every later CHARACTER_ADD carry them, and the player is told both, points 17 and 19. The time a player's blows must leave between them on one victim follows the speed. The damage it costs is under Mental's notes below.
   - **Sword Aura:** the client's skilltable for its mana, cooldown and run of 30 + 50k seconds; it adds (100 + STR)·k to every blow and skill strike, its tooltip, where the skilltable adds 3 for each level of the character too. A change of weapon that leaves no sword or two-handed weapon in hand ends it, as for the blade.
-  - **Bonuses come from the buffs running:** each buff raises the attack, the defence or the speeds, by its own formula of the character's STR or INT, and what the running ones add to the attack and defence is worked out whenever a blow or bite needs it, so they stack. The speeds are kept on the player's record, and worked out again whenever a buff starts or ends, a running one is raised, or the player dresses. Taking up another group ends every buff running. A buff runs until the world loop ends it.
+  - **Mental,** settled by the veteran and the designer, the veteran deciding where they differed: the client's skilltable for mana, cooldowns, victims and splash, the tooltips' attack terms for the damage, as for Body.
+    - Spirit Strike: the target and up to three within 100 of it, (230 + 400k)%.
+    - Bash: up to eight within 200 in front of the player, by the way they last faced, (230 + 300k)%: half of the world, the side their facing points to.
+    - Stump: up to ten within 400 around the player, (200 + 200k)%, stunning.
+    - Strong Body: its tooltip's 7 + (40 + 0.2·STR + 0.4·CON)·k to the defence, where the skilltable's (200 + ...)·k would leave the first maps' monsters nothing to bite, and its skilltable's 1 + 9k off the move speed, for 60 + 90k seconds.
+    - Sword Strike: the monster picked if it lives within 1200, else the nearest living one in front of the player within 1200; it and up to nine within 200 of it, (200 + 100k)%, stunning. With neither, it is not used and costs nothing. Its knockback is left out, as it would move monsters the server owns.
+  - **Stuns:** each monster a stunning skill leaves alive is stunned at the client's chance, (100 + 1000k/6)/10 percent, rolled for each. A stun holds it two seconds from then, its fight's next step falling due as it ends: a second one resets the time, never adding to it, and there is no time after one in which it cannot be stunned again. Metin stones are never stunned. A stunned monster in a fight takes its steps but neither walks nor bites; hits do not wake it. Its stun is shown to those who see it, in CHARACTER_UPDATE as it starts and ends and in every later CHARACTER_ADD; its fight ending wakes it, so it goes home awake, and its death too, so no body lies stunned.
+  - **Berserk's price:** the veteran's (5 + 10k)% more of every bite while it runs, which the client's description names but gives no number for.
+  - **Bonuses come from the buffs running:** each buff raises or lowers the attack, the defence, the speeds or the damage bites take, by its own formula of the character's STR, CON or INT, and what the running ones add to the attack and defence is worked out whenever a blow or bite needs it, so they stack. The speeds are kept on the player's record, and worked out again whenever a buff starts or ends, a running one is raised, or the player dresses. Taking up another group ends every buff running. A buff runs until the world loop ends it.
 - **Held under the world's lock:** a character's group and skills are on its record, which the world's lock guards, since its level changes there. They are read with the character on entering, and changed only through the world record.
 
 ## How we know
@@ -162,9 +177,18 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
     - its glow shown to a newcomer, and kept when she dresses.
   - Enchanted Armour: its effect, its mana and the defence told, a bite met with more armour, and refused while it runs; ended by the world loop at 36 seconds with the defence told again; the defence told when intelligence raises it.
   - The blade and the armour running together, each bit shown and each bonus added.
+- `internal/game/mental_test.go`:
+  - Spirit Strike on its target and three beside it;
+  - Bash on eight in front of her and none behind;
+  - a stunned dog neither walking nor biting for two seconds, its stun shown and ended on time; a second stun resetting the time; a stunned dog going home awake, and one killed lying unstunned;
+  - Stump stunning some of ten at level 20, and never a stone in fifty;
+  - Strong Body's defence, slowdown and effect;
+  - Sword Strike landing on the dog picked 1100 off, else the nearest in front, and not used facing nothing;
+  - Berserk making a bite 5% stronger;
+  - strength raised under Strong Body telling her defence.
 - `internal/game/warrior_test.go`:
   - Three-Way Cut cutting five around the dog picked, three times each, and its mana told; refused with nothing picked or a fan in hand; used with a glaive;
-  - Sword Spin striking the three dogs within 200 and not the one beyond, and twelve of fourteen;
+  - Sword Spin striking the three dogs within 200 and not the one beyond, and twelve of fourteen, the nearest;
   - Berserk telling both speeds and its effect, timing her blows faster, and ending with both back; raised as it runs, faster at once; ended by taking up another group;
   - Sword Aura raising the attack by 6, and ending when the sword is taken off;
   - each group's own skill window places;
@@ -174,8 +198,8 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
 
 ## Not done yet
 
-- Fear and Dispel, which only matter against players; Enchanted Armour's reflect; Finger Strike's pierce. Black Magic, Mental, the ninja's and shaman's groups and their teachers.
-- Body's Charge, which needs the server to move the warrior; the damage Berserk costs.
+- Fear and Dispel, which only matter against players; Enchanted Armour's reflect; Finger Strike's pierce. Black Magic, the ninja's and shaman's groups and their teachers.
+- Body's Charge and Sword Strike's knockback, which need the server to move characters; slows and poisons.
 - Damage at the motion's hit, and no blows during a skill's motion.
 - The mana Enchanted Blade drains while it runs in the original, and keeping it over a relog.
 - Ranks past 20: Grand and Perfect.

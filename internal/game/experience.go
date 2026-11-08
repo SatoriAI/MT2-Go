@@ -104,10 +104,10 @@ func (w *presence) spendStatPoint(vid uint32, name string) {
 			protocol.EncodePointChange(vid, protocol.PointDefence, 0, int32(defence(c)))) //nolint:gosec // small
 	case "iq":
 		packets = append(packets, protocol.EncodePointChange(vid, protocol.PointMaxSP, 0, int32(points.MaxSP))) //nolint:gosec // small
-		// a defence buff grows with intelligence
-		if buffBonus(c, skill.Defence) > 0 {
-			packets = append(packets, protocol.EncodePointChange(vid, protocol.PointDefence, 0, int32(defence(c)))) //nolint:gosec // small
-		}
+	}
+	// a defence buff grows with intelligence or strength
+	if (name == "iq" || name == "st") && buffBonus(c, skill.Defence) > 0 {
+		packets = append(packets, protocol.EncodePointChange(vid, protocol.PointDefence, 0, int32(defence(c)))) //nolint:gosec // small
 	}
 	p.send(packets...)
 }

@@ -199,16 +199,17 @@ func TestSwordAuraRaisesHerAttackWhileSheHoldsABlade(t *testing.T) {
 	}
 }
 
-// Each group has its own skill window: its first place is Three-Way Cut to a Body warrior
-// and Finger Strike to a Weaponry sura.
+// Each group has its own skill window: its first place is Three-Way Cut to a Body warrior,
+// Spirit Strike to a Mental one and Finger Strike to a Weaponry sura; a group the game
+// has no skills of has none.
 func TestTheSkillWindowsPlacesAreTheGroupsOwn(t *testing.T) {
-	for group, want := range map[account.SkillGroup]account.Skill{"body": skill.ThreeWayCut, "weaponry": skill.FingerStrike} {
+	for group, want := range map[account.SkillGroup]account.Skill{"body": skill.ThreeWayCut, "mental": skill.SpiritStrike, "weaponry": skill.FingerStrike} {
 		if got, ok := skillByWindowSlot(group, 1); !ok || got != want {
 			t.Errorf("%s: %q, want %q", group, got, want)
 		}
 	}
-	if got, ok := skillByWindowSlot("mental", 1); ok {
-		t.Errorf("mental: %q", got)
+	if got, ok := skillByWindowSlot("black_magic", 1); ok {
+		t.Errorf("black magic: %q", got)
 	}
 }
 

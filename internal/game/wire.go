@@ -148,6 +148,18 @@ func entityType(k mob.Kind) uint8 {
 	return protocol.EntityMonster
 }
 
+// stunBit is the client's AFFECT_STUN, which draws a stunned monster asleep on its feet
+// (InstanceBase.h, InstanceBaseEffect.cpp).
+const stunBit = 1 << 5
+
+// mobAffects are the effects the client draws on a monster: its stun.
+func mobAffects(p *present) uint64 {
+	if p.fight != nil && p.fight.stunned {
+		return stunBit
+	}
+	return 0
+}
+
 // smokeOf is the client's affect bit for a stone's smoke at the share of its hit points
 // left, as the target window rounds it: its thickest at a tenth or less, then at 45 and
 // 85 in a hundred or less, as the client's STONE_SMOKE flags are marked (InstanceBase.h),
@@ -232,6 +244,11 @@ var skillVNums = map[account.Skill]uint8{
 	skill.SwordSpin:       2,
 	skill.Berserk:         3,
 	skill.SwordAura:       4,
+	skill.SpiritStrike:    16,
+	skill.Bash:            17,
+	skill.Stump:           18,
+	skill.StrongBody:      19,
+	skill.SwordStrike:     20,
 }
 
 // castingSpeed is what the client is told a character's casting speed is: 100, at which it
@@ -240,12 +257,13 @@ const castingSpeed = 100
 
 // affectBits are the bits a buff sets in a character's effects, which the client draws,
 // its AFFECT_ numbers (InstanceBase.h): 19 is the glow Enchanted Blade puts on the blade,
-// 14 Berserk's and 15 Sword Aura's.
+// 14 Berserk's, 15 Sword Aura's and 16 Strong Body's.
 var affectBits = map[account.Skill]uint64{
 	skill.EnchantedBlade:  1 << 19,
 	skill.EnchantedArmour: 1 << 21,
 	skill.Berserk:         1 << 14,
 	skill.SwordAura:       1 << 15,
+	skill.StrongBody:      1 << 16,
 }
 
 // affectsOf is the effects the client draws on a character: a bit for each buff running.
@@ -298,6 +316,11 @@ var skillWindowSlots = map[account.Skill]uint8{
 	skill.SwordSpin:       2,
 	skill.Berserk:         3,
 	skill.SwordAura:       4,
+	skill.SpiritStrike:    1,
+	skill.Bash:            2,
+	skill.Stump:           3,
+	skill.StrongBody:      4,
+	skill.SwordStrike:     5,
 }
 
 // skillByWindowSlot is the skill of the group at a place in the skill window, if the game
