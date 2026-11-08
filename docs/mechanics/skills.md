@@ -11,7 +11,7 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
 - **Who is turned away.** A teacher tells anyone of another class, anyone below level 5, and anyone already on their path, why not.
 
 **Raising a skill.** The + beside a skill raises it a level for a point, up to 20, where the + goes. Each level from 5 brings one more point.
-- **What can be raised:** Weaponry's Finger Strike, Dragon Swirl, Enchanted Blade and Enchanted Armour, Body's Three-Way Cut (Trzystronne Cięcie), Sword Spin (Wir Miecza), Berserk and Sword Aura (Aura Miecza), and Mental's Spirit Strike (Duchowe Uderzenie), Bash (Walnięcie), Stump (Tąpnięcie), Strong Body (Silne Ciało) and Sword Strike (Uderzenie Miecza), and Dagger's Ambush (Zasadzka), Fast Attack (Szybki Atak) and Rolling Dagger (Wirujący Sztylet). The others show in the window, but raising one says «Tej umiejętności nie można jeszcze rozwijać.»
+- **What can be raised:** Weaponry's Finger Strike, Dragon Swirl, Enchanted Blade and Enchanted Armour, Body's Three-Way Cut (Trzystronne Cięcie), Sword Spin (Wir Miecza), Berserk and Sword Aura (Aura Miecza), and Mental's Spirit Strike (Duchowe Uderzenie), Bash (Walnięcie), Stump (Tąpnięcie), Strong Body (Silne Ciało) and Sword Strike (Uderzenie Miecza), Dagger's Ambush (Zasadzka), Fast Attack (Szybki Atak) and Rolling Dagger (Wirujący Sztylet), and Black Magic's Dark Strike (Mroczne Uderzenie), Flame Strike (Ogniste Uderzenie), Dark Protection (Mroczna Ochrona), Ghost Strike (Duchowy Cios) and Dark Orb (Mroczna Sfera). The others show in the window, but raising one says «Tej umiejętności nie można jeszcze rozwijać.»
 **Using a skill.** They are used from the skill window or the taskbar, as the client uses any skill.
 - **Finger Strike:** on the monster she has picked, within a blow's reach, one strike of two and a half blows and more at the first level, four and a quarter at 20. It can't be used again for 10 seconds.
 - **Dragon Swirl:** the sura spins her blade, and every monster around her within 500 is struck at once. Each blow is more than two of hers at the first level, three and a half at 20. Every monster struck turns on her. It costs mana and can't be used again for 15 seconds.
@@ -30,6 +30,12 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
 - **Ambush:** with a dagger or a sword, a stab on the monster picked, the ninja's hardest blow, half as hard again struck from behind it. 15 seconds.
 - **Fast Attack:** with a dagger or a sword, she dashes to the monster picked, up to 800 off, and strikes it. 20 seconds.
 - **Rolling Dagger:** with a dagger or a sword, up to twelve within 250 around her, each perhaps poisoned: a poisoned monster is tinted, and loses 1 in a hundred of its hit points every two seconds for half a minute, which can kill it. 25 seconds.
+- **Black Magic's spells** hit for numbers of the sura's INT and level and her weapon's magic attack, which no armour cuts, unlike every blow:
+  - **Dark Strike:** the monster picked up to 1500 off and up to four around it. 7 seconds.
+  - **Flame Strike:** up to fifteen within 500 around her. 12 seconds.
+  - **Ghost Strike:** the monster picked up to 1200 off and up to eight within 400 of it, each perhaps slowed: a slowed monster walks at seven tenths of its pace for ten seconds and more. 12 seconds.
+  - **Dark Orb:** the monster picked up to 1500 off and up to eight around it, the strongest. 24 seconds.
+  - **Dark Protection:** a toggle that raises her defence and takes a share of every bite from her mana instead of her hit points, while draining mana every five seconds; with too little mana it ends.
 
 ## What the client does
 
@@ -53,7 +59,9 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
   - It then plays the motion and sends MOVE with `FUNC_SKILL` and the motion, which others replay, and USE_SKILL with the skill's number.
   - During the motion it reports its own hits as ATTACK with the skill's number, which this server drops.
 - **The glow:** an effect bit in CHARACTER_ADD and CHARACTER_UPDATE draws a buff's effect on the character, Enchanted Blade's glow or Enchanted Armour's shimmer. For the player's own character it also lights the skill's slot as on. Bit 19 is the blade's, 21 the armour's, 14 Berserk's, 15 Sword Aura's and 16 Strong Body's (`InstanceBase.h`).
-- **A stun** is bit 5 of a monster's effects, AFFECT_STUN, which the client draws as the monster asleep on its feet, and **a poison** bit 3, AFFECT_POISON. A DAMAGE flagged 2, DAMAGE_POISON, is drawn as poison's hit (`InstanceBase.h`, `InstanceBaseEffect.cpp`).
+- **A stun** is bit 5 of a monster's effects, AFFECT_STUN, which the client draws as the monster asleep on its feet, **a poison** bit 3, AFFECT_POISON, and **a slow** bit 4, AFFECT_SLOW. Dark Protection is bit 25. A DAMAGE flagged 2, DAMAGE_POISON, is drawn as poison's hit (`InstanceBase.h`, `InstanceBaseEffect.cpp`).
+- **A spell's tooltip** reads the weapon's attack, VALUE3 to VALUE4 and its grade, for its `mtk`, and the hit rate, (min(90, (4·DEX + 2·level)/6) + 210)/300, for its `ar` (`PythonSkill.cpp`, `PythonPlayer.cpp`). A weapon's magic attack, which its own tooltip shows and the skilltable's `mwep` reads, is its VALUE1 to VALUE2 and its grade's VALUE5 (`uitooltip.py`).
+- **A toggle turned off** is sent as USE_SKILL like any use, and the client then counts no new cooldown: it runs on from when the toggle was turned on (`PythonPlayerSkill.cpp`).
 - **The warrior's skills** need a target for Three-Way Cut, and a sword or two-handed weapon for all but Berserk, the client's NEED_TARGET and WEAPON_LIMITATION (`skilldesc.txt`). The skill window lists each group's skills from its first place, so Three-Way Cut is a Body warrior's first as Finger Strike is a Weaponry sura's (`playersettingmodule.py`).
 
 ## The bytes
@@ -67,7 +75,7 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
 | POINT_CHANGE `11` | 17 | skill points are point 28 |
 | USE_SKILL `34`, client | 9, then the sequence byte | the skill's number u32, its target's vid u32 (ignored; a toggle turned off may carry other numbers there) |
 | POINTS `10` | 1021 | casting speed at point 21: 100 |
-| CHARACTER_ADD `01`, CHARACTER_UPDATE `13` | 35 each | the effects, two u32 words: bit 19 of the first is Enchanted Blade, 21 Enchanted Armour, 14 Berserk, 15 Sword Aura, 16 Strong Body, and on a monster 5 its stun and 3 its poison; and the move and attack speeds |
+| CHARACTER_ADD `01`, CHARACTER_UPDATE `13` | 35 each | the effects, two u32 words: bit 19 of the first is Enchanted Blade, 21 Enchanted Armour, 14 Berserk, 15 Sword Aura, 16 Strong Body, and on a monster 5 its stun, 3 its poison and 4 its slow, with its slower pace; and the move and attack speeds |
 | POINT_CHANGE `11` | 17 | the attack speed is point 17, the move speed 19 |
 | DAMAGE `87` | 10 | a poison's turn has flag 2 |
 
@@ -128,6 +136,15 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
     - Fast Attack: the monster picked if it lives within 800. The ninja is moved to 270 from it first, on the line from her to it, where the original client's warp lands her (`ProcessMotionEventWarp` in `ActorInstanceMotionEvent.cpp`), facing it, shown to everyone who sees her at the client clock's time; her own client plays the dash itself. One already that near is not moved. Then (100 + 250k)%.
     - Rolling Dagger: up to twelve within 250 around her, (150 + 150k)%, poisoning at its tooltip's 1 + 4k percent, rolled for each it leaves alive.
     - Krycie Się, stealth, is left out, and Trująca Chmura waits for magic damage.
+  - **Black Magic,** settled the same way, the client's source settling what its tooltips read: the skilltable for mana, cooldowns, victims, range and splash, and each tooltip's formula for the damage, a number rather than a share of a blow.
+    - **The damage:** the formula of the sura's level, STR, CON, DEX and INT, her weapon's magic attack rolled from its least to its most, the tooltip's own range of a number rolled the same way (50 to 100 for Dark Strike, 180 to 200 for Flame and Ghost Strike), and her hit rate where the tooltip multiplies by it. For the magic attack the server takes the weapon's magic attack, as the skilltable's `mwep` does and the debaters chose, where the tooltip itself reads the weapon's attack: the sword's tooltips show a little less than it does. The sword's magic attack is 15 to 19, and each grade adds its VALUE5, 78 to 82 at +9. Only a monster's magic resistance would cut it, and every first-map monster's is none; armour never does.
+    - Dark Strike: 40 + 5·lv + 2·iq + (20·iq + 7·MTK + 50 to 100)·ar·k, the picked within 1500, five in all within 200 of it.
+    - Flame Strike: 5·lv + 2·iq + (20·iq + 8·MTK + 4·str + 2·con + 180 to 200)·k, fifteen within 500 of her.
+    - Ghost Strike: 40 + 2·lv + 2·iq + (2·con + 2·dex + 22·iq + 6·MTK + 180 to 200)·ar·k, the picked within 1200, nine in all within 400, slowing at (333 + 300k)/10 percent.
+    - Dark Orb: 120 + 6·lv + (5·con + 5·dex + 40·iq + 12·MTK)·ar·k, the picked within 1500, nine in all within 200.
+    - Dark Protection: a toggle, 63 + 120k seconds' cooldown, counted from when it is turned on and never restarted by turning it off, and 60 + 120k run; (0.5·iq + 15)·k on the defence, and 0.84·iq·k percent of each bite taken from mana, rounded down where the tooltip rounds to nearest, the veteran's reading of the skilltable's 100 − 0.84·iq·k; 5 + 10k mana every five seconds it runs, told, the world loop keeping the draining in a list. With too little mana for a drain or a bite's share, it ends, and that bite is all hers.
+    - Ognisty Duch, the summoned spirit, comes later.
+  - **Slow:** the veteran's 30 in a hundred off the monster's pace for the skilltable's 10 + 10k seconds, at its chance for each one left alive. Its pace, shown in the CHARACTER_UPDATE with the bit, is what it walks at while it chases; its bites keep their time. Its fight ending or its time running out gives its pace back; its death ends it; stones are never slowed.
   - **Poison:** the veteran's.
     - **What it takes:** 1 in a hundred of the monster's hit points every two seconds, at least one and at most the poisoner's mean blow on it, worked out as it lands.
     - **How long:** thirty seconds from the latest poison; a second one renews it and never stacks.
@@ -202,6 +219,12 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
   - Sword Strike landing on the dog picked 1100 off, else the nearest in front, and not used facing nothing;
   - Berserk making a bite 5% stronger;
   - strength raised under Strong Body telling her defence.
+- `internal/game/magic_test.go`:
+  - Dark Strike doing its tooltip's damage through armour, and reaching 1400 off to five;
+  - Flame Strike burning the four within 500;
+  - Ghost Strike slowing about a third, to seven tenths and shown, for its time; a slowed dog walking slower, then back to its pace;
+  - Dark Protection taking its share of a bite from mana, ending without the mana for it, and draining until there is too little.
+- `internal/skill/skill_test.go`: also each spell its tooltip's formula, the hit rate the client's, a slow's chance and time, Dark Protection's shield.
 - `internal/game/dagger_test.go`:
   - Ambush half as strong again from behind; refused with a glaive, used with a sword;
   - Fast Attack moving her beside the dog picked 700 off, seen by a neighbour, and out of reach beyond 800;
@@ -220,8 +243,8 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
 
 ## Not done yet
 
-- Fear and Dispel, which only matter against players; Enchanted Armour's reflect; Finger Strike's pierce. Black Magic and Archery, whose teachers stand but which have no skills yet, and the shaman's groups and their teachers; the ninja's stealth and poison cloud.
-- Body's Charge and Sword Strike's knockback, which push monsters the server owns; slows.
+- Fear and Dispel, which only matter against players; Enchanted Armour's reflect; Finger Strike's pierce. Archery, whose teachers stand but which has no skills yet, Black Magic's summoned spirit, and the shaman's groups and their teachers; the ninja's stealth and poison cloud.
+- Body's Charge and Sword Strike's knockback, which push monsters the server owns.
 - Damage at the motion's hit, and no blows during a skill's motion.
 - The mana Enchanted Blade drains while it runs in the original, and keeping it over a relog.
 - Ranks past 20: Grand and Perfect.

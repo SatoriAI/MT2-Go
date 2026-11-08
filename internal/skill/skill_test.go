@@ -73,6 +73,11 @@ func TestASkillCostsAndWaitsWhatTheClientWorksOut(t *testing.T) {
 		{Ambush, func(k float64) float64 { return 40 + 160*k }, func(float64) float64 { return 15 }, func(float64) float64 { return 0 }},
 		{FastAttack, func(k float64) float64 { return 40 + 160*k }, func(float64) float64 { return 20 }, func(float64) float64 { return 0 }},
 		{RollingDagger, func(k float64) float64 { return 50 + 140*k }, func(float64) float64 { return 25 }, func(float64) float64 { return 0 }},
+		{DarkStrike, func(k float64) float64 { return 30 + 140*k }, func(float64) float64 { return 7 }, func(float64) float64 { return 0 }},
+		{FlameStrike, func(k float64) float64 { return 60 + 140*k }, func(float64) float64 { return 12 }, func(float64) float64 { return 0 }},
+		{DarkProtection, func(k float64) float64 { return 20 + 30*k }, func(k float64) float64 { return 63 + 120*k }, func(k float64) float64 { return 60 + 120*k }},
+		{GhostStrike, func(k float64) float64 { return 40 + 120*k }, func(float64) float64 { return 12 }, func(float64) float64 { return 0 }},
+		{DarkOrb, func(k float64) float64 { return 80 + 220*k }, func(float64) float64 { return 24 }, func(float64) float64 { return 0 }},
 	}
 	for _, c := range cases {
 		p, _ := Lookup(c.skill)
@@ -197,6 +202,77 @@ func TestDaggerSkillsTakeADaggerOrASword(t *testing.T) {
 		p, _ := Lookup(s)
 		if !p.Wieldable(dagger) || !p.Wieldable(sword) || p.Wieldable(glaive) {
 			t.Errorf("%s: %v %v %v", s, p.Wieldable(dagger), p.Wieldable(sword), p.Wieldable(glaive))
+		}
+	}
+}
+
+// The hit rate is the client's (min(90, (4·DEX + 2·level)/6) + 210)/300, in hundredths:
+// 70 for nobody, 73 at DEX 10 and level 10, 100 once the inner term reaches 90.
+func TestTheHitRateIsTheClients(t *testing.T) {
+	for _, c := range []struct {
+		dex, level uint8
+		want       int32
+	}{{0, 0, 70}, {10, 10, 73}, {120, 30, 100}, {255, 99, 100}} {
+		if got := HitRate(c.dex, c.level); got != c.want {
+			t.Errorf("DEX %d, level %d: %d, want %d", c.dex, c.level, got, c.want)
+		}
+	}
+}
+
+// A spell rolls its tooltip's range of a number: Dark Strike 50 to 100, Flame and Ghost
+// Strike 180 to 200; Dark Orb has none.
+func TestEachSpellRollsItsTooltipsRange(t *testing.T) {
+	for s, want := range map[account.Skill][2]int32{DarkStrike: {50, 100}, FlameStrike: {180, 200}, GhostStrike: {180, 200}, DarkOrb: {0, 0}} {
+		if p, _ := Lookup(s); p.Dice != want {
+			t.Errorf("%s rolls %v, want %v", s, p.Dice, want)
+		}
+	}
+}
+
+// Each spell is its tooltip's formula, with its rolled number: for a level-10 caster of
+// STR 5, CON 10, DEX 10, INT 20, a magic attack of 15, a roll of 90 and a hit rate of 73,
+// at power 0.05 and 0.5.
+func TestEachSpellIsItsTooltipsFormula(t *testing.T) {
+	c := Caster{Level: 10, Strength: 5, Vitality: 10, Dexterity: 10, Intelligence: 20, MTK: 15, Dice: 90, AR: 73}
+	cases := map[account.Skill]func(k float64) float64{
+		DarkStrike:  func(k float64) float64 { return 40 + 50 + 40 + (400+105+90)*0.73*k },
+		FlameStrike: func(k float64) float64 { return 50 + 40 + (400+120+20+20+90)*k },
+		GhostStrike: func(k float64) float64 { return 40 + 20 + 40 + (20+20+440+90+90)*0.73*k },
+		DarkOrb:     func(k float64) float64 { return 120 + 60 + (50+50+800+180)*0.73*k },
+	}
+	for s, want := range cases {
+		p, _ := Lookup(s)
+		for _, power := range []int32{5, 50} {
+			if got, w := p.Magic(c, power), int32(want(float64(power)/100)); got != w {
+				t.Errorf("%s at %d: %d, want %d", s, power, got, w)
+			}
+		}
+	}
+}
+
+// A slow's chance is the client's (333 + 300k)/10 percent, in thousandths, and it lasts
+// the skilltable's 10 + 10k seconds.
+func TestASlowsChanceAndTimeAreTheClients(t *testing.T) {
+	for level, want := range map[uint8]int{1: 348, 20: 483} {
+		if got := SlowChance(level); got != want {
+			t.Errorf("chance at %d: %d, want %d", level, got, want)
+		}
+	}
+	for level, want := range map[uint8]time.Duration{1: 10500 * time.Millisecond, 20: 15 * time.Second} {
+		if got := SlowsFor(level); got != want {
+			t.Errorf("time at %d: %v, want %v", level, got, want)
+		}
+	}
+}
+
+// Dark Protection adds (0.5·INT + 15)·k to the defence and turns 0.84·INT·k percent of
+// a bite onto mana, rounded down: at INT 100, 3 and 4 at its first level, 32 and 42 at 20.
+func TestDarkProtectionsShieldIsItsFormula(t *testing.T) {
+	p, _ := Lookup(DarkProtection)
+	sura := Bearer{Intelligence: 100}
+	for level, want := range map[uint8][2]int{1: {3, 4}, 20: {32, 42}} {
+		if got := [2]int{p.Bonus(Defence, sura, level), p.Bonus(ManaShield, sura, level)}; got != want {
+			t.Errorf("at %d: %v, want %v", level, got, want)
 		}
 	}
 }

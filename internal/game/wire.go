@@ -152,10 +152,14 @@ func entityType(k mob.Kind) uint8 {
 // (InstanceBase.h, InstanceBaseEffect.cpp).
 const stunBit = 1 << 5
 
-// poisonBit is the client's AFFECT_POISON, which tints a poisoned monster.
-const poisonBit = 1 << 3
+// poisonBit is the client's AFFECT_POISON, which tints a poisoned monster, and slowBit its
+// AFFECT_SLOW.
+const (
+	poisonBit = 1 << 3
+	slowBit   = 1 << 4
+)
 
-// mobAffects are the effects the client draws on a monster: its stun and its poison.
+// mobAffects are the effects the client draws on a monster: its stun, poison and slow.
 func mobAffects(p *present) uint64 {
 	var bits uint64
 	if p.fight != nil && p.fight.stunned {
@@ -163,6 +167,9 @@ func mobAffects(p *present) uint64 {
 	}
 	if p.fight != nil && p.fight.poisoned {
 		bits |= poisonBit
+	}
+	if p.fight != nil && p.fight.slowed {
+		bits |= slowBit
 	}
 	return bits
 }
@@ -259,6 +266,11 @@ var skillVNums = map[account.Skill]uint8{
 	skill.Ambush:          31,
 	skill.FastAttack:      32,
 	skill.RollingDagger:   33,
+	skill.DarkStrike:      76,
+	skill.FlameStrike:     77,
+	skill.DarkProtection:  79,
+	skill.GhostStrike:     80,
+	skill.DarkOrb:         81,
 }
 
 // castingSpeed is what the client is told a character's casting speed is: 100, at which it
@@ -267,13 +279,14 @@ const castingSpeed = 100
 
 // affectBits are the bits a buff sets in a character's effects, which the client draws,
 // its AFFECT_ numbers (InstanceBase.h): 19 is the glow Enchanted Blade puts on the blade,
-// 14 Berserk's, 15 Sword Aura's and 16 Strong Body's.
+// 14 Berserk's, 15 Sword Aura's, 16 Strong Body's and 25 Dark Protection's.
 var affectBits = map[account.Skill]uint64{
 	skill.EnchantedBlade:  1 << 19,
 	skill.EnchantedArmour: 1 << 21,
 	skill.Berserk:         1 << 14,
 	skill.SwordAura:       1 << 15,
 	skill.StrongBody:      1 << 16,
+	skill.DarkProtection:  1 << 25,
 }
 
 // affectsOf is the effects the client draws on a character: a bit for each buff running.
@@ -334,6 +347,11 @@ var skillWindowSlots = map[account.Skill]uint8{
 	skill.Ambush:          1,
 	skill.FastAttack:      2,
 	skill.RollingDagger:   3,
+	skill.DarkStrike:      1,
+	skill.FlameStrike:     2,
+	skill.DarkProtection:  4,
+	skill.GhostStrike:     5,
+	skill.DarkOrb:         6,
 }
 
 // skillByWindowSlot is the skill of the group at a place in the skill window, if the game

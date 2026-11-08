@@ -55,7 +55,7 @@ The cell is one byte, which the bag's 90 cells fit.
 
 - **The grades** are generated from each first weapon and armour, +1 to +9, at the next vnums, as the client numbers them. Each takes the client's own values:
   - its name, its +0's with its grade;
-  - its item_proto VALUE5 added to both ends of a weapon's attack, or twice to armour's defence, as the tooltip shows;
+  - its item_proto VALUE5 added to both ends of a weapon's attack and of its magic attack, or twice to armour's defence, as the tooltip shows;
   - its sell price, divided by 5 as for every kind ([shops.md](shops.md)).
 
   No shop sells them.

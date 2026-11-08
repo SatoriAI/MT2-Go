@@ -27,13 +27,28 @@ func (s *session) onUseSkill(body []byte) error {
 	sk, known := skillByVNum(int(u.VNum))
 	now := s.svc.now()
 	cooled := func(wait time.Duration) bool { return s.svc.cooldowns.over(s.playing.ID, sk, now, wait) }
-	if !known || !s.svc.presence.useSkill(s.playing.vid, sk, u.Target, now, s.svc.clock.Now(), s.rand, cooled) {
+	if !known {
 		s.conn.Log().Debug("skill not used", "vnum", u.VNum)
 		return nil
 	}
-	s.svc.cooldowns.used(s.playing.ID, sk, now)
+	switch s.svc.presence.useSkill(s.playing.vid, sk, u.Target, now, s.svc.clock.Now(), s.rand, cooled) {
+	case skillUsed:
+		s.svc.cooldowns.used(s.playing.ID, sk, now)
+	case skillRefused:
+		s.conn.Log().Debug("skill not used", "vnum", u.VNum)
+	case toggledOff: // its cooldown runs from when it was turned on, as the client counts it
+	}
 	return nil
 }
+
+// outcome is what became of a skill's use.
+type outcome int
+
+const (
+	skillUsed outcome = iota
+	skillRefused
+	toggledOff
+)
 
 // cooldowns are when each character last used each skill. They are kept by the server,
 // not the connection, so changing character or logging in again does not end them.
@@ -77,10 +92,10 @@ func (b buffEnd) due() time.Time { return b.at }
 // cooled down from its last use at its level, they hold the weapon it needs, the monster
 // it strikes alone is in reach, and they have its mana: the mana is spent and told, then
 // an attack strikes and a buff starts. A toggle already running is ended instead, for
-// nothing, as the client turns it off. It reports whether the skill was used.
+// nothing, as the client turns it off. It reports what became of it.
 func (w *presence) useSkill(vid uint32, sk account.Skill, target uint32, now time.Time, clock uint32, r *rand.Rand,
 	cooled func(time.Duration) bool,
-) bool {
+) outcome {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	pl := w.all[vid]
@@ -88,17 +103,17 @@ func (w *presence) useSkill(vid uint32, sk account.Skill, target uint32, now tim
 	level := c.Skills[sk]
 	proto, _ := skill.Lookup(sk)
 	if pl.dead() || level == 0 {
-		return false
+		return skillRefused
 	}
 	if _, running := c.Buffs[sk]; running && proto.Toggle {
 		w.endBuffLocked(pl, sk)
-		return true
+		return toggledOff
 	}
 	victim := aimed(pl, target, proto)
 	weapon, _ := item.Lookup(c.Weapon)
 	cost := proto.Mana.At(skill.Power(level))
 	if !cooled(proto.CooldownAt(level)) || !proto.Wieldable(weapon) || (proto.Target || proto.Aim > 0) && victim == nil || c.SP < cost {
-		return false
+		return skillRefused
 	}
 	c.SP -= cost
 	pl.send(protocol.EncodePointChange(vid, protocol.PointSP, -int32(cost), int32(c.SP))) //nolint:gosec // small
@@ -114,7 +129,7 @@ func (w *presence) useSkill(vid uint32, sk account.Skill, target uint32, now tim
 	default:
 		w.startBuff(pl, sk, now.Add(proto.LastsAt(level)))
 	}
-	return true
+	return skillUsed
 }
 
 // aimed is the monster an attack on one lands on: with Target, the one the player picked
@@ -184,7 +199,13 @@ func (w *presence) splash(pl, at *present, proto skill.Proto, percent int, level
 		}
 		blow := blowLanded
 		for range max(proto.Hits, 1) {
-			if blow = w.strike(pl, v, combat.Damage(a, v.fight.defender, r)*share/100, now); blow == blowKilled {
+			var damage int
+			if proto.Magic != nil {
+				damage = int(proto.Magic(casterOf(pl.char, proto.Dice, r), int32(skill.Power(level)))) //nolint:gosec // the power is at most 50
+			} else {
+				damage = combat.Damage(a, v.fight.defender, r) * share / 100
+			}
+			if blow = w.strike(pl, v, damage, now); blow == blowKilled {
 				break
 			}
 		}
@@ -197,7 +218,52 @@ func (w *presence) splash(pl, at *present, proto skill.Proto, percent int, level
 		if proto.Poisons && r.IntN(1000) < skill.PoisonChance(level) {
 			w.poison(v, pl, now)
 		}
+		if proto.Slows && r.IntN(1000) < skill.SlowChance(level) {
+			w.slow(v, now.Add(skill.SlowsFor(level)))
+		}
 	}
+}
+
+// casterOf is what the player's spells are made of: their character, the weapon's magic
+// attack rolled from its least to its most, the spell's dice rolled the same way, and
+// their hit rate. Called under the lock.
+func casterOf(c *account.Character, dice [2]int32, r *rand.Rand) skill.Caster {
+	weapon, _ := item.Lookup(c.Weapon)
+	return skill.Caster{Level: int32(c.Level), Strength: int32(c.Strength), Vitality: int32(c.Vitality),
+		Dexterity: int32(c.Dexterity), Intelligence: int32(c.Intelligence),
+		MTK: roll(int32(weapon.MagicMin), int32(weapon.MagicMax), r), Dice: roll(dice[0], dice[1], r),
+		AR: skill.HitRate(c.Dexterity, c.Level)}
+}
+
+// roll is a number from least to most, both included.
+func roll(least, most int32, r *rand.Rand) int32 {
+	if most <= least {
+		return least
+	}
+	return least + r.Int32N(most-least+1)
+}
+
+// slowSpeed is the share of its speed a slowed monster keeps: the veteran's 70 in a
+// hundred.
+const slowSpeed = 70
+
+// slow holds the monster to slowSpeed of its pace until a time, however long it had left,
+// and shows everyone who sees it the slow and its pace. Called under the lock.
+func (w *presence) slow(v *present, until time.Time) {
+	v.fight.slowedUntil = until
+	if !v.fight.slowed {
+		v.fight.slowed = true
+		v.add.MoveSpeed = uint8(int(v.add.MoveSpeed) * slowSpeed / 100) //nolint:gosec // a share of a u8
+		toViewers(v, protocol.EncodeCharacterUpdate(v.info, v.add, mobAffects(v)))
+	}
+}
+
+// quicken ends the monster's slow, giving back its pace for everyone who sees it. Called
+// under the lock.
+func (w *presence) quicken(v *present, speed uint8) {
+	v.fight.slowed = false
+	v.add.MoveSpeed = speed
+	toViewers(v, protocol.EncodeCharacterUpdate(v.info, v.add, mobAffects(v)))
 }
 
 // dashStop is how far from its target a dash lands: the original client's warp
@@ -330,6 +396,57 @@ func (w *presence) startBuff(pl *present, sk account.Skill, until time.Time) {
 	c.Buffs[sk] = until
 	w.showAffects(pl, sk)
 	w.buffs = append(w.buffs, buffEnd{pl.add.VID, sk, until})
+	if p, _ := skill.Lookup(sk); p.Drain != (skill.Scaled{}) {
+		w.drains = append(w.drains, buffEnd{pl.add.VID, sk, until})
+	}
+}
+
+// drainEvery is how often a toggle that drains mana takes it.
+const drainEvery = 5 * time.Second
+
+// drain takes the toggle's mana for the five seconds to come, and tells the player, if it
+// is still that run; with too little mana left, it ends instead. It reports whether it
+// runs on. Called by the world loop.
+func (w *presence) drain(b buffEnd) bool {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	pl := w.all[b.vid]
+	if pl == nil || pl.char == nil || !pl.char.Buffs[b.skill].Equal(b.at) {
+		return false
+	}
+	c := pl.char
+	p, _ := skill.Lookup(b.skill)
+	cost := p.Drain.At(skill.Power(c.Skills[b.skill]))
+	if c.SP < cost {
+		w.endBuffLocked(pl, b.skill)
+		return false
+	}
+	c.SP -= cost
+	pl.send(protocol.EncodePointChange(b.vid, protocol.PointSP, -int32(cost), int32(c.SP))) //nolint:gosec // small
+	return true
+}
+
+// draining is a toggle the world loop takes mana for, and when it takes it next.
+type draining struct {
+	buff buffEnd
+	next time.Time
+}
+
+// keepDrains takes the mana of each draining toggle whose time has come, and drops those
+// that ended. Only the draining are walked.
+func (s *Service) keepDrains(now time.Time) {
+	kept := s.drainings[:0]
+	for _, d := range s.drainings {
+		if now.Before(d.next) {
+			kept = append(kept, d)
+			continue
+		}
+		if s.presence.drain(d.buff) {
+			kept = append(kept, draining{d.buff, now.Add(drainEvery)})
+		}
+	}
+	clear(s.drainings[len(kept):])
+	s.drainings = kept
 }
 
 // endBuff ends the player's buff that was due at a time, if it is still that run: one

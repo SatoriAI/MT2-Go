@@ -221,6 +221,9 @@ func (s *Service) tick(now time.Time) {
 	for _, p := range n.poisoned {
 		s.poisons = append(s.poisons, poisoning{p, now.Add(poisonEvery)})
 	}
+	for _, d := range n.drains {
+		s.drainings = append(s.drainings, draining{d, now.Add(drainEvery)})
+	}
 	for _, c := range n.calls {
 		if stone := s.byPresent[c.stone]; stone != nil && stone.diedAt.IsZero() {
 			s.callWave(stone, c.by, now)
@@ -253,6 +256,7 @@ func (s *Service) tick(now time.Time) {
 	}
 	s.fightOn(now)
 	s.tickPoisons(now)
+	s.keepDrains(now)
 	s.healMonsters(now)
 	switch {
 	case s.nextPlayerRegen.IsZero():

@@ -12,8 +12,8 @@ import (
 // The skills the game has so far: the sura's Weaponry attacks, on one and on many, and its
 // buffs of attack and defence; the warrior's Body attacks, around a target and around
 // themselves, and its buffs of speed and attack; the warrior's Mental attacks, which
-// stun, and its buff of defence; and the ninja's Dagger attacks, from behind, at a dash,
-// and poisoning.
+// stun, and its buff of defence; the ninja's Dagger attacks, from behind, at a dash, and
+// poisoning; and the sura's Black Magic, magic attacks, one slowing, and a shield.
 const (
 	FingerStrike    account.Skill = "finger_strike"
 	DragonSwirl     account.Skill = "dragon_swirl"
@@ -31,6 +31,11 @@ const (
 	Ambush          account.Skill = "ambush"
 	FastAttack      account.Skill = "fast_attack"
 	RollingDagger   account.Skill = "rolling_dagger"
+	DarkStrike      account.Skill = "dark_strike"
+	FlameStrike     account.Skill = "flame_strike"
+	DarkProtection  account.Skill = "dark_protection"
+	GhostStrike     account.Skill = "ghost_strike"
+	DarkOrb         account.Skill = "dark_orb"
 )
 
 // MaxLevel is the most a skill rises to with points; the client hides its + there.
@@ -62,13 +67,19 @@ type Proto struct {
 	Victims int
 	Hits    int
 	Damage  Scaled
-	// What else it does: stun or poison each one it leaves alive, strike FromBehind
+	// What else it does: stun, poison or slow each one it leaves alive, strike FromBehind
 	// percent as hard one struck from behind, none for no more, and with Dash move the
-	// player beside the one aimed at first.
+	// player beside the one aimed at first. A magic attack's damage is Magic's instead.
 	Stuns      bool
 	Poisons    bool
+	Slows      bool
 	FromBehind int
 	Dash       bool
+	Magic      Spell
+	Dice       [2]int32 // the least and most of the number a spell's tooltip rolls
+	// Drain is the mana a toggle takes every five seconds it runs, at its power; it ends
+	// once there is not enough.
+	Drain Scaled
 	// A buff raises each stat Raises names, by its formula, for Lasts seconds. Toggle is
 	// that using it again ends it.
 	Raises map[Stat]Formula
@@ -87,7 +98,27 @@ const (
 	AttackSpeed Stat = "attack_speed"
 	MoveSpeed   Stat = "move_speed"
 	DamageTaken Stat = "damage_taken" // a percent more of every bite
+	ManaShield  Stat = "mana_shield"  // a percent of every bite taken from mana instead
 )
+
+// Spell is a magic attack's damage, as its tooltip works it out, for its caster at a
+// power k in hundredths, before the monster's resistance, of which the first maps have
+// none.
+type Spell func(c Caster, k int32) int32
+
+// Caster is what of a character a spell reads: its MTK is the weapon's magic attack and
+// Dice the spell's number, each rolled, and its AR its hit rate, in hundredths, as the
+// client works it out.
+type Caster struct {
+	Level, Strength, Vitality, Dexterity, Intelligence int32
+	MTK, Dice, AR                                      int32
+}
+
+// HitRate is a character's hit rate in hundredths, the client's (min(90, (4·DEX +
+// 2·level)/6) + 210)/300, which its spells' damage is multiplied by.
+func HitRate(dexterity, level uint8) int32 {
+	return 100 * (min(90, (4*int32(dexterity)+2*int32(level))/6) + 210) / 300
+}
 
 // Formula is what a buff adds to a stat, or takes off it, for its bearer at a power k,
 // all in hundredths, before it is rounded towards zero.
@@ -157,6 +188,15 @@ func StunChance(level uint8) int { return 100 + 10*int(Power(level))/6 }
 // PoisonChance is the chance, in thousandths, a poisoning attack at level poisons each
 // monster it leaves alive: its tooltip's 1 + 4k percent.
 func PoisonChance(level uint8) int { return (100 + 4*int(Power(level))) / 10 }
+
+// SlowChance is the chance, in thousandths, a slowing attack at level slows each monster
+// it leaves alive: the client's (333 + 300k)/10 percent.
+func SlowChance(level uint8) int { return 333 + 3*int(Power(level)) }
+
+// SlowsFor is how long a slow at level holds a monster: the skilltable's 10 + 10k seconds.
+func SlowsFor(level uint8) time.Duration {
+	return time.Duration(1000+10*Power(level)) * 10 * time.Millisecond
+}
 
 // Raise reports whether the buff raises the stat.
 func (p Proto) Raise(stat Stat) bool {
@@ -251,6 +291,45 @@ var protos = map[account.Skill]Proto{
 	// poisoned.
 	RollingDagger: {Class: account.Ninja, Group: "dagger", Mana: Scaled{50, 140}, Cooldown: Scaled{25, 0},
 		Reach: 250, Victims: 12, Damage: Scaled{150, 150}, Poisons: true, Wields: DaggerOrSword},
+	// Black Magic, settled by the veteran and the designer: the client's skilltable for
+	// mana, cooldowns, victims, range and splash, and its tooltips' damage, as numbers of
+	// INT, the weapon's magic attack and the hit rate, which no armour cuts. Dark Strike:
+	// 30 + 140k, 7 s, on the monster picked within 1500 and up to 4 within 200 of it.
+	DarkStrike: {Class: account.Sura, Group: "black_magic", Mana: Scaled{30, 140}, Cooldown: Scaled{7, 0},
+		Target: true, Aim: 1500, Reach: 200, Victims: 5, Dice: [2]int32{50, 100},
+		Magic: func(c Caster, k int32) int32 {
+			return 40 + 5*c.Level + 2*c.Intelligence + (20*c.Intelligence+7*c.MTK+c.Dice)*c.AR*k/10000
+		}},
+	// Flame Strike: 60 + 140k, 12 s, up to 15 within 500 around the sura; its tooltip has
+	// no hit rate.
+	FlameStrike: {Class: account.Sura, Group: "black_magic", Mana: Scaled{60, 140}, Cooldown: Scaled{12, 0},
+		Reach: 500, Victims: 15, Dice: [2]int32{180, 200},
+		Magic: func(c Caster, k int32) int32 {
+			return 5*c.Level + 2*c.Intelligence + (20*c.Intelligence+8*c.MTK+4*c.Strength+2*c.Vitality+c.Dice)*k/100
+		}},
+	// Dark Protection: 20 + 30k, a toggle cooling down 63 + 120k seconds and running
+	// 60 + 120k, draining 5 + 10k mana every five seconds; (0.5·INT + 15)·k more defence,
+	// and 0.84·INT·k percent of every bite taken from mana, the veteran's reading.
+	DarkProtection: {Class: account.Sura, Group: "black_magic", Mana: Scaled{20, 30}, Cooldown: Scaled{63, 120},
+		Raises: map[Stat]Formula{
+			Defence:    func(b Bearer, k int32) int32 { return (int32(b.Intelligence) + 30) * k / 2 },
+			ManaShield: func(b Bearer, k int32) int32 { return 84 * int32(b.Intelligence) * k / 100 },
+		},
+		Lasts: Scaled{60, 120}, Toggle: true, Drain: Scaled{5, 10}},
+	// Ghost Strike: 40 + 120k, 12 s, on the monster picked within 1200 and up to 8 within
+	// 400 of it, each perhaps slowed.
+	GhostStrike: {Class: account.Sura, Group: "black_magic", Mana: Scaled{40, 120}, Cooldown: Scaled{12, 0},
+		Target: true, Aim: 1200, Reach: 400, Victims: 9, Slows: true, Dice: [2]int32{180, 200},
+		Magic: func(c Caster, k int32) int32 {
+			return 40 + 2*c.Level + 2*c.Intelligence + (2*c.Vitality+2*c.Dexterity+22*c.Intelligence+6*c.MTK+c.Dice)*c.AR*k/10000
+		}},
+	// Dark Orb: 80 + 220k, 24 s, on the monster picked within 1500 and up to 8 within 200
+	// of it.
+	DarkOrb: {Class: account.Sura, Group: "black_magic", Mana: Scaled{80, 220}, Cooldown: Scaled{24, 0},
+		Target: true, Aim: 1500, Reach: 200, Victims: 9,
+		Magic: func(c Caster, k int32) int32 {
+			return 120 + 6*c.Level + (5*c.Vitality+5*c.Dexterity+40*c.Intelligence+12*c.MTK)*c.AR*k/10000
+		}},
 }
 
 // powers is a skill's power at each level, in hundredths: the client's own table, which

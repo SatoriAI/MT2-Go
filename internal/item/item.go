@@ -40,6 +40,8 @@ type Proto struct {
 	Classes   []account.Class
 	AttackMin uint16 // a weapon's attack, rolled for each blow
 	AttackMax uint16
+	MagicMin  uint16 // and its magic attack, rolled for each spell
+	MagicMax  uint16
 	Defence   uint16 // armour's, a helmet's, shoes' or a shield's
 	MoveSpeed int8   // what shoes add to the speed the character moves at, and a shield takes off
 	Sword     bool   // a one-handed sword, which some skills need in hand
@@ -95,7 +97,7 @@ func VNums() []uint32 { return slices.Sorted(maps.Keys(protos)) }
 // Polish client's own, from its locale item_proto (docs/mechanics/items.md), in UTF-8.
 var protos = withGrades(map[uint32]Proto{
 	10: {VNum: 10, Name: "Miecz+0", Size: 2, Stack: 1, Wear: Weapon,
-		Classes: []account.Class{account.Warrior, account.Ninja, account.Sura}, AttackMin: 13, AttackMax: 15, Sword: true,
+		Classes: []account.Class{account.Warrior, account.Ninja, account.Sura}, AttackMin: 13, AttackMax: 15, MagicMin: 15, MagicMax: 19, Sword: true,
 		Price: 100, SellPrice: 0},
 	1000: {VNum: 1000, Name: "Sztylet+0", Size: 1, Stack: 1, Wear: Weapon,
 		Classes: []account.Class{account.Ninja}, AttackMin: 8, AttackMax: 11, Dagger: true, Price: 100, SellPrice: 0},
@@ -104,7 +106,7 @@ var protos = withGrades(map[uint32]Proto{
 	3000: {VNum: 3000, Name: "Glewia+0", Size: 3, Stack: 1, Wear: Weapon,
 		Classes: []account.Class{account.Warrior}, AttackMin: 14, AttackMax: 22, TwoHanded: true, Price: 100, SellPrice: 0},
 	7000: {VNum: 7000, Name: "Wachlarz+0", Size: 1, Stack: 1, Wear: Weapon,
-		Classes: []account.Class{account.Shaman}, AttackMin: 11, AttackMax: 15, Price: 100, SellPrice: 0},
+		Classes: []account.Class{account.Shaman}, AttackMin: 11, AttackMax: 15, MagicMin: 13, MagicMax: 15, Price: 100, SellPrice: 0},
 	11200: {VNum: 11200, Name: "Mnisia Zbr. Płyt.+0", Size: 2, Stack: 1, Wear: Body,
 		Classes: []account.Class{account.Warrior}, Defence: 12, Price: 3000, SellPrice: 600},
 	11400: {VNum: 11400, Name: "Błękitne Ubranie+0", Size: 2, Stack: 1, Wear: Body,
@@ -170,6 +172,9 @@ func withGrades(kinds map[uint32]Proto) map[uint32]Proto {
 			switch p.Wear {
 			case Weapon:
 				p.AttackMin, p.AttackMax = base.AttackMin+bonus, base.AttackMax+bonus
+				if base.MagicMax > 0 {
+					p.MagicMin, p.MagicMax = base.MagicMin+bonus, base.MagicMax+bonus
+				}
 			case Feet:
 				p.MoveSpeed = shoeSpeeds[g]
 			default:
