@@ -204,7 +204,7 @@ func TestWhatIsPutOnCountsInTheFight(t *testing.T) {
 		Stats: account.Stats{Strength: 5, Vitality: 3, Dexterity: 3, Intelligence: 5}}
 	s.presence.all[1000].char = c
 	s.presence.dress(1000, outfit{weapon: 10, body: 11600})
-	read(t, client, updateSize+pointChangeSize) // her new look, and DEF
+	read(t, client, updateSize+2*pointChangeSize) // her new look, DEF, and speed: this one had none
 
 	s.presence.attack(1000, dog.p.add.VID, 0, someRand, noon)
 
@@ -285,11 +285,62 @@ func TestShoesAreFasterByTheirGrade(t *testing.T) {
 	}
 }
 
-// Shoes, a helmet +3 and armour +9 all count against a bite: 1 + 17 + 66.
+// Shoes, a helmet +3, armour +9 and a shield +1 all count against a bite: 1 + 17 + 66 + 9.
 func TestEverythingWornCountsAgainstABite(t *testing.T) {
-	c := &account.Character{Body: 11609, Head: 12483, Feet: 15000}
-	if got := armourOf(c); got != 84 {
-		t.Fatalf("armour %d, want 84", got)
+	c := &account.Character{Body: 11609, Head: 12483, Feet: 15000, Shield: 13001}
+	if got := armourOf(c); got != 93 {
+		t.Fatalf("armour %d, want 93", got)
+	}
+}
+
+// A shield double-clicked goes on at the shield's place, 100: her DEF rises by its 3, and
+// she moves 2 slower, at 148, told to her and shown to Kira; taken off, she is back at 150.
+func TestAShieldIsPutOnAndSlowsHer(t *testing.T) {
+	s, kept, client, viewer := dressing(t)
+	s.inventory = append(s.inventory, item.Item{ID: 5, VNum: 13000, Count: 1, Cell: 4})
+	slower := protocol.EncodeCharacterUpdate(protocol.CharacterInfo{VID: 1000, Name: "Hendra"},
+		protocol.CharacterAdd{MoveSpeed: 148, AttackSpeed: 150}, 0)
+
+	if err := s.onItemUse(doubleClicked(4)); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := read(t, client, 2*itemSetSize); string(got[itemSetSize:]) != string(protocol.EncodeItemSet(protocol.ItemPos{Window: 1, Cell: 100}, 13000, 1)) {
+		t.Fatalf("told %x", got)
+	}
+	if got := read(t, client, updateSize); string(got) != string(slower) {
+		t.Fatalf("got %x", got)
+	}
+	if point, _, value := pointChange(t, client, 1000); point != protocol.PointDefence || value != 7 {
+		t.Fatalf("told point %d at %d, want DEF 7", point, value)
+	}
+	if point, _, value := pointChange(t, client, 1000); point != protocol.PointMoveSpeed || value != 148 {
+		t.Fatalf("told point %d at %d, want speed 148", point, value)
+	}
+	if got := read(t, viewer, updateSize); string(got) != string(slower) {
+		t.Fatalf("Kira got %x", got)
+	}
+	if kept.worn[5] != item.Shield || s.playing.Shield != 13000 {
+		t.Fatalf("kept %q, wearing %d", kept.worn[5], s.playing.Shield)
+	}
+
+	if err := s.onItemUse(doubleClicked(100)); err != nil {
+		t.Fatal(err)
+	}
+
+	read(t, client, 2*itemSetSize+updateSize+pointChangeSize)
+	if point, _, value := pointChange(t, client, 1000); point != protocol.PointMoveSpeed || value != 150 {
+		t.Fatalf("told point %d at %d, want speed 150", point, value)
+	}
+}
+
+// A sura entering in shoes +9 and a shield is dressed in both from her inventory, and moves
+// at 163, in her points.
+func TestAShieldWornOnEnteringSlowsHer(t *testing.T) {
+	p := &character{Character: account.Character{Class: account.Sura, Level: 1}}
+	wear(&p.Character, item.Inventory{{ID: 1, VNum: 15009, Count: 1, Worn: item.Feet}, {ID: 2, VNum: 13009, Count: 1, Worn: item.Shield}})
+	if got := pointsOf(p, 0).MoveSpeed; got != 163 || p.Shield != 13009 {
+		t.Fatalf("speed %d", got)
 	}
 }
 

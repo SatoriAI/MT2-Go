@@ -2,7 +2,7 @@
 
 ## What the player sees
 
-Each village has a blacksmith, Kowal, beside the class teachers. Dragging a first weapon, armour, helmet or shoes from the bag onto him opens the refine dialog. It shows what the item becomes, its cost in yang, its chance, and, from the step to +5, the material it takes.
+Each village has a blacksmith, Kowal, beside the class teachers. Dragging a first weapon, armour, helmet, shoes or shield from the bag onto him opens the refine dialog. It shows what the item becomes, its cost in yang, its chance, and, from the step to +5, the material it takes.
 
 - **Yes** upgrades it. The item is shown at its new grade, the yang goes down, and the chat says «Przedmiot został ulepszony.».
 - **A failure** says «Ulepszanie nie powiodło się.». The yang and material are gone. From the step to +5 on, the item also drops a grade. It is never destroyed.
@@ -23,11 +23,11 @@ Each village has a blacksmith, Kowal, beside the class teachers. Dragging a firs
 | +8 | 12,000 | 4 | 30% | the cost is lost, and a grade |
 | +9 | 20,000 | 5 | 20% | the cost is lost, and a grade |
 
-**The material** is Szpon Wilka (30028) for a weapon, which wolves leave, and Ząb Dzika (30004) for armour, a helmet or shoes, which boars leave ([drops.md](drops.md)).
+**The material** is Szpon Wilka (30028) for a weapon, which wolves leave, and Ząb Dzika (30004) for armour, a helmet, shoes or a shield, which boars leave ([drops.md](drops.md)).
 
 **Each grade is stronger,** as its tooltip shows:
 - a weapon adds the same to both ends of its attack: 7 a grade for the sword and the fan, 4 for the dagger, and 8 for the bow and the glaive;
-- armour adds 6 defence a grade, and a helmet 4;
+- armour adds 6 defence a grade, a helmet 4, and the shield 6, while staying 2 slower at every grade;
 - shoes keep their 1 defence and move faster: 2 at +0, then 3, 4, 5, 6, 7, 9, 11, 13 and 15 at +9.
 
 ## What the client does
@@ -88,7 +88,7 @@ The cell is one byte, which the bag's 90 cells fit.
 
 ## What proves it
 
-- `internal/upgrade/upgrade_test.go`: a sword from +0 to +9 by the table; armour, a helmet and shoes taking a tooth; a failure costing a grade only from the step to +5; only gear below +9 upgraded.
+- `internal/upgrade/upgrade_test.go`: a sword from +0 to +9 by the table; armour, a helmet, shoes and the shield taking a tooth; a failure costing a grade only from the step to +5; only gear below +9 upgraded.
 - `internal/item/item_test.go`: the grades' names, attack and defence as the client's; their sell prices; every worn kind graded.
 - `internal/mob/mob_test.go`: wolves and boars leaving the materials, 5 in 100; only the blacksmith upgrading.
 - `internal/protocol/protocol_test.go`: GIVE_ITEM and REFINE read and framed; REFINE_INFORMATION_NEW byte for byte.
@@ -113,6 +113,6 @@ The cell is one byte, which the bag's 90 cells fit.
 
 ## Not done yet
 
-- Upgrading the gear past the first maps, shields and jewellery.
+- Upgrading the gear past the first maps, and jewellery.
 - Scrolls, magic stones and the blacksmiths of other rates.
 - The effect drawn on a success or failure (SPECIAL_EFFECT `72`, 11 and 12), which the original may have sent.

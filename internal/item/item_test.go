@@ -209,6 +209,7 @@ func TestEveryKindHasItsShopPrices(t *testing.T) {
 		30004: {0, 100}, 30028: {0, 100},
 		12200: {500, 100}, 12340: {500, 100}, 12480: {500, 100}, 12620: {500, 100}, 15000: {500, 100},
 		12201: {0, 160}, 12209: {0, 4000}, 15005: {0, 800},
+		13000: {400, 80}, 13005: {0, 1500}, 13009: {0, 4000},
 	}
 	for vnum, w := range want {
 		p, _ := Lookup(vnum)
@@ -226,7 +227,8 @@ func TestEveryKindHasItsShopPrices(t *testing.T) {
 // Every first weapon and armour comes in grades +0 to +9, each the next vnum, of its
 // class, named and as strong as the client's item_proto and tooltip have it: VALUE5 added
 // to both ends of a weapon's attack, twice to armour's and a helmet's defence; shoes'
-// grades move faster, by the client's APPLY_MOV_SPEED.
+// grades move faster, by the client's APPLY_MOV_SPEED, and the shield, three times a
+// helmet's step, slows by 2 at every grade.
 func TestGearComesInTheClientsNineGrades(t *testing.T) {
 	want := map[uint32]Proto{
 		19:    {Name: "Miecz+9", AttackMin: 76, AttackMax: 78},
@@ -241,6 +243,9 @@ func TestGearComesInTheClientsNineGrades(t *testing.T) {
 		15000: {Name: "Skórzane Buty+0", Defence: 1, MoveSpeed: 2},
 		15006: {Name: "Skórzane Buty+6", Defence: 1, MoveSpeed: 9},
 		15009: {Name: "Skórzane Buty+9", Defence: 1, MoveSpeed: 15},
+		13000: {Name: "Bojowa Tarcza+0", Defence: 3, MoveSpeed: -2},
+		13004: {Name: "Bojowa Tarcza+4", Defence: 27, MoveSpeed: -2},
+		13009: {Name: "Bojowa Tarcza+9", Defence: 57, MoveSpeed: -2},
 	}
 	for vnum, w := range want {
 		p, _ := Lookup(vnum)
