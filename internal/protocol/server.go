@@ -367,6 +367,9 @@ func EncodeTarget(vid uint32, hpPercent uint8) []byte {
 // DamageNormal is a plain blow, drawn as a number over the victim.
 const DamageNormal uint8 = 1
 
+// DamagePoison is poison's turn, drawn as the client's poison effect over the victim.
+const DamagePoison uint8 = 2
+
 // EncodeDamage tells the attacker how much a blow took. The client draws it only over its
 // own target or the player.
 func EncodeDamage(vid uint32, flags uint8, damage int32) []byte {

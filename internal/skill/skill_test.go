@@ -70,6 +70,9 @@ func TestASkillCostsAndWaitsWhatTheClientWorksOut(t *testing.T) {
 		{Stump, func(k float64) float64 { return 50 + 140*k }, func(float64) float64 { return 25 }, func(float64) float64 { return 0 }},
 		{StrongBody, func(k float64) float64 { return 80 + 220*k }, func(k float64) float64 { return 63 + 90*k }, func(k float64) float64 { return 60 + 90*k }},
 		{SwordStrike, func(k float64) float64 { return 40 + 120*k }, func(float64) float64 { return 20 }, func(float64) float64 { return 0 }},
+		{Ambush, func(k float64) float64 { return 40 + 160*k }, func(float64) float64 { return 15 }, func(float64) float64 { return 0 }},
+		{FastAttack, func(k float64) float64 { return 40 + 160*k }, func(float64) float64 { return 20 }, func(float64) float64 { return 0 }},
+		{RollingDagger, func(k float64) float64 { return 50 + 140*k }, func(float64) float64 { return 25 }, func(float64) float64 { return 0 }},
 	}
 	for _, c := range cases {
 		p, _ := Lookup(c.skill)
@@ -172,6 +175,28 @@ func TestAStunsChanceIsTheClients(t *testing.T) {
 	for level, want := range map[uint8]int{1: 108, 10: 136, 20: 183} {
 		if got := StunChance(level); got != want {
 			t.Errorf("at %d: %d, want %d", level, got, want)
+		}
+	}
+}
+
+// A poison's chance is the tooltip's 1 + 4k percent, in thousandths: 12 at the first
+// level, 30 at 20.
+func TestAPoisonsChanceIsTheTooltips(t *testing.T) {
+	for level, want := range map[uint8]int{1: 12, 10: 18, 20: 30} {
+		if got := PoisonChance(level); got != want {
+			t.Errorf("at %d: %d, want %d", level, got, want)
+		}
+	}
+}
+
+// The ninja's Dagger skills take a dagger or a sword, the client's DAGGER|DOUBLE_SWORD|
+// SWORD, and not a glaive.
+func TestDaggerSkillsTakeADaggerOrASword(t *testing.T) {
+	dagger, sword, glaive := item.Proto{Dagger: true}, item.Proto{Sword: true}, item.Proto{TwoHanded: true}
+	for _, s := range []account.Skill{Ambush, FastAttack, RollingDagger} {
+		p, _ := Lookup(s)
+		if !p.Wieldable(dagger) || !p.Wieldable(sword) || p.Wieldable(glaive) {
+			t.Errorf("%s: %v %v %v", s, p.Wieldable(dagger), p.Wieldable(sword), p.Wieldable(glaive))
 		}
 	}
 }

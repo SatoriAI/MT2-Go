@@ -11,8 +11,9 @@ import (
 
 // The skills the game has so far: the sura's Weaponry attacks, on one and on many, and its
 // buffs of attack and defence; the warrior's Body attacks, around a target and around
-// themselves, and its buffs of speed and attack; and the warrior's Mental attacks, which
-// stun, and its buff of defence.
+// themselves, and its buffs of speed and attack; the warrior's Mental attacks, which
+// stun, and its buff of defence; and the ninja's Dagger attacks, from behind, at a dash,
+// and poisoning.
 const (
 	FingerStrike    account.Skill = "finger_strike"
 	DragonSwirl     account.Skill = "dragon_swirl"
@@ -27,6 +28,9 @@ const (
 	Stump           account.Skill = "stump"
 	StrongBody      account.Skill = "strong_body"
 	SwordStrike     account.Skill = "sword_strike"
+	Ambush          account.Skill = "ambush"
+	FastAttack      account.Skill = "fast_attack"
+	RollingDagger   account.Skill = "rolling_dagger"
 )
 
 // MaxLevel is the most a skill rises to with points; the client hides its + there.
@@ -50,7 +54,7 @@ type Proto struct {
 	// the nearest in front of them; and with Reach, every monster within Reach of it, or
 	// without either, of the player, only those in front of them with Front. At most
 	// Victims are struck, the nearest first, none for no limit, each Hits times, none for
-	// once. With Stuns, each one left alive may be stunned.
+	// once.
 	Target  bool
 	Aim     int64
 	Reach   int64
@@ -58,7 +62,13 @@ type Proto struct {
 	Victims int
 	Hits    int
 	Damage  Scaled
-	Stuns   bool
+	// What else it does: stun or poison each one it leaves alive, strike FromBehind
+	// percent as hard one struck from behind, none for no more, and with Dash move the
+	// player beside the one aimed at first.
+	Stuns      bool
+	Poisons    bool
+	FromBehind int
+	Dash       bool
 	// A buff raises each stat Raises names, by its formula, for Lasts seconds. Toggle is
 	// that using it again ends it.
 	Raises map[Stat]Formula
@@ -95,6 +105,7 @@ const (
 	AnyWeapon        Wield = ""
 	Sword            Wield = "sword"               // a one-handed sword
 	SwordOrTwoHanded Wield = "sword_or_two_handed" // the client's SWORD|TWO_HANDED
+	DaggerOrSword    Wield = "dagger_or_sword"     // the client's DAGGER|DOUBLE_SWORD|SWORD
 )
 
 // Wieldable is whether the skill may be used, or its buff run, with the weapon in hand.
@@ -104,6 +115,8 @@ func (p Proto) Wieldable(weapon item.Proto) bool {
 		return weapon.Sword
 	case SwordOrTwoHanded:
 		return weapon.Sword || weapon.TwoHanded
+	case DaggerOrSword:
+		return weapon.Dagger || weapon.Sword
 	}
 	return true
 }
@@ -140,6 +153,10 @@ func (p Proto) Bonus(stat Stat, b Bearer, level uint8) int {
 // StunChance is the chance, in thousandths, a stunning attack at level stuns each monster
 // it leaves alive: the client's (100 + 1000k/6)/10 percent.
 func StunChance(level uint8) int { return 100 + 10*int(Power(level))/6 }
+
+// PoisonChance is the chance, in thousandths, a poisoning attack at level poisons each
+// monster it leaves alive: its tooltip's 1 + 4k percent.
+func PoisonChance(level uint8) int { return (100 + 4*int(Power(level))) / 10 }
 
 // Raise reports whether the buff raises the stat.
 func (p Proto) Raise(stat Stat) bool {
@@ -220,6 +237,20 @@ var protos = map[account.Skill]Proto{
 	// knockback is left out.
 	SwordStrike: {Class: account.Warrior, Group: "mental", Mana: Scaled{40, 120}, Cooldown: Scaled{20, 0},
 		Aim: 1200, Reach: 200, Victims: 10, Damage: Scaled{200, 100}, Stuns: true, Wields: SwordOrTwoHanded},
+	// Dagger, settled by the veteran and the designer: the client's skilltable for mana
+	// and cooldowns, the veteran's damage, which keeps Ambush the hardest blow, and its
+	// weapons, a dagger or a sword. Ambush: 40 + 160k, 15 s, half as strong again from
+	// behind the monster.
+	Ambush: {Class: account.Ninja, Group: "dagger", Mana: Scaled{40, 160}, Cooldown: Scaled{15, 0},
+		Target: true, Damage: Scaled{150, 350}, FromBehind: 150, Wields: DaggerOrSword},
+	// Fast Attack: 40 + 160k, 20 s, on the monster picked within 800, with the ninja moved
+	// beside it.
+	FastAttack: {Class: account.Ninja, Group: "dagger", Mana: Scaled{40, 160}, Cooldown: Scaled{20, 0},
+		Target: true, Aim: 800, Dash: true, Damage: Scaled{100, 250}, Wields: DaggerOrSword},
+	// Rolling Dagger: 50 + 140k, 25 s, up to 12 within 250 around her, each perhaps
+	// poisoned.
+	RollingDagger: {Class: account.Ninja, Group: "dagger", Mana: Scaled{50, 140}, Cooldown: Scaled{25, 0},
+		Reach: 250, Victims: 12, Damage: Scaled{150, 150}, Poisons: true, Wields: DaggerOrSword},
 }
 
 // powers is a skill's power at each level, in hundredths: the client's own table, which

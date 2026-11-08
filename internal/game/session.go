@@ -76,6 +76,8 @@ type Service struct {
 	// stone called is gone for good, for the tick to drop.
 	called map[*monster][]*monster
 	forget bool
+	// poisons are the poisoned monsters, which the loop ticks.
+	poisons []poisoning
 	// nextPlayerRegen is when the loop next heals the players.
 	nextPlayerRegen time.Time
 	// now is the time, which tests set.

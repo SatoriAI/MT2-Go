@@ -205,7 +205,8 @@ func TestEveryTeacherTeachesAGroupThereIs(t *testing.T) {
 			t.Errorf("%d teaches %q", vnum, p.Teaches)
 		}
 	}
-	for vnum, want := range map[uint16]account.SkillGroup{20300: "body", 20301: "mental", 20320: "body", 20321: "mental", 20340: "body", 20341: "mental"} {
+	for vnum, want := range map[uint16]account.SkillGroup{20300: "body", 20301: "mental", 20320: "body", 20321: "mental", 20340: "body", 20341: "mental",
+		20302: "dagger", 20303: "archery", 20322: "dagger", 20323: "archery", 20342: "dagger", 20343: "archery"} {
 		if p, _ := Lookup(vnum); p.Teaches != want {
 			t.Errorf("%d teaches %q, want %q", vnum, p.Teaches, want)
 		}
