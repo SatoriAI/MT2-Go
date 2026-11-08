@@ -2,7 +2,7 @@
 
 ## What the player sees
 
-A character's class has two skill groups, its paths. The sura's are **Weaponry** («Moc Broni») and **Black Magic** («Czarna Magia»), and the warrior's **Body** («Moc Ciała») and **Mental** («Moc Duchowa»). Each village has a teacher for each: «Trener Mocy Broni» and «Trener Mocy Czarn. Magii» a few steps east of the old lady, and «Trener Mocy Ciała» and «Trener Mocy Duchowej» a few steps west.
+A character's class has two skill groups, its paths. The sura's are **Weaponry** («Moc Broni») and **Black Magic** («Czarna Magia»), the warrior's **Body** («Moc Ciała») and **Mental** («Moc Duchowa»), and the ninja's **Dagger** («Moc Ostrza») and **Archery** («Moc Łuku»). Each village has a teacher for each: «Trener Mocy Broni» and «Trener Mocy Czarn. Magii» a few steps east of the old lady, and «Trener Mocy Ciała», «Trener Mocy Duchowej», «Trener Mocy Ostrza» and «Trener Mocy Łuku» a few steps west.
 
 **Choosing a path.**
 - **The offer.** From level 5, a character who clicks a teacher of their class is offered their path, for a sura at Weaponry's «Mogę nauczyć cię drogi Mocy Broni. Czy chcesz nią podążać?», with Tak and Nie. Yes asks whether they are sure, and a second yes takes it up.
@@ -11,7 +11,7 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
 - **Who is turned away.** A teacher tells anyone of another class, anyone below level 5, and anyone already on their path, why not.
 
 **Raising a skill.** The + beside a skill raises it a level for a point, up to 20, where the + goes. Each level from 5 brings one more point.
-- **What can be raised:** Weaponry's Finger Strike, Dragon Swirl, Enchanted Blade and Enchanted Armour, Body's Three-Way Cut (Trzystronne Cięcie), Sword Spin (Wir Miecza), Berserk and Sword Aura (Aura Miecza), and Mental's Spirit Strike (Duchowe Uderzenie), Bash (Walnięcie), Stump (Tąpnięcie), Strong Body (Silne Ciało) and Sword Strike (Uderzenie Miecza). The others show in the window, but raising one says «Tej umiejętności nie można jeszcze rozwijać.»
+- **What can be raised:** Weaponry's Finger Strike, Dragon Swirl, Enchanted Blade and Enchanted Armour, Body's Three-Way Cut (Trzystronne Cięcie), Sword Spin (Wir Miecza), Berserk and Sword Aura (Aura Miecza), and Mental's Spirit Strike (Duchowe Uderzenie), Bash (Walnięcie), Stump (Tąpnięcie), Strong Body (Silne Ciało) and Sword Strike (Uderzenie Miecza), and Dagger's Ambush (Zasadzka), Fast Attack (Szybki Atak) and Rolling Dagger (Wirujący Sztylet). The others show in the window, but raising one says «Tej umiejętności nie można jeszcze rozwijać.»
 **Using a skill.** They are used from the skill window or the taskbar, as the client uses any skill.
 - **Finger Strike:** on the monster she has picked, within a blow's reach, one strike of two and a half blows and more at the first level, four and a quarter at 20. It can't be used again for 10 seconds.
 - **Dragon Swirl:** the sura spins her blade, and every monster around her within 500 is struck at once. Each blow is more than two of hers at the first level, three and a half at 20. Every monster struck turns on her. It costs mana and can't be used again for 15 seconds.
@@ -27,6 +27,9 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
 - **Strong Body:** his defence higher and his steps slower for 64 seconds at the first level, 105 at 20, its effect shown on him.
 - **Sword Strike:** with a sword or a glaive, a blow from afar on the monster picked within 1200, or the nearest in front of him, and up to nine around it, each perhaps stunned. With nothing to land on, it is not used. 20 seconds.
 - **Berserk's price:** while it runs, every bite takes (5 + 10k)% more of him, 5% at the first level, 10% at 20.
+- **Ambush:** with a dagger or a sword, a stab on the monster picked, the ninja's hardest blow, half as hard again struck from behind it. 15 seconds.
+- **Fast Attack:** with a dagger or a sword, she dashes to the monster picked, up to 800 off, and strikes it. 20 seconds.
+- **Rolling Dagger:** with a dagger or a sword, up to twelve within 250 around her, each perhaps poisoned: a poisoned monster is tinted, and loses 1 in a hundred of its hit points every two seconds for half a minute, which can kill it. 25 seconds.
 
 ## What the client does
 
@@ -50,7 +53,7 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
   - It then plays the motion and sends MOVE with `FUNC_SKILL` and the motion, which others replay, and USE_SKILL with the skill's number.
   - During the motion it reports its own hits as ATTACK with the skill's number, which this server drops.
 - **The glow:** an effect bit in CHARACTER_ADD and CHARACTER_UPDATE draws a buff's effect on the character, Enchanted Blade's glow or Enchanted Armour's shimmer. For the player's own character it also lights the skill's slot as on. Bit 19 is the blade's, 21 the armour's, 14 Berserk's, 15 Sword Aura's and 16 Strong Body's (`InstanceBase.h`).
-- **A stun** is bit 5 of a monster's effects, AFFECT_STUN, which the client draws as the monster asleep on its feet (`InstanceBaseEffect.cpp`).
+- **A stun** is bit 5 of a monster's effects, AFFECT_STUN, which the client draws as the monster asleep on its feet, and **a poison** bit 3, AFFECT_POISON. A DAMAGE flagged 2, DAMAGE_POISON, is drawn as poison's hit (`InstanceBase.h`, `InstanceBaseEffect.cpp`).
 - **The warrior's skills** need a target for Three-Way Cut, and a sword or two-handed weapon for all but Berserk, the client's NEED_TARGET and WEAPON_LIMITATION (`skilldesc.txt`). The skill window lists each group's skills from its first place, so Three-Way Cut is a Body warrior's first as Finger Strike is a Weaponry sura's (`playersettingmodule.py`).
 
 ## The bytes
@@ -64,8 +67,9 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
 | POINT_CHANGE `11` | 17 | skill points are point 28 |
 | USE_SKILL `34`, client | 9, then the sequence byte | the skill's number u32, its target's vid u32 (ignored; a toggle turned off may carry other numbers there) |
 | POINTS `10` | 1021 | casting speed at point 21: 100 |
-| CHARACTER_ADD `01`, CHARACTER_UPDATE `13` | 35 each | the effects, two u32 words: bit 19 of the first is Enchanted Blade, 21 Enchanted Armour, 14 Berserk, 15 Sword Aura, 16 Strong Body, and on a monster 5 its stun; and the move and attack speeds |
+| CHARACTER_ADD `01`, CHARACTER_UPDATE `13` | 35 each | the effects, two u32 words: bit 19 of the first is Enchanted Blade, 21 Enchanted Armour, 14 Berserk, 15 Sword Aura, 16 Strong Body, and on a monster 5 its stun and 3 its poison; and the move and attack speeds |
 | POINT_CHANGE `11` | 17 | the attack speed is point 17, the move speed 19 |
+| DAMAGE `87` | 10 | a poison's turn has flag 2 |
 
 ## What the server does
 
@@ -119,6 +123,18 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
     - Sword Strike: the monster picked if it lives within 1200, else the nearest living one in front of the player within 1200; it and up to nine within 200 of it, (200 + 100k)%, stunning. With neither, it is not used and costs nothing. Its knockback is left out, as it would move monsters the server owns.
   - **Stuns:** each monster a stunning skill leaves alive is stunned at the client's chance, (100 + 1000k/6)/10 percent, rolled for each. A stun holds it two seconds from then, its fight's next step falling due as it ends: a second one resets the time, never adding to it, and there is no time after one in which it cannot be stunned again. Metin stones are never stunned. A stunned monster in a fight takes its steps but neither walks nor bites; hits do not wake it. Its stun is shown to those who see it, in CHARACTER_UPDATE as it starts and ends and in every later CHARACTER_ADD; its fight ending wakes it, so it goes home awake, and its death too, so no body lies stunned.
   - **Berserk's price:** the veteran's (5 + 10k)% more of every bite while it runs, which the client's description names but gives no number for.
+  - **Dagger,** settled the same way: the client's skilltable for mana and cooldowns, its weapons, a dagger, double sword or sword, and the veteran's damage, which keeps Ambush the hardest blow, where the tooltips' attack terms alone would leave the stabs barely a blow.
+    - Ambush: the target only, (150 + 350k)%, and half as much again when the ninja stands in the half of the world behind the way the monster last faced.
+    - Fast Attack: the monster picked if it lives within 800. The ninja is moved beside it first, half a blow's reach from it on her side, facing it, shown to everyone who sees her at the client clock's time; her own client plays the dash itself. One already that near is not moved. Then (100 + 250k)%.
+    - Rolling Dagger: up to twelve within 250 around her, (150 + 150k)%, poisoning at its tooltip's 1 + 4k percent, rolled for each it leaves alive.
+    - Krycie Się, stealth, is left out, and Trująca Chmura waits for magic damage.
+  - **Poison:** the veteran's.
+    - **What it takes:** 1 in a hundred of the monster's hit points every two seconds, at least one and at most the poisoner's mean blow on it, worked out as it lands.
+    - **How long:** thirty seconds from the latest poison; a second one renews it and never stacks.
+    - **For the poisoner:** each turn is theirs, told to them as DAMAGE flagged 2, counted towards the drops and experience. One that takes the last hit points kills the monster at their hand.
+    - **What it never does:** provoke, or keep the monster from healing as it would. It ends once its poisoner has left the world or died, wherever they are, and Metin stones are never poisoned.
+    - **Showing it:** as a stun is shown, from the CHARACTER_UPDATE as it starts and ends and in every later CHARACTER_ADD. Death ends it.
+    - **The world loop** keeps the poisoned in a list, as it keeps the hurt, so an idle tick walks none of them.
   - **Bonuses come from the buffs running:** each buff raises or lowers the attack, the defence, the speeds or the damage bites take, by its own formula of the character's STR, CON or INT, and what the running ones add to the attack and defence is worked out whenever a blow or bite needs it, so they stack. The speeds are kept on the player's record, and worked out again whenever a buff starts or ends, a running one is raised, or the player dresses. Taking up another group ends every buff running. A buff runs until the world loop ends it.
 - **Held under the world's lock:** a character's group and skills are on its record, which the world's lock guards, since its level changes there. They are read with the character on entering, and changed only through the world record.
 
@@ -186,6 +202,12 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
   - Sword Strike landing on the dog picked 1100 off, else the nearest in front, and not used facing nothing;
   - Berserk making a bite 5% stronger;
   - strength raised under Strong Body telling her defence.
+- `internal/game/dagger_test.go`:
+  - Ambush half as strong again from behind; refused with a glaive, used with a sword;
+  - Fast Attack moving her beside the dog picked 700 off, seen by a neighbour, and out of reach beyond 800;
+  - Rolling Dagger on the three within 250 and not one 280 off, and twelve at most; poisoning some dogs beside a stone, never the stone;
+  - a poison's share every two seconds, told as poison, shown, never provoking; ended after thirty seconds, or renewed; killing at the poisoner's hand; ended with its poisoner gone; ticked by the world loop and forgotten when done;
+  - a ninja taking up Dagger at its teacher.
 - `internal/game/warrior_test.go`:
   - Three-Way Cut cutting five around the dog picked, three times each, and its mana told; refused with nothing picked or a fan in hand; used with a glaive;
   - Sword Spin striking the three dogs within 200 and not the one beyond, and twelve of fourteen, the nearest;
@@ -193,13 +215,13 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
   - Sword Aura raising the attack by 6, and ending when the sword is taken off;
   - each group's own skill window places;
   - a warrior taking up Body at its teacher.
-- `internal/world/spawns_test.go`, `internal/mob/mob_test.go`: the four teachers in each first village, each teaching a group there is.
+- `internal/world/spawns_test.go`, `internal/mob/mob_test.go`: the six teachers in each first village, each teaching a group there is.
 - `internal/server/skills_test.go` (real sockets and database): a level-6 sura taking up Weaponry, raising Dragon Swirl twice, and entering again with it at 2 and no points left; an answer still in flight after Change character ending nothing; an offer left open over Change character forgotten; a Weaponry sura's Dragon Swirl spending its mana and striking both dogs beside her.
 
 ## Not done yet
 
-- Fear and Dispel, which only matter against players; Enchanted Armour's reflect; Finger Strike's pierce. Black Magic, the ninja's and shaman's groups and their teachers.
-- Body's Charge and Sword Strike's knockback, which need the server to move characters; slows and poisons.
+- Fear and Dispel, which only matter against players; Enchanted Armour's reflect; Finger Strike's pierce. Black Magic and Archery, whose teachers stand but which have no skills yet, and the shaman's groups and their teachers; the ninja's stealth and poison cloud.
+- Body's Charge and Sword Strike's knockback, which push monsters the server owns; slows.
 - Damage at the motion's hit, and no blows during a skill's motion.
 - The mana Enchanted Blade drains while it runs in the original, and keeping it over a relog.
 - Ranks past 20: Grand and Perfect.

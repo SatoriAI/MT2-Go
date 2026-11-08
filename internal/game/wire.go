@@ -152,12 +152,19 @@ func entityType(k mob.Kind) uint8 {
 // (InstanceBase.h, InstanceBaseEffect.cpp).
 const stunBit = 1 << 5
 
-// mobAffects are the effects the client draws on a monster: its stun.
+// poisonBit is the client's AFFECT_POISON, which tints a poisoned monster.
+const poisonBit = 1 << 3
+
+// mobAffects are the effects the client draws on a monster: its stun and its poison.
 func mobAffects(p *present) uint64 {
+	var bits uint64
 	if p.fight != nil && p.fight.stunned {
-		return stunBit
+		bits |= stunBit
 	}
-	return 0
+	if p.fight != nil && p.fight.poisoned {
+		bits |= poisonBit
+	}
+	return bits
 }
 
 // smokeOf is the client's affect bit for a stone's smoke at the share of its hit points
@@ -249,6 +256,9 @@ var skillVNums = map[account.Skill]uint8{
 	skill.Stump:           18,
 	skill.StrongBody:      19,
 	skill.SwordStrike:     20,
+	skill.Ambush:          31,
+	skill.FastAttack:      32,
+	skill.RollingDagger:   33,
 }
 
 // castingSpeed is what the client is told a character's casting speed is: 100, at which it
@@ -321,6 +331,9 @@ var skillWindowSlots = map[account.Skill]uint8{
 	skill.Stump:           3,
 	skill.StrongBody:      4,
 	skill.SwordStrike:     5,
+	skill.Ambush:          1,
+	skill.FastAttack:      2,
+	skill.RollingDagger:   3,
 }
 
 // skillByWindowSlot is the skill of the group at a place in the skill window, if the game

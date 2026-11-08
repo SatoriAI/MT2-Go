@@ -29,6 +29,7 @@ type presence struct {
 	laid     []timed                // items players dropped since the world loop last asked, to clear away
 	buffs    []buffEnd              // buffs players started since the world loop last asked, to end
 	calls    []call                 // waves stones called since the world loop last asked
+	poisoned []*present             // monsters poisoned since the world loop last asked, to tick
 	event    *event.Event           // the event running; nil for none
 	ground   map[uint32]*groundItem // items lying in the world, by vid
 }

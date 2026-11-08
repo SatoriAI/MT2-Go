@@ -29,6 +29,8 @@ var paths = map[account.SkillGroup]string{
 	"black_magic": "Czarnej Magii",
 	"body":        "Mocy Ciała",
 	"mental":      "Mocy Duchowej",
+	"dagger":      "Mocy Ostrza",
+	"archery":     "Mocy Łuku",
 }
 
 // talk is what a teacher asked the player, which their next answer in the dialog answers:

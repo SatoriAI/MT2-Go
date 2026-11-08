@@ -40,6 +40,12 @@ type fight struct {
 	// stunnedUntil is when a stun on it ends, shown while stunned is set.
 	stunnedUntil time.Time
 	stunned      bool
+	// A poison runs while poisoned, until poisonedUntil, taking poison a turn for its
+	// poisoner.
+	poisonedUntil time.Time
+	poisoner      *present
+	poison        int
+	poisoned      bool
 	// A stone's own: that it is one, the waves it has called as it was worn down, and the
 	// smoke it shows.
 	stone bool
@@ -160,7 +166,16 @@ func (w *presence) strike(p, v *present, damage int, now time.Time) blow {
 		}
 		return blowLanded
 	}
-	f.diedAt, f.stunned = now, false // a body is not stunned
+	w.kill(p, v, now)
+	return blowKilled
+}
+
+// kill lays the monster dead at the player's hand: everyone who sees it sees it die, its
+// drops are kept for whoever hurt it most and its experience shared. Called under the
+// lock.
+func (w *presence) kill(p, v *present, now time.Time) {
+	f, vid := v.fight, v.add.VID
+	f.diedAt, f.stunned, f.poisoned = now, false, false // a body is neither stunned nor poisoned
 	winner := w.topDamager(f, p)
 	w.fallen = append(w.fallen, death{v, now, owner{id: winner.char.ID, name: winner.info.Name}})
 	if f.stone {
@@ -171,7 +186,6 @@ func (w *presence) strike(p, v *present, damage int, now time.Time) blow {
 	}
 	toViewers(v, protocol.EncodeDead(vid))
 	w.shareExp(f, p)
-	return blowKilled
 }
 
 // stoneWaves is how many waves a stone calls as it is worn down, one each time it loses
@@ -224,14 +238,15 @@ type news struct {
 	laid     []timed
 	buffs    []buffEnd
 	calls    []call
+	poisoned []*present
 }
 
 // takeNews hands the world loop the news, with one lock a tick.
 func (w *presence) takeNews() news {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	n := news{w.fallen, w.provoked, w.laid, w.buffs, w.calls}
-	w.fallen, w.provoked, w.laid, w.buffs, w.calls = nil, nil, nil, nil, nil
+	n := news{w.fallen, w.provoked, w.laid, w.buffs, w.calls, w.poisoned}
+	w.fallen, w.provoked, w.laid, w.buffs, w.calls, w.poisoned = nil, nil, nil, nil, nil, nil
 	return n
 }
 
