@@ -274,7 +274,7 @@ func defence(c *account.Character) uint32 {
 // armourOf is the armour a character sets against a bite: their body armour's, helmet's,
 // shoes' and shield's, and their buffs'.
 func armourOf(c *account.Character) uint16 {
-	defence := buffBonus(c, skill.Defence)
+	defence := uint16(buffBonus(c, skill.Defence)) //nolint:gosec // defence buffs only add
 	for _, vnum := range []uint32{c.Body, c.Head, c.Feet, c.Shield} {
 		worn, _ := item.Lookup(vnum)
 		defence += worn.Defence
@@ -288,13 +288,13 @@ func moveSpeed(c *account.Character) uint8 {
 	points, _ := c.Points()
 	shoes, _ := item.Lookup(c.Feet)
 	shield, _ := item.Lookup(c.Shield)
-	return uint8(int(points.MoveSpeed) + int(shoes.MoveSpeed) + int(shield.MoveSpeed) + int(buffBonus(c, skill.MoveSpeed))) //nolint:gosec // 150 give or take 25
+	return uint8(int(points.MoveSpeed) + int(shoes.MoveSpeed) + int(shield.MoveSpeed) + buffBonus(c, skill.MoveSpeed)) //nolint:gosec // 150 give or take 25
 }
 
 // attackSpeed is the speed the character strikes at: everyone's, and what their buffs add.
 func attackSpeed(c *account.Character) uint8 {
 	points, _ := c.Points()
-	return points.AttackSpeed + uint8(buffBonus(c, skill.AttackSpeed)) //nolint:gosec // at most 25 more
+	return uint8(int(points.AttackSpeed) + buffBonus(c, skill.AttackSpeed)) //nolint:gosec // at most 25 more
 }
 
 // attackSpeedOf is the speed the player strikes at now, for the time their blows must

@@ -37,6 +37,9 @@ type fight struct {
 	damageBy map[*present]int
 	exp      uint32
 	hitAt    time.Time // its last blow or skill, from which a stone waits to heal
+	// stunnedUntil is when a stun on it ends, shown while stunned is set.
+	stunnedUntil time.Time
+	stunned      bool
 	// A stone's own: that it is one, the waves it has called as it was worn down, and the
 	// smoke it shows.
 	stone bool
@@ -119,16 +122,16 @@ func (w *presence) attack(playerVID, vid uint32, gap time.Duration, r *rand.Rand
 func attackerOf(c *account.Character) combat.Attacker {
 	weapon, _ := item.Lookup(c.Weapon)
 	return combat.Attacker{Level: c.Level, Class: c.Class, Stats: c.Stats, WeaponMin: weapon.AttackMin,
-		WeaponMax: weapon.AttackMax, Bonus: buffBonus(c, skill.Attack)}
+		WeaponMax: weapon.AttackMax, Bonus: uint16(buffBonus(c, skill.Attack))} //nolint:gosec // attack buffs only add
 }
 
 // buffBonus is what the character's running buffs add to a stat. A buff runs until the
 // world loop ends it. Called under the lock.
-func buffBonus(c *account.Character, stat skill.Stat) uint16 {
-	var bonus uint16
+func buffBonus(c *account.Character, stat skill.Stat) int {
+	var bonus int
 	for sk := range c.Buffs {
 		p, _ := skill.Lookup(sk)
-		bonus += p.Bonus(stat, skill.Bearer{Strength: c.Strength, Intelligence: c.Intelligence}, c.Skills[sk])
+		bonus += p.Bonus(stat, skill.Bearer{Strength: c.Strength, Vitality: c.Vitality, Intelligence: c.Intelligence}, c.Skills[sk])
 	}
 	return bonus
 }
@@ -157,7 +160,7 @@ func (w *presence) strike(p, v *present, damage int, now time.Time) blow {
 		}
 		return blowLanded
 	}
-	f.diedAt = now
+	f.diedAt, f.stunned = now, false // a body is not stunned
 	winner := w.topDamager(f, p)
 	w.fallen = append(w.fallen, death{v, now, owner{id: winner.char.ID, name: winner.info.Name}})
 	if f.stone {

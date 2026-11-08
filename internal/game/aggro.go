@@ -8,6 +8,7 @@ import (
 	"github.com/SatoriAI/MT2-Go/internal/combat"
 	"github.com/SatoriAI/MT2-Go/internal/mob"
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
+	"github.com/SatoriAI/MT2-Go/internal/skill"
 )
 
 // A monster that is hit fights back, with open-mt2's numbers: it takes a step every
@@ -102,9 +103,19 @@ func (w *presence) fightStep(m *monster, now time.Time, clock uint32, r *rand.Ra
 	t := c.target
 	if me.dead() || w.all[t.add.VID] != t || t.dead() || now.Sub(c.lastExchange) >= giveUpAfter ||
 		!near(me.add.X, me.add.Y, c.fromX, c.fromY, leash) {
+		if me.fight.stunned && !me.dead() {
+			w.wake(me) // it goes home awake
+		}
 		return false
 	}
 	c.nextStep = now.Add(chaseStep)
+	if me.fight.stunned {
+		if now.Before(me.fight.stunnedUntil) {
+			c.nextStep = minTime(c.nextStep, me.fight.stunnedUntil) // it comes to on time
+			return true                                             // it stands, and bites nothing, until then
+		}
+		w.wake(me)
+	}
 	if within(me, t, int64(m.proto.AttackRange)*115/100) {
 		if !now.Before(c.nextBite) {
 			w.bite(m, t, now, clock, r)
@@ -120,7 +131,8 @@ func (w *presence) fightStep(m *monster, now time.Time, clock uint32, r *rand.Ra
 }
 
 // bite has the monster attack its target where it stands: everyone who sees it sees the
-// attack, and the target is told the damage and their hit points left, and dies at none.
+// attack, and the target is told the damage, more by what their buffs make them take, and
+// their hit points left, and dies at none.
 func (w *presence) bite(m *monster, t *present, now time.Time, clock uint32, r *rand.Rand) {
 	me, c, ch := m.p, m.chase, t.char
 	rotation := rotationTowards(t.add.X-me.add.X, t.add.Y-me.add.Y)
@@ -129,8 +141,8 @@ func (w *presence) bite(m *monster, t *present, now time.Time, clock uint32, r *
 		X: me.add.X, Y: me.add.Y, Time: clock}))
 	b := combat.Biter{Level: m.proto.Level, Strength: m.proto.Strength, DamageMin: m.proto.DamageMin,
 		DamageMax: m.proto.DamageMax}
-	damage := min(uint32(combat.Bite(b, combat.Defender{Level: ch.Level, Vitality: ch.Vitality, Armour: armourOf(ch)}, r)), //nolint:gosec // at least 1
-		ch.HP)
+	bitten := combat.Bite(b, combat.Defender{Level: ch.Level, Vitality: ch.Vitality, Armour: armourOf(ch)}, r)
+	damage := min(uint32(bitten*(100+buffBonus(ch, skill.DamageTaken))/100), ch.HP) //nolint:gosec // at least 1
 	ch.HP -= damage
 	ch.LastFought = now
 	vid := t.add.VID
@@ -140,6 +152,14 @@ func (w *presence) bite(m *monster, t *present, now time.Time, clock uint32, r *
 	if ch.HP == 0 {
 		w.die(t)
 	}
+}
+
+// minTime is the earlier of two times.
+func minTime(a, b time.Time) time.Time {
+	if b.Before(a) {
+		return b
+	}
+	return a
 }
 
 // biteGap is the time between a monster's bites at its attack speed: two seconds at 100,

@@ -65,6 +65,11 @@ func TestASkillCostsAndWaitsWhatTheClientWorksOut(t *testing.T) {
 		{SwordSpin, func(k float64) float64 { return 50 + 130*k }, func(float64) float64 { return 15 }, func(float64) float64 { return 0 }},
 		{Berserk, func(k float64) float64 { return 50 + 140*k }, func(k float64) float64 { return 63 + 90*k }, func(k float64) float64 { return 60 + 90*k }},
 		{SwordAura, func(k float64) float64 { return 100 + 200*k }, func(k float64) float64 { return 33 + 50*k }, func(k float64) float64 { return 30 + 50*k }},
+		{SpiritStrike, func(k float64) float64 { return 60 + 120*k }, func(float64) float64 { return 15 }, func(float64) float64 { return 0 }},
+		{Bash, func(k float64) float64 { return 60 + 150*k }, func(float64) float64 { return 15 }, func(float64) float64 { return 0 }},
+		{Stump, func(k float64) float64 { return 50 + 140*k }, func(float64) float64 { return 25 }, func(float64) float64 { return 0 }},
+		{StrongBody, func(k float64) float64 { return 80 + 220*k }, func(k float64) float64 { return 63 + 90*k }, func(k float64) float64 { return 60 + 90*k }},
+		{SwordStrike, func(k float64) float64 { return 40 + 120*k }, func(float64) float64 { return 20 }, func(float64) float64 { return 0 }},
 	}
 	for _, c := range cases {
 		p, _ := Lookup(c.skill)
@@ -102,8 +107,8 @@ func TestBuffsAddWhatTheClientShows(t *testing.T) {
 	armour, _ := Lookup(EnchantedArmour)
 	swirl, _ := Lookup(DragonSwirl)
 	sura := Bearer{Intelligence: 5}
-	for level, want := range map[uint8][2]uint16{1: {8, 1}, 20: {26, 17}} {
-		if got := [2]uint16{blade.Bonus(Attack, sura, level), armour.Bonus(Defence, sura, level)}; got != want {
+	for level, want := range map[uint8][2]int{1: {8, 1}, 20: {26, 17}} {
+		if got := [2]int{blade.Bonus(Attack, sura, level), armour.Bonus(Defence, sura, level)}; got != want {
 			t.Errorf("at %d: %v, want %v", level, got, want)
 		}
 	}
@@ -119,8 +124,8 @@ func TestWarriorBuffsAddWhatTheClientShows(t *testing.T) {
 	aura, _ := Lookup(SwordAura)
 	berserk, _ := Lookup(Berserk)
 	warrior := Bearer{Strength: 30}
-	for level, want := range map[uint8][3]uint16{1: {6, 2, 1}, 20: {65, 25, 10}} {
-		got := [3]uint16{aura.Bonus(Attack, warrior, level), berserk.Bonus(AttackSpeed, warrior, level), berserk.Bonus(MoveSpeed, warrior, level)}
+	for level, want := range map[uint8][3]int{1: {6, 2, 1}, 20: {65, 25, 10}} {
+		got := [3]int{aura.Bonus(Attack, warrior, level), berserk.Bonus(AttackSpeed, warrior, level), berserk.Bonus(MoveSpeed, warrior, level)}
 		if got != want {
 			t.Errorf("at %d: %v, want %v", level, got, want)
 		}
@@ -141,6 +146,32 @@ func TestWarriorSkillsNeedASwordOrATwoHandedWeapon(t *testing.T) {
 		p, _ := Lookup(s)
 		if got := [3]bool{p.Wieldable(sword), p.Wieldable(glaive), p.Wieldable(fan)}; got != want {
 			t.Errorf("%s with a sword, glaive, fan: %v, want %v", s, got, want)
+		}
+	}
+}
+
+// Strong Body adds its tooltip's 7 + (40 + 0.2·STR + 0.4·CON)·k to the defence and takes
+// 1 + 9k off the move speed, rounded towards zero: with STR 30 and CON 10, 9 and 1 at its
+// first level (9.5, 1.45), 32 and 5 at 20 (32, 5.5). Berserk makes a bite (5 + 10k)%
+// stronger: 5 at 1, 10 at 20.
+func TestStrongBodyAndBerserksPriceAreTheirFormulas(t *testing.T) {
+	body, _ := Lookup(StrongBody)
+	berserk, _ := Lookup(Berserk)
+	warrior := Bearer{Strength: 30, Vitality: 10}
+	for level, want := range map[uint8][3]int{1: {9, -1, 5}, 20: {32, -5, 10}} {
+		got := [3]int{body.Bonus(Defence, warrior, level), body.Bonus(MoveSpeed, warrior, level), berserk.Bonus(DamageTaken, warrior, level)}
+		if got != want {
+			t.Errorf("at %d: %v, want %v", level, got, want)
+		}
+	}
+}
+
+// A stun's chance is the client's (100 + 1000k/6)/10 percent, in thousandths: 108 at the
+// first level, 183 at 20.
+func TestAStunsChanceIsTheClients(t *testing.T) {
+	for level, want := range map[uint8]int{1: 108, 10: 136, 20: 183} {
+		if got := StunChance(level); got != want {
+			t.Errorf("at %d: %d, want %d", level, got, want)
 		}
 	}
 }

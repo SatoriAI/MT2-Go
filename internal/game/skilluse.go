@@ -2,6 +2,7 @@ package game
 
 import (
 	"cmp"
+	"math"
 	"math/rand/v2"
 	"slices"
 	"sync"
@@ -93,32 +94,68 @@ func (w *presence) useSkill(vid uint32, sk account.Skill, target uint32, now tim
 		w.endBuffLocked(pl, sk)
 		return true
 	}
-	victim, inReach := pl.sees[target]
-	inReach = inReach && victim.fight != nil && !victim.dead() && within(pl, victim, attackReach)
+	victim := aimed(pl, target, proto)
 	weapon, _ := item.Lookup(c.Weapon)
 	cost := proto.Mana.At(skill.Power(level))
-	if !cooled(proto.CooldownAt(level)) || !proto.Wieldable(weapon) || proto.Target && !inReach || c.SP < cost {
+	if !cooled(proto.CooldownAt(level)) || !proto.Wieldable(weapon) || (proto.Target || proto.Aim > 0) && victim == nil || c.SP < cost {
 		return false
 	}
 	c.SP -= cost
 	pl.send(protocol.EncodePointChange(vid, protocol.PointSP, -int32(cost), int32(c.SP))) //nolint:gosec // small
 	percent := int(proto.Damage.At(skill.Power(level)))
 	switch {
-	case proto.Target:
-		w.splash(pl, victim, proto, percent, now, r)
+	case victim != nil:
+		w.splash(pl, victim, proto, percent, level, now, r)
 	case proto.Reach > 0:
-		w.splash(pl, pl, proto, percent, now, r)
+		w.splash(pl, pl, proto, percent, level, now, r)
 	default:
 		w.startBuff(pl, sk, now.Add(proto.LastsAt(level)))
 	}
 	return true
 }
 
+// aimed is the monster an attack on one lands on: with Target, the one the player picked
+// if it lives within a blow's reach; with Aim, the one picked if it lives within Aim, or
+// else the nearest living one in front of them within it. Nil for none, and for an attack
+// on none. Called under the lock.
+func aimed(pl *present, target uint32, proto skill.Proto) *present {
+	if !proto.Target && proto.Aim == 0 {
+		return nil
+	}
+	reach := int64(attackReach)
+	if proto.Aim > 0 {
+		reach = proto.Aim
+	}
+	if v, seen := pl.sees[target]; seen && v.fight != nil && !v.dead() && within(pl, v, reach) {
+		return v
+	}
+	if proto.Target {
+		return nil
+	}
+	var nearest *present
+	for _, v := range pl.sees {
+		if v.fight != nil && !v.dead() && within(pl, v, reach) && ahead(pl, v) &&
+			(nearest == nil || distance(pl, v) < distance(pl, nearest)) {
+			nearest = v
+		}
+	}
+	return nearest
+}
+
+// ahead is whether o stands in the half of the world in front of p, by the way p last
+// faced: the client's degrees clockwise from the world's +y.
+func ahead(p, o *present) bool {
+	facing := float64(p.add.Rotation) * math.Pi / 180
+	return float64(o.add.X-p.add.X)*math.Sin(facing)+float64(o.add.Y-p.add.Y)*math.Cos(facing) >= 0
+}
+
 // splash strikes the attack's victims around at: the monster itself if the attack is on
-// one, and every living monster the player sees within its reach of it, the nearest first
-// up to its number, each for percent of a blow's damage through the same defence and luck,
-// as many times as it hits while the victim lives. Called under the lock.
-func (w *presence) splash(pl, at *present, proto skill.Proto, percent int, now time.Time, r *rand.Rand) {
+// one, and every living monster the player sees within its reach of it, only those in
+// front of the player if the attack strikes ahead of them, the nearest first up to its
+// number, each for percent of a blow's damage through the same defence and luck, as many
+// times as it hits while the victim lives. A stunning attack may stun each it leaves
+// alive. Called under the lock.
+func (w *presence) splash(pl, at *present, proto skill.Proto, percent int, level uint8, now time.Time, r *rand.Rand) {
 	var victims []*present
 	if at != pl {
 		victims = append(victims, at)
@@ -126,7 +163,7 @@ func (w *presence) splash(pl, at *present, proto skill.Proto, percent int, now t
 	if proto.Reach > 0 {
 		var near []*present
 		for _, v := range pl.sees {
-			if v != at && v.fight != nil && !v.dead() && within(at, v, proto.Reach) {
+			if v != at && v.fight != nil && !v.dead() && within(at, v, proto.Reach) && (!proto.Front || ahead(pl, v)) {
 				near = append(near, v)
 			}
 		}
@@ -138,12 +175,35 @@ func (w *presence) splash(pl, at *present, proto skill.Proto, percent int, now t
 	}
 	a := attackerOf(pl.char)
 	for _, v := range victims {
+		blow := blowLanded
 		for range max(proto.Hits, 1) {
-			if w.strike(pl, v, combat.Damage(a, v.fight.defender, r)*percent/100, now) == blowKilled {
+			if blow = w.strike(pl, v, combat.Damage(a, v.fight.defender, r)*percent/100, now); blow == blowKilled {
 				break
 			}
 		}
+		if proto.Stuns && blow == blowLanded && !v.fight.stone && r.IntN(1000) < skill.StunChance(level) {
+			w.stun(v, now)
+		}
 	}
+}
+
+// stunFor is how long a stun holds a monster: the client's two seconds.
+const stunFor = 2 * time.Second
+
+// stun holds the monster where it stands for stunFor from now, however long it had left,
+// and shows everyone who sees it the stun. Called under the lock.
+func (w *presence) stun(v *present, now time.Time) {
+	v.fight.stunnedUntil = now.Add(stunFor)
+	if !v.fight.stunned {
+		v.fight.stunned = true
+		toViewers(v, protocol.EncodeCharacterUpdate(v.info, v.add, mobAffects(v)))
+	}
+}
+
+// wake ends the monster's stun for everyone who sees it. Called under the lock.
+func (w *presence) wake(v *present) {
+	v.fight.stunned = false
+	toViewers(v, protocol.EncodeCharacterUpdate(v.info, v.add, mobAffects(v)))
 }
 
 // distance is how far apart two characters stand, squared.

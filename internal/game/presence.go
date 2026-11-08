@@ -65,7 +65,7 @@ func (p *present) appearance() [][]byte {
 	add.Dead = p.dead() // a body is shown lying until it is taken away
 	switch add.Type {
 	case protocol.EntityMonster:
-		return [][]byte{protocol.EncodeCharacterAdd(add, 0)}
+		return [][]byte{protocol.EncodeCharacterAdd(add, mobAffects(p))}
 	case protocol.EntityStone:
 		return [][]byte{protocol.EncodeCharacterAdd(add, p.fight.smoke)}
 	}
