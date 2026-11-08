@@ -90,13 +90,13 @@ type Pick struct {
 
 // The village shops: the weapon trader's first weapons and the armour trader's first
 // armours along the top row, the cells below left to the taller ones, the helmets and
-// shoes on the row under the armours, and the general
+// shoes on the row under the armours and the shield below them, and the general
 // store's potions, singly on the top row and twenty to a pack on the next.
 var (
 	weapons = []Ware{{VNum: 10, Count: 1, Cell: 0}, {VNum: 1000, Count: 1, Cell: 1}, {VNum: 2000, Count: 1, Cell: 2}, {VNum: 3000, Count: 1, Cell: 3}, {VNum: 7000, Count: 1, Cell: 4}}
 	armours = []Ware{{VNum: 11200, Count: 1, Cell: 0}, {VNum: 11400, Count: 1, Cell: 1}, {VNum: 11600, Count: 1, Cell: 2}, {VNum: 11800, Count: 1, Cell: 3},
 		{VNum: 12200, Count: 1, Cell: 10}, {VNum: 12340, Count: 1, Cell: 11}, {VNum: 12480, Count: 1, Cell: 12}, {VNum: 12620, Count: 1, Cell: 13},
-		{VNum: 15000, Count: 1, Cell: 14}}
+		{VNum: 15000, Count: 1, Cell: 14}, {VNum: 13000, Count: 1, Cell: 15}}
 	sundries = []Ware{{VNum: 27001, Count: 1, Cell: 0}, {VNum: 27002, Count: 1, Cell: 1}, {VNum: 27004, Count: 1, Cell: 2},
 		{VNum: 27001, Count: 20, Cell: 5}, {VNum: 27002, Count: 20, Cell: 6}, {VNum: 27004, Count: 20, Cell: 7}}
 )

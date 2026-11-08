@@ -199,7 +199,7 @@ func (s *session) dress() {
 
 // outfit is what a character wears, each by vnum, 0 for nothing.
 type outfit struct {
-	weapon, body, head, feet uint32
+	weapon, body, head, feet, shield uint32
 }
 
 func outfitOf(inv item.Inventory) outfit {
@@ -207,7 +207,8 @@ func outfitOf(inv item.Inventory) outfit {
 		it, _ := inv.WornIn(place)
 		return it.VNum
 	}
-	return outfit{weapon: worn(item.Weapon), body: worn(item.Body), head: worn(item.Head), feet: worn(item.Feet)}
+	return outfit{weapon: worn(item.Weapon), body: worn(item.Body), head: worn(item.Head), feet: worn(item.Feet),
+		shield: worn(item.Shield)}
 }
 
 // itemAt returns the item at a position the client names, in a cell or worn.
@@ -234,17 +235,17 @@ var itemPackets = map[protocol.ClientHeader]bool{
 
 // dress puts the outfit on the player's character: their blows and the bites on them use
 // it from then on, and they and everyone who sees them see the change, at the speed their
-// shoes give. Enchanted Blade ends with the sword taken out of hand. The player is told
-// their new DEF when what they wear against bites changed, and their speed when their
-// shoes did.
+// shoes and shield give. Enchanted Blade ends with the sword taken out of hand. The player
+// is told their new DEF when what they wear against bites changed, and their speed when
+// it did.
 func (w *presence) dress(vid uint32, o outfit) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	p := w.all[vid]
 	c := p.char
-	armourChanged := c.Body != o.body || c.Head != o.head || c.Feet != o.feet
-	shoesChanged := c.Feet != o.feet
-	c.Weapon, c.Body, c.Head, c.Feet = o.weapon, o.body, o.head, o.feet
+	armourChanged := c.Body != o.body || c.Head != o.head || c.Feet != o.feet || c.Shield != o.shield
+	speed := p.add.MoveSpeed
+	c.Weapon, c.Body, c.Head, c.Feet, c.Shield = o.weapon, o.body, o.head, o.feet, o.shield
 	p.add.MoveSpeed = moveSpeed(c)
 	if held, _ := item.Lookup(o.weapon); !held.Sword {
 		delete(c.Buffs, skill.EnchantedBlade) // it runs only with a sword in hand
@@ -255,7 +256,7 @@ func (w *presence) dress(vid uint32, o outfit) {
 	if armourChanged {
 		p.send(protocol.EncodePointChange(vid, protocol.PointDefence, 0, int32(defence(c)))) //nolint:gosec // small
 	}
-	if shoesChanged {
+	if p.add.MoveSpeed != speed {
 		p.send(protocol.EncodePointChange(vid, protocol.PointMoveSpeed, 0, int32(p.add.MoveSpeed)))
 	}
 	toViewers(p, update)
@@ -267,26 +268,28 @@ func defence(c *account.Character) uint32 {
 	return uint32(c.Level) + uint32(c.Vitality) + uint32(armourOf(c))
 }
 
-// armourOf is the armour a character sets against a bite: their body armour's, helmet's
-// and shoes', and their buffs'.
+// armourOf is the armour a character sets against a bite: their body armour's, helmet's,
+// shoes' and shield's, and their buffs'.
 func armourOf(c *account.Character) uint16 {
 	defence := buffBonus(c, skill.Defence)
-	for _, vnum := range []uint32{c.Body, c.Head, c.Feet} {
+	for _, vnum := range []uint32{c.Body, c.Head, c.Feet, c.Shield} {
 		worn, _ := item.Lookup(vnum)
 		defence += worn.Defence
 	}
 	return defence
 }
 
-// moveSpeed is the speed the character moves at: everyone's, and what their shoes add.
+// moveSpeed is the speed the character moves at: everyone's, what their shoes add and
+// what their shield takes off.
 func moveSpeed(c *account.Character) uint8 {
 	points, _ := c.Points()
 	shoes, _ := item.Lookup(c.Feet)
-	return points.MoveSpeed + shoes.MoveSpeed
+	shield, _ := item.Lookup(c.Shield)
+	return uint8(int(points.MoveSpeed) + int(shoes.MoveSpeed) + int(shield.MoveSpeed)) //nolint:gosec // 150 give or take 15
 }
 
 // wear puts on the character what the inventory has worn, as it enters the world.
 func wear(c *account.Character, inv item.Inventory) {
 	o := outfitOf(inv)
-	c.Weapon, c.Body, c.Head, c.Feet = o.weapon, o.body, o.head, o.feet
+	c.Weapon, c.Body, c.Head, c.Feet, c.Shield = o.weapon, o.body, o.head, o.feet, o.shield
 }

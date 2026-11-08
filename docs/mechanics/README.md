@@ -21,7 +21,7 @@ Pages state facts in our own words. They never paste code from another server or
 | [combat.md](combat.md) | Picking a monster, hitting it, its bar, its death and its return |
 | [dying.md](dying.md) | A player's death to a monster, the restart dialog, and the experience it costs |
 | [experience.md](experience.md) | Experience from kills, shared by damage; levels, stat points and their buttons |
-| [equipment.md](equipment.md) | Putting on and taking off a weapon, body armour, a helmet and shoes, others seeing them, and what they add in a fight and to speed |
+| [equipment.md](equipment.md) | Putting on and taking off a weapon, body armour, a helmet, shoes and a shield, others seeing them, and what they add in a fight and to speed |
 | [drops.md](drops.md) | What monsters leave and players drop, items and yang, who it is kept for, what lies on the ground, and picking it up |
 | [taskbar.md](taskbar.md) | The bar of keys 1–4 and F1–F4: potions put on it, swapped, kept between logins, and following their items |
 | [skills.md](skills.md) | Skill groups chosen at a class teacher, skill points, raising skills, and using Weaponry's skills |

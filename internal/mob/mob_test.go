@@ -137,15 +137,15 @@ func TestOnlyTheBlacksmithUpgrades(t *testing.T) {
 	}
 }
 
-// The armour trader sells the four armours along the top row and, on the third row below
-// them, the four helmets and the shoes.
-func TestTheArmourTraderSellsHelmetsAndShoesBelowTheArmours(t *testing.T) {
+// The armour trader sells the four armours along the top row, on the third row below them
+// the four helmets and the shoes, and the shield under those.
+func TestTheArmourTraderSellsHelmetsShoesAndTheShieldBelowTheArmours(t *testing.T) {
 	trader, _ := Lookup(9002)
 	cells := map[uint32]uint8{}
 	for _, w := range trader.Sells {
 		cells[w.VNum] = w.Cell
 	}
-	want := map[uint32]uint8{11200: 0, 11400: 1, 11600: 2, 11800: 3, 12200: 10, 12340: 11, 12480: 12, 12620: 13, 15000: 14}
+	want := map[uint32]uint8{11200: 0, 11400: 1, 11600: 2, 11800: 3, 12200: 10, 12340: 11, 12480: 12, 12620: 13, 15000: 14, 13000: 15}
 	if !maps.Equal(cells, want) {
 		t.Fatalf("sells %v", cells)
 	}

@@ -331,13 +331,14 @@ func TestYangIsSpentUpToWhatTheCharacterHas(t *testing.T) {
 	}
 }
 
-// A helmet and shoes are kept worn on the head and feet.
-func TestAHelmetAndShoesAreKeptWorn(t *testing.T) {
+// A helmet, shoes and a shield are kept worn on the head, the feet and the shield's place.
+func TestAHelmetShoesAndAShieldAreKeptWorn(t *testing.T) {
 	s, cid := hendrasItems(t)
 	s.mustOrder(t, item.Order{Kind: item.Give, VNum: 12480, Count: 1})
 	s.mustOrder(t, item.Order{Kind: item.Give, VNum: 15000, Count: 1})
+	s.mustOrder(t, item.Order{Kind: item.Give, VNum: 13000, Count: 1})
 	inv, _ := s.mustApply(t, cid)
-	inv[0].Worn, inv[1].Worn = item.Head, item.Feet
+	inv[0].Worn, inv[1].Worn, inv[2].Worn = item.Head, item.Feet, item.Shield
 
 	if err := s.Place(context.Background(), inv...); err != nil {
 		t.Fatal(err)
@@ -346,7 +347,8 @@ func TestAHelmetAndShoesAreKeptWorn(t *testing.T) {
 	got, _, _ := s.Owned(context.Background(), "Hendra")
 	helmet, _ := got.WornIn(item.Head)
 	shoes, _ := got.WornIn(item.Feet)
-	if len(got) != 2 || helmet.VNum != 12480 || shoes.VNum != 15000 {
+	shield, _ := got.WornIn(item.Shield)
+	if len(got) != 3 || helmet.VNum != 12480 || shoes.VNum != 15000 || shield.VNum != 13000 {
 		t.Fatalf("kept %+v", got)
 	}
 }
