@@ -27,6 +27,8 @@ const changeBefore = 20
 var paths = map[account.SkillGroup]string{
 	"weaponry":    "Mocy Broni",
 	"black_magic": "Czarnej Magii",
+	"body":        "Mocy Ciała",
+	"mental":      "Mocy Duchowej",
 }
 
 // talk is what a teacher asked the player, which their next answer in the dialog answers:
@@ -36,9 +38,9 @@ type talk struct {
 	confirming bool
 }
 
-// teach answers a click on a class teacher. A sura of level 5 or more without a group is
-// offered the teacher's, and one of the other group below level 20 is offered a change;
-// anyone else is told why not.
+// teach answers a click on a class teacher. A character of its class of level 5 or more
+// without a group is offered the teacher's, and one of the other group below level 20 is
+// offered a change; anyone else is told why not.
 func (s *session) teach(vid uint32, teacher mob.Proto) error {
 	g := teacher.Teaches
 	if why, refused := s.whyNot(g); refused {
@@ -135,15 +137,9 @@ func (s *session) raiseSkill(ctx context.Context, arg string) error {
 		s.conn.Log().Error("skill raised not kept", "skill", sk, "err", err)
 		return nil
 	}
-	levels, points, def, defended := s.svc.presence.raised(s.playing.vid, sk, level)
-	told := [][]byte{
-		protocol.EncodeSkillLevels(levels),
-		protocol.EncodePointChange(s.playing.vid, protocol.PointSkillPoints, -1, int32(points)), //nolint:gosec // under 2^31
-	}
-	if defended {
-		told = append(told, protocol.EncodePointChange(s.playing.vid, protocol.PointDefence, 0, int32(def))) //nolint:gosec // small
-	}
-	return s.conn.Send(told...)
+	levels, points := s.svc.presence.raised(s.playing.vid, sk, level)
+	return s.conn.Send(protocol.EncodeSkillLevels(levels),
+		protocol.EncodePointChange(s.playing.vid, protocol.PointSkillPoints, -1, int32(points))) //nolint:gosec // under 2^31
 }
 
 // tell shows a line from the NPC the player talks to, with an OK that answers nothing.
@@ -170,12 +166,14 @@ func (w *presence) trainee(vid uint32) (uint8, account.SkillGroup) {
 	return c.Level, c.SkillGroup
 }
 
-// chooseGroup puts the player on the skill group with nothing learnt, and returns the
-// points they now have.
+// chooseGroup puts the player on the skill group with nothing learnt, ending the buffs
+// they had running, and returns the points they now have.
 func (w *presence) chooseGroup(vid uint32, group account.SkillGroup) uint32 {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	c := w.all[vid].char
+	pl := w.all[vid]
+	w.endBuffs(pl)
+	c := pl.char
 	c.SkillGroup, c.Skills = group, map[account.Skill]uint8{}
 	return skill.Points(c.Level, nil)
 }
@@ -190,17 +188,19 @@ func (w *presence) mayRaise(vid uint32, sk account.Skill) bool {
 	return p.Class == c.Class && p.Group == c.SkillGroup && c.Skills[sk] < skill.MaxLevel && skill.Points(c.Level, c.Skills) > 0
 }
 
-// raised puts the skill at its new level, and returns every skill's level for the client,
-// the points left, and the player's defence if the skill is a defence buff running, which
-// adds at its level now.
-func (w *presence) raised(vid uint32, sk account.Skill, level uint8) (protocol.SkillLevels, uint32, uint32, bool) {
+// raised puts the skill at its new level, and returns every skill's level for the client
+// and the points left. A buff of it running adds at its level now, so its effects are
+// shown again, with the defence or speeds it raises.
+func (w *presence) raised(vid uint32, sk account.Skill, level uint8) (protocol.SkillLevels, uint32) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	c := w.all[vid].char
+	pl := w.all[vid]
+	c := pl.char
 	c.Skills[sk] = level
-	p, _ := skill.Lookup(sk)
-	_, running := c.Buffs[sk]
-	return skillLevels(c.Skills), skill.Points(c.Level, c.Skills), defence(c), running && p.Raises == skill.Defence
+	if _, running := c.Buffs[sk]; running {
+		w.showAffects(pl, sk)
+	}
+	return skillLevels(c.Skills), skill.Points(c.Level, c.Skills)
 }
 
 // skillPoints is what the skill window shows: the points the character has once it has

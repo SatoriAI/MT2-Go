@@ -153,3 +153,23 @@ func TestStoneSpotsLieInTheirBandsAndApart(t *testing.T) {
 func areas(m string) []spawnAt {
 	return slices.DeleteFunc(slices.Clone(spawnsByMap[m]), func(s spawnAt) bool { return len(s.spots) > 0 })
 }
+
+// Each first village has the warrior's two teachers and the sura's, one of each.
+func TestEveryFirstVillageHasItsTeachers(t *testing.T) {
+	teachers := map[string][4]uint16{
+		"metin2_map_a1": {20300, 20301, 20304, 20305},
+		"metin2_map_b1": {20320, 20321, 20324, 20325},
+		"metin2_map_c1": {20340, 20341, 20344, 20345},
+	}
+	for village, want := range teachers {
+		count := map[uint16]int{}
+		for _, s := range spawnsByMap[village] {
+			count[s.vnum]++
+		}
+		for _, vnum := range want {
+			if count[vnum] != 1 {
+				t.Errorf("%s: %d of teacher %d", village, count[vnum], vnum)
+			}
+		}
+	}
+}

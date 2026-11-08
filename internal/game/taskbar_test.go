@@ -86,17 +86,18 @@ func TestPotionsDraggedToTheTaskbarFillASlot(t *testing.T) {
 	}
 }
 
-// Only what is drunk goes on the taskbar from the bag: not a sword, not an empty cell; a
-// skill or emotion is not kept yet, nor a slot past the client's 36.
+// Only what is drunk goes on the taskbar from the bag: not a sword, not an empty cell; nor
+// a place in the skill window no group has a skill at, nor a slot past the client's 36.
 func TestOnlyPotionsFillATaskbarSlot(t *testing.T) {
 	for name, body := range map[string][]byte{
 		"a sword":       slotAdded(3, 1, 0),
 		"an empty cell": slotAdded(3, 1, 9),
-		"a skill":       slotAdded(3, 2, 4),
+		"a skill":       slotAdded(3, 2, 6),
 		"slot 36":       slotAdded(36, 1, 1),
 	} {
 		s, _, client := carrying(t)
 		bar := onTheTaskbar(t, s, 2)
+		s.svc.presence.all = map[uint32]*present{1000: {char: &s.playing.Character}}
 
 		if err := s.onQuickslotAdd(body); err != nil {
 			t.Fatal(err)

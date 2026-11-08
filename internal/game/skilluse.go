@@ -1,7 +1,9 @@
 package game
 
 import (
+	"cmp"
 	"math/rand/v2"
+	"slices"
 	"sync"
 	"time"
 
@@ -95,7 +97,7 @@ func (w *presence) useSkill(vid uint32, sk account.Skill, target uint32, now tim
 	inReach = inReach && victim.fight != nil && !victim.dead() && within(pl, victim, attackReach)
 	weapon, _ := item.Lookup(c.Weapon)
 	cost := proto.Mana.At(skill.Power(level))
-	if !cooled(proto.CooldownAt(level)) || proto.NeedsSword && !weapon.Sword || proto.Target && !inReach || c.SP < cost {
+	if !cooled(proto.CooldownAt(level)) || !proto.Wieldable(weapon) || proto.Target && !inReach || c.SP < cost {
 		return false
 	}
 	c.SP -= cost
@@ -103,25 +105,51 @@ func (w *presence) useSkill(vid uint32, sk account.Skill, target uint32, now tim
 	percent := int(proto.Damage.At(skill.Power(level)))
 	switch {
 	case proto.Target:
-		w.strike(pl, victim, combat.Damage(attackerOf(c), victim.fight.defender, r)*percent/100, now)
+		w.splash(pl, victim, proto, percent, now, r)
 	case proto.Reach > 0:
-		w.swirl(pl, proto.Reach, percent, now, r)
+		w.splash(pl, pl, proto, percent, now, r)
 	default:
 		w.startBuff(pl, sk, now.Add(proto.LastsAt(level)))
 	}
 	return true
 }
 
-// swirl strikes every living monster the player sees within reach, each for percent of a
-// blow's damage, through the same defence and luck. Called under the lock.
-func (w *presence) swirl(pl *present, reach int64, percent int, now time.Time, r *rand.Rand) {
-	a := attackerOf(pl.char)
-	for _, v := range pl.sees {
-		if v.fight == nil || v.dead() || !within(pl, v, reach) {
-			continue
-		}
-		w.strike(pl, v, combat.Damage(a, v.fight.defender, r)*percent/100, now)
+// splash strikes the attack's victims around at: the monster itself if the attack is on
+// one, and every living monster the player sees within its reach of it, the nearest first
+// up to its number, each for percent of a blow's damage through the same defence and luck,
+// as many times as it hits while the victim lives. Called under the lock.
+func (w *presence) splash(pl, at *present, proto skill.Proto, percent int, now time.Time, r *rand.Rand) {
+	var victims []*present
+	if at != pl {
+		victims = append(victims, at)
 	}
+	if proto.Reach > 0 {
+		var near []*present
+		for _, v := range pl.sees {
+			if v != at && v.fight != nil && !v.dead() && within(at, v, proto.Reach) {
+				near = append(near, v)
+			}
+		}
+		slices.SortFunc(near, func(a, b *present) int { return cmp.Compare(distance(at, a), distance(at, b)) })
+		victims = append(victims, near...)
+	}
+	if proto.Victims > 0 {
+		victims = victims[:min(len(victims), proto.Victims)]
+	}
+	a := attackerOf(pl.char)
+	for _, v := range victims {
+		for range max(proto.Hits, 1) {
+			if w.strike(pl, v, combat.Damage(a, v.fight.defender, r)*percent/100, now) == blowKilled {
+				break
+			}
+		}
+	}
+}
+
+// distance is how far apart two characters stand, squared.
+func distance(p, o *present) int64 {
+	dx, dy := int64(p.add.X)-int64(o.add.X), int64(p.add.Y)-int64(o.add.Y)
+	return dx*dx + dy*dy
 }
 
 // startBuff starts the buff until a time, shows its effect on the player to them and
@@ -163,13 +191,20 @@ func (w *presence) endBuffs(pl *present) {
 }
 
 // showAffects tells the player and everyone who sees them the effects on them now, after
-// the buff began or ended, and the player their defence if it raises that. Called under
-// the lock.
+// the buff began or ended, at the speeds they now move and strike at, and the player
+// their defence or speeds if it raises those. Called under the lock.
 func (w *presence) showAffects(pl *present, sk account.Skill) {
-	update := protocol.EncodeCharacterUpdate(pl.info, pl.add, affectsOf(pl.char))
+	c := pl.char
+	pl.add.MoveSpeed, pl.add.AttackSpeed = moveSpeed(c), attackSpeed(c)
+	update := protocol.EncodeCharacterUpdate(pl.info, pl.add, affectsOf(c))
 	pl.send(update)
-	if p, _ := skill.Lookup(sk); p.Raises == skill.Defence {
-		pl.send(protocol.EncodePointChange(pl.add.VID, protocol.PointDefence, 0, int32(defence(pl.char)))) //nolint:gosec // small
+	p, _ := skill.Lookup(sk)
+	if p.Raise(skill.Defence) {
+		pl.send(protocol.EncodePointChange(pl.add.VID, protocol.PointDefence, 0, int32(defence(c)))) //nolint:gosec // small
+	}
+	if p.Raise(skill.AttackSpeed) || p.Raise(skill.MoveSpeed) {
+		pl.send(protocol.EncodePointChange(pl.add.VID, protocol.PointAttackSpeed, 0, int32(pl.add.AttackSpeed)),
+			protocol.EncodePointChange(pl.add.VID, protocol.PointMoveSpeed, 0, int32(pl.add.MoveSpeed)))
 	}
 	toViewers(pl, update)
 }

@@ -235,9 +235,9 @@ var itemPackets = map[protocol.ClientHeader]bool{
 
 // dress puts the outfit on the player's character: their blows and the bites on them use
 // it from then on, and they and everyone who sees them see the change, at the speed their
-// shoes and shield give. Enchanted Blade ends with the sword taken out of hand. The player
-// is told their new DEF when what they wear against bites changed, and their speed when
-// it did.
+// shoes and shield give. A buff that needs a weapon, as Enchanted Blade and Sword Aura
+// do, ends with it taken out of hand. The player is told their new DEF when what they
+// wear against bites changed, and their speed when it did.
 func (w *presence) dress(vid uint32, o outfit) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -246,10 +246,13 @@ func (w *presence) dress(vid uint32, o outfit) {
 	armourChanged := c.Body != o.body || c.Head != o.head || c.Feet != o.feet || c.Shield != o.shield
 	speed := p.add.MoveSpeed
 	c.Weapon, c.Body, c.Head, c.Feet, c.Shield = o.weapon, o.body, o.head, o.feet, o.shield
-	p.add.MoveSpeed = moveSpeed(c)
-	if held, _ := item.Lookup(o.weapon); !held.Sword {
-		delete(c.Buffs, skill.EnchantedBlade) // it runs only with a sword in hand
+	held, _ := item.Lookup(o.weapon)
+	for sk := range c.Buffs {
+		if buff, _ := skill.Lookup(sk); !buff.Wieldable(held) {
+			delete(c.Buffs, sk) // it runs only with its weapon in hand
+		}
 	}
+	p.add.MoveSpeed, p.add.AttackSpeed = moveSpeed(c), attackSpeed(c)
 	p.info.BodyPart, p.info.WeaponPart = bodyPart(*c), weaponPart(*c)
 	update := protocol.EncodeCharacterUpdate(p.info, p.add, affectsOf(c))
 	p.send(update)
@@ -279,13 +282,27 @@ func armourOf(c *account.Character) uint16 {
 	return defence
 }
 
-// moveSpeed is the speed the character moves at: everyone's, what their shoes add and
-// what their shield takes off.
+// moveSpeed is the speed the character moves at: everyone's, what their shoes and buffs
+// add and what their shield takes off.
 func moveSpeed(c *account.Character) uint8 {
 	points, _ := c.Points()
 	shoes, _ := item.Lookup(c.Feet)
 	shield, _ := item.Lookup(c.Shield)
-	return uint8(int(points.MoveSpeed) + int(shoes.MoveSpeed) + int(shield.MoveSpeed)) //nolint:gosec // 150 give or take 15
+	return uint8(int(points.MoveSpeed) + int(shoes.MoveSpeed) + int(shield.MoveSpeed) + int(buffBonus(c, skill.MoveSpeed))) //nolint:gosec // 150 give or take 25
+}
+
+// attackSpeed is the speed the character strikes at: everyone's, and what their buffs add.
+func attackSpeed(c *account.Character) uint8 {
+	points, _ := c.Points()
+	return points.AttackSpeed + uint8(buffBonus(c, skill.AttackSpeed)) //nolint:gosec // at most 25 more
+}
+
+// attackSpeedOf is the speed the player strikes at now, for the time their blows must
+// leave between them.
+func (w *presence) attackSpeedOf(vid uint32) uint8 {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.all[vid].add.AttackSpeed
 }
 
 // wear puts on the character what the inventory has worn, as it enters the world.

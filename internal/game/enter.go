@@ -118,7 +118,7 @@ func (s *session) onEnterGame() error {
 			Type:        protocol.EntityPlayer,
 			Race:        uint16(raceNumber(p.Class, p.Sex)),
 			MoveSpeed:   moveSpeed(&p.Character),
-			AttackSpeed: p.points.AttackSpeed,
+			AttackSpeed: attackSpeed(&p.Character),
 		},
 		blocks: p.Blocks,
 		info: protocol.CharacterInfo{
@@ -178,7 +178,7 @@ func pointsOf(p *character, gold uint32) protocol.CharacterPoints {
 		HT:           uint32(p.Vitality),
 		DX:           uint32(p.Dexterity),
 		IQ:           uint32(p.Intelligence),
-		AttackSpeed:  uint32(p.points.AttackSpeed),
+		AttackSpeed:  uint32(attackSpeed(&p.Character)),
 		MoveSpeed:    uint32(moveSpeed(&p.Character)),
 		Defence:      defence(&p.Character),
 		Gold:         gold,

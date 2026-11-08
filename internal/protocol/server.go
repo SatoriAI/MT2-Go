@@ -158,7 +158,7 @@ func EncodePoints(p CharacterPoints) []byte {
 		1: p.Level, 3: p.Exp, 4: p.NextExp,
 		5: p.HP, 6: p.MaxHP, 7: p.SP, 8: p.MaxSP, 9: p.Stamina, 10: p.MaxStamina,
 		PointGold: p.Gold, PointST: p.ST, PointHT: p.HT, PointDX: p.DX, PointIQ: p.IQ,
-		17: p.AttackSpeed, PointMoveSpeed: p.MoveSpeed, PointDefence: p.Defence, PointStatPoints: p.StatPoints, PointSkillPoints: p.SkillPoints, PointCastingSpeed: p.CastingSpeed,
+		PointAttackSpeed: p.AttackSpeed, PointMoveSpeed: p.MoveSpeed, PointDefence: p.Defence, PointStatPoints: p.StatPoints, PointSkillPoints: p.SkillPoints, PointCastingSpeed: p.CastingSpeed,
 	} {
 		points[index] = v
 	}
@@ -185,6 +185,7 @@ const (
 	PointHT           Point = 13
 	PointDX           Point = 14
 	PointIQ           Point = 15
+	PointAttackSpeed  Point = 17
 	PointMoveSpeed    Point = 19
 	PointDefence      Point = 20 // DEF_GRADE, the character window's DEF
 	PointStatPoints   Point = 26 // earned and not yet spent; the character window's + buttons show while above 0

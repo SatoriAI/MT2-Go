@@ -383,8 +383,9 @@ func TestTheClientIsToldTheCastingSpeedCooldownsAreCountedAt(t *testing.T) {
 	}
 }
 
-// Enchanted Armour raised while it runs adds at its new level at once, and she is told her
-// defence with it: (5 + 30) × 0.06 is 2, one more than at its first level.
+// Enchanted Armour raised while it runs adds at its new level at once: she is shown its
+// effect again and told her defence with it, (5 + 30) × 0.06 is 2, one more than at its
+// first level, then the levels and points.
 func TestTheArmourRaisedWhileItRunsTellsHerDefence(t *testing.T) {
 	s, _, client, _, _ := training(t, account.Sura, 10, "weaponry", map[account.Skill]uint8{skill.EnchantedArmour: 1})
 	c := s.svc.presence.all[1000].char
@@ -396,13 +397,15 @@ func TestTheArmourRaisedWhileItRunsTellsHerDefence(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	read(t, client, 1531+pointChangeSize)
+	read(t, client, updateSize)
 	if got := read(t, client, pointChangeSize); string(got) != string(defenceTold(before+1)) {
 		t.Fatalf("told %x, defence before %d", got, before)
 	}
+	read(t, client, 1531+pointChangeSize)
 }
 
-// A skill raised with no defence buff running tells no defence.
+// A skill raised with no defence buff running tells no defence: the blade raised as it
+// runs is only shown again.
 func TestASkillRaisedTellsNoDefenceWithoutTheArmour(t *testing.T) {
 	s, _, client, _, _ := training(t, account.Sura, 10, "weaponry", nil)
 	s.svc.presence.all[1000].char.Buffs = map[account.Skill]time.Time{skill.EnchantedBlade: noon.Add(time.Minute)}
@@ -411,6 +414,6 @@ func TestASkillRaisedTellsNoDefenceWithoutTheArmour(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	read(t, client, 1531+pointChangeSize)
+	read(t, client, updateSize+1531+pointChangeSize)
 	expectNothing(t, client)
 }

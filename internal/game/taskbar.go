@@ -86,7 +86,8 @@ func (s *session) shortcutFor(q protocol.QuickslotAdd) (shownSlot, bool) {
 		kind, _ := item.Lookup(it.VNum)
 		return shownSlot{account.Shortcut{Item: it.ID}, it.Cell}, kind.HP > 0 || kind.SP > 0
 	case taskbarSkill:
-		sk, known := skillByWindowSlot(q.Position)
+		_, group := s.svc.presence.trainee(s.playing.vid)
+		sk, known := skillByWindowSlot(group, q.Position)
 		return shownSlot{held: account.Shortcut{Skill: sk}}, known && s.svc.presence.learnt(s.playing.vid, sk)
 	}
 	return shownSlot{}, false

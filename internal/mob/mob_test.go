@@ -5,6 +5,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/SatoriAI/MT2-Go/internal/account"
 	"github.com/SatoriAI/MT2-Go/internal/item"
 	"github.com/SatoriAI/MT2-Go/internal/world"
 )
@@ -186,6 +187,27 @@ func TestAStoneLeavesPotionsMaterialsAndMaybeGear(t *testing.T) {
 	for i, v := range firstGearP3 {
 		if v != firstGear[i]+3 {
 			t.Errorf("%d at +3 is %d", firstGear[i], v)
+		}
+	}
+}
+
+// Every teacher teaches one of the skill groups there are, and each first village's
+// warrior teachers the warrior's two.
+func TestEveryTeacherTeachesAGroupThereIs(t *testing.T) {
+	groups := map[account.SkillGroup]bool{}
+	for _, c := range []account.Class{account.Warrior, account.Ninja, account.Sura, account.Shaman} {
+		for _, g := range c.SkillGroups() {
+			groups[g] = true
+		}
+	}
+	for vnum, p := range protos {
+		if p.Teaches != "" && (!groups[p.Teaches] || p.Kind != NPC) {
+			t.Errorf("%d teaches %q", vnum, p.Teaches)
+		}
+	}
+	for vnum, want := range map[uint16]account.SkillGroup{20300: "body", 20301: "mental", 20320: "body", 20321: "mental", 20340: "body", 20341: "mental"} {
+		if p, _ := Lookup(vnum); p.Teaches != want {
+			t.Errorf("%d teaches %q, want %q", vnum, p.Teaches, want)
 		}
 	}
 }
