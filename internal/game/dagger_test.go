@@ -60,7 +60,7 @@ func TestAmbushNeedsADaggerOrASword(t *testing.T) {
 	read(t, client, pointChangeSize)
 }
 
-// Fast Attack on the dog she picked 600 off moves her beside it, as a neighbour sees, and
+// Fast Attack on the dog she picked 700 off moves her to 270 from it, as a neighbour sees, and
 // strikes it; one picked beyond 800 is out of its reach.
 func TestFastAttackDashesToItsTarget(t *testing.T) {
 	s, client := stabbing(t, 1)
@@ -79,7 +79,7 @@ func TestFastAttackDashesToItsTarget(t *testing.T) {
 	}
 
 	pl := s.svc.presence.all[1000]
-	if pl.add.X != homeX+700-attackReach/2 || pl.add.Y != homeY || dog.p.fight.damageBy[pl] == 0 {
+	if pl.add.X != homeX+700-dashStop || pl.add.Y != homeY || dog.p.fight.damageBy[pl] == 0 {
 		t.Fatalf("at (%d, %d), struck %d", pl.add.X, pl.add.Y, dog.p.fight.damageBy[pl])
 	}
 	if got := drain(t, kira); !bytes.Contains(got, []byte{byte(protocol.ServerMove)}) {
@@ -298,7 +298,7 @@ func TestFastAttackTimesItsDashAndLeavesTheNearWhereTheyStand(t *testing.T) {
 	}
 	pl := s.svc.presence.all[1000]
 	s.svc.presence.mu.Lock()
-	s.svc.presence.moveLocked(pl, protocol.Move{X: dog.p.add.X - 100, Y: homeY})
+	s.svc.presence.moveLocked(pl, protocol.Move{X: dog.p.add.X - 200, Y: homeY})
 	s.svc.presence.mu.Unlock()
 	x := pl.add.X
 	s.svc.presence.useSkill(1000, skill.FastAttack, dog.p.add.VID, noon, 4243, s.rand, func(time.Duration) bool { return true })

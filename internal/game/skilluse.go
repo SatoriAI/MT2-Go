@@ -200,18 +200,22 @@ func (w *presence) splash(pl, at *present, proto skill.Proto, percent int, level
 	}
 }
 
-// dash moves the player beside the monster, between it and where they stood, at half a
-// blow's reach, facing it, for everyone who sees them, at the client clock's time; one
-// already that near stays. The player's own client plays the dash itself. Called under
-// the lock.
+// dashStop is how far from its target a dash lands: the original client's warp
+// (ProcessMotionEventWarp, ActorInstanceMotionEvent.cpp). It must stay within a blow's
+// reach, attackReach, for the strike after it to land.
+const dashStop = 270
+
+// dash moves the player to dashStop from the monster, on the line between it and where
+// they stood, facing it, for everyone who sees them, at the client clock's time; one already
+// that near stays. The player's own client plays the dash itself. Called under the lock.
 func (w *presence) dash(pl, v *present, clock uint32) {
 	dx, dy := float64(pl.add.X-v.add.X), float64(pl.add.Y-v.add.Y)
 	gap := math.Hypot(dx, dy)
-	if gap <= attackReach/2 {
+	if gap <= dashStop {
 		return
 	}
-	x := v.add.X + int32(dx/gap*attackReach/2)
-	y := v.add.Y + int32(dy/gap*attackReach/2)
+	x := v.add.X + int32(dx/gap*dashStop)
+	y := v.add.Y + int32(dy/gap*dashStop)
 	w.moveLocked(pl, protocol.Move{Type: protocol.MoveWait, Rotation: rotationTowards(v.add.X-x, v.add.Y-y), X: x, Y: y, Time: clock})
 }
 
