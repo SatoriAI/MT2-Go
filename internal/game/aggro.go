@@ -106,7 +106,13 @@ func (w *presence) fightStep(m *monster, now time.Time, clock uint32, r *rand.Ra
 		if me.fight.stunned && !me.dead() {
 			w.wake(me) // it goes home awake
 		}
+		if me.fight.slowed && !me.dead() {
+			w.quicken(me, m.proto.MoveSpeed) // and at its own pace
+		}
 		return false
+	}
+	if me.fight.slowed && !now.Before(me.fight.slowedUntil) {
+		w.quicken(me, m.proto.MoveSpeed)
 	}
 	c.nextStep = now.Add(chaseStep)
 	if me.fight.stunned {
@@ -123,7 +129,7 @@ func (w *presence) fightStep(m *monster, now time.Time, clock uint32, r *rand.Ra
 		return true
 	}
 	x, y := approach(me.add.X, me.add.Y, t.add.X, t.add.Y, float64(m.proto.AttackRange)*0.9,
-		walkPerSecond*float64(m.proto.MoveSpeed)/100*chaseStep.Seconds())
+		walkPerSecond*float64(me.add.MoveSpeed)/100*chaseStep.Seconds()) // a slowed one walks slower
 	w.moveLocked(me, protocol.Move{Type: protocol.MoveWait, Rotation: rotationTowards(x-me.add.X, y-me.add.Y),
 		X: x, Y: y, Time: clock})
 	m.x, m.y = x, y
@@ -142,7 +148,8 @@ func (w *presence) bite(m *monster, t *present, now time.Time, clock uint32, r *
 	b := combat.Biter{Level: m.proto.Level, Strength: m.proto.Strength, DamageMin: m.proto.DamageMin,
 		DamageMax: m.proto.DamageMax}
 	bitten := combat.Bite(b, combat.Defender{Level: ch.Level, Vitality: ch.Vitality, Armour: armourOf(ch)}, r)
-	damage := min(uint32(bitten*(100+buffBonus(ch, skill.DamageTaken))/100), ch.HP) //nolint:gosec // at least 1
+	damage := uint32(bitten * (100 + buffBonus(ch, skill.DamageTaken)) / 100) //nolint:gosec // at least 1
+	damage = min(w.shield(t, damage), ch.HP)
 	ch.HP -= damage
 	ch.LastFought = now
 	vid := t.add.VID
@@ -152,6 +159,29 @@ func (w *presence) bite(m *monster, t *present, now time.Time, clock uint32, r *
 	if ch.HP == 0 {
 		w.die(t)
 	}
+}
+
+// shield takes the share of a bite the player's mana shield turns onto their mana, and
+// tells them; with too little mana for it, the shield ends and the whole bite is theirs.
+// It returns what is left for their hit points. Called under the lock.
+func (w *presence) shield(t *present, damage uint32) uint32 {
+	ch := t.char
+	share := buffBonus(ch, skill.ManaShield)
+	if share <= 0 {
+		return damage
+	}
+	taken := damage * uint32(share) / 100 //nolint:gosec // a percent
+	if ch.SP < taken {
+		for sk := range ch.Buffs {
+			if p, _ := skill.Lookup(sk); p.Raise(skill.ManaShield) {
+				w.endBuffLocked(t, sk)
+			}
+		}
+		return damage
+	}
+	ch.SP -= taken
+	t.send(protocol.EncodePointChange(t.add.VID, protocol.PointSP, -int32(taken), int32(ch.SP))) //nolint:gosec // small
+	return damage - taken
 }
 
 // minTime is the earlier of two times.

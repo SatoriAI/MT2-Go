@@ -231,11 +231,11 @@ func TestEveryKindHasItsShopPrices(t *testing.T) {
 // helmet's step, slows by 2 at every grade.
 func TestGearComesInTheClientsNineGrades(t *testing.T) {
 	want := map[uint32]Proto{
-		19:    {Name: "Miecz+9", AttackMin: 76, AttackMax: 78},
+		19:    {Name: "Miecz+9", AttackMin: 76, AttackMax: 78, MagicMin: 78, MagicMax: 82},
 		1004:  {Name: "Sztylet+4", AttackMin: 24, AttackMax: 27},
 		2009:  {Name: "Łuk+9", AttackMin: 79, AttackMax: 101},
 		3001:  {Name: "Glewia+1", AttackMin: 22, AttackMax: 30},
-		7009:  {Name: "Wachlarz+9", AttackMin: 74, AttackMax: 78},
+		7009:  {Name: "Wachlarz+9", AttackMin: 74, AttackMax: 78, MagicMin: 76, MagicMax: 78},
 		11201: {Name: "Mnisia Zbr. Płyt.+1", Defence: 18},
 		11609: {Name: "Żałobna Zbr. Płyt.+9", Defence: 66},
 		12483: {Name: "Krwawy Hełm+3", Defence: 17},
@@ -252,6 +252,7 @@ func TestGearComesInTheClientsNineGrades(t *testing.T) {
 		base, _ := Lookup(vnum - uint32(p.Grade))
 		got := Proto{Name: p.Name, AttackMin: p.AttackMin, AttackMax: p.AttackMax, Defence: p.Defence}
 		if got.Name != w.Name || got.AttackMin != w.AttackMin || got.AttackMax != w.AttackMax || got.Defence != w.Defence || p.MoveSpeed != w.MoveSpeed ||
+			p.MagicMin != w.MagicMin || p.MagicMax != w.MagicMax ||
 			uint32(p.Grade) != vnum%10 || !p.Graded || base.Grade != 0 || !slices.Equal(p.Classes, base.Classes) || p.Sword != base.Sword {
 			t.Errorf("kind %d: %+v", vnum, p)
 		}
