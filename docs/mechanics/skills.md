@@ -125,7 +125,7 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
   - **Berserk's price:** the veteran's (5 + 10k)% more of every bite while it runs, which the client's description names but gives no number for.
   - **Dagger,** settled the same way: the client's skilltable for mana and cooldowns, its weapons, a dagger, double sword or sword, and the veteran's damage, which keeps Ambush the hardest blow, where the tooltips' attack terms alone would leave the stabs barely a blow.
     - Ambush: the target only, (150 + 350k)%, and half as much again when the ninja stands in the half of the world behind the way the monster last faced.
-    - Fast Attack: the monster picked if it lives within 800. The ninja is moved beside it first, half a blow's reach from it on her side, facing it, shown to everyone who sees her at the client clock's time; her own client plays the dash itself. One already that near is not moved. Then (100 + 250k)%.
+    - Fast Attack: the monster picked if it lives within 800. The ninja is moved to 270 from it first, on the line from her to it, where the original client's warp lands her (`ProcessMotionEventWarp` in `ActorInstanceMotionEvent.cpp`), facing it, shown to everyone who sees her at the client clock's time; her own client plays the dash itself. One already that near is not moved. Then (100 + 250k)%.
     - Rolling Dagger: up to twelve within 250 around her, (150 + 150k)%, poisoning at its tooltip's 1 + 4k percent, rolled for each it leaves alive.
     - Krycie Się, stealth, is left out, and Trująca Chmura waits for magic damage.
   - **Poison:** the veteran's.
