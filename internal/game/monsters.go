@@ -221,6 +221,9 @@ func (s *Service) tick(now time.Time) {
 	for _, p := range n.poisoned {
 		s.poisons = append(s.poisons, poisoning{p, now.Add(poisonEvery)})
 	}
+	for _, p := range n.burned {
+		s.burnings = append(s.burnings, burning{p, now.Add(burnEvery)})
+	}
 	for _, d := range n.drains {
 		s.drainings = append(s.drainings, draining{d, now.Add(drainEvery)})
 	}
@@ -256,6 +259,7 @@ func (s *Service) tick(now time.Time) {
 	}
 	s.fightOn(now)
 	s.tickPoisons(now)
+	s.tickBurns(now)
 	s.keepDrains(now)
 	s.healMonsters(now)
 	switch {

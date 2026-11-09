@@ -13,7 +13,8 @@ import (
 // buffs of attack and defence; the warrior's Body attacks, around a target and around
 // themselves, and its buffs of speed and attack; the warrior's Mental attacks, which
 // stun, and its buff of defence; the ninja's Dagger attacks, from behind, at a dash, and
-// poisoning; and the sura's Black Magic, magic attacks, one slowing, and a shield.
+// poisoning; the sura's Black Magic, magic attacks, one slowing, and a shield; and the
+// shaman's spells, burning, stunning and chaining.
 const (
 	FingerStrike    account.Skill = "finger_strike"
 	DragonSwirl     account.Skill = "dragon_swirl"
@@ -36,6 +37,12 @@ const (
 	DarkProtection  account.Skill = "dark_protection"
 	GhostStrike     account.Skill = "ghost_strike"
 	DarkOrb         account.Skill = "dark_orb"
+	FlyingTalisman  account.Skill = "flying_talisman"
+	ShootingDragon  account.Skill = "shooting_dragon"
+	DragonRoar      account.Skill = "dragon_roar"
+	LightningThrow  account.Skill = "lightning_throw"
+	SummonLightning account.Skill = "summon_lightning"
+	LightningClaw   account.Skill = "lightning_claw"
 )
 
 // MaxLevel is the most a skill rises to with points; the client hides its + there.
@@ -67,16 +74,19 @@ type Proto struct {
 	Victims int
 	Hits    int
 	Damage  Scaled
-	// What else it does: stun, poison or slow each one it leaves alive, strike FromBehind
+	// What else it does: stun, poison, burn or slow each one it leaves alive, strike FromBehind
 	// percent as hard one struck from behind, none for no more, and with Dash move the
 	// player beside the one aimed at first. A magic attack's damage is Magic's instead.
-	Stuns      bool
+	Stuns      int // the base of its chance to stun, in thousandths; none for no stun
 	Poisons    bool
+	Burns      bool
+	Chain      int64 // how far a chain jumps from each victim to the next
 	Slows      bool
 	FromBehind int
 	Dash       bool
 	Magic      Spell
 	Dice       [2]int32 // the least and most of the number a spell's tooltip rolls
+	DiceByIQ   bool     // that those are multiples of the caster's INT
 	// Drain is the mana a toggle takes every five seconds it runs, at its power; it ends
 	// once there is not enough.
 	Drain Scaled
@@ -105,6 +115,14 @@ const (
 // power k in hundredths, before the monster's resistance, of which the first maps have
 // none.
 type Spell func(c Caster, k int32) int32
+
+// DiceOf is the range a spell's number is rolled from for a caster of intelligence.
+func (p Proto) DiceOf(intelligence uint8) [2]int32 {
+	if p.DiceByIQ {
+		return [2]int32{p.Dice[0] * int32(intelligence), p.Dice[1] * int32(intelligence)}
+	}
+	return p.Dice
+}
 
 // Caster is what of a character a spell reads: its MTK is the weapon's magic attack and
 // Dice the spell's number, each rolled, and its AR its hit rate, in hundredths, as the
@@ -182,8 +200,8 @@ func (p Proto) Bonus(stat Stat, b Bearer, level uint8) int {
 }
 
 // StunChance is the chance, in thousandths, a stunning attack at level stuns each monster
-// it leaves alive: the client's (100 + 1000k/6)/10 percent.
-func StunChance(level uint8) int { return 100 + 10*int(Power(level))/6 }
+// it leaves alive: the client's (base + 1000k/6)/10 percent, its base Stuns.
+func (p Proto) StunChance(level uint8) int { return p.Stuns + 10*int(Power(level))/6 }
 
 // PoisonChance is the chance, in thousandths, a poisoning attack at level poisons each
 // monster it leaves alive: its tooltip's 1 + 4k percent.
@@ -192,6 +210,18 @@ func PoisonChance(level uint8) int { return (100 + 4*int(Power(level))) / 10 }
 // SlowChance is the chance, in thousandths, a slowing attack at level slows each monster
 // it leaves alive: the client's (333 + 300k)/10 percent.
 func SlowChance(level uint8) int { return 333 + 3*int(Power(level)) }
+
+// BurnChance is the chance, in thousandths, a burning attack at level sets each monster it
+// leaves alive alight, for a caster of intelligence: the skilltable's 0.2·iq·k percent.
+func BurnChance(intelligence, level uint8) int {
+	return 2 * int(intelligence) * int(Power(level)) / 100
+}
+
+// BurnDamage is what a burn at level takes in all, for a caster of level and
+// intelligence: the skilltable's lv + 5·iq·k, the veteran's reading.
+func BurnDamage(casterLevel, intelligence, level uint8) int {
+	return int(casterLevel) + 5*int(intelligence)*int(Power(level))/100
+}
 
 // SlowsFor is how long a slow at level holds a monster: the skilltable's 10 + 10k seconds.
 func SlowsFor(level uint8) time.Duration {
@@ -261,7 +291,7 @@ var protos = map[account.Skill]Proto{
 		Reach: 200, Front: true, Victims: 8, Damage: Scaled{230, 300}, Wields: SwordOrTwoHanded},
 	// Stump: 50 + 140k, 25 s, up to 10 within 400 around him, each perhaps stunned.
 	Stump: {Class: account.Warrior, Group: "mental", Mana: Scaled{50, 140}, Cooldown: Scaled{25, 0},
-		Reach: 400, Victims: 10, Damage: Scaled{200, 200}, Stuns: true},
+		Reach: 400, Victims: 10, Damage: Scaled{200, 200}, Stuns: 100},
 	// Strong Body: 80 + 220k mana, 63 + 90k seconds' cooldown, a run of 60 + 90k; its
 	// tooltip's 7 + (40 + 0.2·STR + 0.4·CON)·k to the defence, where the skilltable's
 	// (200 + ...)·k would make a warrior all but unbitable on the first maps, and its
@@ -276,7 +306,7 @@ var protos = map[account.Skill]Proto{
 	// nearest in front of him, and up to 9 more within 200 of it, each perhaps stunned; its
 	// knockback is left out.
 	SwordStrike: {Class: account.Warrior, Group: "mental", Mana: Scaled{40, 120}, Cooldown: Scaled{20, 0},
-		Aim: 1200, Reach: 200, Victims: 10, Damage: Scaled{200, 100}, Stuns: true, Wields: SwordOrTwoHanded},
+		Aim: 1200, Reach: 200, Victims: 10, Damage: Scaled{200, 100}, Stuns: 100, Wields: SwordOrTwoHanded},
 	// Dagger, settled by the veteran and the designer: the client's skilltable for mana
 	// and cooldowns, the veteran's damage, which keeps Ambush the hardest blow, and its
 	// weapons, a dagger or a sword. Ambush: 40 + 160k, 15 s, half as strong again from
@@ -330,6 +360,44 @@ var protos = map[account.Skill]Proto{
 		Magic: func(c Caster, k int32) int32 {
 			return 120 + 6*c.Level + (5*c.Vitality+5*c.Dexterity+40*c.Intelligence+12*c.MTK)*c.AR*k/10000
 		}},
+	// The shaman's attacks, settled by the veteran and the designer: the client's
+	// skilltable for mana, cooldowns, victims, range and splash, and its tooltips'
+	// damage, as Black Magic's. Flying Talisman: 30 + 160k, 7 s, on the monster picked
+	// within 1800 and up to 4 within 201 of it.
+	FlyingTalisman: {Class: account.Shaman, Group: "dragon", Mana: Scaled{30, 160}, Cooldown: Scaled{7, 0},
+		Target: true, Aim: 1800, Reach: 201, Victims: 5,
+		Magic: func(c Caster, k int32) int32 { return 70 + 4*c.Level + (20*c.Intelligence+5*c.MTK+50)*c.AR*k/10000 }},
+	// Shooting Dragon: 50 + 160k, 8 s, up to 10, each perhaps set alight. The skilltable
+	// gives no range or splash for its frontal spray: this server's 1000 to the monster
+	// picked and 300 around it.
+	ShootingDragon: {Class: account.Shaman, Group: "dragon", Mana: Scaled{50, 160}, Cooldown: Scaled{8, 0},
+		Target: true, Aim: 1000, Reach: 300, Victims: 10, Burns: true,
+		Magic: func(c Caster, k int32) int32 { return 60 + 5*c.Level + (18*c.Intelligence+6*c.MTK+120)*c.AR*k/10000 }},
+	// Dragon Roar: 50 + 160k, 20 s, up to 15 within 500 around her, each perhaps set alight.
+	DragonRoar: {Class: account.Shaman, Group: "dragon", Mana: Scaled{50, 160}, Cooldown: Scaled{20, 0},
+		Reach: 500, Victims: 15, Burns: true,
+		Magic: func(c Caster, k int32) int32 { return 70 + 3*c.Level + (22*c.Intelligence+13*c.MTK+100)*c.AR*k/10000 }},
+	// Lightning Throw: 30 + 150k, 7 s, on the monster picked within 1800 and up to 4 within
+	// 200 of it; its number is 5 to 15 times her INT.
+	LightningThrow: {Class: account.Shaman, Group: "healing", Mana: Scaled{30, 150}, Cooldown: Scaled{7, 0},
+		Target: true, Aim: 1800, Reach: 200, Victims: 5, Dice: [2]int32{5, 15}, DiceByIQ: true,
+		Magic: func(c Caster, k int32) int32 {
+			return 60 + 4*c.Level + (7*c.Intelligence+8*c.MTK+c.Dice)*c.AR*k/10000
+		}},
+	// Summon Lightning: 50 + 150k, 15 s, on the monster picked within 1500 and up to 14
+	// within 400 of it, each perhaps stunned at (50 + 1000k/6)/10 percent; its number is 5
+	// to 16 times her INT.
+	SummonLightning: {Class: account.Shaman, Group: "healing", Mana: Scaled{50, 150}, Cooldown: Scaled{15, 0},
+		Target: true, Aim: 1500, Reach: 400, Victims: 15, Stuns: 50, Dice: [2]int32{5, 16}, DiceByIQ: true,
+		Magic: func(c Caster, k int32) int32 {
+			return 40 + 4*c.Level + (13*c.Intelligence+7*c.MTK+c.Dice)*c.AR*k/10000
+		}},
+	// Lightning Claw: 40 + 180k, 10 s, on the monster picked within 2500, then jumping from
+	// each to the nearest not yet struck within 600, the veteran's reach, seven in all,
+	// each jump 13 in a hundred weaker; its number is 1 to 800.
+	LightningClaw: {Class: account.Shaman, Group: "healing", Mana: Scaled{40, 180}, Cooldown: Scaled{10, 0},
+		Target: true, Aim: 2500, Chain: 600, Victims: 7, Dice: [2]int32{1, 800},
+		Magic: func(c Caster, k int32) int32 { return 50 + 5*c.Level + (6*c.Intelligence+6*c.MTK+c.Dice)*c.AR*k/10000 }},
 }
 
 // powers is a skill's power at each level, in hundredths: the client's own table, which

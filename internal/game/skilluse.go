@@ -174,9 +174,79 @@ func ahead(p, o *present) bool {
 // times as it hits while the victim lives. A stunning attack may stun each it leaves
 // alive. Called under the lock.
 func (w *presence) splash(pl, at *present, proto skill.Proto, percent int, level uint8, now time.Time, r *rand.Rand) {
+	victims := victimsOf(pl, at, proto)
+	a := attackerOf(pl.char)
+	for jump, v := range victims {
+		share := percent
+		if proto.FromBehind > 0 && !ahead(v, pl) {
+			share = share * proto.FromBehind / 100
+		}
+		blow := blowLanded
+		for range max(proto.Hits, 1) {
+			var damage int
+			if proto.Magic != nil {
+				damage = int(proto.Magic(casterOf(pl.char, proto.DiceOf(pl.char.Intelligence), r), int32(skill.Power(level)))) //nolint:gosec // the power is at most 50
+				if proto.Chain > 0 {
+					damage = damage * (100 - chainLoss*jump) / 100
+				}
+			} else {
+				damage = combat.Damage(a, v.fight.defender, r) * share / 100
+			}
+			if blow = w.strike(pl, v, damage, now); blow == blowKilled {
+				break
+			}
+		}
+		if blow != blowLanded || v.fight.stone {
+			continue
+		}
+		if proto.Stuns > 0 && r.IntN(1000) < proto.StunChance(level) {
+			w.stun(v, now)
+		}
+		if proto.Poisons && r.IntN(1000) < skill.PoisonChance(level) {
+			w.poison(v, pl, now)
+		}
+		if proto.Slows && r.IntN(1000) < skill.SlowChance(level) {
+			w.slow(v, now.Add(skill.SlowsFor(level)))
+		}
+		if c := pl.char; proto.Burns && r.IntN(1000) < skill.BurnChance(c.Intelligence, level) {
+			w.burn(v, pl, max(1, skill.BurnDamage(c.Level, c.Intelligence, level)/burnTurns))
+		}
+	}
+}
+
+// chainLoss is how much weaker, in hundredths, each jump of a chain strikes than the one
+// before it: the skilltable's 13.
+const chainLoss = 13
+
+// victimsOf is who an attack strikes, in order: the monster aimed at if it is on one; then
+// either a chain jumping from each victim to the nearest living monster not yet struck
+// within its reach, or every living monster within its reach of the one aimed at, or of
+// the player, only those in front of them if it strikes ahead, the nearest first; up to
+// its number. Called under the lock.
+func victimsOf(pl, at *present, proto skill.Proto) []*present {
 	var victims []*present
 	if at != pl {
 		victims = append(victims, at)
+	}
+	limit := proto.Victims
+	if limit == 0 {
+		limit = len(pl.sees) + 1
+	}
+	if proto.Chain > 0 {
+		for last := at; len(victims) < limit; {
+			var next *present
+			for _, v := range pl.sees {
+				if v.fight != nil && !v.dead() && !slices.Contains(victims, v) && within(last, v, proto.Chain) &&
+					(next == nil || distance(last, v) < distance(last, next)) {
+					next = v
+				}
+			}
+			if next == nil {
+				break
+			}
+			victims, last = append(victims, next), next
+		}
+		return victims
 	}
 	if proto.Reach > 0 {
 		var near []*present
@@ -188,40 +258,7 @@ func (w *presence) splash(pl, at *present, proto skill.Proto, percent int, level
 		slices.SortFunc(near, func(a, b *present) int { return cmp.Compare(distance(at, a), distance(at, b)) })
 		victims = append(victims, near...)
 	}
-	if proto.Victims > 0 {
-		victims = victims[:min(len(victims), proto.Victims)]
-	}
-	a := attackerOf(pl.char)
-	for _, v := range victims {
-		share := percent
-		if proto.FromBehind > 0 && !ahead(v, pl) {
-			share = share * proto.FromBehind / 100
-		}
-		blow := blowLanded
-		for range max(proto.Hits, 1) {
-			var damage int
-			if proto.Magic != nil {
-				damage = int(proto.Magic(casterOf(pl.char, proto.Dice, r), int32(skill.Power(level)))) //nolint:gosec // the power is at most 50
-			} else {
-				damage = combat.Damage(a, v.fight.defender, r) * share / 100
-			}
-			if blow = w.strike(pl, v, damage, now); blow == blowKilled {
-				break
-			}
-		}
-		if blow != blowLanded || v.fight.stone {
-			continue
-		}
-		if proto.Stuns && r.IntN(1000) < skill.StunChance(level) {
-			w.stun(v, now)
-		}
-		if proto.Poisons && r.IntN(1000) < skill.PoisonChance(level) {
-			w.poison(v, pl, now)
-		}
-		if proto.Slows && r.IntN(1000) < skill.SlowChance(level) {
-			w.slow(v, now.Add(skill.SlowsFor(level)))
-		}
-	}
+	return victims[:min(len(victims), limit)]
 }
 
 // casterOf is what the player's spells are made of: their character, the weapon's magic

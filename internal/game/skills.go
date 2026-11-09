@@ -31,6 +31,8 @@ var paths = map[account.SkillGroup]string{
 	"mental":      "Mocy Duchowej",
 	"dagger":      "Mocy Ostrza",
 	"archery":     "Mocy Łuku",
+	"dragon":      "Mocy Smoka",
+	"healing":     "Mocy Leczenia",
 }
 
 // talk is what a teacher asked the player, which their next answer in the dialog answers:

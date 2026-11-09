@@ -31,6 +31,7 @@ type presence struct {
 	calls    []call                 // waves stones called since the world loop last asked
 	poisoned []*present             // monsters poisoned since the world loop last asked, to tick
 	drains   []buffEnd              // toggles started since the world loop last asked that drain mana
+	burned   []*present             // monsters set alight since the world loop last asked, to tick
 	event    *event.Event           // the event running; nil for none
 	ground   map[uint32]*groundItem // items lying in the world, by vid
 }
