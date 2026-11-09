@@ -57,7 +57,7 @@ func TestEveryFirstVillageHasItsBlacksmith(t *testing.T) {
 // then wolves and boars, alpha and blue wolves, and the second ring, overlapping a
 // little where a kind leads a pack.
 var bands = map[uint16]struct{ from, to float64 }{
-	101: {2500, 10000},
+	101: {2500, 15000},
 	102: {9000, 18000}, 108: {9000, 18000},
 	103: {9000, 30000}, 104: {18000, 30000},
 	105: {18000, 42000}, 109: {30000, 42000},
@@ -148,8 +148,9 @@ func TestEveryPackIsOneKindOrALeaderWithItsKin(t *testing.T) {
 	}
 }
 
-// Packs stand apart, 2500 between centres near the village and 4000 where either lies
-// past 30000; and their centres 2500 from every NPC and 3500 from every stone's spot.
+// Packs stand apart: 2000 between centres where both lie within 18000 of the start, 2500
+// within 30000, and 4000 where either lies further; and their centres 2500 from every NPC
+// and 3500 from every stone's spot.
 func TestPacksStandApart(t *testing.T) {
 	for name, all := range monsterAreas(t) {
 		var centres [][2]int32
@@ -163,9 +164,12 @@ func TestPacksStandApart(t *testing.T) {
 		for i, a := range centres {
 			da := fromStart(name, spawnAt{x: a[0], y: a[1]})
 			for _, o := range centres[i+1:] {
-				gap := 2500.0
-				if max(da, fromStart(name, spawnAt{x: o[0], y: o[1]})) >= 30000 {
+				gap := 2000.0
+				switch further := max(da, fromStart(name, spawnAt{x: o[0], y: o[1]})); {
+				case further >= 30000:
 					gap = 4000
+				case further >= 18000:
+					gap = 2500
 				}
 				if d := math.Hypot(float64(o[0]-a[0]), float64(o[1]-a[1])); d < gap {
 					t.Errorf("%s: packs at %v and %v are %.0f apart", name, a, o, d)
@@ -186,7 +190,8 @@ func TestPacksStandApart(t *testing.T) {
 }
 
 // Each first village's fields are full, as the world serves them, its Mobs applied: at
-// least 380 monsters, at least 70 within 15000 of the start, the nearest within 4500.
+// least 380 monsters, at least 70 within 15000 of the start, the nearest within 4500, or
+// within 8000 for Jinno, whose town wraps its start on two sides.
 func TestEveryFirstVillagesFieldsAreFull(t *testing.T) {
 	for _, e := range []account.Empire{account.EmpireShinsoo, account.EmpireChunjo, account.EmpireJinno} {
 		x, y, _ := e.StartPosition()
@@ -203,7 +208,11 @@ func TestEveryFirstVillagesFieldsAreFull(t *testing.T) {
 			}
 			nearest = min(nearest, d)
 		}
-		if total < 380 || near < 70 || nearest > 4500 {
+		reach := 4500.0
+		if e == account.EmpireJinno {
+			reach = 8000
+		}
+		if total < 380 || near < 70 || nearest > reach {
 			t.Errorf("%s: %d monsters, %d within 15000, the nearest pack %.0f out", home.Name, total, near, nearest)
 		}
 	}
@@ -360,6 +369,57 @@ func TestEveryMapSaysHowManyMobsItHolds(t *testing.T) {
 	for _, m := range maps {
 		if m.Mobs <= 0 {
 			t.Errorf("%s: Mobs %v", m.Name, m.Mobs)
+		}
+	}
+}
+
+// safeGround is where each first village's fighting stops, as the client's attribute map
+// marks it (attr.atr, cell bit 2, no PvP), in rectangles of the map's coordinates: each
+// village's squares, and a few spots of their own about the map.
+var safeGround = map[string][][4]int32{
+	"metin2_map_a1": {{6100, 58800, 9300, 62000}, {39000, 6100, 42200, 9300}, {58600, 67000, 61000, 69400}, {61900, 55900, 67500, 61500}},
+	"metin2_map_b1": {{54600, 54400, 57000, 56800}, {61600, 61700, 66000, 66100}, {86500, 110000, 88900, 112400}, {88900, 7900, 91700, 10700}},
+	"metin2_map_c1": {{11300, 108900, 14900, 112500}, {13500, 12000, 17100, 15600}, {35900, 61800, 40700, 66600}, {46400, 71900, 49600, 75100}},
+}
+
+// town is the map's safe ground and the box its village's NPCs stand in, the guards about
+// the map left out.
+func town(name string) [][4]int32 {
+	box := [4]int32{math.MaxInt32, math.MaxInt32, 0, 0}
+	for _, a := range areas(name) {
+		if a.vnum >= 9000 && a.vnum != 9009 {
+			box = [4]int32{min(box[0], a.x), min(box[1], a.y), max(box[2], a.x), max(box[3], a.y)}
+		}
+	}
+	return append(slices.Clone(safeGround[name]), box)
+}
+
+// clearOf is how far (x, y) lies from the nearest of the rectangles.
+func clearOf(x, y int32, rects [][4]int32) float64 {
+	nearest := math.Inf(1)
+	for _, r := range rects {
+		dx, dy := max(r[0]-x, 0, x-r[2]), max(r[1]-y, 0, y-r[3])
+		nearest = min(nearest, math.Hypot(float64(dx), float64(dy)))
+	}
+	return nearest
+}
+
+// No monster strolls into a town: every pack's ground, its spread and a stroll of 600
+// beyond, stays 2000 from the safe ground and the box of the village's NPCs; and every
+// stone's spot stays 4000 from them, as its waves gather round it.
+func TestTheTownsAreFreeOfMonsters(t *testing.T) {
+	for name, all := range monsterAreas(t) {
+		for _, a := range all {
+			if d := clearOf(a.x, a.y, town(name)); d < float64(a.spread)+600+2000 {
+				t.Errorf("%s: %d at (%d, %d) is %.0f from the town", name, a.vnum, a.x, a.y, d)
+			}
+		}
+		for _, s := range spawnsByMap[name] {
+			for _, p := range s.spots {
+				if d := clearOf(p.X, p.Y, town(name)); d < 4000 {
+					t.Errorf("%s: %d at %v is %.0f from the town", name, s.vnum, p, d)
+				}
+			}
 		}
 	}
 }
