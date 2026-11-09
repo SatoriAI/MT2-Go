@@ -77,13 +77,19 @@ func TestAPlayerEnteringSeesTheMobsInView(t *testing.T) {
 	hendra.expectOpen() // and nothing of the wolf
 }
 
-// Walking off, the mobs left behind vanish and the ones reached appear.
+// Walking off, the mobs left behind vanish and the ones reached appear: the dealer and the
+// dog 7000 and 7500 west of the start drop out of view and the wolf 8800 east comes into
+// it, as Hendra walks 1400 east.
 func TestWalkingToOtherMobsSwapsWhichAreShown(t *testing.T) {
-	h := startWith(t, nearTheStart)
+	h := startWith(t, []world.Spawn{
+		{VNum: 9001, X: startX - 7000, Y: startY, Count: 1},
+		{VNum: 101, X: startX - 7500, Y: startY, Count: 1},
+		{VNum: 102, X: startX + 8800, Y: startY, Count: 1},
+	})
 	hendra, _ := h.enterWorld("admin", "Hendra", 3, 6)
 	hendra.nextThree()
 
-	hendra.send(moveTo(startX+19000, startY))
+	hendra.send(moveTo(startX+1400, startY))
 
 	got := hendra.nextThree()
 	adds, _ := mobsShown(got)

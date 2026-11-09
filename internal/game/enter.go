@@ -141,6 +141,7 @@ func (s *session) onEnterGame() error {
 	}
 	// Only now is the player in the game phase: leaving the world takes them out of the
 	// record, so they must be in it.
+	me.tether = tether{x: p.X, y: p.Y}
 	s.svc.presence.enter(me)
 	s.phase = protocol.PhaseGame
 	s.conn.Log().Info("entered the world", "character", p.Name, "x", p.X, "y", p.Y)
@@ -148,14 +149,14 @@ func (s *session) onEnterGame() error {
 }
 
 // onMove keeps where the player's character is, to be saved when the connection closes,
-// and shows the move to the others; the client moves its own character by itself.
+// and shows the move to the others; the client moves its own character by itself. A move
+// further than the character can have gone is not taken (walk).
 func (s *session) onMove(body []byte) error {
 	m, err := protocol.DecodeMove(body)
 	if err != nil {
 		return err
 	}
-	s.playing.X, s.playing.Y = m.X, m.Y
-	s.svc.presence.move(s.playing.vid, m)
+	s.playing.X, s.playing.Y = s.svc.presence.walk(s.playing.vid, m, s.svc.now())
 	s.conn.Log().Debug("moved", "character", s.playing.Name, "type", m.Type, "x", m.X, "y", m.Y)
 	return nil
 }

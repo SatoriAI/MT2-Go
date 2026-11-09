@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SatoriAI/MT2-Go/internal/account"
 	"github.com/SatoriAI/MT2-Go/internal/item"
 	"github.com/SatoriAI/MT2-Go/internal/mob"
 	"github.com/SatoriAI/MT2-Go/internal/network"
@@ -16,18 +15,6 @@ import (
 )
 
 const groundAddSize, ownerSize, groundDelSize = 21, 30, 5
-
-// aPlayer puts a player with a character in the world at x east of the monsters' home,
-// alone in view of no one, and returns their client.
-func aPlayer(t *testing.T, s *Service, vid, id uint32, name string, x int32) (net.Conn, *present) {
-	t.Helper()
-	conn, client := watcher(t)
-	p := &present{out: conn, char: &account.Character{ID: id, Name: name, Class: account.Sura, HP: 1},
-		info: protocol.CharacterInfo{VID: vid, Name: name},
-		add:  protocol.CharacterAdd{VID: vid, X: homeX + x, Y: homeY, Type: protocol.EntityPlayer}}
-	s.presence.enter(p)
-	return client, p
-}
 
 // hendrasPotion lays a red potion for Hendra (character 7) at the monsters' home, as the
 // world loop would, so it is freed at noon and 20 s and cleared at noon and 60 s.
@@ -228,7 +215,7 @@ func pickingUp(t *testing.T, stack uint8) (*session, *keptItems, net.Conn) {
 	client, hendra := aPlayer(t, s, 1000, 7, "Hendra", 100)
 	hendrasPotion(s, hendra)
 	expectShown(t, client)
-	c := &character{vid: 1000, Character: *hendra.char}
+	c := playingAs(hendra)
 	s.now = func() time.Time { return noon.Add(time.Second) }
 	sess := &session{svc: s, conn: hendra.out.(*network.Conn), phase: protocol.PhaseGame, playing: c,
 		inventory: item.Inventory{{ID: 1, VNum: 27001, Count: stack, Cell: 0}}}

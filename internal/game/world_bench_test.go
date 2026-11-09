@@ -57,7 +57,8 @@ func benchWorld(b *testing.B, players, monsters int) (*Service, []*present, *sin
 	var everyone []*present
 	for i := range players {
 		x, y := point()
-		p := &present{out: out, add: protocol.CharacterAdd{VID: uint32(100000 + i), X: x, Y: y}}
+		p := &present{out: out, add: protocol.CharacterAdd{VID: uint32(100000 + i), X: x, Y: y, MoveSpeed: 150},
+			tether: tether{x: x, y: y}}
 		s.presence.enter(p)
 		everyone = append(everyone, p)
 	}
@@ -68,7 +69,8 @@ func size(players, monsters int) string {
 	return fmt.Sprintf("players=%d/monsters=%d", players, monsters)
 }
 
-// A player steps 300 one way and back, so the world stays the same size and spread.
+// A player steps 300 one way and back, so the world stays the same size and spread, each
+// step a second after the last, as a walk takes it.
 func BenchmarkPlayerMove(b *testing.B) {
 	for _, n := range worldSizes {
 		b.Run(size(n.players, n.monsters), func(b *testing.B) {
@@ -79,7 +81,7 @@ func BenchmarkPlayerMove(b *testing.B) {
 			for b.Loop() {
 				p := players[i%len(players)]
 				step := int32(300 - 600*(i/len(players)%2))
-				s.presence.move(p.add.VID, protocol.Move{Type: 1, X: p.add.X + step, Y: p.add.Y})
+				s.presence.walk(p.add.VID, protocol.Move{Type: 1, X: p.add.X + step, Y: p.add.Y}, noon.Add(time.Duration(i)*time.Second))
 				i++
 			}
 			b.ReportMetric(float64(out.sends.Load())/float64(b.N), "sends/op")
@@ -108,7 +110,7 @@ func BenchmarkPlayerMoveAmongDrops(b *testing.B) {
 			for b.Loop() {
 				p := players[i%len(players)]
 				step := int32(300 - 600*(i/len(players)%2))
-				s.presence.move(p.add.VID, protocol.Move{Type: 1, X: p.add.X + step, Y: p.add.Y})
+				s.presence.walk(p.add.VID, protocol.Move{Type: 1, X: p.add.X + step, Y: p.add.Y}, noon.Add(time.Duration(i)*time.Second))
 				i++
 			}
 			b.ReportMetric(float64(out.sends.Load())/float64(b.N), "sends/op")

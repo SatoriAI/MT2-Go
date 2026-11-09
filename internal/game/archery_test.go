@@ -20,7 +20,6 @@ func archering(t *testing.T, dogs int, level uint8) *session {
 	c.SkillGroup, c.SP = "archery", 1000
 	c.Skills = map[account.Skill]uint8{skill.RepetitiveShot: level, skill.ArrowShower: level, skill.FireArrow: level,
 		skill.FeatherWalk: level, skill.PoisonArrow: level}
-	s.playing.Skills = c.Skills
 	drain(t, client)
 	return s
 }

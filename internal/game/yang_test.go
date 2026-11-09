@@ -104,7 +104,7 @@ func pickingUpYang(t *testing.T) (*session, *keptItems, net.Conn) {
 		full = append(full, item.Item{ID: int64(cell) + 10, VNum: 10, Count: 1, Cell: cell})
 	}
 	sess := &session{svc: s, conn: hendra.out.(*network.Conn), phase: protocol.PhaseGame,
-		playing: &character{vid: 1000, Character: *hendra.char}, inventory: full, gold: 100}
+		playing: playingAs(hendra), inventory: full, gold: 100}
 	return sess, kept, client
 }
 

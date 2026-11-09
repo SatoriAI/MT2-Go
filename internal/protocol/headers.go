@@ -73,6 +73,7 @@ const (
 	ServerChannel          ServerHeader = 0x79
 	ServerCharacterInfo    ServerHeader = 0x88 // a character's name and parts
 	ServerDead             ServerHeader = 0x0E // a character dies
+	ServerSyncPosition     ServerHeader = 0x05 // characters put where the server has them
 	ServerTarget           ServerHeader = 0x3F // the target's hit points, as a percentage
 	ServerDamage           ServerHeader = 0x87 // damage dealt, drawn over the victim
 	ServerFlyTarget        ServerHeader = 0x47 // what another's arrow flies at

@@ -1,6 +1,7 @@
 package game
 
 import (
+	"encoding/binary"
 	"math"
 	"math/rand/v2"
 	"net"
@@ -297,5 +298,27 @@ func TestABodyIsShownLyingToSomeoneArriving(t *testing.T) {
 	}
 	if state := lying[26]; state != 1 { // after header, vid, angle, x, y, z, type, race and speeds
 		t.Fatalf("the body's state is %d, want 1, dead", state)
+	}
+}
+
+// The gap between a player's blows is counted by the game's clock: a second blow on the
+// dog a gap later by it lands, however little time has passed outside.
+func TestTheBlowGapFollowsTheGamesClock(t *testing.T) {
+	s, _ := warring(t, 1)
+	dog := s.svc.monsters[0].p
+	blow := append([]byte{0}, binary.LittleEndian.AppendUint32(nil, dog.add.VID)...)
+	blow = append(blow, 0, 0)
+	if err := s.onAttack(blow); err != nil {
+		t.Fatal(err)
+	}
+	first := dog.fight.damageBy[s.svc.presence.all[1000]]
+	s.svc.now = func() time.Time { return noon.Add(blowGap(s.svc.presence.attackSpeedOf(1000))) }
+
+	if err := s.onAttack(blow); err != nil {
+		t.Fatal(err)
+	}
+
+	if dog.fight.damageBy[s.svc.presence.all[1000]] == first {
+		t.Fatal("the second blow was dropped")
 	}
 }

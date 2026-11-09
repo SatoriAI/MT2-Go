@@ -27,7 +27,7 @@ func shopping(t *testing.T, x int32, gold uint32, carrying item.Inventory) (*ses
 		read(t, client, addSize+infoSize) // the general store
 	}
 	sess := &session{svc: s, conn: hendra.out.(*network.Conn), phase: protocol.PhaseGame,
-		playing: &character{vid: 1000, Character: *hendra.char}, inventory: carrying, gold: gold}
+		playing: playingAs(hendra), inventory: carrying, gold: gold}
 	return sess, kept, client, s.lastVID.Load() // the one character spawned
 }
 
@@ -92,7 +92,7 @@ func TestOnlyAShopkeeperWithinReachOpensAShop(t *testing.T) {
 		client, hendra := aPlayer(t, s, 1000, 7, "Hendra", 100)
 		read(t, client, shown)
 		sess := &session{svc: s, conn: hendra.out.(*network.Conn), phase: protocol.PhaseGame,
-			playing: &character{vid: 1000, Character: *hendra.char}}
+			playing: playingAs(hendra)}
 		if err := sess.onClick(vidBody(s.lastVID.Load())); err != nil {
 			t.Fatal(err)
 		}
