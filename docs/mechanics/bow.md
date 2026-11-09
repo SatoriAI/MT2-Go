@@ -65,7 +65,8 @@ A ninja holding a bow, with arrows in the arrow place of the equipment window, s
   - Arrows add nothing to any other weapon.
 - **No melee:** a swing reported with a bow in hand lands nothing; the client never sends one.
 - **The price:** Drewniana Strzała is flagged COUNT_PER_1GOLD, and its item_proto price, 5, is how many a yang buys, so a hundred cost 20, never under 1 (`item.Proto.PriceOf`).
-- **Not done yet:** skills that shoot, and arrows past the first.
+- **Skills that shoot** land each arrow the same way, from the volley their USE_SKILL leaves ([skills.md](skills.md)).
+- **Not done yet:** arrows past the first.
 
 ## How we know
 

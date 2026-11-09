@@ -198,6 +198,7 @@ func (s *session) leaveWorld() {
 	}
 	s.svc.release(s.claim)
 	s.claim, s.playing, s.shop, s.talking, s.upgrading = nil, nil, 0, nil, nil
+	s.flyTarget, s.flyAdds, s.volley = 0, nil, volley{} // the next character's arrows are their own
 }
 
 // inventoryShown fills the inventory window, an item to a packet.

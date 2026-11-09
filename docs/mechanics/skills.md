@@ -11,7 +11,7 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
 - **Who is turned away.** A teacher tells anyone of another class, anyone below level 5, and anyone already on their path, why not.
 
 **Raising a skill.** The + beside a skill raises it a level for a point, up to 20, where the + goes. Each level from 5 brings one more point.
-- **What can be raised:** Weaponry's Finger Strike, Dragon Swirl, Enchanted Blade and Enchanted Armour, Body's Three-Way Cut (Trzystronne Cięcie), Sword Spin (Wir Miecza), Berserk and Sword Aura (Aura Miecza), and Mental's Spirit Strike (Duchowe Uderzenie), Bash (Walnięcie), Stump (Tąpnięcie), Strong Body (Silne Ciało) and Sword Strike (Uderzenie Miecza), Dagger's Ambush (Zasadzka), Fast Attack (Szybki Atak) and Rolling Dagger (Wirujący Sztylet), and Black Magic's Dark Strike (Mroczne Uderzenie), Flame Strike (Ogniste Uderzenie), Dark Protection (Mroczna Ochrona), Ghost Strike (Duchowy Cios) and Dark Orb (Mroczna Sfera), and the shaman's attacks: Dragon's Flying Talisman (Latający Talizman), Shooting Dragon (Strzelający Smok) and Dragon Roar (Smoczy Skowyt), and Healing's Lightning Throw (Rzut Piorunem), Summon Lightning (Przywołanie Błyskawicy) and Lightning Claw (Burzowy Szpon), and her buffs and heal: Blessing (Błogosławieństwo), Reflection (Odbicie) and Dragon's Help (Pomoc Smoka) of Dragon, Heal (Leczenie), Swiftness (Zwinność) and Attack Up (Zwiększenie Ataku) of Healing. The others show in the window, but raising one says «Tej umiejętności nie można jeszcze rozwijać.»
+- **What can be raised:** Weaponry's Finger Strike, Dragon Swirl, Enchanted Blade and Enchanted Armour, Body's Three-Way Cut (Trzystronne Cięcie), Sword Spin (Wir Miecza), Berserk and Sword Aura (Aura Miecza), and Mental's Spirit Strike (Duchowe Uderzenie), Bash (Walnięcie), Stump (Tąpnięcie), Strong Body (Silne Ciało) and Sword Strike (Uderzenie Miecza), Dagger's Ambush (Zasadzka), Fast Attack (Szybki Atak) and Rolling Dagger (Wirujący Sztylet), Archery's Repetitive Shot (Powtarzalny Strzał), Arrow Shower (Deszcz Strzał), Fire Arrow (Ognista Strzała), Feather Walk (Bezszelestny Chód) and Poison Arrow (Trująca Strzała), and Black Magic's Dark Strike (Mroczne Uderzenie), Flame Strike (Ogniste Uderzenie), Dark Protection (Mroczna Ochrona), Ghost Strike (Duchowy Cios) and Dark Orb (Mroczna Sfera), and the shaman's attacks: Dragon's Flying Talisman (Latający Talizman), Shooting Dragon (Strzelający Smok) and Dragon Roar (Smoczy Skowyt), and Healing's Lightning Throw (Rzut Piorunem), Summon Lightning (Przywołanie Błyskawicy) and Lightning Claw (Burzowy Szpon), and her buffs and heal: Blessing (Błogosławieństwo), Reflection (Odbicie) and Dragon's Help (Pomoc Smoka) of Dragon, Heal (Leczenie), Swiftness (Zwinność) and Attack Up (Zwiększenie Ataku) of Healing. The others show in the window, but raising one says «Tej umiejętności nie można jeszcze rozwijać.»
 **Using a skill.** They are used from the skill window or the taskbar, as the client uses any skill.
 - **Finger Strike:** on the monster she has picked, within a blow's reach, one strike of two and a half blows and more at the first level, four and a quarter at 20. It can't be used again for 10 seconds.
 - **Dragon Swirl:** the sura spins her blade, and every monster around her within 500 is struck at once. Each blow is more than two of hers at the first level, three and a half at 20. Every monster struck turns on her. It costs mana and can't be used again for 15 seconds.
@@ -30,6 +30,12 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
 - **Ambush:** with a dagger or a sword, a stab on the monster picked, the ninja's hardest blow, half as hard again struck from behind it. 15 seconds.
 - **Fast Attack:** with a dagger or a sword, she dashes to the monster picked, up to 800 off, and strikes it. 20 seconds.
 - **Rolling Dagger:** with a dagger or a sword, up to twelve within 250 around her, each perhaps poisoned: a poisoned monster is tinted, and loses 1 in a hundred of its hit points every two seconds for half a minute, which can kill it. 25 seconds.
+- **Archery's arrows** fly from a bow with arrows worn ([bow.md](bow.md)), each using one up as it lands, at a monster up to about 2500 off:
+  - **Repetitive Shot:** two arrows in a row at the monster picked at the first level, five at 20, sharing the damage. 15 seconds.
+  - **Arrow Shower:** an arrow at the monster picked and one at each of the others the client aims at around it, two in all at the first level, five at 20. 18 seconds.
+  - **Fire Arrow:** one arrow drawn as fire at the monster picked, which also strikes up to eleven within 300 of it for less. 25 seconds.
+  - **Poison Arrow:** one arrow at the monster picked and up to eleven within 300 of it for half as much, each perhaps poisoned. 25 seconds.
+  - **Feather Walk:** quicker steps for 16 seconds at the first level, 30 at 20, a trail drawn as she walks. 31 seconds at the first level.
 - **Black Magic's spells** hit for numbers of the sura's INT and level and her weapon's magic attack, which no armour cuts, unlike every blow:
   - **Dark Strike:** the monster picked up to 1500 off and up to four around it. 7 seconds.
   - **Flame Strike:** up to fifteen within 500 around her. 12 seconds.
@@ -76,6 +82,11 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
 - **A stun** is bit 5 of a monster's effects, AFFECT_STUN, which the client draws as the monster asleep on its feet, **a poison** bit 3, AFFECT_POISON, and **a slow** bit 4, AFFECT_SLOW. Dark Protection is bit 25, the shaman's Blessing 22, Reflection 23, Swiftness 24, Dragon's Help 29 and Attack Up 30, and **a fire** on a monster bit 28, AFFECT_FIRE. A DAMAGE flagged 2, DAMAGE_POISON, is drawn as poison's hit (`InstanceBase.h`, `InstanceBaseEffect.cpp`).
 - **A spell's tooltip** reads the weapon's attack, VALUE3 to VALUE4 and its grade, for its `mtk`, and the hit rate, (min(90, (4·DEX + 2·level)/6) + 210)/300, for its `ar` (`PythonSkill.cpp`, `PythonPlayer.cpp`). A weapon's magic attack, which its own tooltip shows and the skilltable's `mwep` reads, is its VALUE1 to VALUE2 and its grade's VALUE5 (`uitooltip.py`).
 - **A cooldown at a casting speed** is the skill's times 10000 over the speed in whole hundredths, fixed when the skill is used (`PythonPlayerSkill.cpp`), and a critical blow is DAMAGE flagged 32, DAMAGE_CRITICAL.
+- **An arrow skill** (`PythonPlayerSkill.cpp`):
+  - The client aims the skill's arrows first: for Arrow Shower, an ADD_FLY_TARGETING for each further arrow, the living monsters in its fan first, then points on the ground with no target.
+  - Then it sends FLY_TARGETING at the one picked, the MOVE, and USE_SKILL.
+  - It sends a SHOOT with the skill's number for each arrow as its motion lets it go ([bow.md](bow.md)): Repetitive Shot's one per loop of its motion, Arrow Shower's one at each target in turn.
+  - Feather Walk is bit 17, AFFECT_GYEONGGONG, drawn as a trail while she walks.
 - **A shaman's buffs and heal** carry the client's CAN_USE_FOR_ME, NEED_TARGET and ONLY_FOR_ALLIANCE, and USE_SKILL names the player picked.
 - **A toggle turned off** is sent as USE_SKILL like any use, and the client then counts no new cooldown: it runs on from when the toggle was turned on (`PythonPlayerSkill.cpp`).
 - **The warrior's skills** need a target for Three-Way Cut, and a sword or two-handed weapon for all but Berserk, the client's NEED_TARGET and WEAPON_LIMITATION (`skilldesc.txt`). The skill window lists each group's skills from its first place, so Three-Way Cut is a Body warrior's first as Finger Strike is a Weaponry sura's (`playersettingmodule.py`).
@@ -152,6 +163,13 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
     - Fast Attack: the monster picked if it lives within 800. The ninja is moved to 270 from it first, on the line from her to it, where the original client's warp lands her (`ProcessMotionEventWarp` in `ActorInstanceMotionEvent.cpp`), facing it, shown to everyone who sees her at the client clock's time; her own client plays the dash itself. One nearer is moved back out to 270, as the original's warp moves her. Then (100 + 250k)%.
     - Rolling Dagger: up to twelve within 250 around her, (150 + 150k)%, poisoning at its tooltip's 1 + 4k percent, rolled for each it leaves alive.
     - Krycie Się, stealth, is left out, and Trująca Chmura waits for magic damage.
+  - **Archery,** settled the same way: the skilltable for mana, cooldowns, arrows, victims, range and splash, and the tooltips' attack terms as a blow's percent, without their stat terms, as the other physical skills; a bow in hand.
+    - **Arrows:** using one needs arrows worn. It spends its mana and starts its cooldown at USE_SKILL, and strikes nothing then. It keeps the arrows it has to let go: 2 + 6k for Repetitive Shot and Arrow Shower, one for the others. Each SHOOT with its number in the next 4 seconds lands one of them, through `splash`, on a monster alive, in sight and within 2800, with arrows still worn and a bow in hand, and uses an arrow up. Any other is dropped, using none.
+    - Repetitive Shot: every arrow at the one picked, each (100 + 20 for each arrow + 80k)% over the arrows, so 72% for each of two at the first level and 48% for each of five at 20, the debaters' sharing.
+    - Arrow Shower: the arrows go at the one picked, then at each further one the client aimed at with ADD_FLY_TARGETING before it, each once, points on the ground passed over, as many as it has arrows, each (80 + 136k)%. The client's targets are trusted, each checked as it is shot, and no fan is checked: the veteran's call. Those aimed at are forgotten at the next USE_SKILL, whatever becomes of it, at a plain shot, and on Change character, which forgets a volley's arrows too. A plain shot waits its gap after a skill's arrow as after another plain one.
+    - Fire Arrow: the one picked for (150 + 260k)%, and up to eleven within 300 of it for 60 in a hundred of that, the skilltable's splash share. It burns nothing: the skilltable has no burn, and its fire is the client's own drawing.
+    - Poison Arrow: the one picked for (100 + 120k)% and up to eleven within 300 for half of it, poisoning each it leaves alive at the skilltable's 80k percent with the poison Rolling Dagger's is. Its knockback is left out.
+    - Feather Walk: 60k on the move speed for 15 + 30k seconds, as Swiftness's step, with its affect bit 17.
   - **Black Magic,** settled the same way, the client's source settling what its tooltips read: the skilltable for mana, cooldowns, victims, range and splash, and each tooltip's formula for the damage, a number rather than a share of a blow.
     - **The damage:** the formula of the sura's level, STR, CON, DEX and INT, her weapon's magic attack rolled from its least to its most, the tooltip's own range of a number rolled the same way (50 to 100 for Dark Strike, 180 to 200 for Flame and Ghost Strike), and her hit rate where the tooltip multiplies by it. For the magic attack the server takes the weapon's magic attack, as the skilltable's `mwep` does and the debaters chose, where the tooltip itself reads the weapon's attack: the sword's tooltips show a little less than it does. The sword's magic attack is 15 to 19, and each grade adds its VALUE5, 78 to 82 at +9. Only a monster's magic resistance would cut it, and every first-map monster's is none; armour never does.
     - Dark Strike: 40 + 5·lv + 2·iq + (20·iq + 7·MTK + 50 to 100)·ar·k, the picked within 1500, five in all within 200 of it.
@@ -212,7 +230,7 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
   - SCRIPT_ANSWER framed and read;
   - USE_SKILL framed and read;
   - the effects in CHARACTER_ADD and CHARACTER_UPDATE.
-- `internal/store/skills_test.go`: a skill raised and kept, and choosing a group forgetting the skills; the database refusing an unknown skill, a level past 20 and another class's group.
+- `internal/store/skills_test.go`: a skill raised and kept, and choosing a group forgetting the skills; the database refusing an unknown skill, a level past 20 and another class's group; every Weaponry and Archery skill kept.
 - `internal/game/skills_test.go`:
   - a sura taking up a teacher's group, in the client's order;
   - the offer declined, closed or answered stale; offered from level 5 exactly, and a change up to 19; kept open past 20 and refused then; answered out of reach and dropped;
@@ -274,20 +292,27 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
   - Rolling Dagger on the three within 250 and not one 280 off, and twelve at most; poisoning some dogs beside a stone, never the stone;
   - a poison's share every two seconds, told as poison, shown, never provoking; ended after thirty seconds, or renewed; killing at the poisoner's hand; ended with its poisoner gone; ticked by the world loop and forgotten when done;
   - a ninja taking up Dagger at its teacher.
+- `internal/game/archery_test.go`:
+  - Repetitive Shot letting its two arrows go at the one picked, each using an arrow, a third dropped; its arrows sharing its damage at the first level and at 20;
+  - Arrow Shower sending each arrow at the next dog aimed at, each dog once at level 20, passing over points on the ground, and not carrying aims over to the next;
+  - Fire Arrow splashing the others for less; Poison Arrow poisoning some;
+  - a skill's arrows dropped outside its volley, and needing arrows and a bow when used and when shot;
+  - a refused Arrow Shower's aims forgotten; Change character forgetting the volley and the aims; a plain shot waiting its gap after a skill's arrow;
+  - Feather Walk quickening her step, shown with bit 17, for its run.
 - `internal/game/warrior_test.go`:
   - Three-Way Cut cutting five around the dog picked, three times each, and its mana told; refused with nothing picked or a fan in hand; used with a glaive;
   - Sword Spin striking the three dogs within 200 and not the one beyond, and twelve of fourteen, the nearest;
   - Berserk telling both speeds and its effect, timing her blows faster, and ending with both back; raised as it runs, faster at once; ended by taking up another group;
   - Sword Aura raising the attack by 6, and ending when the sword is taken off;
-  - each group's own skill window places;
+  - each group's own skill window places, Archery's among them;
   - a warrior taking up Body at its teacher.
 - `internal/world/spawns_test.go`, `internal/mob/mob_test.go`: the eight teachers in each first village, each teaching a group there is.
 - `internal/server/skills_test.go` (real sockets and database): a level-6 sura taking up Weaponry, raising Dragon Swirl twice, and entering again with it at 2 and no points left; an answer still in flight after Change character ending nothing; an offer left open over Change character forgotten; a Weaponry sura's Dragon Swirl spending its mana and striking both dogs beside her.
 
 ## Not done yet
 
-- Fear and Dispel, which only matter against players; Enchanted Armour's reflect; Finger Strike's pierce. Archery, whose teachers stand but which has no skills yet, Black Magic's summoned spirit, and Heal's removal of bad effects; the ninja's stealth and poison cloud. Parties, which the shaman's buffs would then keep to.
-- Body's Charge and Sword Strike's knockback, which push monsters the server owns.
+- Fear and Dispel, which only matter against players; Enchanted Armour's reflect; Finger Strike's pierce. Black Magic's summoned spirit, and Heal's removal of bad effects; the ninja's stealth and poison cloud. Parties, which the shaman's buffs would then keep to.
+- Body's Charge, Sword Strike's and Poison Arrow's knockback, which push monsters the server owns.
 - Damage at the motion's hit, and no blows during a skill's motion.
 - The mana Enchanted Blade drains while it runs in the original, and keeping it over a relog.
 - Ranks past 20: Grand and Perfect.

@@ -128,7 +128,11 @@ type session struct {
 	// What the bow's next arrow flies at, 0 once it is shot, and when the last one landed.
 	flyTarget uint32
 	lastShot  time.Time
-	rand      *rand.Rand // this connection's own, for its blows' damage
+	// The further targets the client aimed a skill's arrows at, and the arrows its last
+	// arrow skill has left to let go.
+	flyAdds []uint32
+	volley  volley
+	rand    *rand.Rand // this connection's own, for its blows' damage
 }
 
 // inFlightAfterLeaving are what the client may still send from its game window after
