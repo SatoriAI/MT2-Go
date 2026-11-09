@@ -147,7 +147,7 @@ func TestADropIsFreedThenClearedAway(t *testing.T) {
 	expectGone(t, client)
 	hendrasPotion(s, p) // laid again, then picked up before its time
 	expectShown(t, client)
-	delete(s.presence.ground, 5000)
+	s.presence.lift(s.presence.ground[5000])
 	s.keepGround(noon.Add(lieFor))
 	expectNothing(t, client)
 	if len(s.presence.ground) != 0 || len(s.freeing)+len(s.vanishing) != 0 {
@@ -319,4 +319,18 @@ func TestAPotionPutBackAfterItsTimeIsGoneOrFree(t *testing.T) {
 	if got := read(t, client, len(want)); string(got) != want || s.svc.presence.ground[5000].owner != (owner{}) {
 		t.Fatalf("got %x, put back owned by %+v", got, s.svc.presence.ground[5000].owner)
 	}
+}
+
+// An item cleared away is gone for good: a player arriving beside where it lay is shown
+// nothing of it.
+func TestAnItemClearedAwayIsShownToNobodyArriving(t *testing.T) {
+	s := worldWith(t)
+	_, hendra := aPlayer(t, s, 1000, 7, "Hendra", 100)
+	hendrasPotion(s, hendra)
+	s.presence.vanish(5000)
+
+	kira, _ := aPlayer(t, s, 1001, 8, "Kira", 200)
+
+	read(t, kira, addSize+infoSize) // Hendra
+	expectNothing(t, kira)
 }

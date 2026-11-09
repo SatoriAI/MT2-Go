@@ -225,3 +225,25 @@ func TestLightningThrowRollsByHerIntelligence(t *testing.T) {
 		t.Fatalf("struck for %d, want 112 to 120", got)
 	}
 }
+
+// Only a burning skill burns: Flying Talisman, cast twenty times at its top level by a
+// shaman of INT 250, who would burn a quarter of what Shooting Dragon struck, sets no dog
+// alight.
+func TestOnlyABurningSkillBurns(t *testing.T) {
+	s, _ := shamanising(t, 4)
+	c := s.svc.presence.all[1000].char
+	c.Intelligence, c.SP = 250, 100000
+	c.Skills[skill.FlyingTalisman] = skill.MaxLevel
+	dog := s.svc.monsters[0].p
+
+	for i := range 20 {
+		s.svc.now = func() time.Time { return noon.Add(time.Duration(i) * 10 * time.Second) }
+		if err := s.onUseSkill(usedOn(skill.FlyingTalisman, dog.add.VID)); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if len(s.svc.presence.burned) != 0 {
+		t.Fatalf("%d set alight", len(s.svc.presence.burned))
+	}
+}

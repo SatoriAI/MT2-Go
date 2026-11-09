@@ -49,7 +49,7 @@ func TestAMoveWithinTheTetherIsTaken(t *testing.T) {
 	if hendra.add.X != homeX+2500 || s.playing.X != homeX+2500 {
 		t.Fatalf("at %d, kept %d", hendra.add.X, s.playing.X)
 	}
-	if got := drain(t, c[0]); bytes.Contains(got, []byte{byte(protocol.ServerSyncPosition)}) {
+	if got := drain(t, c[0]); sent(t, got, protocol.ServerSyncPosition) {
 		t.Fatalf("she was put back: %x", got)
 	}
 }
@@ -162,7 +162,7 @@ func TestARunTurningBackIsNotPutBack(t *testing.T) {
 		walkTo(t, s, x-1000, at)
 	}
 
-	if got := drain(t, c[0]); bytes.Contains(got, []byte{byte(protocol.ServerSyncPosition)}) {
+	if got := drain(t, c[0]); sent(t, got, protocol.ServerSyncPosition) {
 		t.Fatalf("put back after turning at %d: %x", turned, got)
 	}
 }
@@ -190,7 +190,7 @@ func TestABurstOfMovesSharesItsTime(t *testing.T) {
 	walkTo(t, s, 500, 2*time.Second)
 	walkTo(t, s, 4500, 2*time.Second)
 
-	if got := drain(t, c[0]); hendra.add.X != homeX+4500 || bytes.Contains(got, []byte{byte(protocol.ServerSyncPosition)}) {
+	if got := drain(t, c[0]); hendra.add.X != homeX+4500 || sent(t, got, protocol.ServerSyncPosition) {
 		t.Fatalf("at %d, told %x", hendra.add.X-homeX, got)
 	}
 }

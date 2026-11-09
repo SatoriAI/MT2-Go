@@ -24,19 +24,20 @@ const viewRange = 8000
 // never held across a slow client. A send that fails is left: that connection closes itself.
 type presence struct {
 	mu       sync.Mutex
-	all      map[uint32]*present            // by vid
-	onMap    map[string]map[uint32]*present // the same, by the map each stands on and vid
-	byName   map[string]*present            // players, by lower-cased name: unique regardless of case
-	fallen   []death                        // monsters killed since the world loop last asked
-	provoked []provocation                  // blows on living monsters since the world loop last asked
-	laid     []timed                        // items players dropped since the world loop last asked, to clear away
-	buffs    []buffEnd                      // buffs players started since the world loop last asked, to end
-	calls    []call                         // waves stones called since the world loop last asked
-	poisoned []*present                     // monsters poisoned since the world loop last asked, to tick
-	drains   []buffEnd                      // toggles started since the world loop last asked that drain mana
-	burned   []*present                     // monsters set alight since the world loop last asked, to tick
-	event    *event.Event                   // the event running; nil for none
-	ground   map[uint32]*groundItem         // items lying in the world, by vid
+	all      map[uint32]*present               // by vid
+	onMap    map[string]map[uint32]*present    // the same, by the map each stands on and vid
+	byName   map[string]*present               // players, by lower-cased name: unique regardless of case
+	fallen   []death                           // monsters killed since the world loop last asked
+	provoked []provocation                     // blows on living monsters since the world loop last asked
+	laid     []timed                           // items players dropped since the world loop last asked, to clear away
+	buffs    []buffEnd                         // buffs players started since the world loop last asked, to end
+	calls    []call                            // waves stones called since the world loop last asked
+	poisoned []*present                        // monsters poisoned since the world loop last asked, to tick
+	drains   []buffEnd                         // toggles started since the world loop last asked that drain mana
+	burned   []*present                        // monsters set alight since the world loop last asked, to tick
+	event    *event.Event                      // the event running; nil for none
+	ground   map[uint32]*groundItem            // items lying in the world, by vid
+	groundOn map[string]map[uint32]*groundItem // the same, by the map each lies on and vid
 }
 
 // sender is where a player's packets go: their connection, which only queues them.

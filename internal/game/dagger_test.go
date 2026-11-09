@@ -1,9 +1,9 @@
 package game
 
 import (
-	"bytes"
 	"encoding/binary"
 	"net"
+	"slices"
 	"testing"
 	"time"
 
@@ -82,7 +82,7 @@ func TestFastAttackDashesToItsTarget(t *testing.T) {
 	if pl.add.X != homeX+700-dashStop || pl.add.Y != homeY || dog.p.fight.damageBy[pl] == 0 {
 		t.Fatalf("at (%d, %d), struck %d", pl.add.X, pl.add.Y, dog.p.fight.damageBy[pl])
 	}
-	if got := drain(t, kira); !bytes.Contains(got, []byte{byte(protocol.ServerMove)}) {
+	if got := drain(t, kira); !sent(t, got, protocol.ServerMove) {
 		t.Fatalf("Kira got %x, want her move", got)
 	}
 
@@ -291,9 +291,9 @@ func TestFastAttackTimesItsDashAndBacksTheNearOut(t *testing.T) {
 
 	s.svc.presence.useSkill(1000, skill.FastAttack, dog.p.add.VID, noon, 4242, s.rand, func() bool { return true })
 
-	got := drain(t, kira)
-	i := bytes.IndexByte(got, byte(protocol.ServerMove))
-	if i < 0 || binary.LittleEndian.Uint32(got[i+16:]) != 4242 {
+	got := packets(t, drain(t, kira))
+	i := slices.IndexFunc(got, func(p []byte) bool { return protocol.ServerHeader(p[0]) == protocol.ServerMove })
+	if i < 0 || binary.LittleEndian.Uint32(got[i][16:]) != 4242 {
 		t.Fatalf("Kira got %x, want the dash at 4242", got)
 	}
 	pl := s.svc.presence.all[1000]

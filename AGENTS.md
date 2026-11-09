@@ -11,7 +11,7 @@ A Metin2 server written from scratch in Go for its own client, MT2-Godot, built 
 - **No dead code and no commented-out code.** If it is unused, delete it.
 - **Comments explain why, never what.** Case history belongs in `docs/decisions/`; a comment block of eight lines or more fails the gate.
 - **Handle errors where they can be answered.** No defensive branches for states your own code makes impossible.
-- **Tests read as documentation** — one behaviour per test, named for the behaviour (`TestAWrongPasswordIsRefusedWithTheStatusTheClientShows`).
+- **Tests read as documentation** — one behaviour per test, named for the behaviour (`TestAWrongPasswordIsRefusedWithTheStatusTheClientShows`). A test asking whether a packet was sent cuts what arrived into packets (`packets`, `sent`), never searches it for a header byte.
 - **When a rule's premise goes, the rule goes with it.**
 - Consistency beats preference. Pick one way, do it everywhere, write it down here.
 
@@ -54,7 +54,7 @@ internal/config/    environment -> Config
 internal/protocol/  packet layouts, framing, byte reading and writing
 internal/network/   TCP: one goroutine per connection, cutting the stream into packets
 internal/handshake/ the time sync every connection starts with
-internal/auth/      the login port: password check, login key; tested end to end, in internal/server
+internal/auth/      the login port: password check, login key
 internal/game/      the game port: login by key, kingdom, characters, entering the world
 internal/account/   the game's types for accounts and characters, starting and derived values, login keys
 internal/store/     PostgreSQL: pool, embedded migrations, queries

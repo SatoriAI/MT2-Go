@@ -140,6 +140,7 @@ The flow, layouts and the sequence-byte exemptions come from the client's own sc
 
 - `internal/protocol/protocol_test.go` — every packet above against its exact bytes, every field of a character slot, framing with and without the sequence byte, an incomplete packet, an address ending in 200.
 - `internal/handshake/handshake_test.go` — in-time echo, late echo and the corrected delta, a foreign id, a client that never syncs, no `D2` in ids.
+- `internal/auth/session_test.go` — the right password handing out a key the game port redeems; a wrong password, an unknown name and an unknown name with the decoy's own password refused alike; an account in the game refused as already online; a name that is not UTF-8 refused without a lookup; three wrong passwords ending the connection; a login before the handshake ending it; a store that fails ending it.
 - `internal/account/keys_test.go` — the key works for a second connection, expires after the grace period, never while held; a new key revokes the old one; no key while the account is in the game.
 - `internal/game/wire_test.go` — all eight race numbers both ways, skill group numbers, kingdom numbers both ways.
 - `internal/network/server_test.go` — a failed accept does not stop the port, the login deadline (busy or silent) and lifting it, a send to a client that stops reading giving up, shutdown and a closed listener closing open connections.
