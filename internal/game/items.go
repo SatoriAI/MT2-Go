@@ -199,7 +199,7 @@ func (s *session) dress() {
 
 // outfit is what a character wears, each by vnum, 0 for nothing.
 type outfit struct {
-	weapon, body, head, feet, shield uint32
+	weapon, body, head, feet, shield, arrow uint32
 }
 
 func outfitOf(inv item.Inventory) outfit {
@@ -208,7 +208,7 @@ func outfitOf(inv item.Inventory) outfit {
 		return it.VNum
 	}
 	return outfit{weapon: worn(item.Weapon), body: worn(item.Body), head: worn(item.Head), feet: worn(item.Feet),
-		shield: worn(item.Shield)}
+		shield: worn(item.Shield), arrow: worn(item.Arrow)}
 }
 
 // itemAt returns the item at a position the client names, in a cell or worn.
@@ -245,7 +245,7 @@ func (w *presence) dress(vid uint32, o outfit) {
 	c := p.char
 	armourChanged := c.Body != o.body || c.Head != o.head || c.Feet != o.feet || c.Shield != o.shield
 	speed := p.add.MoveSpeed
-	c.Weapon, c.Body, c.Head, c.Feet, c.Shield = o.weapon, o.body, o.head, o.feet, o.shield
+	c.Weapon, c.Body, c.Head, c.Feet, c.Shield, c.Arrow = o.weapon, o.body, o.head, o.feet, o.shield, o.arrow
 	held, _ := item.Lookup(o.weapon)
 	for sk := range c.Buffs {
 		if buff, _ := skill.Lookup(sk); !buff.Wieldable(held) {
@@ -308,5 +308,5 @@ func (w *presence) attackSpeedOf(vid uint32) uint8 {
 // wear puts on the character what the inventory has worn, as it enters the world.
 func wear(c *account.Character, inv item.Inventory) {
 	o := outfitOf(inv)
-	c.Weapon, c.Body, c.Head, c.Feet, c.Shield = o.weapon, o.body, o.head, o.feet, o.shield
+	c.Weapon, c.Body, c.Head, c.Feet, c.Shield, c.Arrow = o.weapon, o.body, o.head, o.feet, o.shield, o.arrow
 }

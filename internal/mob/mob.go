@@ -88,12 +88,14 @@ type Pick struct {
 	Chance uint16
 }
 
-// The village shops: the weapon trader's first weapons and the armour trader's first
-// armours along the top row, the cells below left to the taller ones, the helmets and
-// shoes on the row under the armours and the shield below them, and the general
-// store's potions, singly on the top row and twenty to a pack on the next.
+// The village shops: the weapon trader's first weapons along the top row and a hundred
+// arrows under the dagger, the armour trader's first armours along the top row, the cells
+// below left to the taller ones, the helmets and shoes on the row under the armours and
+// the shield below them, and the general store's potions, singly on the top row and
+// twenty to a pack on the next.
 var (
-	weapons = []Ware{{VNum: 10, Count: 1, Cell: 0}, {VNum: 1000, Count: 1, Cell: 1}, {VNum: 2000, Count: 1, Cell: 2}, {VNum: 3000, Count: 1, Cell: 3}, {VNum: 7000, Count: 1, Cell: 4}}
+	weapons = []Ware{{VNum: 10, Count: 1, Cell: 0}, {VNum: 1000, Count: 1, Cell: 1}, {VNum: 2000, Count: 1, Cell: 2}, {VNum: 3000, Count: 1, Cell: 3}, {VNum: 7000, Count: 1, Cell: 4},
+		{VNum: 8000, Count: 100, Cell: 6}}
 	armours = []Ware{{VNum: 11200, Count: 1, Cell: 0}, {VNum: 11400, Count: 1, Cell: 1}, {VNum: 11600, Count: 1, Cell: 2}, {VNum: 11800, Count: 1, Cell: 3},
 		{VNum: 12200, Count: 1, Cell: 10}, {VNum: 12340, Count: 1, Cell: 11}, {VNum: 12480, Count: 1, Cell: 12}, {VNum: 12620, Count: 1, Cell: 13},
 		{VNum: 15000, Count: 1, Cell: 14}, {VNum: 13000, Count: 1, Cell: 15}}

@@ -8,11 +8,11 @@ Putting on a second weapon swaps them: the one held goes where the new one was. 
 
 A weapon makes every blow stronger. Armour, a helmet, shoes and a shield each take more off every bite, and the character window's DEF rises by their defence; its attack follows the weapon. Shoes also make the character faster, more with each grade, for themselves and as everyone near sees them run. A shield makes them 2 slower at every grade. It is not drawn on the character, as in the original.
 
-Only a weapon, body armour, a helmet, shoes and a shield can be worn so far: each class's first ones, the first shoes and shield for all, and their grades ([upgrading.md](upgrading.md)).
+Only a weapon, body armour, a helmet, shoes, a shield and arrows can be worn so far, arrows a whole stack at a time, for the bow to shoot ([bow.md](bow.md)): each class's first ones, the first shoes and shield for all, and their grades ([upgrading.md](upgrading.md)).
 
 ## What the client does
 
-- **Worn items are in the inventory window too:** cells 90 and up, by the client's wear places: the body at 90, the head at 91, the feet at 92, the weapon at 94 and the shield at 100 (`GameType.h`, `ItemData.h`, WEAR_SHIELD 10), with the window number `01`. The inventory window has a slot for each (`inventorywindow.py`).
+- **Worn items are in the inventory window too:** cells 90 and up, by the client's wear places: the body at 90, the head at 91, the feet at 92, the weapon at 94, the arrows at 99 and the shield at 100 (`GameType.h`, `ItemData.h`, WEAR_ARROW 9, WEAR_SHIELD 10), with the window number `01`. The inventory window has a slot for each (`inventorywindow.py`).
 - **What it sends** (`uiinventory.py`):
   - **A double-click** sends ITEM_USE with the item's position, whether it's in the bag or worn.
   - **A drag onto an empty place** sends ITEM_MOVE to its place; onto an occupied place, ITEM_USE of the dragged item, leaving the place to the server.
@@ -31,7 +31,7 @@ Only a weapon, body armour, a helmet, shoes and a shield can be worn so far: eac
 |---|---|---|
 | ITEM_USE `0B`, client | 4 | position: window u8, cell u16 |
 | ITEM_MOVE `0D`, client | 8 | from, to, count u8 |
-| ITEM_SET `14` | 42 | as on [items.md](items.md); worn items at cells 90, 91, 92, 94 and 100 |
+| ITEM_SET `14` | 42 | as on [items.md](items.md); worn items at cells 90, 91, 92, 94, 99 and 100 |
 | CHARACTER_UPDATE `13` | 35 | vid u32, parts u16 ×4 (armour, weapon, head, hair), move speed u8, attack speed u8, state u8, affects u32 ×2, guild u32, alignment u16, player-kill mode u8, mount u32 |
 | CHARACTER_INFO `88` | 54 | as on [entering-the-world.md](entering-the-world.md), with the armour and weapon parts |
 | POINT_CHANGE `11` | 17 | DEF is point 20, the move speed 19 |
@@ -59,6 +59,7 @@ Only a weapon, body armour, a helmet, shoes and a shield can be worn so far: eac
   | Czapka Mnicha+0 (12620) | head | shaman | | 5 |
   | Skórzane Buty+0 (15000) | feet | all | | 1, and 2 faster |
   | Bojowa Tarcza+0 (13000) | shield | all | | 3, and 2 slower |
+  | Drewniana Strzała (8000) | arrows | ninja | adds 3 to a bow's least | |
 
   All of them are wearable from level 0, as are their grades, so the game checks no level yet; that comes with the first kind needing one. The Copper Bell, a shaman's weapon from level 10, was taken out of the table for that reason: only the starters are kept.
 - **An item is in a cell or worn, never both,** and one item is worn in each place; the database keeps both rules. A swap moves two items in one transaction, the new one in before the old one out, so one to a place is checked at its end.

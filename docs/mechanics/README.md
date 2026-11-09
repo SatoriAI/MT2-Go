@@ -19,6 +19,7 @@ Pages state facts in our own words. They never paste code from another server or
 | [chat.md](chat.md) | Packets with their own length, chat, and leaving the world through the game menu |
 | [other-players.md](other-players.md) | Seeing the others in range: arriving, moving, talking, leaving, and the view range |
 | [combat.md](combat.md) | Picking a monster, hitting it, its bar, its death and its return |
+| [bow.md](bow.md) | A ninja shooting a monster with a bow: aiming, the shot, arrows used up, and others seeing it fly |
 | [dying.md](dying.md) | A player's death to a monster, the restart dialog, and the experience it costs |
 | [experience.md](experience.md) | Experience from kills, shared by damage; levels, stat points and their buttons |
 | [equipment.md](equipment.md) | Putting on and taking off a weapon, body armour, a helmet, shoes and a shield, others seeing them, and what they add in a fight and to speed |

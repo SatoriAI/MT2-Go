@@ -194,3 +194,18 @@ func TestAPotionThatFoundHerFullShowsNoEffect(t *testing.T) {
 	expectNothing(t, client)
 	expectNothing(t, viewer)
 }
+
+// A potion kept used up whose news cannot reach a closed connection ends the session with
+// that error, and heals nothing.
+func TestAPotionDrunkOnAClosedConnectionEndsItAndHealsNothing(t *testing.T) {
+	s, kept, _, _ := thirsty(t, 1, 50, 1)
+	s.conn.Close()
+
+	if err := s.onItemUse(doubleClicked(10)); !errors.Is(err, net.ErrClosed) {
+		t.Fatalf("got %v", err)
+	}
+
+	if s.playing.HP != 1 || kept.count[10] != 49 {
+		t.Fatalf("at %d HP, kept %d", s.playing.HP, kept.count[10])
+	}
+}

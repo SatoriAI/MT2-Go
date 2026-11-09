@@ -190,3 +190,36 @@ func TestAPlayerWhoLeavesDeadIsKeptWholeAtTheStart(t *testing.T) {
 		t.Fatalf("kept with %d and %d at (%d, %d), want 950 and 850 at Jinno's start", hp, sp, x, y)
 	}
 }
+
+// Cien, a ninja with Łuk+0 and a hundred arrows worn, shoots the dog 1500 away as the
+// client does, FLY_TARGETING then SHOOT: the arrow lands, her arrows count down to 99,
+// kept, and the connection stays open.
+func TestANinjaShootsTheDogAndUsesAnArrow(t *testing.T) {
+	h := startWith(t, []world.Spawn{{VNum: 101, X: startX + 1500, Y: startY, Count: 1}})
+	cien, _ := h.enterWorld("admin", "Hendra", 3, 6)
+	cien.read(35) // the dog
+	cien.changeCharacter()
+	h.exec(`UPDATE characters SET class = 'ninja' WHERE name = 'Hendra'`)
+	h.exec(`INSERT INTO items (character_id, vnum, count, worn) SELECT id, 2000, 1, 'weapon' FROM characters WHERE name = 'Hendra'`)
+	h.exec(`INSERT INTO items (character_id, vnum, count, worn) SELECT id, 8000, 100, 'arrow' FROM characters WHERE name = 'Hendra'`)
+	cien.startAgain()
+	cien.read(35 + 2*42) // the dog, the bow and the arrows
+
+	fly := binary.LittleEndian.AppendUint32([]byte{byte(protocol.ClientFlyTarget)}, dogVID)
+	fly = binary.LittleEndian.AppendUint32(binary.LittleEndian.AppendUint32(fly, startX+1500), startY)
+	cien.send(fly, []byte{sequenceByte})
+	cien.send([]byte{byte(protocol.ClientShoot), 0}, []byte{sequenceByte})
+
+	if damage := cien.expectDamageOnTheDog(); damage < 1 {
+		t.Fatalf("the arrow did %d", damage)
+	}
+	arrows := cien.nextPastBites(42)
+	if arrows[0] != byte(protocol.ServerItemSet) || arrows[2] != 99 || arrows[8] != 99 {
+		t.Fatalf("got %x, want the arrows at 99, 99 left", arrows)
+	}
+	var left int
+	if err := h.accounts.Pool.QueryRow(t.Context(), `SELECT count FROM items WHERE vnum = 8000`).Scan(&left); err != nil || left != 99 {
+		t.Fatalf("kept %d, %v", left, err)
+	}
+	cien.expectOpenPastBites() // framed whole, sequence bytes and all
+}

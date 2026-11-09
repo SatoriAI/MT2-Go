@@ -25,6 +25,7 @@ const (
 	Head   Wear = "head" // a helmet
 	Feet   Wear = "feet" // shoes
 	Shield Wear = "shield"
+	Arrow  Wear = "arrow" // arrows, which a bow shoots
 )
 
 // Proto is one kind of item, as the client's item_proto describes it.
@@ -47,6 +48,7 @@ type Proto struct {
 	Sword     bool   // a one-handed sword, which some skills need in hand
 	TwoHanded bool   // a two-handed weapon, which some take as a sword
 	Dagger    bool   // a dagger, which the ninja's skills take
+	Bow       bool   // a bow, which shoots arrows and never strikes in melee
 	// Grade is how far the kind is upgraded, from +0 to MaxGrade, and Graded that it is
 	// upgraded at all: each grade is the next vnum, as the client numbers them.
 	Grade  uint8
@@ -58,6 +60,18 @@ type Proto struct {
 	// What a shop asks for one, and pays for one: the client's item_proto sell price
 	// divided by 5, as its tooltip works it out, so what it shows is what is paid.
 	Price, SellPrice uint32
+	// PerGold is how many a gold buys, for a kind the client flags COUNT_PER_1GOLD, whose
+	// item_proto price is that count rather than a price; 0 for the rest.
+	PerGold uint8
+}
+
+// PriceOf is what a shop asks for count of the kind: count over PerGold, never under 1,
+// for a kind sold by the gold, else Price for each.
+func (p Proto) PriceOf(count uint8) uint32 {
+	if p.PerGold > 0 {
+		return max(1, uint32(count/p.PerGold))
+	}
+	return p.Price * uint32(count)
 }
 
 var (
@@ -102,7 +116,12 @@ var protos = withGrades(map[uint32]Proto{
 	1000: {VNum: 1000, Name: "Sztylet+0", Size: 1, Stack: 1, Wear: Weapon,
 		Classes: []account.Class{account.Ninja}, AttackMin: 8, AttackMax: 11, Dagger: true, Price: 100, SellPrice: 0},
 	2000: {VNum: 2000, Name: "Łuk+0", Size: 2, Stack: 1, Wear: Weapon,
-		Classes: []account.Class{account.Ninja}, AttackMin: 7, AttackMax: 29, Price: 100, SellPrice: 0},
+		Classes: []account.Class{account.Ninja}, AttackMin: 7, AttackMax: 29, Bow: true, Price: 100, SellPrice: 0},
+	// Drewniana Strzała, the first arrow: VALUE3 adds 3 to the bow's least attack and
+	// VALUE4 none to its most, and its item_proto price, 5, is how many a gold buys
+	// (COUNT_PER_1GOLD).
+	8000: {VNum: 8000, Name: "Drewniana Strzała", Size: 1, Stack: MaxStack, Wear: Arrow,
+		Classes: []account.Class{account.Ninja}, AttackMin: 3, PerGold: 5},
 	3000: {VNum: 3000, Name: "Glewia+0", Size: 3, Stack: 1, Wear: Weapon,
 		Classes: []account.Class{account.Warrior}, AttackMin: 14, AttackMax: 22, TwoHanded: true, Price: 100, SellPrice: 0},
 	7000: {VNum: 7000, Name: "Wachlarz+0", Size: 1, Stack: 1, Wear: Weapon,

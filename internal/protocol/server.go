@@ -693,3 +693,15 @@ func EncodeRefineInfo(q RefineInfo) []byte {
 	}
 	return w.Bytes()
 }
+
+// EncodeFlyTarget tells those who see a shooter what their next arrow flies at, so their
+// client draws it flying there when the shot's motion lets it go. ServerAddFlyTarget's
+// bytes are the same, for each further target of a skill.
+func EncodeFlyTarget(header ServerHeader, shooter uint32, f FlyTarget) []byte {
+	w := NewWriter(byte(header), 17)
+	w.U32(shooter)
+	w.U32(f.Target)
+	w.I32(f.X)
+	w.I32(f.Y)
+	return w.Bytes()
+}

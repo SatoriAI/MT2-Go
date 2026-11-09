@@ -125,7 +125,10 @@ type session struct {
 	// The player's last blow, for the time a blow on the same victim must wait.
 	lastVictim uint32
 	lastBlow   time.Time
-	rand       *rand.Rand // this connection's own, for its blows' damage
+	// What the bow's next arrow flies at, 0 once it is shot, and when the last one landed.
+	flyTarget uint32
+	lastShot  time.Time
+	rand      *rand.Rand // this connection's own, for its blows' damage
 }
 
 // inFlightAfterLeaving are what the client may still send from its game window after
@@ -133,7 +136,7 @@ type session struct {
 var inFlightAfterLeaving = map[protocol.ClientHeader]bool{
 	protocol.ClientMove: true, protocol.ClientChat: true, protocol.ClientWhisper: true,
 	protocol.ClientAttack: true, protocol.ClientTarget: true, protocol.ClientOnClick: true, protocol.ClientShop: true, protocol.ClientScriptAnswer: true, protocol.ClientUseSkill: true,
-	protocol.ClientRefine: true,
+	protocol.ClientRefine: true, protocol.ClientFlyTarget: true, protocol.ClientAddFlyTarget: true, protocol.ClientShoot: true,
 }
 
 func (s *session) Open() error { return s.conn.Send(s.sync.Greeting()...) }
@@ -188,6 +191,12 @@ func (s *session) Handle(ctx context.Context, f protocol.Frame) error {
 		return s.onScriptAnswer(ctx, f.Body)
 	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientUseSkill:
 		return s.onUseSkill(f.Body)
+	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientFlyTarget:
+		return s.onFlyTarget(f.Body)
+	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientAddFlyTarget:
+		return s.onAddFlyTarget(f.Body)
+	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientShoot:
+		return s.onShoot(f.Body)
 	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientQuickslotAdd:
 		return s.onQuickslotAdd(f.Body)
 	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientQuickslotDel:
