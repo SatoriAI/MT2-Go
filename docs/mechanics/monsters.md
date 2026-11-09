@@ -44,11 +44,14 @@ The packets are the ones on [other-players.md](other-players.md) and [entering-t
   - **How many, per map:** each map in `internal/world/maps.go` has `Mobs`, which multiplies how many monsters each of its packs holds: 1 as they were placed, 2 twice as many, 0.5 half, rounded and never fewer than one. NPCs, stones and pack leaders stay one each, and the packs keep their places, so turning it up crowds the same ground rather than spreading wider. It is 1 for all three first maps; raising it raises the world loop's load, so run `make bench` with it.
   - **Where:** pack centres 2,500 apart within 30,000 and 4,000 beyond, and 2,500 from every NPC and 3,500 from every stone's spot. A monster stands up to 800 from its centre and strolls 600 more, so the nearest may come within some 1,100 of the village's start or an NPC: the edge of the village, as the veteran asked, not inside it. Each pack puts its monsters at random points within 800 of its centre.
   - **Terrain:** the places were chosen by a throwaway script over the client's own terrain: within the pack's 800 and a stroll of 600, no water cell in the attribute map (`attr.atr`), at most 2 in 100 of its cells blocked, such as single trees, and no step steeper than 60 height units per 200 in the height map (`height.raw`, times its HeightScale of 0.5). The very first areas, placed by eye on the minimap, put one of Jinno's on a cliff, 69% of it blocked.
+  - **The cursed packs:** further out, from 30,000, stand the cursed kinds, which attack on sight (below): Przeklęty Alfa Wilk leading three Przeklęty Wilk, Przeklęty Nieb. Wilk and Przeklęty Dzik within 42,000; past it Przekl. Nieb. Alfa Wilk, Przekl. Szary Alfa Wilk and Przeklęty Czerw. Dzik each leading three of their kin, and packs of Przeklęty Niedźw. and Przeklęty Szary Wilk. Nine packs a map, placed by the same script among the others, 4,000 from every pack, back after 60 s. Biały Tygrys (115), the cursed tiger, is level 24, above every band, and is left out.
   - **Chunjo's village** sits among walls and rough ground, so its open land near the gate holds 6 dog packs, the nearest 4,100 out, against 15 to 17 in the other two villages, the nearest 2,600 out.
 - **The world loop** (`internal/game/monsters.go`, `docs/decisions/world-loop.md`) starts with the server. It puts every mob in the world record, then every 100 ms walks each monster whose stroll is due: a random point within 600 of where it was spawned, every 5 to 25 seconds, open-mt2's numbers for an idle monster. A monster fighting a player does not stroll; it walks home when it gives up and strolls again from there ([combat.md](combat.md)).
 - **Seeing:** mobs are on the same world record as players, under the same view rule and order (`internal/game/presence.go`). A player sees mobs within 8000 on the same map, and a mob walking into view appears before its move, already where it was heading, as a player does. Where a character stands and the way it last faced are kept, so someone meeting a monster after a stroll sees it facing the way it went. Mobs never see each other. A player entering sees the mobs in view in the same single send as the players.
 - **The sura's teachers** stand a few steps east of the old lady in each village, at this server's own spots, as the minimap marks leave them out, not checked against the terrain; clicking one opens their dialog ([skills.md](skills.md)). The blacksmith, Kowal (20016), stands a few steps further east, on the same terms ([upgrading.md](upgrading.md)).
 - **Names are players' only:** a whisper to an NPC's name finds nobody.
+- **Packs fight together** (`internal/game/aggro.go`): the monsters of the spawns sharing a centre are a pack, a leader among them. When one starts a fight, hit or on sight, every packmate alive within 3,000 of it and fighting no one turns on the same player. A pack comes back together: none of it returns while any of it lives, and all of it returns its band's time after its last member died.
+- **Attacking on sight:** a kind the client's `mob_proto` flags AGGR attacks, every tick, the nearest player it sees within 2,000, its AGGRESSIVE_SIGHT, with its pack. It ignores the dead, a player more than 10 levels above it, and anyone for 5 seconds after they enter the world or rise. None of the first maps' own kinds, dogs to tigers, carries the flag, so the fields within 30,000 stay as safe as the original's; only the cursed kinds attack. The loop keeps the aggressive monsters on a list of their own, so an idle tick looks only at those. The client's AGGRESSIVE_HP_PCT is not used: what it did is not settled.
 
 ## How we know
 
@@ -61,6 +64,10 @@ The packets are the ones on [other-players.md](other-players.md) and [entering-t
 - `internal/mob/mob_test.go`: every kind the world spawns is known and has real speeds; only monsters wander.
 - `internal/world/spawns_test.go`: every spawn area lies on its map; spawns are in world coordinates; a blacksmith in each first village; every monster in its band and back after the time its distance gives; every pack 3 to 5 of one kind or a leader with three of its kin; pack centres apart, and 2,500 from every NPC and 3,500 from every stone's spot; each village with at least 380 monsters, at least 70 within 15,000 of the start, the nearest pack within 4,500; a spawn carrying its time to come back; a map's `Mobs` multiplying its own packs only, never below one, leaving leaders, NPCs and stones; every map setting `Mobs`.
 - `internal/game/combat_test.go`: a monster coming back after its spawn's own time.
+- `internal/game/packs_test.go`:
+  - hit one of a pack and the pack coming, another pack beside it not; a leader coming with its kin; a packmate 3,001 off or fighting another staying out; a pack coming back only whole, its time after its last died;
+  - an aggressive monster attacking within 2,000 with its pack, not at 2,001; a passive kind never looking out; the dead, a player 11 levels above, and one just risen left alone, one 10 above or risen 5 s ago attacked; the nearer of two attacked; entering and rising leaving a player unseen 5 s;
+  - a cursed wolf spawned in the world attacking on the next tick; nothing aggressive within 10,000 of a village.
 - `internal/game/monsters_test.go`, with a fixed seed and the time given:
   - a monster standing until its stroll is due, then walking within 600 of home with type 0, facing where it goes;
   - resting between strolls;
@@ -82,8 +89,8 @@ What a monster leaves when it dies is on [drops.md](drops.md).
 
 ## Not done yet
 
-- Aggressive monsters noticing players.
-- Bosses and groups of monsters. Metin stones have their own page, [stones.md](stones.md).
+- A cap on how many packs may chase one player; the debaters left it out.
+- Bosses. Metin stones have their own page, [stones.md](stones.md).
 - Warps, and the other maps.
 - Shops and talking to NPCs.
 - Terrain: the server has no heights or walls of its own. The areas are chosen so that no stroll can reach a blocked or water cell, but a monster does not avoid anything itself.

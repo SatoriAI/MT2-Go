@@ -37,6 +37,7 @@ type Proto struct {
 	DamageMin   uint16 // the dice its bites roll
 	DamageMax   uint16
 	AttackRange uint16 // how far its bite reaches
+	Aggressive  bool   // it attacks players it sees, the client's AGGR, rather than only fighting back
 	// It heals RegenPercent of its hit points every RegenCycle seconds while hurt.
 	RegenCycle   uint8
 	RegenPercent uint8
@@ -198,6 +199,44 @@ var protos = map[uint16]Proto{
 		Level: 18, MaxHP: 585, Vitality: 27, Armour: 22, Exp: 365,
 		Strength: 18, DamageMin: 49, DamageMax: 60, AttackRange: 175,
 		RegenCycle: 6, RegenPercent: 12, Drops: gear, Yang: Yang{Chance: 6000, Min: 35, Max: 60}},
+	// The cursed kinds, the client's AGGR, which attack players they see, each with the stats
+	// of the client's mob_proto dump and yang a little above its passive kin of its level.
+	131: {VNum: 131, Name: "Przeklęty Wilk", Kind: Monster, MoveSpeed: 120, AttackSpeed: 100, Aggressive: true,
+		Level: 8, MaxHP: 435, Vitality: 31, Armour: 12, Exp: 198,
+		Strength: 16, DamageMin: 32, DamageMax: 39, AttackRange: 175,
+		RegenCycle: 6, RegenPercent: 7, Drops: wolfDrops, Yang: Yang{Chance: 6000, Min: 15, Max: 30}},
+	132: {VNum: 132, Name: "Przeklęty Alfa Wilk", Kind: Monster, MoveSpeed: 120, AttackSpeed: 100, Aggressive: true,
+		Level: 9, MaxHP: 743, Vitality: 31, Armour: 13, Exp: 444,
+		Strength: 23, DamageMin: 33, DamageMax: 41, AttackRange: 175,
+		RegenCycle: 6, RegenPercent: 7, Drops: alphaWolfDrops, Yang: Yang{Chance: 6000, Min: 20, Max: 40}},
+	133: {VNum: 133, Name: "Przeklęty Nieb. Wilk", Kind: Monster, MoveSpeed: 120, AttackSpeed: 100, Aggressive: true,
+		Level: 11, MaxHP: 564, Vitality: 32, Armour: 15, Exp: 270,
+		Strength: 16, DamageMin: 37, DamageMax: 45, AttackRange: 175,
+		RegenCycle: 6, RegenPercent: 7, Drops: wolfDrops, Yang: Yang{Chance: 6000, Min: 25, Max: 45}},
+	134: {VNum: 134, Name: "Przekl. Nieb. Alfa Wilk", Kind: Monster, MoveSpeed: 120, AttackSpeed: 100, Aggressive: true,
+		Level: 14, MaxHP: 1110, Vitality: 32, Armour: 18, Exp: 684,
+		Strength: 24, DamageMin: 42, DamageMax: 51, AttackRange: 175,
+		RegenCycle: 6, RegenPercent: 7, Drops: alphaWolfDrops, Yang: Yang{Chance: 6000, Min: 35, Max: 60}},
+	135: {VNum: 135, Name: "Przeklęty Szary Wilk", Kind: Monster, MoveSpeed: 120, AttackSpeed: 100, Aggressive: true,
+		Level: 18, MaxHP: 936, Vitality: 25, Armour: 22, Exp: 438,
+		Strength: 17, DamageMin: 49, DamageMax: 60, AttackRange: 175,
+		RegenCycle: 6, RegenPercent: 7, Drops: wolfDrops, Yang: Yang{Chance: 6000, Min: 45, Max: 80}},
+	136: {VNum: 136, Name: "Przekl. Szary Alfa Wilk", Kind: Monster, MoveSpeed: 120, AttackSpeed: 100, Aggressive: true,
+		Level: 21, MaxHP: 1761, Vitality: 17, Armour: 26, Exp: 1020,
+		Strength: 33, DamageMin: 42, DamageMax: 78, AttackRange: 175,
+		RegenCycle: 6, RegenPercent: 12, Drops: alphaWolfDrops, Yang: Yang{Chance: 6000, Min: 55, Max: 90}},
+	137: {VNum: 137, Name: "Przeklęty Dzik", Kind: Monster, MoveSpeed: 120, AttackSpeed: 100, Aggressive: true,
+		Level: 12, MaxHP: 610, Vitality: 26, Armour: 16, Exp: 294,
+		Strength: 35, DamageMin: 30, DamageMax: 56, AttackRange: 175,
+		RegenCycle: 6, RegenPercent: 7, Drops: boarDrops, Yang: Yang{Chance: 6000, Min: 30, Max: 55}},
+	138: {VNum: 138, Name: "Przeklęty Czerw. Dzik", Kind: Monster, MoveSpeed: 120, AttackSpeed: 100, Aggressive: true,
+		Level: 15, MaxHP: 1192, Vitality: 26, Armour: 19, Exp: 732,
+		Strength: 35, DamageMin: 44, DamageMax: 53, AttackRange: 175,
+		RegenCycle: 6, RegenPercent: 7, Drops: boarDrops, Yang: Yang{Chance: 6000, Min: 40, Max: 70}},
+	139: {VNum: 139, Name: "Przeklęty Niedźw.", Kind: Monster, MoveSpeed: 120, AttackSpeed: 100, Aggressive: true,
+		Level: 17, MaxHP: 875, Vitality: 27, Armour: 21, Exp: 414,
+		Strength: 36, DamageMin: 37, DamageMax: 68, AttackRange: 175,
+		RegenCycle: 6, RegenPercent: 7, Drops: gear, Yang: Yang{Chance: 6000, Min: 45, Max: 75}},
 
 	8001: {VNum: 8001, Name: "Metin Cierpienia", Kind: Stone, MoveSpeed: 109, AttackSpeed: 104,
 		Level: 5, MaxHP: 7000, Vitality: 6, Armour: 8, Exp: 900, RegenCycle: 5, RegenPercent: 1,

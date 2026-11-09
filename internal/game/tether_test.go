@@ -104,7 +104,7 @@ func TestMovesCannotBeChainedPastTheTether(t *testing.T) {
 func TestTheTetherFollowsWhereTheServerPutsHer(t *testing.T) {
 	s, hendra, _ := walking(t)
 	hendra.char.HP = 0
-	if !s.svc.presence.revive(1000, true, homeX+50000, homeY) {
+	if !s.svc.presence.revive(1000, true, homeX+50000, homeY, noon) {
 		t.Fatal("not revived")
 	}
 
@@ -201,7 +201,7 @@ func TestRisingHereStartsTheTetherAfresh(t *testing.T) {
 	s, hendra, _ := walking(t)
 	walkTo(t, s, 0, 0)
 	hendra.char.HP = 0
-	if !s.svc.presence.revive(1000, false, 0, 0) {
+	if !s.svc.presence.revive(1000, false, 0, 0, noon) {
 		t.Fatal("not revived")
 	}
 

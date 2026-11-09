@@ -89,6 +89,7 @@ type loop struct {
 	poisons   []poisoning
 	drainings []draining
 	burnings  []burning
+	watchers  []*monster // the aggressive monsters, which look out for players each tick
 	// nextPlayerRegen is when the loop next heals the players.
 	nextPlayerRegen time.Time
 	// The drops on the ground, in the order they fell, to free and to clear away.

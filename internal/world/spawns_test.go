@@ -62,6 +62,10 @@ var bands = map[uint16]struct{ from, to float64 }{
 	103: {9000, 30000}, 104: {18000, 30000},
 	105: {18000, 42000}, 109: {30000, 42000},
 	110: {30000, 55000}, 111: {42000, 55000}, 114: {42000, 55000},
+	// the cursed, which attack on sight, in the far bands only
+	131: {30000, 42000}, 132: {30000, 42000},
+	133: {30000, 55000}, 137: {30000, 55000}, // kin of a far leader too
+	134: {42000, 55000}, 135: {42000, 55000}, 136: {42000, 55000}, 138: {42000, 55000}, 139: {42000, 55000},
 }
 
 // backAfter is how long a pack that far from the start takes to come back, in seconds.
@@ -76,8 +80,9 @@ func backAfter(d float64) int {
 }
 
 // leaders are the kinds that lead a pack of their kin: an alpha wolf three wolves, an
-// alpha blue wolf three blue wolves.
-var leaders = map[uint16]uint16{103: 102, 105: 104}
+// alpha blue wolf three blue wolves, and each cursed alpha, and the cursed red boar, three
+// of their cursed kin.
+var leaders = map[uint16]uint16{103: 102, 105: 104, 132: 131, 134: 133, 136: 135, 138: 137}
 
 // monsterAreas are each first village's monster packs.
 func monsterAreas(t *testing.T) map[string][]spawnAt {
