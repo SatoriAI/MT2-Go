@@ -138,5 +138,4 @@ Seen from the real client: a red potion laid at (977491, 272599) is `1a 53ea0e00
 - Parties sharing loot.
 - Drops with a range of counts.
 - Splitting a stack across cells.
-- Ground items kept by map, if there are ever thousands.
 - A limit on how often or how little a player drops, for a public server: a modified client could fill the ground with single potions or 1 yang at a time.

@@ -5,11 +5,13 @@ package game
 
 import (
 	"context"
+	"encoding/binary"
 	"io"
 	"log/slog"
 	"math/rand/v2"
 	"net"
 	"net/netip"
+	"slices"
 	"testing"
 	"time"
 
@@ -116,4 +118,71 @@ func playingAs(p *present) *character {
 	c := &character{vid: p.add.VID, Character: *p.char}
 	p.char = &c.Character
 	return c
+}
+
+// fixedSizes are the lengths of the packets the world sends that have no length of their
+// own, taken from their encoders, so they follow the protocol. Only those sent in the
+// world are here; the login and selection phases' are not.
+var fixedSizes = map[protocol.ServerHeader]int{
+	protocol.ServerCharacterAdd:     len(protocol.EncodeCharacterAdd(protocol.CharacterAdd{}, 0)),
+	protocol.ServerCharacterInfo:    len(protocol.EncodeCharacterInfo(protocol.CharacterInfo{})),
+	protocol.ServerCharacterDelete:  len(protocol.EncodeCharacterDelete(0)),
+	protocol.ServerCharacterUpdate:  len(protocol.EncodeCharacterUpdate(protocol.CharacterInfo{}, protocol.CharacterAdd{}, 0)),
+	protocol.ServerMove:             len(protocol.EncodeMove(0, protocol.Move{})),
+	protocol.ServerPointChange:      len(protocol.EncodePointChange(0, 0, 0, 0)),
+	protocol.ServerTarget:           len(protocol.EncodeTarget(0, 0)),
+	protocol.ServerDamage:           len(protocol.EncodeDamage(0, 0, 0)),
+	protocol.ServerDead:             len(protocol.EncodeDead(0)),
+	protocol.ServerItemSet:          len(protocol.EncodeItemSet(protocol.ItemPos{}, 0, 0)),
+	protocol.ServerGroundAdd:        len(protocol.EncodeGroundAdd(0, 0, 0, 0)),
+	protocol.ServerGroundDel:        len(protocol.EncodeGroundDel(0)),
+	protocol.ServerItemOwner:        len(protocol.EncodeItemOwner(0, "")),
+	protocol.ServerSpecialEffect:    len(protocol.EncodeSpecialEffect(0, 0)),
+	protocol.ServerQuickslotAdd:     len(protocol.EncodeQuickslotAdd(protocol.QuickslotAdd{})),
+	protocol.ServerQuickslotDel:     len(protocol.EncodeQuickslotDel(0)),
+	protocol.ServerQuickslotSwap:    len(protocol.EncodeQuickslotSwap(0, 0)),
+	protocol.ServerSkillLevels:      len(protocol.EncodeSkillLevels(protocol.SkillLevels{})),
+	protocol.ServerChangeSkillGroup: len(protocol.EncodeChangeSkillGroup(0)),
+	protocol.ServerFlyTarget:        len(protocol.EncodeFlyTarget(protocol.ServerFlyTarget, 0, protocol.FlyTarget{})),
+	protocol.ServerAddFlyTarget:     len(protocol.EncodeFlyTarget(protocol.ServerAddFlyTarget, 0, protocol.FlyTarget{})),
+	protocol.ServerRefineInfo:       len(protocol.EncodeRefineInfo(protocol.RefineInfo{})),
+	protocol.ServerPhase:            len(protocol.EncodePhase(0)),
+	protocol.ServerPoints:           len(protocol.EncodePoints(protocol.CharacterPoints{})),
+	protocol.ServerMainCharacter:    len(protocol.EncodeMainCharacter(protocol.MainCharacter{})),
+	protocol.ServerTime:             len(protocol.EncodeTime(0)),
+	protocol.ServerChannel:          len(protocol.EncodeChannel(0)),
+}
+
+// packets cuts what a client was sent into whole packets, by each one's length: its own,
+// for those that carry it after their header, or its encoder's. A header it does not know
+// fails the test, so a check never reads a byte inside another packet as a header.
+func packets(t *testing.T, b []byte) [][]byte {
+	t.Helper()
+	var cut [][]byte
+	for len(b) > 0 {
+		h := protocol.ServerHeader(b[0])
+		n, fixed := fixedSizes[h]
+		switch {
+		case fixed:
+		case h == protocol.ServerChat || h == protocol.ServerWhisper || h == protocol.ServerScript ||
+			h == protocol.ServerShop || h == protocol.ServerSyncPosition:
+			if len(b) < 3 {
+				t.Fatalf("a packet %02x cut off before its length: %x", byte(h), b)
+			}
+			n = int(binary.LittleEndian.Uint16(b[1:3]))
+		default:
+			t.Fatalf("a packet of unknown header %02x in %x", byte(h), b)
+		}
+		if n < 1 || n > len(b) {
+			t.Fatalf("a packet %02x of %d bytes in %d left: %x", byte(h), n, len(b), b)
+		}
+		cut, b = append(cut, b[:n]), b[n:]
+	}
+	return cut
+}
+
+// sent is whether what a client was sent holds a packet of the header.
+func sent(t *testing.T, b []byte, h protocol.ServerHeader) bool {
+	t.Helper()
+	return slices.ContainsFunc(packets(t, b), func(p []byte) bool { return protocol.ServerHeader(p[0]) == h })
 }

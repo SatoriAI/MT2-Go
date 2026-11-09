@@ -129,9 +129,24 @@ func (w *presence) drop(body *present, items []*groundItem) {
 		if it.gold > 0 && w.event != nil {
 			it.gold = w.event.Yang(it.gold)
 		}
-		w.ground[it.vid] = it
+		w.lay(it)
 		w.toNear(it, shown(it)...)
 	}
+}
+
+// lay puts the item on the ground, by its vid and on its map. Called under the lock.
+func (w *presence) lay(it *groundItem) {
+	w.ground[it.vid] = it
+	if w.groundOn[it.world] == nil {
+		w.groundOn[it.world] = map[uint32]*groundItem{}
+	}
+	w.groundOn[it.world][it.vid] = it
+}
+
+// lift takes the item off the ground. Called under the lock.
+func (w *presence) lift(it *groundItem) {
+	delete(w.ground, it.vid)
+	delete(w.groundOn[it.world], it.vid)
 }
 
 // layDown puts an item the player dropped on the ground, dx and dy from where they stand,
@@ -142,7 +157,7 @@ func (w *presence) layDown(playerVID uint32, it *groundItem, dx, dy int32) {
 	defer w.mu.Unlock()
 	p := w.all[playerVID]
 	it.world, it.x, it.y = p.world, p.add.X+dx, p.add.Y+dy
-	w.ground[it.vid] = it
+	w.lay(it)
 	w.toNear(it, shown(it)...)
 	w.laid = append(w.laid, timed{it.vid, it.dropped.Add(lieFor)})
 }
@@ -162,7 +177,7 @@ func (w *presence) vanish(vid uint32) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if it := w.ground[vid]; it != nil {
-		delete(w.ground, vid)
+		w.lift(it)
 		w.toNear(it, protocol.EncodeGroundDel(vid))
 	}
 }
@@ -196,7 +211,7 @@ func seesAt(world string, x, y int32, it *groundItem) bool {
 // moved from (fromX, fromY) to where they stand. Called under the lock.
 func (w *presence) groundSeen(p *present, fromX, fromY int32) [][]byte {
 	var packets [][]byte
-	for _, it := range w.ground {
+	for _, it := range w.groundOn[p.world] {
 		was, is := seesAt(p.world, fromX, fromY, it), seesAt(p.world, p.add.X, p.add.Y, it)
 		switch {
 		case is && !was:
@@ -212,7 +227,7 @@ func (w *presence) groundSeen(p *present, fromX, fromY int32) [][]byte {
 // with gone, as leaving takes them away. Called under the lock.
 func (w *presence) groundInView(p *present, gone bool) [][]byte {
 	var packets [][]byte
-	for _, it := range w.ground {
+	for _, it := range w.groundOn[p.world] {
 		switch {
 		case !seesAt(p.world, p.add.X, p.add.Y, it):
 		case gone:
@@ -248,7 +263,7 @@ func (w *presence) pickUp(playerVID, vid uint32, room func(*groundItem) bool) (g
 	case !room(it):
 		return groundItem{}, pickNoRoom
 	}
-	delete(w.ground, vid)
+	w.lift(it)
 	w.toNear(it, protocol.EncodeGroundDel(vid))
 	return *it, picked
 }
@@ -264,7 +279,7 @@ func (w *presence) putBack(it groundItem, now time.Time) {
 	}
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	w.ground[it.vid] = &it
+	w.lay(&it)
 	w.toNear(&it, shown(&it)...)
 }
 

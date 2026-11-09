@@ -186,8 +186,8 @@ func ahead(p, o *present) bool {
 // one, and every living monster the player sees within its reach of it, only those in
 // front of the player if the attack strikes ahead of them, the nearest first up to its
 // number, each for percent of a blow's damage, or its splash share of that, through the
-// same defence and luck, as many times as it hits while the victim lives. A stunning
-// attack may stun each it leaves alive. Called under the lock.
+// same defence and luck, as many times as it hits while the victim lives. Each it leaves
+// alive may be afflicted as the attack afflicts (afflictions). Called under the lock.
 func (w *presence) splash(pl, at *present, proto skill.Proto, percent int, level uint8, now time.Time, r *rand.Rand) {
 	victims := victimsOf(pl, at, proto)
 	a := attackerOf(pl.char)
@@ -217,19 +217,54 @@ func (w *presence) splash(pl, at *present, proto skill.Proto, percent int, level
 		if blow != blowLanded || v.fight.stone {
 			continue
 		}
-		if proto.Stuns > 0 && r.IntN(1000) < proto.StunChance(level) {
-			w.stun(v, now)
-		}
-		if chance := int(proto.Poisons.At(skill.Power(level))); chance > 0 && r.IntN(1000) < chance {
-			w.poison(v, pl, now)
-		}
-		if proto.Slows && r.IntN(1000) < skill.SlowChance(level) {
-			w.slow(v, now.Add(skill.SlowsFor(level)))
-		}
-		if c := pl.char; proto.Burns && r.IntN(1000) < skill.BurnChance(c.Intelligence, level) {
-			w.burn(v, pl, max(1, skill.BurnDamage(c.Level, c.Intelligence, level)/burnTurns))
+		for _, af := range afflictions {
+			if chance, has := af.chance(proto, pl.char, level); has && r.IntN(1000) < chance {
+				af.put(w, pl, v, level, now)
+			}
 		}
 	}
+}
+
+// affliction is a status an attack may put on each monster it leaves alive: whether the
+// attack has it and its chance, in thousandths, and what putting it on does. Called under
+// the lock.
+type affliction struct {
+	chance func(proto skill.Proto, c *account.Character, level uint8) (int, bool)
+	put    func(w *presence, by, v *present, level uint8, now time.Time)
+}
+
+// afflictions are rolled in this order, so a fixed seed rolls each the same.
+var afflictions = []affliction{
+	{ // a stun
+		chance: func(p skill.Proto, _ *account.Character, level uint8) (int, bool) {
+			return p.StunChance(level), p.Stuns > 0
+		},
+		put: func(w *presence, _, v *present, _ uint8, now time.Time) { w.stun(v, now) },
+	},
+	{ // a poison
+		chance: func(p skill.Proto, _ *account.Character, level uint8) (int, bool) {
+			chance := int(p.Poisons.At(skill.Power(level)))
+			return chance, chance > 0
+		},
+		put: func(w *presence, by, v *present, _ uint8, now time.Time) { w.poison(v, by, now) },
+	},
+	{ // a slow
+		chance: func(p skill.Proto, _ *account.Character, level uint8) (int, bool) {
+			return skill.SlowChance(level), p.Slows
+		},
+		put: func(w *presence, _, v *present, level uint8, now time.Time) {
+			w.slow(v, now.Add(skill.SlowsFor(level)))
+		},
+	},
+	{ // a burn
+		chance: func(p skill.Proto, c *account.Character, level uint8) (int, bool) {
+			return skill.BurnChance(c.Intelligence, level), p.Burns
+		},
+		put: func(w *presence, by, v *present, level uint8, _ time.Time) {
+			c := by.char
+			w.burn(v, by, max(1, skill.BurnDamage(c.Level, c.Intelligence, level)/burnTurns))
+		},
+	},
 }
 
 // chainLoss is how much weaker, in hundredths, each jump of a chain strikes than the one

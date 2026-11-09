@@ -102,7 +102,7 @@ func BenchmarkPlayerMoveAmongDrops(b *testing.B) {
 				x, y := m.x+1000+r.Int32N(mapWidth-2000), m.y+1000+r.Int32N(mapHeight-2000)
 				on, _ := world.MapAt(x, y)
 				vid := uint32(900000 + i)
-				s.presence.ground[vid] = &groundItem{vid: vid, world: on.Name, x: x, y: y, vnum: 27001, count: 1}
+				s.presence.lay(&groundItem{vid: vid, world: on.Name, x: x, y: y, vnum: 27001, count: 1})
 			}
 			out.sends.Store(0)
 			b.ReportAllocs()

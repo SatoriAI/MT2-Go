@@ -83,7 +83,7 @@ func TestAShotLandsAndUsesAnArrow(t *testing.T) {
 	shot(t, s, 0)
 
 	got := drain(t, client)
-	if hurt(s) == 0 || !bytes.Contains(got, []byte{byte(protocol.ServerDamage)}) {
+	if hurt(s) == 0 || !sent(t, got, protocol.ServerDamage) {
 		t.Fatalf("the dog took %d, she got %x", hurt(s), got)
 	}
 	if !bytes.Contains(got, itemSet(item.Item{ID: 2, VNum: 8000, Count: 99, Worn: item.Arrow})) || kept.count[2] != 99 {

@@ -1,9 +1,9 @@
 package game
 
 import (
-	"bytes"
 	"math/rand/v2"
 	"net"
+	"slices"
 	"testing"
 	"time"
 
@@ -229,9 +229,12 @@ func TestBerserkMakesHerTakeMoreOfEveryBite(t *testing.T) {
 		s.rand = rand.New(rand.NewPCG(9, 9)) //nolint:gosec // the same roll for both
 		c.HP = 10000
 		s.tick(noon)
-		got := drain(t, client)
-		i := bytes.IndexByte(got[moveSize:], byte(protocol.ServerDamage))
-		d := protocol.NewReader(got[moveSize+i+1:])
+		got := packets(t, drain(t, client))
+		i := slices.IndexFunc(got, func(p []byte) bool { return protocol.ServerHeader(p[0]) == protocol.ServerDamage })
+		if i < 0 {
+			t.Fatal("no bite told")
+		}
+		d := protocol.NewReader(got[i][1:])
 		_, _, damage := d.U32(), d.U8(), d.I32()
 		return damage
 	}
