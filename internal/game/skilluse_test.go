@@ -147,7 +147,7 @@ func TestDragonSwirlWaitsForItsCooldownAndSparesTheDead(t *testing.T) {
 func TestASkillThatCannotBeUsedIsNot(t *testing.T) {
 	cases := map[string]func(s *session) []byte{
 		"cooling down": func(s *session) []byte {
-			s.svc.cooldowns.used(s.playing.ID, skill.DragonSwirl, noon.Add(-14*time.Second))
+			s.svc.cooldowns.used(s.playing.ID, skill.DragonSwirl, noon.Add(time.Second))
 			return used(skill.DragonSwirl)
 		},
 		"too little mana": func(s *session) []byte { s.svc.presence.all[1000].char.SP = 56; return used(skill.DragonSwirl) },

@@ -128,7 +128,7 @@ func TestShootingDragonSetsSomeAlightButNeverAStone(t *testing.T) {
 	}
 	stone := s.monsters[0]
 	for range 100 {
-		s.presence.useSkill(1000, skill.ShootingDragon, stone.p.add.VID, noon, 0, s.rand, func(time.Duration) bool { return true })
+		s.presence.useSkill(1000, skill.ShootingDragon, stone.p.add.VID, noon, 0, s.rand, func() bool { return true })
 	}
 	alight := 0
 	for _, m := range s.monsters[1:] {
@@ -203,7 +203,7 @@ func TestAnAttackThatDoesNotStunNeverStuns(t *testing.T) {
 	s, _ := warring(t, 1)
 	s.svc.presence.all[1000].char.SP = 100000
 	for range 200 {
-		s.svc.presence.useSkill(1000, skill.SwordSpin, 0, noon, 0, s.rand, func(time.Duration) bool { return true })
+		s.svc.presence.useSkill(1000, skill.SwordSpin, 0, noon, 0, s.rand, func() bool { return true })
 	}
 	if s.svc.monsters[0].p.fight.stunned {
 		t.Fatal("stunned by a spin")

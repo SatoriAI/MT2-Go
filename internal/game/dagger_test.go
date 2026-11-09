@@ -143,7 +143,7 @@ func TestRollingDaggerPoisonsSomeButNeverAStone(t *testing.T) {
 		m.p.fight.hp, m.p.fight.maxHP = 1000000, 1000000
 	}
 	for range 200 {
-		s.presence.useSkill(1000, skill.RollingDagger, 0, noon, 0, s.rand, func(time.Duration) bool { return true })
+		s.presence.useSkill(1000, skill.RollingDagger, 0, noon, 0, s.rand, func() bool { return true })
 	}
 	stone, poisoned := s.monsters[0], 0
 	for _, m := range s.monsters[1:] {
@@ -289,7 +289,7 @@ func TestFastAttackTimesItsDashAndBacksTheNearOut(t *testing.T) {
 	drain(t, client)
 	drain(t, kira)
 
-	s.svc.presence.useSkill(1000, skill.FastAttack, dog.p.add.VID, noon, 4242, s.rand, func(time.Duration) bool { return true })
+	s.svc.presence.useSkill(1000, skill.FastAttack, dog.p.add.VID, noon, 4242, s.rand, func() bool { return true })
 
 	got := drain(t, kira)
 	i := bytes.IndexByte(got, byte(protocol.ServerMove))
@@ -300,7 +300,7 @@ func TestFastAttackTimesItsDashAndBacksTheNearOut(t *testing.T) {
 	s.svc.presence.mu.Lock()
 	s.svc.presence.moveLocked(pl, protocol.Move{X: dog.p.add.X - 200, Y: homeY})
 	s.svc.presence.mu.Unlock()
-	s.svc.presence.useSkill(1000, skill.FastAttack, dog.p.add.VID, noon, 4243, s.rand, func(time.Duration) bool { return true })
+	s.svc.presence.useSkill(1000, skill.FastAttack, dog.p.add.VID, noon, 4243, s.rand, func() bool { return true })
 	if pl.add.X != dog.p.add.X-dashStop {
 		t.Fatalf("at %d, want %d", pl.add.X, dog.p.add.X-dashStop)
 	}

@@ -281,6 +281,12 @@ var skillVNums = map[account.Skill]uint8{
 	skill.LightningThrow:  106,
 	skill.SummonLightning: 107,
 	skill.LightningClaw:   108,
+	skill.Blessing:        94,
+	skill.Reflection:      95,
+	skill.DragonsHelp:     96,
+	skill.Heal:            109,
+	skill.Swiftness:       110,
+	skill.AttackUp:        111,
 }
 
 // castingSpeed is what the client is told a character's casting speed is: 100, at which it
@@ -289,7 +295,8 @@ const castingSpeed = 100
 
 // affectBits are the bits a buff sets in a character's effects, which the client draws,
 // its AFFECT_ numbers (InstanceBase.h): 19 is the glow Enchanted Blade puts on the blade,
-// 14 Berserk's, 15 Sword Aura's, 16 Strong Body's and 25 Dark Protection's.
+// 14 Berserk's, 15 Sword Aura's, 16 Strong Body's, 25 Dark Protection's, and the shaman's
+// 22, 23, 24, 29 and 30.
 var affectBits = map[account.Skill]uint64{
 	skill.EnchantedBlade:  1 << 19,
 	skill.EnchantedArmour: 1 << 21,
@@ -297,6 +304,11 @@ var affectBits = map[account.Skill]uint64{
 	skill.SwordAura:       1 << 15,
 	skill.StrongBody:      1 << 16,
 	skill.DarkProtection:  1 << 25,
+	skill.Blessing:        1 << 22,
+	skill.Reflection:      1 << 23,
+	skill.Swiftness:       1 << 24,
+	skill.DragonsHelp:     1 << 29,
+	skill.AttackUp:        1 << 30,
 }
 
 // affectsOf is the effects the client draws on a character: a bit for each buff running.
@@ -368,6 +380,12 @@ var skillWindowSlots = map[account.Skill]uint8{
 	skill.LightningThrow:  1,
 	skill.SummonLightning: 2,
 	skill.LightningClaw:   3,
+	skill.Blessing:        4,
+	skill.Reflection:      5,
+	skill.DragonsHelp:     6,
+	skill.Heal:            4,
+	skill.Swiftness:       5,
+	skill.AttackUp:        6,
 }
 
 // skillByWindowSlot is the skill of the group at a place in the skill window, if the game

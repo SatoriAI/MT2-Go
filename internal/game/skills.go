@@ -193,8 +193,9 @@ func (w *presence) mayRaise(vid uint32, sk account.Skill) bool {
 }
 
 // raised puts the skill at its new level, and returns every skill's level for the client
-// and the points left. A buff of it running adds at its level now, so its effects are
-// shown again, with the defence or speeds it raises.
+// and the points left. A self-buff of it running adds at its level now, so its effects are
+// shown again, with the defence or speeds it raises; a shaman's buff keeps the level and
+// INT it was cast at, until cast again.
 func (w *presence) raised(vid uint32, sk account.Skill, level uint8) (protocol.SkillLevels, uint32) {
 	w.mu.Lock()
 	defer w.mu.Unlock()

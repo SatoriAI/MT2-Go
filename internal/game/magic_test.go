@@ -193,7 +193,7 @@ func TestTurningDarkProtectionOffStartsNoCooldown(t *testing.T) {
 	if err := s.onUseSkill(used(skill.DarkProtection)); err != nil {
 		t.Fatal(err)
 	}
-	on := s.svc.cooldowns.last[cooldown{s.playing.ID, skill.DarkProtection}]
+	on := s.svc.cooldowns.ready[cooldown{s.playing.ID, skill.DarkProtection}]
 	s.svc.now = func() time.Time { return noon.Add(30 * time.Second) }
 	if err := s.onUseSkill(used(skill.DarkProtection)); err != nil {
 		t.Fatal(err)
@@ -203,8 +203,8 @@ func TestTurningDarkProtectionOffStartsNoCooldown(t *testing.T) {
 	if _, running := s.svc.presence.all[1000].char.Buffs[skill.DarkProtection]; running {
 		t.Fatal("still running")
 	}
-	if got := s.svc.cooldowns.last[cooldown{s.playing.ID, skill.DarkProtection}]; !got.Equal(on) {
-		t.Fatalf("its cooldown runs from %v, want %v", got, on)
+	if got := s.svc.cooldowns.ready[cooldown{s.playing.ID, skill.DarkProtection}]; !got.Equal(on) {
+		t.Fatalf("ready at %v, want %v", got, on)
 	}
 }
 
@@ -218,7 +218,7 @@ func TestDarkStrikesDamageSpreadsOverItsRange(t *testing.T) {
 	most := 0
 	for range 100 {
 		before := dog.fight.damageBy[pl]
-		s.svc.presence.useSkill(1000, skill.DarkStrike, dog.add.VID, noon, 0, s.rand, func(time.Duration) bool { return true })
+		s.svc.presence.useSkill(1000, skill.DarkStrike, dog.add.VID, noon, 0, s.rand, func() bool { return true })
 		most = max(most, dog.fight.damageBy[pl]-before)
 	}
 	if most < 152 {
