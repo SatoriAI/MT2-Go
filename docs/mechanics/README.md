@@ -27,6 +27,7 @@ Pages state facts in our own words. They never paste code from another server or
 | [taskbar.md](taskbar.md) | The bar of keys 1–4 and F1–F4: potions put on it, swapped, kept between logins, and following their items |
 | [skills.md](skills.md) | Skill groups chosen at a class teacher, skill points, raising skills, and using Weaponry's skills |
 | [shops.md](shops.md) | The village shopkeepers: opening a shop, buying and selling, and the prices |
+| [trading.md](trading.md) | Trading between players: the window on both sides, offering items and yang, accepting, and the swap kept whole |
 | [upgrading.md](upgrading.md) | The blacksmith: upgrading the first gear to +9, its cost, chance and materials, and the grades |
 | [potions.md](potions.md) | Drinking red and blue potions: healing, mana, the stack and the effect |
 | [items.md](items.md) | Item kinds, what a character owns, the inventory window, moving items, and giving or taking them on the command line |

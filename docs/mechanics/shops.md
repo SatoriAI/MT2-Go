@@ -124,5 +124,5 @@ The client's SHOP is the one packet framed by its subheader. A subheader the ser
 
 - Stock that runs out, shop tabs and other currencies.
 - More than one entry per click, and checking the distance again on every buy: an open shop stays open until the client closes it or the player leaves.
-- The storekeeper's safebox (9005), trading between players and private shops.
+- The storekeeper's safebox (9005) and private shops. Trading between players is on [trading.md](trading.md).
 - Dropping yang from the inventory.

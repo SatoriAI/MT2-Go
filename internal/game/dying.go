@@ -15,6 +15,7 @@ func (w *presence) die(p *present) {
 		untarget(p, p.target)
 	}
 	w.endBuffs(p)
+	w.breakTrade(p)
 	if lost := p.char.LoseExpOnDeath(); lost > 0 {
 		p.send(pointTold(vid, protocol.PointExp, -int(lost), p.char.Exp))
 	}

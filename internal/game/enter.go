@@ -195,6 +195,7 @@ func (s *session) leaveWorld() {
 		return
 	}
 	if s.phase == protocol.PhaseGame {
+		s.leaveTrade()
 		s.svc.leaveAndSave(s.playing, s.empire, s.conn.Log())
 	}
 	s.svc.release(s.claim)

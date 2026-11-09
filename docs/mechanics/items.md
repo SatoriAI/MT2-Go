@@ -108,5 +108,5 @@ Seen from the real client: a sword dragged from cell 0 to 17 sends `0D 01 00 00 
 - Yang.
 - Using items other than potions ([potions.md](potions.md)). Dropping them is on [drops.md](drops.md), and the taskbar on [taskbar.md](taskbar.md).
 - Splitting, merging and swapping stacks.
-- Trading and the storekeeper's safebox. Shops are on [shops.md](shops.md).
+- The storekeeper's safebox. Shops are on [shops.md](shops.md), trading on [trading.md](trading.md).
 - Delivering an order while the character is in the world, and in-game commands for game masters.

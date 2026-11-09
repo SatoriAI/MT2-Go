@@ -337,3 +337,14 @@ func GiveOrder(vnum uint32, count int) (Order, error) {
 	}
 	return Order{Kind: Give, VNum: vnum, Count: uint8(count)}, nil //nolint:gosec // at most the stack, 200
 }
+
+// Trade is what a trade between two characters moves, all of it or none: each side's
+// items go to the other, each to the cell planned for it there, and its yang with them.
+type Trade [2]TradeSide
+
+// TradeSide is one character's part of a trade: what it gives.
+type TradeSide struct {
+	Character uint32
+	Items     []Item // each with the cell it goes to on the other side
+	Gold      uint32
+}

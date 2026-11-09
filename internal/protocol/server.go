@@ -718,3 +718,44 @@ func EncodeSyncPosition(vid uint32, x, y int32) []byte {
 	w.I32(y)
 	return w.Bytes()
 }
+
+// The server's EXCHANGE subheaders: the trade window opened, an item or yang offered, an
+// accept given or taken back, the window closed, and too little yang to offer as much.
+const (
+	ExchangeStarted  byte = 0
+	ExchangeAdded    byte = 1
+	ExchangeYangSet  byte = 3
+	ExchangeAccepted byte = 4
+	ExchangeEnded    byte = 5
+	ExchangeLessYang byte = 7
+)
+
+// ExchangeNews is what one side of a trade is told: Mine says whether it is their own
+// offer or accept rather than the other side's. Arg is the other's vid for a start, the
+// kind of an item offered, the yang offered, or 1 for an accept given and 0 for one taken
+// back; Shown and Count are an item's trade window cell and how many of it.
+type ExchangeNews struct {
+	Sub   byte
+	Mine  bool
+	Arg   uint32
+	Shown uint8
+	Count uint8
+}
+
+// EncodeExchange tells one side of a trade what changed. The client reads only the cell of
+// the position it carries, and an item's sockets and bonuses follow, empty.
+func EncodeExchange(n ExchangeNews) []byte {
+	mine := uint8(0)
+	if n.Mine {
+		mine = 1
+	}
+	w := NewWriter(byte(ServerExchange), 47)
+	w.U8(n.Sub)
+	w.U8(mine)
+	w.U32(n.Arg)
+	w.U8(0) // the window
+	w.U16(uint16(n.Shown))
+	w.U32(uint32(n.Count))
+	w.Raw(make([]byte, 3*4+7*3))
+	return w.Bytes()
+}

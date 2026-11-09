@@ -17,6 +17,8 @@ repos:
       - id: codespell
         # Exclude generated files and any non-English catalogue as files, not word by word.
         exclude: (go\.mod|go\.sum)$
+        # Polish words the game says to players, which read as English misspellings.
+        args: [--ignore-words-list=handel]
 
   - repo: local
     hooks:
