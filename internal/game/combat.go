@@ -49,6 +49,12 @@ type fight struct {
 	// slowedUntil is when a slow on it ends, shown while slowed is set.
 	slowedUntil time.Time
 	slowed      bool
+	// A fire burns while burning, for burnTurns more turns, taking burnEach a turn for its
+	// burner.
+	burnTurns int
+	burner    *present
+	burnEach  int
+	burning   bool
 	// A stone's own: that it is one, the waves it has called as it was worn down, and the
 	// smoke it shows.
 	stone bool
@@ -178,7 +184,7 @@ func (w *presence) strike(p, v *present, damage int, now time.Time) blow {
 // lock.
 func (w *presence) kill(p, v *present, now time.Time) {
 	f, vid := v.fight, v.add.VID
-	f.diedAt, f.stunned, f.poisoned, f.slowed = now, false, false, false // a body is none of these
+	f.diedAt, f.stunned, f.poisoned, f.slowed, f.burning = now, false, false, false, false // a body is none of these
 	winner := w.topDamager(f, p)
 	w.fallen = append(w.fallen, death{v, now, owner{id: winner.char.ID, name: winner.info.Name}})
 	if f.stone {
@@ -243,14 +249,15 @@ type news struct {
 	calls    []call
 	poisoned []*present
 	drains   []buffEnd
+	burned   []*present
 }
 
 // takeNews hands the world loop the news, with one lock a tick.
 func (w *presence) takeNews() news {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	n := news{w.fallen, w.provoked, w.laid, w.buffs, w.calls, w.poisoned, w.drains}
-	w.fallen, w.provoked, w.laid, w.buffs, w.calls, w.poisoned, w.drains = nil, nil, nil, nil, nil, nil, nil
+	n := news{w.fallen, w.provoked, w.laid, w.buffs, w.calls, w.poisoned, w.drains, w.burned}
+	w.fallen, w.provoked, w.laid, w.buffs, w.calls, w.poisoned, w.drains, w.burned = nil, nil, nil, nil, nil, nil, nil, nil
 	return n
 }
 

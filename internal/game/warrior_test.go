@@ -208,8 +208,8 @@ func TestTheSkillWindowsPlacesAreTheGroupsOwn(t *testing.T) {
 			t.Errorf("%s: %q, want %q", group, got, want)
 		}
 	}
-	if got, ok := skillByWindowSlot("dragon", 1); ok {
-		t.Errorf("dragon: %q", got)
+	if got, ok := skillByWindowSlot("archery", 1); ok {
+		t.Errorf("archery: %q", got)
 	}
 }
 

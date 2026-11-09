@@ -80,6 +80,7 @@ type Service struct {
 	// it takes mana for.
 	poisons   []poisoning
 	drainings []draining
+	burnings  []burning
 	// nextPlayerRegen is when the loop next heals the players.
 	nextPlayerRegen time.Time
 	// now is the time, which tests set.

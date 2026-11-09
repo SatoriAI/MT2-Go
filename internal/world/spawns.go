@@ -27,7 +27,7 @@ type spawnAt struct {
 // The village NPCs stand at the client's minimap marks (locale/pl/map/*_point.txt). The
 // teachers and the blacksmith, which the marks leave out, stand in a row through the old
 // lady at this server's spots, not checked against the terrain: the warrior's and then
-// the ninja's west of her, the sura's and the blacksmith east. The monster areas are on
+// the ninja's west of her, the sura's, the blacksmith and the shaman's east. The monster areas are on
 // open, gentle ground of the client's terrain: a ring 10000 to 30000 from each start, and
 // one of stronger kinds 30000 to 55000 out; each Metin stone stands at one of three spots
 // of the same ground, the stronger the further out (docs/mechanics/stones.md).
@@ -36,6 +36,7 @@ var spawnsByMap = map[string][]spawnAt{
 		{vnum: 9001, x: 59600, y: 55700}, {vnum: 9002, x: 59600, y: 60500}, {vnum: 9003, x: 67800, y: 56500},
 		{vnum: 9005, x: 67400, y: 60700}, {vnum: 9006, x: 63300, y: 62200},
 		{vnum: 20304, x: 63800, y: 62200}, {vnum: 20305, x: 64300, y: 62200}, {vnum: 20016, x: 64800, y: 62200},
+		{vnum: 20306, x: 65300, y: 62200}, {vnum: 20307, x: 65800, y: 62200},
 		{vnum: 20300, x: 62800, y: 62200}, {vnum: 20301, x: 62300, y: 62200},
 		{vnum: 20302, x: 61800, y: 62200}, {vnum: 20303, x: 61300, y: 62200},
 		{vnum: 9009, x: 35400, y: 32700}, {vnum: 9009, x: 32500, y: 40500}, {vnum: 9009, x: 25100, y: 87400},
@@ -61,6 +62,7 @@ var spawnsByMap = map[string][]spawnAt{
 		{vnum: 9001, x: 67600, y: 66200}, {vnum: 9002, x: 67600, y: 61700}, {vnum: 9003, x: 59000, y: 68900},
 		{vnum: 9005, x: 60900, y: 59600}, {vnum: 9006, x: 58800, y: 63300},
 		{vnum: 20324, x: 59300, y: 63300}, {vnum: 20325, x: 59800, y: 63300}, {vnum: 20016, x: 60300, y: 63300},
+		{vnum: 20326, x: 60800, y: 63300}, {vnum: 20327, x: 61300, y: 63300},
 		{vnum: 20320, x: 58300, y: 63300}, {vnum: 20321, x: 57800, y: 63300},
 		{vnum: 20322, x: 57300, y: 63300}, {vnum: 20323, x: 56800, y: 63300},
 		{vnum: 9009, x: 67500, y: 53900}, {vnum: 9009, x: 74200, y: 87900}, {vnum: 9009, x: 20600, y: 55200},
@@ -85,6 +87,7 @@ var spawnsByMap = map[string][]spawnAt{
 		{vnum: 9001, x: 43000, y: 60800}, {vnum: 9002, x: 40300, y: 58500}, {vnum: 9003, x: 38300, y: 69300},
 		{vnum: 9005, x: 31500, y: 56000}, {vnum: 9006, x: 41700, y: 67100},
 		{vnum: 20344, x: 42200, y: 67100}, {vnum: 20345, x: 42700, y: 67100}, {vnum: 20016, x: 43200, y: 67100},
+		{vnum: 20346, x: 43700, y: 67100}, {vnum: 20347, x: 44200, y: 67100},
 		{vnum: 20340, x: 41200, y: 67100}, {vnum: 20341, x: 40700, y: 67100},
 		{vnum: 20342, x: 40200, y: 67100}, {vnum: 20343, x: 39700, y: 67100},
 		{vnum: 9009, x: 71100, y: 23400}, {vnum: 9009, x: 73200, y: 39000}, {vnum: 9009, x: 77200, y: 47200},

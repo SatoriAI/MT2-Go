@@ -157,9 +157,10 @@ const stunBit = 1 << 5
 const (
 	poisonBit = 1 << 3
 	slowBit   = 1 << 4
+	fireBit   = 1 << 28 // AFFECT_FIRE, flames on a burning monster
 )
 
-// mobAffects are the effects the client draws on a monster: its stun, poison and slow.
+// mobAffects are the effects the client draws on a monster: its stun, poison, slow and fire.
 func mobAffects(p *present) uint64 {
 	var bits uint64
 	if p.fight != nil && p.fight.stunned {
@@ -170,6 +171,9 @@ func mobAffects(p *present) uint64 {
 	}
 	if p.fight != nil && p.fight.slowed {
 		bits |= slowBit
+	}
+	if p.fight != nil && p.fight.burning {
+		bits |= fireBit
 	}
 	return bits
 }
@@ -271,6 +275,12 @@ var skillVNums = map[account.Skill]uint8{
 	skill.DarkProtection:  79,
 	skill.GhostStrike:     80,
 	skill.DarkOrb:         81,
+	skill.FlyingTalisman:  91,
+	skill.ShootingDragon:  92,
+	skill.DragonRoar:      93,
+	skill.LightningThrow:  106,
+	skill.SummonLightning: 107,
+	skill.LightningClaw:   108,
 }
 
 // castingSpeed is what the client is told a character's casting speed is: 100, at which it
@@ -352,6 +362,12 @@ var skillWindowSlots = map[account.Skill]uint8{
 	skill.DarkProtection:  4,
 	skill.GhostStrike:     5,
 	skill.DarkOrb:         6,
+	skill.FlyingTalisman:  1,
+	skill.ShootingDragon:  2,
+	skill.DragonRoar:      3,
+	skill.LightningThrow:  1,
+	skill.SummonLightning: 2,
+	skill.LightningClaw:   3,
 }
 
 // skillByWindowSlot is the skill of the group at a place in the skill window, if the game

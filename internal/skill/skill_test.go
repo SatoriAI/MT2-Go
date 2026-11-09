@@ -78,6 +78,12 @@ func TestASkillCostsAndWaitsWhatTheClientWorksOut(t *testing.T) {
 		{DarkProtection, func(k float64) float64 { return 20 + 30*k }, func(k float64) float64 { return 63 + 120*k }, func(k float64) float64 { return 60 + 120*k }},
 		{GhostStrike, func(k float64) float64 { return 40 + 120*k }, func(float64) float64 { return 12 }, func(float64) float64 { return 0 }},
 		{DarkOrb, func(k float64) float64 { return 80 + 220*k }, func(float64) float64 { return 24 }, func(float64) float64 { return 0 }},
+		{FlyingTalisman, func(k float64) float64 { return 30 + 160*k }, func(float64) float64 { return 7 }, func(float64) float64 { return 0 }},
+		{ShootingDragon, func(k float64) float64 { return 50 + 160*k }, func(float64) float64 { return 8 }, func(float64) float64 { return 0 }},
+		{DragonRoar, func(k float64) float64 { return 50 + 160*k }, func(float64) float64 { return 20 }, func(float64) float64 { return 0 }},
+		{LightningThrow, func(k float64) float64 { return 30 + 150*k }, func(float64) float64 { return 7 }, func(float64) float64 { return 0 }},
+		{SummonLightning, func(k float64) float64 { return 50 + 150*k }, func(float64) float64 { return 15 }, func(float64) float64 { return 0 }},
+		{LightningClaw, func(k float64) float64 { return 40 + 180*k }, func(float64) float64 { return 10 }, func(float64) float64 { return 0 }},
 	}
 	for _, c := range cases {
 		p, _ := Lookup(c.skill)
@@ -178,8 +184,8 @@ func TestStrongBodyAndBerserksPriceAreTheirFormulas(t *testing.T) {
 // first level, 183 at 20.
 func TestAStunsChanceIsTheClients(t *testing.T) {
 	for level, want := range map[uint8]int{1: 108, 10: 136, 20: 183} {
-		if got := StunChance(level); got != want {
-			t.Errorf("at %d: %d, want %d", level, got, want)
+		if p, _ := Lookup(Stump); p.StunChance(level) != want {
+			t.Errorf("at %d: %d, want %d", level, p.StunChance(level), want)
 		}
 	}
 }
@@ -222,7 +228,8 @@ func TestTheHitRateIsTheClients(t *testing.T) {
 // A spell rolls its tooltip's range of a number: Dark Strike 50 to 100, Flame and Ghost
 // Strike 180 to 200; Dark Orb has none.
 func TestEachSpellRollsItsTooltipsRange(t *testing.T) {
-	for s, want := range map[account.Skill][2]int32{DarkStrike: {50, 100}, FlameStrike: {180, 200}, GhostStrike: {180, 200}, DarkOrb: {0, 0}} {
+	for s, want := range map[account.Skill][2]int32{DarkStrike: {50, 100}, FlameStrike: {180, 200}, GhostStrike: {180, 200}, DarkOrb: {0, 0},
+		LightningThrow: {5, 15}, SummonLightning: {5, 16}, LightningClaw: {1, 800}} {
 		if p, _ := Lookup(s); p.Dice != want {
 			t.Errorf("%s rolls %v, want %v", s, p.Dice, want)
 		}
@@ -235,10 +242,16 @@ func TestEachSpellRollsItsTooltipsRange(t *testing.T) {
 func TestEachSpellIsItsTooltipsFormula(t *testing.T) {
 	c := Caster{Level: 10, Strength: 5, Vitality: 10, Dexterity: 10, Intelligence: 20, MTK: 15, Dice: 90, AR: 73}
 	cases := map[account.Skill]func(k float64) float64{
-		DarkStrike:  func(k float64) float64 { return 40 + 50 + 40 + (400+105+90)*0.73*k },
-		FlameStrike: func(k float64) float64 { return 50 + 40 + (400+120+20+20+90)*k },
-		GhostStrike: func(k float64) float64 { return 40 + 20 + 40 + (20+20+440+90+90)*0.73*k },
-		DarkOrb:     func(k float64) float64 { return 120 + 60 + (50+50+800+180)*0.73*k },
+		DarkStrike:      func(k float64) float64 { return 40 + 50 + 40 + (400+105+90)*0.73*k },
+		FlameStrike:     func(k float64) float64 { return 50 + 40 + (400+120+20+20+90)*k },
+		GhostStrike:     func(k float64) float64 { return 40 + 20 + 40 + (20+20+440+90+90)*0.73*k },
+		DarkOrb:         func(k float64) float64 { return 120 + 60 + (50+50+800+180)*0.73*k },
+		FlyingTalisman:  func(k float64) float64 { return 70 + 40 + (400+75+50)*0.73*k },
+		ShootingDragon:  func(k float64) float64 { return 60 + 50 + (360+90+120)*0.73*k },
+		DragonRoar:      func(k float64) float64 { return 70 + 30 + (440+195+100)*0.73*k },
+		LightningThrow:  func(k float64) float64 { return 60 + 40 + (140+120+90)*0.73*k },
+		SummonLightning: func(k float64) float64 { return 40 + 40 + (260+105+90)*0.73*k },
+		LightningClaw:   func(k float64) float64 { return 50 + 50 + (120+90+90)*0.73*k },
 	}
 	for s, want := range cases {
 		p, _ := Lookup(s)
@@ -274,5 +287,27 @@ func TestDarkProtectionsShieldIsItsFormula(t *testing.T) {
 		if got := [2]int{p.Bonus(Defence, sura, level), p.Bonus(ManaShield, sura, level)}; got != want {
 			t.Errorf("at %d: %v, want %v", level, got, want)
 		}
+	}
+}
+
+// A burn sets a monster alight at the skilltable's 0.2·iq·k percent, in thousandths, and
+// takes its lv + 5·iq·k in all: at INT 90, 9 and 90 in a thousand at levels 1 and 20; for
+// a level-30 caster, 52 and 255.
+func TestABurnsChanceAndWholeAreTheSkilltables(t *testing.T) {
+	for level, want := range map[uint8][2]int{1: {9, 52}, 20: {90, 255}} {
+		if got := [2]int{BurnChance(90, level), BurnDamage(30, 90, level)}; got != want {
+			t.Errorf("at %d: %v, want %v", level, got, want)
+		}
+	}
+}
+
+// Lightning Throw and Summon Lightning roll their number from 5 times her INT to 15 and
+// 16 times it, every number between, as the skilltable's number(iq*5, iq*15) does.
+func TestTheLightningsRollMultiplesOfIntelligence(t *testing.T) {
+	throw, _ := Lookup(LightningThrow)
+	summon, _ := Lookup(SummonLightning)
+	claw, _ := Lookup(LightningClaw)
+	if throw.DiceOf(20) != [2]int32{100, 300} || summon.DiceOf(20) != [2]int32{100, 320} || claw.DiceOf(20) != [2]int32{1, 800} {
+		t.Fatalf("%v %v %v", throw.DiceOf(20), summon.DiceOf(20), claw.DiceOf(20))
 	}
 }
