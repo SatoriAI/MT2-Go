@@ -190,8 +190,8 @@ func TestPacksStandApart(t *testing.T) {
 }
 
 // Each first village's fields are full, as the world serves them, its Mobs applied: at
-// least 380 monsters, at least 70 within 15000 of the start, the nearest within 8000: the
-// town stands between the start and the nearest fields.
+// least 380 monsters, at least 70 within 15000 of the start, the nearest within 4500, or
+// within 8000 for Jinno, whose town wraps its start on two sides.
 func TestEveryFirstVillagesFieldsAreFull(t *testing.T) {
 	for _, e := range []account.Empire{account.EmpireShinsoo, account.EmpireChunjo, account.EmpireJinno} {
 		x, y, _ := e.StartPosition()
@@ -208,7 +208,11 @@ func TestEveryFirstVillagesFieldsAreFull(t *testing.T) {
 			}
 			nearest = min(nearest, d)
 		}
-		if total < 380 || near < 70 || nearest > 8000 {
+		reach := 4500.0
+		if e == account.EmpireJinno {
+			reach = 8000
+		}
+		if total < 380 || near < 70 || nearest > reach {
 			t.Errorf("%s: %d monsters, %d within 15000, the nearest pack %.0f out", home.Name, total, near, nearest)
 		}
 	}
@@ -373,9 +377,9 @@ func TestEveryMapSaysHowManyMobsItHolds(t *testing.T) {
 // marks it (attr.atr, cell bit 2, no PvP), in rectangles of the map's coordinates: each
 // village's squares, and a few spots of their own about the map.
 var safeGround = map[string][][4]int32{
-	"metin2_map_a1": {{6200, 58800, 9400, 62000}, {39000, 6200, 42200, 9400}, {58600, 67000, 61000, 69400}, {62000, 56000, 67600, 61600}},
-	"metin2_map_b1": {{54600, 54400, 57000, 56800}, {61600, 61800, 66000, 66200}, {86600, 110000, 89000, 112400}, {89000, 8000, 91800, 10800}},
-	"metin2_map_c1": {{11400, 109000, 15000, 112600}, {13600, 12000, 17200, 15600}, {36000, 61800, 40800, 66600}, {46400, 72000, 49600, 75200}},
+	"metin2_map_a1": {{6100, 58800, 9300, 62000}, {39000, 6100, 42200, 9300}, {58600, 67000, 61000, 69400}, {61900, 55900, 67500, 61500}},
+	"metin2_map_b1": {{54600, 54400, 57000, 56800}, {61600, 61700, 66000, 66100}, {86500, 110000, 88900, 112400}, {88900, 7900, 91700, 10700}},
+	"metin2_map_c1": {{11300, 108900, 14900, 112500}, {13500, 12000, 17100, 15600}, {35900, 61800, 40700, 66600}, {46400, 71900, 49600, 75100}},
 }
 
 // town is the map's safe ground and the box its village's NPCs stand in, the guards about
@@ -402,7 +406,7 @@ func clearOf(x, y int32, rects [][4]int32) float64 {
 
 // No monster strolls into a town: every pack's ground, its spread and a stroll of 600
 // beyond, stays 2000 from the safe ground and the box of the village's NPCs; and every
-// stone's spot stays 4000 from the safe ground, as its waves gather round it.
+// stone's spot stays 4000 from them, as its waves gather round it.
 func TestTheTownsAreFreeOfMonsters(t *testing.T) {
 	for name, all := range monsterAreas(t) {
 		for _, a := range all {
@@ -412,8 +416,8 @@ func TestTheTownsAreFreeOfMonsters(t *testing.T) {
 		}
 		for _, s := range spawnsByMap[name] {
 			for _, p := range s.spots {
-				if d := clearOf(p.X, p.Y, safeGround[name]); d < 4000 {
-					t.Errorf("%s: %d at %v is %.0f from safe ground", name, s.vnum, p, d)
+				if d := clearOf(p.X, p.Y, town(name)); d < 4000 {
+					t.Errorf("%s: %d at %v is %.0f from the town", name, s.vnum, p, d)
 				}
 			}
 		}
