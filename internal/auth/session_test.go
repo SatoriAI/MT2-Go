@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
@@ -92,7 +93,7 @@ func expect(t *testing.T, c net.Conn, want []byte) {
 	t.Helper()
 	_ = c.SetReadDeadline(time.Now().Add(time.Second))
 	got := make([]byte, len(want))
-	if _, err := io.ReadFull(c, got); err != nil || string(got) != string(want) {
+	if _, err := io.ReadFull(c, got); err != nil || !bytes.Equal(got, want) {
 		t.Fatalf("got %x, %v; want %x", got, err, want)
 	}
 }
@@ -108,12 +109,13 @@ func TestTheRightPasswordHandsOutAKey(t *testing.T) {
 
 	got := make([]byte, 6)
 	_ = client.SetReadDeadline(time.Now().Add(time.Second))
-	if _, err := io.ReadFull(client, got); err != nil || got[0] != byte(protocol.ServerAuthSuccess) || got[5] != 1 {
+	if _, err := io.ReadFull(client, got); err != nil || got[0] != byte(protocol.ServerAuthSuccess) {
 		t.Fatalf("got %x, %v", got, err)
 	}
-	key := uint32(got[1]) | uint32(got[2])<<8 | uint32(got[3])<<16 | uint32(got[4])<<24
-	if id, ok := keys.Redeem(key, "Hendra"); !ok || id != 7 {
-		t.Fatalf("redeemed %d, %v", id, ok)
+	r := protocol.NewReader(got[1:])
+	key, result := r.U32(), r.U8()
+	if id, ok := keys.Redeem(key, "Hendra"); result != 1 || !ok || id != 7 {
+		t.Fatalf("result %d, redeemed %d, %v", result, id, ok)
 	}
 }
 

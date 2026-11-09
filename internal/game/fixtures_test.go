@@ -121,7 +121,8 @@ func playingAs(p *present) *character {
 }
 
 // fixedSizes are the lengths of the packets the world sends that have no length of their
-// own, taken from their encoders, so they follow the protocol.
+// own, taken from their encoders, so they follow the protocol. Only those sent in the
+// world are here; the login and selection phases' are not.
 var fixedSizes = map[protocol.ServerHeader]int{
 	protocol.ServerCharacterAdd:     len(protocol.EncodeCharacterAdd(protocol.CharacterAdd{}, 0)),
 	protocol.ServerCharacterInfo:    len(protocol.EncodeCharacterInfo(protocol.CharacterInfo{})),
@@ -163,8 +164,11 @@ func packets(t *testing.T, b []byte) [][]byte {
 		n, fixed := fixedSizes[h]
 		switch {
 		case fixed:
-		case (h == protocol.ServerChat || h == protocol.ServerWhisper || h == protocol.ServerScript ||
-			h == protocol.ServerShop || h == protocol.ServerSyncPosition) && len(b) >= 3:
+		case h == protocol.ServerChat || h == protocol.ServerWhisper || h == protocol.ServerScript ||
+			h == protocol.ServerShop || h == protocol.ServerSyncPosition:
+			if len(b) < 3 {
+				t.Fatalf("a packet %02x cut off before its length: %x", byte(h), b)
+			}
 			n = int(binary.LittleEndian.Uint16(b[1:3]))
 		default:
 			t.Fatalf("a packet of unknown header %02x in %x", byte(h), b)
