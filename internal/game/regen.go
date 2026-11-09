@@ -51,25 +51,25 @@ type healing struct {
 }
 
 // hurt puts the monster on the loop's list of the hurt, once, to heal from a cycle on.
-func (s *Service) hurt(m *monster, now time.Time) {
+func (svc *Service) hurt(m *monster, now time.Time) {
 	if m.healing || m.proto.RegenCycle == 0 {
 		return
 	}
 	m.healing = true
-	s.healing = append(s.healing, healing{m, m.p, now.Add(time.Duration(m.proto.RegenCycle) * time.Second)})
+	svc.healing = append(svc.healing, healing{m, m.p, now.Add(time.Duration(m.proto.RegenCycle) * time.Second)})
 }
 
 // healMonsters heals each hurt monster whose cycle has come, and drops from the list those
 // that are whole again or dead. Only the hurt are walked, so an idle tick costs nothing
 // more.
-func (s *Service) healMonsters(now time.Time) {
-	kept := s.healing[:0]
-	for _, h := range s.healing {
+func (svc *Service) healMonsters(now time.Time) {
+	kept := svc.healing[:0]
+	for _, h := range svc.healing {
 		if now.Before(h.next) {
 			kept = append(kept, h)
 			continue
 		}
-		if h.m.p == h.p && s.presence.heal(h.p, h.m.proto.RegenPercent, h.m.proto.HealsAfter, now) {
+		if h.m.p == h.p && svc.presence.heal(h.p, h.m.proto.RegenPercent, h.m.proto.HealsAfter, now) {
 			h.next = now.Add(time.Duration(h.m.proto.RegenCycle) * time.Second)
 			kept = append(kept, h)
 			continue
@@ -78,8 +78,8 @@ func (s *Service) healMonsters(now time.Time) {
 			h.m.healing = false
 		}
 	}
-	clear(s.healing[len(kept):])
-	s.healing = kept
+	clear(svc.healing[len(kept):])
+	svc.healing = kept
 }
 
 // heal gives the monster back percent of its hit points, at least one, and tells whoever

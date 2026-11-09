@@ -64,32 +64,32 @@ func (w *presence) topDamager(f *fight, killer *present) *present {
 // dropFrom rolls what a dead monster leaves, each of its drops on its own, then its yang,
 // and lays what falls near its body for its owner; the loop then frees each one and clears
 // it away in turn.
-func (s *Service) dropFrom(m *monster, d death, now time.Time) {
+func (svc *Service) dropFrom(m *monster, d death, now time.Time) {
 	var fallen []*groundItem
 	for _, drop := range m.proto.Drops {
-		if s.rand.IntN(10000) < int(drop.Chance) {
-			fallen = append(fallen, &groundItem{vid: s.lastVID.Add(1), x: m.x + s.spread(dropSpread),
-				y: m.y + s.spread(dropSpread), vnum: drop.VNum, count: drop.Count, owner: d.owner, dropped: now})
+		if svc.rand.IntN(10000) < int(drop.Chance) {
+			fallen = append(fallen, &groundItem{vid: svc.lastVID.Add(1), x: m.x + svc.spread(dropSpread),
+				y: m.y + svc.spread(dropSpread), vnum: drop.VNum, count: drop.Count, owner: d.owner, dropped: now})
 		}
 	}
 	for _, pick := range m.proto.Picks {
-		if s.rand.IntN(10000) < int(pick.Chance) {
-			fallen = append(fallen, &groundItem{vid: s.lastVID.Add(1), x: m.x + s.spread(dropSpread),
-				y: m.y + s.spread(dropSpread), vnum: pick.From[s.rand.IntN(len(pick.From))], count: pick.Count, owner: d.owner, dropped: now})
+		if svc.rand.IntN(10000) < int(pick.Chance) {
+			fallen = append(fallen, &groundItem{vid: svc.lastVID.Add(1), x: m.x + svc.spread(dropSpread),
+				y: m.y + svc.spread(dropSpread), vnum: pick.From[svc.rand.IntN(len(pick.From))], count: pick.Count, owner: d.owner, dropped: now})
 		}
 	}
-	if y := m.proto.Yang; s.rand.IntN(10000) < int(y.Chance) {
-		fallen = append(fallen, &groundItem{vid: s.lastVID.Add(1), x: m.x + s.spread(dropSpread),
-			y: m.y + s.spread(dropSpread), gold: y.Min + uint32(s.rand.IntN(int(y.Max-y.Min+1))), //nolint:gosec // a small range
+	if y := m.proto.Yang; svc.rand.IntN(10000) < int(y.Chance) {
+		fallen = append(fallen, &groundItem{vid: svc.lastVID.Add(1), x: m.x + svc.spread(dropSpread),
+			y: m.y + svc.spread(dropSpread), gold: y.Min + uint32(svc.rand.IntN(int(y.Max-y.Min+1))), //nolint:gosec // a small range
 			owner: d.owner, dropped: now})
 	}
 	if len(fallen) == 0 {
 		return
 	}
-	s.presence.drop(m.p, fallen)
+	svc.presence.drop(m.p, fallen)
 	for _, it := range fallen {
-		s.freeing = append(s.freeing, timed{it.vid, now.Add(ownedFor)})
-		s.vanishing = inOrder(s.vanishing, timed{it.vid, now.Add(lieFor)})
+		svc.freeing = append(svc.freeing, timed{it.vid, now.Add(ownedFor)})
+		svc.vanishing = inOrder(svc.vanishing, timed{it.vid, now.Add(lieFor)})
 	}
 }
 
@@ -108,14 +108,14 @@ func inOrder[T interface{ due() time.Time }](queue []T, t T) []T {
 // keepGround frees the drops whose owner's time is up and clears away those that have lain
 // long enough. Every drop has the same times, so each queue is in order and only its head
 // is looked at; with nothing on the ground the loop does nothing.
-func (s *Service) keepGround(now time.Time) {
-	for len(s.freeing) > 0 && !now.Before(s.freeing[0].at) {
-		s.presence.free(s.freeing[0].vid)
-		s.freeing = s.freeing[1:]
+func (svc *Service) keepGround(now time.Time) {
+	for len(svc.freeing) > 0 && !now.Before(svc.freeing[0].at) {
+		svc.presence.free(svc.freeing[0].vid)
+		svc.freeing = svc.freeing[1:]
 	}
-	for len(s.vanishing) > 0 && !now.Before(s.vanishing[0].at) {
-		s.presence.vanish(s.vanishing[0].vid)
-		s.vanishing = s.vanishing[1:]
+	for len(svc.vanishing) > 0 && !now.Before(svc.vanishing[0].at) {
+		svc.presence.vanish(svc.vanishing[0].vid)
+		svc.vanishing = svc.vanishing[1:]
 	}
 }
 

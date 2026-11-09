@@ -29,7 +29,7 @@ func (s *session) onUseSkill(body []byte) error {
 	cooled := func() bool { return s.svc.cooldowns.over(s.playing.ID, sk, now) }
 	proto, _ := skill.Lookup(sk)
 	_, arrows := s.inventory.WornIn(item.Arrow)
-	if !known || proto.Arrows != (skill.Scaled{}) && !arrows {
+	if !known || proto.Shoots() && !arrows {
 		s.conn.Log().Debug("skill not used", "vnum", u.VNum)
 		return nil
 	}
@@ -39,7 +39,7 @@ func (s *session) onUseSkill(body []byte) error {
 	switch happened {
 	case skillUsed:
 		s.svc.cooldowns.used(s.playing.ID, sk, now.Add(wait))
-		if proto.Arrows != (skill.Scaled{}) {
+		if proto.Shoots() {
 			s.volley = loose(sk, proto, s.svc.presence.levelOf(s.playing.vid, sk), u.Target, adds, now)
 		}
 	case skillRefused:
@@ -123,18 +123,18 @@ func (w *presence) useSkill(vid uint32, sk account.Skill, target uint32, now tim
 	weapon, _ := item.Lookup(c.Weapon)
 	cost := proto.Mana.At(skill.Power(level))
 	if !cooled() || !proto.Wieldable(weapon) ||
-		(proto.Target || proto.Aim > 0 && !proto.Ally) && victim == nil || c.SP < cost {
+		proto.NeedsVictim() && victim == nil || c.SP < cost {
 		return skillRefused, 0
 	}
 	wait := cooldownOf(proto.CooldownAt(level), castingSpeedOf(c))
 	c.SP -= cost
-	pl.send(protocol.EncodePointChange(vid, protocol.PointSP, -int32(cost), int32(c.SP))) //nolint:gosec // small
+	pl.send(pointTold(vid, protocol.PointSP, -int(cost), c.SP))
 	percent := int(proto.Damage.At(skill.Power(level)))
 	if proto.Dash && victim != nil {
 		w.dash(pl, victim, clock)
 	}
 	switch {
-	case proto.Arrows != (skill.Scaled{}): // its arrows land as the client lets them go
+	case proto.Shoots(): // its arrows land as the client lets them go
 	case proto.Ally:
 		w.help(pl, allyOf(pl, target, proto), sk, proto, level, now, r)
 	case victim != nil:
@@ -152,7 +152,7 @@ func (w *presence) useSkill(vid uint32, sk account.Skill, target uint32, now tim
 // else the nearest living one in front of them within it. Nil for none, and for an attack
 // on none. Called under the lock.
 func aimed(pl *present, target uint32, proto skill.Proto) *present {
-	if !proto.Target && proto.Aim == 0 || proto.Ally {
+	if !proto.NeedsVictim() {
 		return nil
 	}
 	reach := int64(attackReach)
@@ -220,7 +220,7 @@ func (w *presence) splash(pl, at *present, proto skill.Proto, percent int, level
 		if proto.Stuns > 0 && r.IntN(1000) < proto.StunChance(level) {
 			w.stun(v, now)
 		}
-		if proto.Poisons != (skill.Scaled{}) && r.IntN(1000) < int(proto.Poisons.At(skill.Power(level))) {
+		if chance := int(proto.Poisons.At(skill.Power(level))); chance > 0 && r.IntN(1000) < chance {
 			w.poison(v, pl, now)
 		}
 		if proto.Slows && r.IntN(1000) < skill.SlowChance(level) {
@@ -309,7 +309,7 @@ func (w *presence) slow(v *present, until time.Time) {
 	if !v.fight.slowed {
 		v.fight.slowed = true
 		v.add.MoveSpeed = uint8(int(v.add.MoveSpeed) * slowSpeed / 100) //nolint:gosec // a share of a u8
-		toViewers(v, protocol.EncodeCharacterUpdate(v.info, v.add, mobAffects(v)))
+		showMob(v)
 	}
 }
 
@@ -318,7 +318,7 @@ func (w *presence) slow(v *present, until time.Time) {
 func (w *presence) quicken(v *present, speed uint8) {
 	v.fight.slowed = false
 	v.add.MoveSpeed = speed
-	toViewers(v, protocol.EncodeCharacterUpdate(v.info, v.add, mobAffects(v)))
+	showMob(v)
 }
 
 // dashStop is how far from its target a dash lands: the original client's warp
@@ -351,7 +351,7 @@ func (w *presence) stun(v *present, now time.Time) {
 	v.fight.stunnedUntil = now.Add(stunFor)
 	if !v.fight.stunned {
 		v.fight.stunned = true
-		toViewers(v, protocol.EncodeCharacterUpdate(v.info, v.add, mobAffects(v)))
+		showMob(v)
 	}
 }
 
@@ -373,7 +373,7 @@ func (w *presence) poison(v, by *present, now time.Time) {
 	if !f.poisoned {
 		f.poisoned = true
 		w.poisoned = append(w.poisoned, v)
-		toViewers(v, protocol.EncodeCharacterUpdate(v.info, v.add, mobAffects(v)))
+		showMob(v)
 	}
 }
 
@@ -391,7 +391,7 @@ func (w *presence) poisonTick(v *present, now time.Time) bool {
 	by := f.poisoner
 	if !now.Before(f.poisonedUntil) || w.all[by.add.VID] != by || by.dead() {
 		f.poisoned = false
-		toViewers(v, protocol.EncodeCharacterUpdate(v.info, v.add, mobAffects(v)))
+		showMob(v)
 		return false
 	}
 	damage := min(f.poison, f.hp)
@@ -416,25 +416,25 @@ type poisoning struct {
 
 // tickPoisons takes the turn of each poison whose time has come, and drops those that
 // ended. Only the poisoned are walked, so an idle tick costs nothing more.
-func (s *Service) tickPoisons(now time.Time) {
-	kept := s.poisons[:0]
-	for _, ps := range s.poisons {
+func (svc *Service) tickPoisons(now time.Time) {
+	kept := svc.poisons[:0]
+	for _, ps := range svc.poisons {
 		if now.Before(ps.next) {
 			kept = append(kept, ps)
 			continue
 		}
-		if s.presence.poisonTick(ps.p, now) {
+		if svc.presence.poisonTick(ps.p, now) {
 			kept = append(kept, poisoning{ps.p, now.Add(poisonEvery)})
 		}
 	}
-	clear(s.poisons[len(kept):])
-	s.poisons = kept
+	clear(svc.poisons[len(kept):])
+	svc.poisons = kept
 }
 
 // wake ends the monster's stun for everyone who sees it. Called under the lock.
 func (w *presence) wake(v *present) {
 	v.fight.stunned = false
-	toViewers(v, protocol.EncodeCharacterUpdate(v.info, v.add, mobAffects(v)))
+	showMob(v)
 }
 
 // distance is how far apart two characters stand, squared.
@@ -520,7 +520,7 @@ func (w *presence) drain(b buffEnd) bool {
 		return false
 	}
 	c.SP -= cost
-	pl.send(protocol.EncodePointChange(b.vid, protocol.PointSP, -int32(cost), int32(c.SP))) //nolint:gosec // small
+	pl.send(pointTold(b.vid, protocol.PointSP, -int(cost), c.SP))
 	return true
 }
 
@@ -532,19 +532,19 @@ type draining struct {
 
 // keepDrains takes the mana of each draining toggle whose time has come, and drops those
 // that ended. Only the draining are walked.
-func (s *Service) keepDrains(now time.Time) {
-	kept := s.drainings[:0]
-	for _, d := range s.drainings {
+func (svc *Service) keepDrains(now time.Time) {
+	kept := svc.drainings[:0]
+	for _, d := range svc.drainings {
 		if now.Before(d.next) {
 			kept = append(kept, d)
 			continue
 		}
-		if s.presence.drain(d.buff) {
+		if svc.presence.drain(d.buff) {
 			kept = append(kept, draining{d.buff, now.Add(drainEvery)})
 		}
 	}
-	clear(s.drainings[len(kept):])
-	s.drainings = kept
+	clear(svc.drainings[len(kept):])
+	svc.drainings = kept
 }
 
 // endBuff ends the player's buff that was due at a time, if it is still that run: one
@@ -584,23 +584,23 @@ func (w *presence) showAffects(pl *present, sk account.Skill) {
 	pl.send(update)
 	p, _ := skill.Lookup(sk)
 	if p.Raise(skill.Defence) {
-		pl.send(protocol.EncodePointChange(pl.add.VID, protocol.PointDefence, 0, int32(defence(c)))) //nolint:gosec // small
+		pl.send(pointTold(pl.add.VID, protocol.PointDefence, 0, defence(c)))
 	}
 	if p.Raise(skill.AttackSpeed) || p.Raise(skill.MoveSpeed) {
-		pl.send(protocol.EncodePointChange(pl.add.VID, protocol.PointAttackSpeed, 0, int32(pl.add.AttackSpeed)),
-			protocol.EncodePointChange(pl.add.VID, protocol.PointMoveSpeed, 0, int32(pl.add.MoveSpeed)))
+		pl.send(pointTold(pl.add.VID, protocol.PointAttackSpeed, 0, pl.add.AttackSpeed),
+			pointTold(pl.add.VID, protocol.PointMoveSpeed, 0, pl.add.MoveSpeed))
 	}
 	if p.Raise(skill.CastingSpeed) {
-		pl.send(protocol.EncodePointChange(pl.add.VID, protocol.PointCastingSpeed, 0, int32(castingSpeedOf(c)))) //nolint:gosec // small
+		pl.send(pointTold(pl.add.VID, protocol.PointCastingSpeed, 0, castingSpeedOf(c)))
 	}
 	toViewers(pl, update)
 }
 
 // keepBuffs ends the buffs whose time has come. They are queued in the order they end,
 // so only the head is looked at.
-func (s *Service) keepBuffs(now time.Time) {
-	for len(s.buffEnds) > 0 && !now.Before(s.buffEnds[0].at) {
-		s.presence.endBuff(s.buffEnds[0])
-		s.buffEnds = s.buffEnds[1:]
+func (svc *Service) keepBuffs(now time.Time) {
+	for len(svc.buffEnds) > 0 && !now.Before(svc.buffEnds[0].at) {
+		svc.presence.endBuff(svc.buffEnds[0])
+		svc.buffEnds = svc.buffEnds[1:]
 	}
 }

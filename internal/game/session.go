@@ -62,9 +62,17 @@ type Service struct {
 	mu     sync.Mutex
 	claims map[uint32]*claim // the characters in play, by id
 
-	presence presence
+	presence  presence
+	cooldowns cooldowns
+	// now is the time, which tests set.
+	now func() time.Time
 
-	// The world loop's own: only Run's goroutine touches them.
+	loop
+}
+
+// loop is the world loop's own state: only Run's goroutine touches it, so it needs no
+// lock. What it shares with the connections goes through the world record.
+type loop struct {
 	spawns    []world.Spawn
 	rand      *rand.Rand
 	monsters  []*monster
@@ -83,24 +91,21 @@ type Service struct {
 	burnings  []burning
 	// nextPlayerRegen is when the loop next heals the players.
 	nextPlayerRegen time.Time
-	// now is the time, which tests set.
-	now func() time.Time
 	// The drops on the ground, in the order they fell, to free and to clear away.
 	freeing, vanishing []timed
 	buffEnds           []buffEnd
-	cooldowns          cooldowns
 }
 
 // NewService makes the game port's shared state; Run puts spawns' mobs in the world.
 func NewService(store Accounts, whispers Whispers, items Items, taskbar Taskbar, skills Skills, keys *account.Keys, clock handshake.Clock, public netip.AddrPort,
 	spawns []world.Spawn) *Service {
 	return &Service{store: store, whispers: whispers, items: items, taskbar: taskbar, skills: skills, keys: keys, clock: clock, public: public, claims: map[uint32]*claim{},
-		presence: presence{all: map[uint32]*present{}, byName: map[string]*present{}, ground: map[uint32]*groundItem{}}, spawns: spawns, rand: newRand(), now: time.Now,
-		byPresent: map[*present]*monster{}, kinds: map[uint16]*mob.Proto{}, called: map[*monster][]*monster{}}
+		presence: presence{all: map[uint32]*present{}, byName: map[string]*present{}, ground: map[uint32]*groundItem{}}, now: time.Now,
+		loop: loop{spawns: spawns, rand: newRand(), byPresent: map[*present]*monster{}, kinds: map[uint16]*mob.Proto{}, called: map[*monster][]*monster{}}}
 }
 
-func (s *Service) NewSession(conn *network.Conn) network.Session {
-	return &session{svc: s, conn: conn, sync: handshake.NewSync(s.clock), phase: protocol.PhaseHandshake, rand: newRand()}
+func (svc *Service) NewSession(conn *network.Conn) network.Session {
+	return &session{svc: svc, conn: conn, sync: handshake.NewSync(svc.clock), phase: protocol.PhaseHandshake, rand: newRand()}
 }
 
 type session struct {

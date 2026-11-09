@@ -17,10 +17,10 @@ const homeX, homeY = 963400, 278200
 
 // playerAt puts a player x east of the monsters' home and returns their client, with what
 // they were shown on entering read.
-func (s *Service) playerAt(t *testing.T, x int32, shown int) net.Conn {
+func (svc *Service) playerAt(t *testing.T, x int32, shown int) net.Conn {
 	t.Helper()
 	conn, client := watcher(t)
-	s.presence.enter(&present{out: conn, add: protocol.CharacterAdd{VID: 1000, X: x, Y: homeY}})
+	svc.presence.enter(&present{out: conn, add: protocol.CharacterAdd{VID: 1000, X: x, Y: homeY}})
 	read(t, client, shown)
 	return client
 }

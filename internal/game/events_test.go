@@ -31,10 +31,10 @@ var (
 
 // namedPlayer enters a player at x, on no map and far from any monster; players entered
 // further apart than the view range are shown nothing.
-func (s *Service) namedPlayer(t *testing.T, vid uint32, name string, x int32) net.Conn {
+func (svc *Service) namedPlayer(t *testing.T, vid uint32, name string, x int32) net.Conn {
 	t.Helper()
 	conn, client := watcher(t)
-	s.presence.enter(&present{out: conn, add: protocol.CharacterAdd{VID: vid, X: x}, info: protocol.CharacterInfo{Name: name}})
+	svc.presence.enter(&present{out: conn, add: protocol.CharacterAdd{VID: vid, X: x}, info: protocol.CharacterInfo{Name: name}})
 	return client
 }
 

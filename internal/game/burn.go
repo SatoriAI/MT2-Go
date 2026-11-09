@@ -22,7 +22,7 @@ func (w *presence) burn(v, by *present, each int) {
 	if !f.burning {
 		f.burning = true
 		w.burned = append(w.burned, v)
-		toViewers(v, protocol.EncodeCharacterUpdate(v.info, v.add, mobAffects(v)))
+		showMob(v)
 	}
 }
 
@@ -63,7 +63,7 @@ func (w *presence) burnTick(v *present, now time.Time) bool {
 // putOut ends the monster's fire for everyone who sees it. Called under the lock.
 func (w *presence) putOut(v *present) {
 	v.fight.burning = false
-	toViewers(v, protocol.EncodeCharacterUpdate(v.info, v.add, mobAffects(v)))
+	showMob(v)
 }
 
 // burning is a monster alight the world loop ticks, and when it ticks next.
@@ -74,17 +74,17 @@ type burning struct {
 
 // tickBurns takes the turn of each fire whose time has come, and drops those that went
 // out. Only the burning are walked.
-func (s *Service) tickBurns(now time.Time) {
-	kept := s.burnings[:0]
-	for _, b := range s.burnings {
+func (svc *Service) tickBurns(now time.Time) {
+	kept := svc.burnings[:0]
+	for _, b := range svc.burnings {
 		if now.Before(b.next) {
 			kept = append(kept, b)
 			continue
 		}
-		if s.presence.burnTick(b.p, now) {
+		if svc.presence.burnTick(b.p, now) {
 			kept = append(kept, burning{b.p, now.Add(burnEvery)})
 		}
 	}
-	clear(s.burnings[len(kept):])
-	s.burnings = kept
+	clear(svc.burnings[len(kept):])
+	svc.burnings = kept
 }

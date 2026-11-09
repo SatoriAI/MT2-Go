@@ -257,10 +257,10 @@ func (w *presence) dress(vid uint32, o outfit) {
 	update := protocol.EncodeCharacterUpdate(p.info, p.add, affectsOf(c))
 	p.send(update)
 	if armourChanged {
-		p.send(protocol.EncodePointChange(vid, protocol.PointDefence, 0, int32(defence(c)))) //nolint:gosec // small
+		p.send(pointTold(vid, protocol.PointDefence, 0, defence(c)))
 	}
 	if p.add.MoveSpeed != speed {
-		p.send(protocol.EncodePointChange(vid, protocol.PointMoveSpeed, 0, int32(p.add.MoveSpeed)))
+		p.send(pointTold(vid, protocol.PointMoveSpeed, 0, p.add.MoveSpeed))
 	}
 	toViewers(p, update)
 }

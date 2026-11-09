@@ -41,7 +41,7 @@ func (w *presence) gainExp(p *present, gain uint32) {
 	c := p.char
 	levels := c.GainExp(gain)
 	vid := p.add.VID
-	p.send(protocol.EncodePointChange(vid, protocol.PointExp, int32(gain), int32(c.Exp))) //nolint:gosec // under 2^31
+	p.send(pointTold(vid, protocol.PointExp, gain, c.Exp))
 	if levels == 0 {
 		return
 	}
@@ -50,19 +50,19 @@ func (w *presence) gainExp(p *present, gain uint32) {
 	points, _ := c.Points()
 	c.HP, c.SP = points.MaxHP, points.MaxSP
 	p.send(
-		protocol.EncodePointChange(vid, protocol.PointLevel, gained, int32(c.Level)),
-		protocol.EncodePointChange(vid, protocol.PointNextExp, 0, int32(points.NextExp)), //nolint:gosec // under 2^31
-		protocol.EncodePointChange(vid, protocol.PointStatPoints, gained*account.StatPointsPerLevel, int32(c.StatPoints)),
-		protocol.EncodePointChange(vid, protocol.PointMaxHP, 0, int32(points.MaxHP)), //nolint:gosec // small
-		protocol.EncodePointChange(vid, protocol.PointHP, 0, int32(points.MaxHP)),    //nolint:gosec // small
-		protocol.EncodePointChange(vid, protocol.PointMaxSP, 0, int32(points.MaxSP)), //nolint:gosec // small
-		protocol.EncodePointChange(vid, protocol.PointSP, 0, int32(points.MaxSP)),    //nolint:gosec // small
-		protocol.EncodePointChange(vid, protocol.PointDefence, 0, int32(defence(c))), //nolint:gosec // small
+		pointTold(vid, protocol.PointLevel, gained, c.Level),
+		pointTold(vid, protocol.PointNextExp, 0, points.NextExp),
+		pointTold(vid, protocol.PointStatPoints, gained*account.StatPointsPerLevel, c.StatPoints),
+		pointTold(vid, protocol.PointMaxHP, 0, points.MaxHP),
+		pointTold(vid, protocol.PointHP, 0, points.MaxHP),
+		pointTold(vid, protocol.PointMaxSP, 0, points.MaxSP),
+		pointTold(vid, protocol.PointSP, 0, points.MaxSP),
+		pointTold(vid, protocol.PointDefence, 0, defence(c)),
 	)
 	if c.SkillGroup != "" {
-		p.send(protocol.EncodePointChange(vid, protocol.PointSkillPoints, 0, int32(skillPoints(c)))) //nolint:gosec // small
+		p.send(pointTold(vid, protocol.PointSkillPoints, 0, skillPoints(c)))
 	}
-	toViewers(p, protocol.EncodePointChange(vid, protocol.PointLevel, gained, int32(c.Level)))
+	toViewers(p, pointTold(vid, protocol.PointLevel, gained, c.Level))
 }
 
 // statsByName are the stats a player may spend a point on, as the character window's
@@ -95,19 +95,19 @@ func (w *presence) spendStatPoint(vid uint32, name string) {
 	}
 	points, _ := c.Points()
 	packets := [][]byte{
-		protocol.EncodePointChange(vid, s.point, 1, int32(*stat)),
-		protocol.EncodePointChange(vid, protocol.PointStatPoints, -1, int32(c.StatPoints)),
+		pointTold(vid, s.point, 1, *stat),
+		pointTold(vid, protocol.PointStatPoints, -1, c.StatPoints),
 	}
 	switch name {
 	case "ht":
-		packets = append(packets, protocol.EncodePointChange(vid, protocol.PointMaxHP, 0, int32(points.MaxHP)), //nolint:gosec // small
-			protocol.EncodePointChange(vid, protocol.PointDefence, 0, int32(defence(c)))) //nolint:gosec // small
+		packets = append(packets, pointTold(vid, protocol.PointMaxHP, 0, points.MaxHP),
+			pointTold(vid, protocol.PointDefence, 0, defence(c)))
 	case "iq":
-		packets = append(packets, protocol.EncodePointChange(vid, protocol.PointMaxSP, 0, int32(points.MaxSP))) //nolint:gosec // small
+		packets = append(packets, pointTold(vid, protocol.PointMaxSP, 0, points.MaxSP))
 	}
 	// a defence buff grows with intelligence or strength
 	if (name == "iq" || name == "st") && buffBonus(c, skill.Defence) > 0 {
-		packets = append(packets, protocol.EncodePointChange(vid, protocol.PointDefence, 0, int32(defence(c)))) //nolint:gosec // small
+		packets = append(packets, pointTold(vid, protocol.PointDefence, 0, defence(c)))
 	}
 	p.send(packets...)
 }

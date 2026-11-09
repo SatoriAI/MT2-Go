@@ -42,13 +42,13 @@ type chase struct {
 // from then on, and one that is not fighting takes the player who hit it as its target,
 // unless it is a stone; one fighting them fights on, however long since its last bite.
 // Blows from others are not answered while it fights.
-func (s *Service) engage(provoked []provocation, now time.Time) {
+func (svc *Service) engage(provoked []provocation, now time.Time) {
 	for _, pr := range provoked {
-		m := s.byPresent[pr.monster]
+		m := svc.byPresent[pr.monster]
 		if m == nil || !m.diedAt.IsZero() {
 			continue // gone since
 		}
-		s.hurt(m, now)
+		svc.hurt(m, now)
 		if m.proto.Kind == mob.Stone {
 			continue // it heals, but never fights back
 		}
@@ -59,37 +59,37 @@ func (s *Service) engage(provoked []provocation, now time.Time) {
 			continue
 		}
 		m.chase = &chase{target: pr.by, nextStep: now, nextBite: now, lastExchange: now, fromX: m.x, fromY: m.y}
-		s.fighting = append(s.fighting, m)
+		svc.fighting = append(svc.fighting, m)
 	}
 }
 
 // fightOn takes the step of every fighting monster whose step is due, and sends home those
 // that gave up. Only fighting monsters are walked, so an idle tick costs nothing more.
-func (s *Service) fightOn(now time.Time) {
-	kept := s.fighting[:0]
-	for _, m := range s.fighting {
+func (svc *Service) fightOn(now time.Time) {
+	kept := svc.fighting[:0]
+	for _, m := range svc.fighting {
 		switch {
 		case m.chase == nil: // it died
-		case now.Before(m.chase.nextStep) || s.presence.fightStep(m, now, s.clock.Now(), s.rand):
+		case now.Before(m.chase.nextStep) || svc.presence.fightStep(m, now, svc.clock.Now(), svc.rand):
 			kept = append(kept, m)
 		default:
-			s.goHome(m, now)
+			svc.goHome(m, now)
 		}
 	}
-	clear(s.fighting[len(kept):])
-	s.fighting = kept
+	clear(svc.fighting[len(kept):])
+	svc.fighting = kept
 }
 
 // goHome ends the monster's fight and walks it back to where it was spawned, where it
 // strolls again. The world record has it home at once, while the client walks it there.
-func (s *Service) goHome(m *monster, now time.Time) {
+func (svc *Service) goHome(m *monster, now time.Time) {
 	m.chase = nil
-	s.presence.move(m.p.add.VID, protocol.Move{Type: protocol.MoveWait, Rotation: rotationTowards(m.homeX-m.x, m.homeY-m.y),
-		X: m.homeX, Y: m.homeY, Time: s.clock.Now()})
+	svc.presence.move(m.p.add.VID, protocol.Move{Type: protocol.MoveWait, Rotation: rotationTowards(m.homeX-m.x, m.homeY-m.y),
+		X: m.homeX, Y: m.homeY, Time: svc.clock.Now()})
 	walk := time.Duration(math.Hypot(float64(m.homeX-m.x), float64(m.homeY-m.y)) /
 		(walkPerSecond * float64(max(m.proto.MoveSpeed, 1)) / 100) * float64(time.Second))
 	m.x, m.y = m.homeX, m.homeY
-	m.nextStroll = now.Add(walk + s.strollWait()) // not before the client has walked it home
+	m.nextStroll = now.Add(walk + svc.strollWait()) // not before the client has walked it home
 }
 
 // fightStep takes one step of the monster's fight: a bite if its target is in reach and
@@ -155,7 +155,7 @@ func (w *presence) bite(m *monster, t *present, now time.Time, clock uint32, r *
 	ch.LastFought = now
 	vid := t.add.VID
 	t.send(protocol.EncodeDamage(vid, protocol.DamageNormal, int32(damage)), //nolint:gosec // at most the hit points
-		protocol.EncodePointChange(vid, protocol.PointHP, -int32(damage), int32(ch.HP))) //nolint:gosec // small
+		pointTold(vid, protocol.PointHP, -int(damage), ch.HP))
 	c.lastExchange, c.fromX, c.fromY, c.nextBite = now, me.add.X, me.add.Y, now.Add(biteGap(m.proto.AttackSpeed))
 	if ch.HP == 0 {
 		w.die(t)
@@ -189,7 +189,7 @@ func (w *presence) shield(t *present, damage uint32) uint32 {
 		return damage
 	}
 	ch.SP -= taken
-	t.send(protocol.EncodePointChange(t.add.VID, protocol.PointSP, -int32(taken), int32(ch.SP))) //nolint:gosec // small
+	t.send(pointTold(t.add.VID, protocol.PointSP, -int(taken), ch.SP))
 	return damage - taken
 }
 

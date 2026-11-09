@@ -49,8 +49,8 @@ func NewService(store Accounts, keys *account.Keys, clock handshake.Clock) *Serv
 	return &Service{store: store, keys: keys, clock: clock, checks: make(chan struct{}, runtime.NumCPU()), decoy: decoy}
 }
 
-func (s *Service) NewSession(conn *network.Conn) network.Session {
-	return &session{svc: s, conn: conn, sync: handshake.NewSync(s.clock), phase: protocol.PhaseHandshake}
+func (svc *Service) NewSession(conn *network.Conn) network.Session {
+	return &session{svc: svc, conn: conn, sync: handshake.NewSync(svc.clock), phase: protocol.PhaseHandshake}
 }
 
 type session struct {

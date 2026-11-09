@@ -186,6 +186,13 @@ const (
 	Bow              Wield = "bow"
 )
 
+// Shoots is whether the skill lets arrows go from a bow.
+func (p Proto) Shoots() bool { return p.Arrows != Scaled{} }
+
+// NeedsVictim is whether the skill strikes a monster it is aimed at, the one picked or the
+// nearest in front, and is not used with none; an ally's skill lands on a player instead.
+func (p Proto) NeedsVictim() bool { return (p.Target || p.Aim > 0) && !p.Ally }
+
 // Wieldable is whether the skill may be used, or its buff run, with the weapon in hand.
 func (p Proto) Wieldable(weapon item.Proto) bool {
 	switch p.Wields {
