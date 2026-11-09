@@ -1,14 +1,17 @@
 package world
 
+import "time"
+
 // Spawn is a place where the world puts mobs: Count of the kind VNum, each at a random
 // point within Spread of X, Y, or, for a stone, at one of its Spots picked afresh each
 // time it comes back.
 type Spawn struct {
-	VNum   uint16
-	X, Y   int32 // world coordinates
-	Spread int32
-	Count  int
-	Spots  []Spot
+	VNum    uint16
+	X, Y    int32 // world coordinates
+	Spread  int32
+	Count   int
+	Spots   []Spot
+	Respawn time.Duration // how long after its death each comes back; none for its kind's own
 }
 
 // Spot is a point in world coordinates.
@@ -17,11 +20,12 @@ type Spot struct{ X, Y int32 }
 // spawnAt is a spawn written in the map's own coordinates, as the client's map files and
 // the minimap give them.
 type spawnAt struct {
-	vnum   uint16
-	x, y   int32
-	spread int32
-	count  int
-	spots  []Spot // in the map's coordinates
+	vnum    uint16
+	x, y    int32
+	spread  int32
+	count   int
+	respawn int    // seconds
+	spots   []Spot // in the map's coordinates
 }
 
 // The village NPCs stand at the client's minimap marks (locale/pl/map/*_point.txt). The
@@ -43,13 +47,62 @@ var spawnsByMap = map[string][]spawnAt{
 		{vnum: 9009, x: 19500, y: 93700}, {vnum: 9009, x: 30400, y: 118600}, {vnum: 9009, x: 52500, y: 114700},
 		{vnum: 9009, x: 59100, y: 116600}, {vnum: 9009, x: 68000, y: 37900}, {vnum: 9009, x: 82100, y: 29700},
 		{vnum: 9009, x: 73100, y: 65900},
-		{vnum: 101, x: 64000, y: 80500, spread: 2000, count: 6}, {vnum: 101, x: 83500, y: 71500, spread: 2000, count: 6},
-		{vnum: 102, x: 80500, y: 58000, spread: 2000, count: 6}, {vnum: 103, x: 53500, y: 88000, spread: 2000, count: 6},
-		{vnum: 108, x: 83500, y: 82000, spread: 2000, count: 6},
-		{vnum: 104, x: 46000, y: 95500, spread: 2000, count: 6},
-		{vnum: 105, x: 35500, y: 92500, spread: 2000, count: 3}, {vnum: 109, x: 35500, y: 92500, spread: 2000, count: 3},
-		{vnum: 110, x: 26500, y: 50500, spread: 2000, count: 3}, {vnum: 111, x: 26500, y: 50500, spread: 2000, count: 3},
-		{vnum: 114, x: 20500, y: 43000, spread: 2000, count: 6},
+		{vnum: 101, x: 73500, y: 73000, spread: 800, count: 4, respawn: 30}, {vnum: 101, x: 65000, y: 67000, spread: 800, count: 4, respawn: 30},
+		{vnum: 101, x: 58500, y: 77000, spread: 800, count: 5, respawn: 30}, {vnum: 101, x: 70500, y: 66000, spread: 800, count: 5, respawn: 30},
+		{vnum: 101, x: 60500, y: 78500, spread: 800, count: 4, respawn: 30}, {vnum: 101, x: 68500, y: 67500, spread: 800, count: 4, respawn: 30},
+		{vnum: 101, x: 60500, y: 68500, spread: 800, count: 4, respawn: 30}, {vnum: 101, x: 64000, y: 80000, spread: 800, count: 4, respawn: 30},
+		{vnum: 101, x: 58500, y: 65500, spread: 800, count: 3, respawn: 30}, {vnum: 101, x: 68500, y: 64000, spread: 800, count: 4, respawn: 30},
+		{vnum: 101, x: 71000, y: 62500, spread: 800, count: 3, respawn: 30}, {vnum: 101, x: 58000, y: 74500, spread: 800, count: 4, respawn: 30},
+		{vnum: 101, x: 63000, y: 69000, spread: 800, count: 5, respawn: 30}, {vnum: 101, x: 73000, y: 70500, spread: 800, count: 3, respawn: 30},
+		{vnum: 101, x: 61000, y: 66000, spread: 800, count: 5, respawn: 30}, {vnum: 108, x: 52000, y: 72000, spread: 800, count: 5, respawn: 30},
+		{vnum: 102, x: 82000, y: 73000, spread: 800, count: 4, respawn: 30}, {vnum: 108, x: 62500, y: 82500, spread: 800, count: 4, respawn: 30},
+		{vnum: 103, x: 71000, y: 53000, spread: 800, count: 1, respawn: 30}, {vnum: 102, x: 71000, y: 53000, spread: 800, count: 3, respawn: 30},
+		{vnum: 102, x: 67500, y: 84500, spread: 800, count: 5, respawn: 30}, {vnum: 108, x: 64000, y: 84500, spread: 800, count: 4, respawn: 30},
+		{vnum: 102, x: 79000, y: 73000, spread: 800, count: 4, respawn: 30}, {vnum: 108, x: 74500, y: 75500, spread: 800, count: 5, respawn: 30},
+		{vnum: 103, x: 82500, y: 64500, spread: 800, count: 1, respawn: 30}, {vnum: 102, x: 82500, y: 64500, spread: 800, count: 3, respawn: 30},
+		{vnum: 102, x: 76500, y: 73000, spread: 800, count: 5, respawn: 30}, {vnum: 108, x: 58500, y: 58000, spread: 800, count: 4, respawn: 30},
+		{vnum: 102, x: 63000, y: 59500, spread: 800, count: 5, respawn: 30}, {vnum: 108, x: 72000, y: 59000, spread: 800, count: 4, respawn: 30},
+		{vnum: 103, x: 50000, y: 68500, spread: 800, count: 1, respawn: 30}, {vnum: 102, x: 50000, y: 68500, spread: 800, count: 3, respawn: 30},
+		{vnum: 102, x: 82500, y: 70500, spread: 800, count: 4, respawn: 30}, {vnum: 108, x: 51500, y: 77500, spread: 800, count: 5, respawn: 30},
+		{vnum: 102, x: 60500, y: 81000, spread: 800, count: 4, respawn: 30}, {vnum: 108, x: 63500, y: 56500, spread: 800, count: 4, respawn: 30},
+		{vnum: 103, x: 80000, y: 80500, spread: 800, count: 1, respawn: 30}, {vnum: 102, x: 80000, y: 80500, spread: 800, count: 3, respawn: 30},
+		{vnum: 102, x: 71000, y: 83000, spread: 800, count: 4, respawn: 30}, {vnum: 108, x: 65500, y: 59000, spread: 800, count: 4, respawn: 30},
+		{vnum: 102, x: 79000, y: 58500, spread: 800, count: 4, respawn: 30}, {vnum: 108, x: 81000, y: 61500, spread: 800, count: 4, respawn: 30},
+		{vnum: 103, x: 61000, y: 58000, spread: 800, count: 1, respawn: 30}, {vnum: 102, x: 61000, y: 58000, spread: 800, count: 3, respawn: 30},
+		{vnum: 102, x: 66000, y: 82000, spread: 800, count: 4, respawn: 30}, {vnum: 108, x: 53000, y: 74500, spread: 800, count: 4, respawn: 30},
+		{vnum: 102, x: 66500, y: 52500, spread: 800, count: 5, respawn: 30}, {vnum: 108, x: 49500, y: 76000, spread: 800, count: 5, respawn: 30},
+		{vnum: 103, x: 77000, y: 75500, spread: 800, count: 1, respawn: 30}, {vnum: 102, x: 77000, y: 75500, spread: 800, count: 3, respawn: 30},
+		{vnum: 102, x: 77500, y: 80000, spread: 800, count: 5, respawn: 30}, {vnum: 104, x: 50500, y: 58000, spread: 800, count: 5, respawn: 45},
+		{vnum: 103, x: 83500, y: 58000, spread: 800, count: 5, respawn: 45}, {vnum: 104, x: 58500, y: 94000, spread: 800, count: 4, respawn: 45},
+		{vnum: 105, x: 89000, y: 75500, spread: 800, count: 1, respawn: 45}, {vnum: 104, x: 89000, y: 75500, spread: 800, count: 3, respawn: 45},
+		{vnum: 103, x: 62000, y: 91000, spread: 800, count: 5, respawn: 45}, {vnum: 104, x: 45500, y: 92500, spread: 800, count: 5, respawn: 45},
+		{vnum: 103, x: 45500, y: 54000, spread: 800, count: 4, respawn: 45}, {vnum: 104, x: 52500, y: 87000, spread: 800, count: 4, respawn: 45},
+		{vnum: 105, x: 63000, y: 94000, spread: 800, count: 1, respawn: 45}, {vnum: 104, x: 63000, y: 94000, spread: 800, count: 3, respawn: 45},
+		{vnum: 103, x: 51500, y: 95500, spread: 800, count: 4, respawn: 45}, {vnum: 104, x: 55500, y: 97500, spread: 800, count: 4, respawn: 45},
+		{vnum: 103, x: 91000, y: 77000, spread: 800, count: 5, respawn: 45}, {vnum: 104, x: 52500, y: 92500, spread: 800, count: 4, respawn: 45},
+		{vnum: 105, x: 49000, y: 93500, spread: 800, count: 1, respawn: 45}, {vnum: 104, x: 49000, y: 93500, spread: 800, count: 3, respawn: 45},
+		{vnum: 103, x: 85000, y: 70500, spread: 800, count: 4, respawn: 45}, {vnum: 104, x: 37000, y: 75500, spread: 800, count: 5, respawn: 45},
+		{vnum: 103, x: 61000, y: 97000, spread: 800, count: 5, respawn: 45}, {vnum: 104, x: 83500, y: 85000, spread: 800, count: 4, respawn: 45},
+		{vnum: 105, x: 88500, y: 80500, spread: 800, count: 1, respawn: 45}, {vnum: 104, x: 88500, y: 80500, spread: 800, count: 3, respawn: 45},
+		{vnum: 103, x: 87000, y: 86500, spread: 800, count: 4, respawn: 45}, {vnum: 104, x: 45000, y: 49000, spread: 800, count: 5, respawn: 45},
+		{vnum: 103, x: 71000, y: 46500, spread: 800, count: 5, respawn: 45}, {vnum: 104, x: 56500, y: 92500, spread: 800, count: 4, respawn: 45},
+		{vnum: 105, x: 83000, y: 80500, spread: 800, count: 1, respawn: 45}, {vnum: 104, x: 83000, y: 80500, spread: 800, count: 3, respawn: 45},
+		{vnum: 103, x: 89000, y: 85000, spread: 800, count: 4, respawn: 45}, {vnum: 104, x: 48500, y: 83500, spread: 800, count: 4, respawn: 45},
+		{vnum: 103, x: 83500, y: 48000, spread: 800, count: 5, respawn: 45}, {vnum: 104, x: 36000, y: 70500, spread: 800, count: 5, respawn: 45},
+		{vnum: 105, x: 41000, y: 83000, spread: 800, count: 1, respawn: 45}, {vnum: 104, x: 41000, y: 83000, spread: 800, count: 3, respawn: 45},
+		{vnum: 103, x: 45000, y: 64000, spread: 800, count: 5, respawn: 45}, {vnum: 109, x: 60500, y: 109000, spread: 800, count: 4, respawn: 60},
+		{vnum: 110, x: 74000, y: 103000, spread: 800, count: 4, respawn: 60}, {vnum: 105, x: 37000, y: 89500, spread: 800, count: 4, respawn: 60},
+		{vnum: 109, x: 89000, y: 37500, spread: 800, count: 4, respawn: 60}, {vnum: 110, x: 38000, y: 100000, spread: 800, count: 4, respawn: 60},
+		{vnum: 105, x: 33000, y: 45000, spread: 800, count: 4, respawn: 60}, {vnum: 109, x: 54000, y: 102500, spread: 800, count: 4, respawn: 60},
+		{vnum: 110, x: 33000, y: 76500, spread: 800, count: 4, respawn: 60}, {vnum: 105, x: 47500, y: 45500, spread: 800, count: 4, respawn: 60},
+		{vnum: 109, x: 75000, y: 31500, spread: 800, count: 5, respawn: 60}, {vnum: 110, x: 42500, y: 96500, spread: 800, count: 4, respawn: 60},
+		{vnum: 105, x: 91000, y: 97000, spread: 800, count: 4, respawn: 60}, {vnum: 109, x: 65500, y: 106500, spread: 800, count: 4, respawn: 60},
+		{vnum: 114, x: 36000, y: 28500, spread: 800, count: 4, respawn: 60}, {vnum: 110, x: 17500, y: 95500, spread: 800, count: 4, respawn: 60},
+		{vnum: 111, x: 55500, y: 115000, spread: 800, count: 5, respawn: 60}, {vnum: 114, x: 23500, y: 83500, spread: 800, count: 4, respawn: 60},
+		{vnum: 110, x: 50500, y: 21500, spread: 800, count: 4, respawn: 60}, {vnum: 111, x: 83000, y: 18500, spread: 800, count: 4, respawn: 60},
+		{vnum: 114, x: 18500, y: 48500, spread: 800, count: 4, respawn: 60}, {vnum: 110, x: 16000, y: 70000, spread: 800, count: 5, respawn: 60},
+		{vnum: 111, x: 71000, y: 27000, spread: 800, count: 4, respawn: 60}, {vnum: 114, x: 17000, y: 80000, spread: 800, count: 4, respawn: 60},
+		{vnum: 110, x: 30500, y: 38000, spread: 800, count: 4, respawn: 60},
 		{vnum: 8001, spots: []Spot{{75000, 99000}, {36000, 81000}, {42000, 61000}}},
 		{vnum: 8001, spots: []Spot{{48000, 40000}, {51000, 99000}, {84000, 42000}}},
 		{vnum: 8001, spots: []Spot{{88000, 57000}, {92000, 83000}, {63000, 104000}}},
@@ -68,13 +121,57 @@ var spawnsByMap = map[string][]spawnAt{
 		{vnum: 9009, x: 67500, y: 53900}, {vnum: 9009, x: 74200, y: 87900}, {vnum: 9009, x: 20600, y: 55200},
 		{vnum: 9009, x: 21800, y: 67900}, {vnum: 9009, x: 22100, y: 86500}, {vnum: 9009, x: 23100, y: 97600},
 		{vnum: 9009, x: 23400, y: 107700},
-		{vnum: 101, x: 64000, y: 44500, spread: 2000, count: 6}, {vnum: 101, x: 65500, y: 35500, spread: 2000, count: 6},
-		{vnum: 102, x: 38500, y: 55000, spread: 2000, count: 6}, {vnum: 103, x: 58000, y: 31000, spread: 2000, count: 6},
-		{vnum: 108, x: 88000, y: 64000, spread: 2000, count: 6},
-		{vnum: 104, x: 85000, y: 73000, spread: 2000, count: 6},
-		{vnum: 105, x: 35500, y: 28000, spread: 2000, count: 3}, {vnum: 109, x: 35500, y: 28000, spread: 2000, count: 3},
-		{vnum: 110, x: 37000, y: 91000, spread: 2000, count: 3}, {vnum: 111, x: 37000, y: 91000, spread: 2000, count: 3},
-		{vnum: 114, x: 77500, y: 7000, spread: 2000, count: 6},
+		{vnum: 101, x: 63500, y: 62000, spread: 800, count: 4, respawn: 30}, {vnum: 101, x: 63000, y: 46000, spread: 800, count: 4, respawn: 30},
+		{vnum: 101, x: 65500, y: 46500, spread: 800, count: 4, respawn: 30}, {vnum: 101, x: 55500, y: 55000, spread: 800, count: 5, respawn: 30},
+		{vnum: 101, x: 60500, y: 45000, spread: 800, count: 4, respawn: 30}, {vnum: 101, x: 64000, y: 52500, spread: 800, count: 5, respawn: 30},
+		{vnum: 108, x: 45500, y: 63000, spread: 800, count: 4, respawn: 30}, {vnum: 102, x: 66000, y: 40000, spread: 800, count: 4, respawn: 30},
+		{vnum: 108, x: 45000, y: 51000, spread: 800, count: 5, respawn: 30}, {vnum: 103, x: 65000, y: 64000, spread: 800, count: 1, respawn: 30},
+		{vnum: 102, x: 65000, y: 64000, spread: 800, count: 3, respawn: 30}, {vnum: 102, x: 48500, y: 66000, spread: 800, count: 4, respawn: 30},
+		{vnum: 108, x: 47000, y: 58500, spread: 800, count: 4, respawn: 30}, {vnum: 102, x: 65000, y: 66500, spread: 800, count: 5, respawn: 30},
+		{vnum: 108, x: 46500, y: 55000, spread: 800, count: 4, respawn: 30}, {vnum: 103, x: 51500, y: 41000, spread: 800, count: 1, respawn: 30},
+		{vnum: 102, x: 51500, y: 41000, spread: 800, count: 3, respawn: 30}, {vnum: 102, x: 48500, y: 63000, spread: 800, count: 5, respawn: 30},
+		{vnum: 108, x: 74000, y: 43500, spread: 800, count: 5, respawn: 30}, {vnum: 102, x: 63000, y: 36500, spread: 800, count: 5, respawn: 30},
+		{vnum: 108, x: 54500, y: 67500, spread: 800, count: 5, respawn: 30}, {vnum: 103, x: 64000, y: 42500, spread: 800, count: 1, respawn: 30},
+		{vnum: 102, x: 64000, y: 42500, spread: 800, count: 3, respawn: 30}, {vnum: 102, x: 68000, y: 38500, spread: 800, count: 5, respawn: 30},
+		{vnum: 108, x: 54500, y: 36500, spread: 800, count: 5, respawn: 30}, {vnum: 102, x: 69500, y: 63500, spread: 800, count: 4, respawn: 30},
+		{vnum: 108, x: 44000, y: 58000, spread: 800, count: 4, respawn: 30}, {vnum: 103, x: 46500, y: 44500, spread: 800, count: 1, respawn: 30},
+		{vnum: 102, x: 46500, y: 44500, spread: 800, count: 3, respawn: 30}, {vnum: 102, x: 49500, y: 39500, spread: 800, count: 4, respawn: 30},
+		{vnum: 108, x: 65500, y: 37000, spread: 800, count: 5, respawn: 30}, {vnum: 102, x: 42500, y: 56000, spread: 800, count: 5, respawn: 30},
+		{vnum: 108, x: 62000, y: 67000, spread: 800, count: 4, respawn: 30}, {vnum: 103, x: 49500, y: 42500, spread: 800, count: 1, respawn: 30},
+		{vnum: 102, x: 49500, y: 42500, spread: 800, count: 3, respawn: 30}, {vnum: 102, x: 72000, y: 64000, spread: 800, count: 5, respawn: 30},
+		{vnum: 108, x: 59500, y: 36000, spread: 800, count: 4, respawn: 30}, {vnum: 102, x: 52500, y: 38000, spread: 800, count: 5, respawn: 30},
+		{vnum: 108, x: 43500, y: 60500, spread: 800, count: 5, respawn: 30}, {vnum: 103, x: 69500, y: 41000, spread: 800, count: 1, respawn: 30},
+		{vnum: 102, x: 69500, y: 41000, spread: 800, count: 3, respawn: 30}, {vnum: 102, x: 52000, y: 64000, spread: 800, count: 4, respawn: 30},
+		{vnum: 104, x: 54500, y: 31000, spread: 800, count: 4, respawn: 45}, {vnum: 103, x: 39500, y: 54000, spread: 800, count: 5, respawn: 45},
+		{vnum: 104, x: 56500, y: 27000, spread: 800, count: 4, respawn: 45}, {vnum: 105, x: 37000, y: 57000, spread: 800, count: 1, respawn: 45},
+		{vnum: 104, x: 37000, y: 57000, spread: 800, count: 3, respawn: 45}, {vnum: 103, x: 39500, y: 72500, spread: 800, count: 4, respawn: 45},
+		{vnum: 104, x: 69500, y: 33000, spread: 800, count: 5, respawn: 45}, {vnum: 103, x: 72000, y: 34000, spread: 800, count: 4, respawn: 45},
+		{vnum: 104, x: 85000, y: 44500, spread: 800, count: 4, respawn: 45}, {vnum: 105, x: 77000, y: 31500, spread: 800, count: 1, respawn: 45},
+		{vnum: 104, x: 77000, y: 31500, spread: 800, count: 3, respawn: 45}, {vnum: 103, x: 82500, y: 50500, spread: 800, count: 5, respawn: 45},
+		{vnum: 104, x: 64000, y: 30500, spread: 800, count: 5, respawn: 45}, {vnum: 103, x: 36000, y: 53500, spread: 800, count: 4, respawn: 45},
+		{vnum: 104, x: 63000, y: 33500, spread: 800, count: 4, respawn: 45}, {vnum: 105, x: 42000, y: 63000, spread: 800, count: 1, respawn: 45},
+		{vnum: 104, x: 42000, y: 63000, spread: 800, count: 3, respawn: 45}, {vnum: 103, x: 77500, y: 44000, spread: 800, count: 4, respawn: 45},
+		{vnum: 104, x: 86500, y: 63500, spread: 800, count: 4, respawn: 45}, {vnum: 103, x: 45500, y: 66500, spread: 800, count: 4, respawn: 45},
+		{vnum: 104, x: 33500, y: 47500, spread: 800, count: 4, respawn: 45}, {vnum: 105, x: 79500, y: 45500, spread: 800, count: 1, respawn: 45},
+		{vnum: 104, x: 79500, y: 45500, spread: 800, count: 3, respawn: 45}, {vnum: 103, x: 73500, y: 32000, spread: 800, count: 4, respawn: 45},
+		{vnum: 104, x: 84000, y: 54000, spread: 800, count: 5, respawn: 45}, {vnum: 103, x: 36500, y: 45500, spread: 800, count: 5, respawn: 45},
+		{vnum: 104, x: 63000, y: 75000, spread: 800, count: 4, respawn: 45}, {vnum: 105, x: 67000, y: 32500, spread: 800, count: 1, respawn: 45},
+		{vnum: 104, x: 67000, y: 32500, spread: 800, count: 3, respawn: 45}, {vnum: 103, x: 83500, y: 64000, spread: 800, count: 4, respawn: 45},
+		{vnum: 104, x: 81500, y: 47500, spread: 800, count: 4, respawn: 45}, {vnum: 103, x: 58500, y: 29000, spread: 800, count: 4, respawn: 45},
+		{vnum: 104, x: 32500, y: 44500, spread: 800, count: 4, respawn: 45}, {vnum: 105, x: 58500, y: 32500, spread: 800, count: 1, respawn: 45},
+		{vnum: 104, x: 58500, y: 32500, spread: 800, count: 3, respawn: 45}, {vnum: 103, x: 52000, y: 33500, spread: 800, count: 4, respawn: 45},
+		{vnum: 109, x: 51000, y: 91000, spread: 800, count: 4, respawn: 60}, {vnum: 110, x: 34000, y: 22000, spread: 800, count: 4, respawn: 60},
+		{vnum: 105, x: 70000, y: 90500, spread: 800, count: 4, respawn: 60}, {vnum: 109, x: 31500, y: 28500, spread: 800, count: 4, respawn: 60},
+		{vnum: 110, x: 86000, y: 24000, spread: 800, count: 4, respawn: 60}, {vnum: 105, x: 75000, y: 91500, spread: 800, count: 4, respawn: 60},
+		{vnum: 109, x: 83000, y: 79500, spread: 800, count: 5, respawn: 60}, {vnum: 110, x: 38000, y: 83500, spread: 800, count: 4, respawn: 60},
+		{vnum: 105, x: 27500, y: 61000, spread: 800, count: 5, respawn: 60}, {vnum: 109, x: 66000, y: 90000, spread: 800, count: 4, respawn: 60},
+		{vnum: 110, x: 66500, y: 94500, spread: 800, count: 4, respawn: 60}, {vnum: 105, x: 25000, y: 67500, spread: 800, count: 4, respawn: 60},
+		{vnum: 109, x: 25000, y: 57000, spread: 800, count: 4, respawn: 60}, {vnum: 114, x: 62500, y: 101500, spread: 800, count: 5, respawn: 60},
+		{vnum: 110, x: 79000, y: 6000, spread: 800, count: 5, respawn: 60}, {vnum: 111, x: 30500, y: 14000, spread: 800, count: 4, respawn: 60},
+		{vnum: 114, x: 40500, y: 98500, spread: 800, count: 5, respawn: 60}, {vnum: 110, x: 54000, y: 100500, spread: 800, count: 4, respawn: 60},
+		{vnum: 111, x: 38500, y: 104000, spread: 800, count: 5, respawn: 60}, {vnum: 114, x: 27500, y: 91500, spread: 800, count: 4, respawn: 60},
+		{vnum: 110, x: 28000, y: 81500, spread: 800, count: 4, respawn: 60}, {vnum: 111, x: 38000, y: 93500, spread: 800, count: 4, respawn: 60},
+		{vnum: 114, x: 22000, y: 91000, spread: 800, count: 4, respawn: 60}, {vnum: 110, x: 31000, y: 18500, spread: 800, count: 5, respawn: 60},
 		{vnum: 8001, spots: []Spot{{30000, 70000}, {40000, 28000}, {27000, 49000}}},
 		{vnum: 8001, spots: []Spot{{83000, 28000}, {62000, 19000}, {92000, 63000}}},
 		{vnum: 8001, spots: []Spot{{83000, 76000}, {86000, 49000}, {41000, 80000}}},
@@ -93,13 +190,63 @@ var spawnsByMap = map[string][]spawnAt{
 		{vnum: 9009, x: 71100, y: 23400}, {vnum: 9009, x: 73200, y: 39000}, {vnum: 9009, x: 77200, y: 47200},
 		{vnum: 9009, x: 76300, y: 80900}, {vnum: 9009, x: 77300, y: 90500}, {vnum: 9009, x: 42800, y: 48000},
 		{vnum: 9009, x: 38600, y: 84900}, {vnum: 9009, x: 81900, y: 31500},
-		{vnum: 101, x: 56500, y: 67000, spread: 2000, count: 6}, {vnum: 101, x: 61000, y: 77500, spread: 2000, count: 6},
-		{vnum: 102, x: 22000, y: 70000, spread: 2000, count: 6}, {vnum: 103, x: 40000, y: 94000, spread: 2000, count: 6},
-		{vnum: 108, x: 20500, y: 88000, spread: 2000, count: 6},
-		{vnum: 104, x: 73000, y: 67000, spread: 2000, count: 6},
-		{vnum: 105, x: 64000, y: 43000, spread: 2000, count: 3}, {vnum: 109, x: 64000, y: 43000, spread: 2000, count: 3},
-		{vnum: 110, x: 35500, y: 31000, spread: 2000, count: 3}, {vnum: 111, x: 35500, y: 31000, spread: 2000, count: 3},
-		{vnum: 114, x: 67000, y: 116500, spread: 2000, count: 6},
+		{vnum: 101, x: 42000, y: 81500, spread: 800, count: 4, respawn: 30}, {vnum: 101, x: 35500, y: 69000, spread: 800, count: 5, respawn: 30},
+		{vnum: 101, x: 35500, y: 66000, spread: 800, count: 4, respawn: 30}, {vnum: 101, x: 45000, y: 73500, spread: 800, count: 4, respawn: 30},
+		{vnum: 101, x: 36000, y: 73000, spread: 800, count: 4, respawn: 30}, {vnum: 101, x: 36500, y: 76000, spread: 800, count: 4, respawn: 30},
+		{vnum: 101, x: 46500, y: 70000, spread: 800, count: 5, respawn: 30}, {vnum: 101, x: 41000, y: 70000, spread: 800, count: 4, respawn: 30},
+		{vnum: 101, x: 41000, y: 64000, spread: 800, count: 3, respawn: 30}, {vnum: 101, x: 34500, y: 78000, spread: 800, count: 5, respawn: 30},
+		{vnum: 101, x: 32500, y: 76500, spread: 800, count: 4, respawn: 30}, {vnum: 101, x: 37500, y: 64500, spread: 800, count: 4, respawn: 30},
+		{vnum: 101, x: 34000, y: 71500, spread: 800, count: 4, respawn: 30}, {vnum: 101, x: 48000, y: 72000, spread: 800, count: 4, respawn: 30},
+		{vnum: 101, x: 47500, y: 67500, spread: 800, count: 4, respawn: 30}, {vnum: 101, x: 43500, y: 71500, spread: 800, count: 4, respawn: 30},
+		{vnum: 101, x: 44000, y: 83000, spread: 800, count: 4, respawn: 30}, {vnum: 108, x: 39000, y: 91000, spread: 800, count: 4, respawn: 30},
+		{vnum: 102, x: 38500, y: 62000, spread: 800, count: 4, respawn: 30}, {vnum: 108, x: 55000, y: 66500, spread: 800, count: 5, respawn: 30},
+		{vnum: 103, x: 55500, y: 83500, spread: 800, count: 1, respawn: 30}, {vnum: 102, x: 55500, y: 83500, spread: 800, count: 3, respawn: 30},
+		{vnum: 102, x: 48500, y: 89000, spread: 800, count: 4, respawn: 30}, {vnum: 108, x: 59500, y: 75000, spread: 800, count: 4, respawn: 30},
+		{vnum: 102, x: 34000, y: 61500, spread: 800, count: 5, respawn: 30}, {vnum: 108, x: 33000, y: 65000, spread: 800, count: 5, respawn: 30},
+		{vnum: 103, x: 36000, y: 60000, spread: 800, count: 1, respawn: 30}, {vnum: 102, x: 36000, y: 60000, spread: 800, count: 3, respawn: 30},
+		{vnum: 102, x: 45500, y: 57500, spread: 800, count: 4, respawn: 30}, {vnum: 108, x: 43000, y: 58000, spread: 800, count: 4, respawn: 30},
+		{vnum: 102, x: 40500, y: 88000, spread: 800, count: 4, respawn: 30}, {vnum: 108, x: 33500, y: 59000, spread: 800, count: 4, respawn: 30},
+		{vnum: 103, x: 43000, y: 87000, spread: 800, count: 1, respawn: 30}, {vnum: 102, x: 43000, y: 87000, spread: 800, count: 3, respawn: 30},
+		{vnum: 102, x: 57500, y: 66500, spread: 800, count: 5, respawn: 30}, {vnum: 108, x: 47000, y: 61000, spread: 800, count: 5, respawn: 30},
+		{vnum: 102, x: 35500, y: 57000, spread: 800, count: 5, respawn: 30}, {vnum: 108, x: 30000, y: 86000, spread: 800, count: 4, respawn: 30},
+		{vnum: 103, x: 58500, y: 69500, spread: 800, count: 1, respawn: 30}, {vnum: 102, x: 58500, y: 69500, spread: 800, count: 3, respawn: 30},
+		{vnum: 102, x: 29500, y: 74000, spread: 800, count: 4, respawn: 30}, {vnum: 108, x: 24000, y: 72000, spread: 800, count: 5, respawn: 30},
+		{vnum: 102, x: 33500, y: 67500, spread: 800, count: 5, respawn: 30}, {vnum: 108, x: 47500, y: 86000, spread: 800, count: 4, respawn: 30},
+		{vnum: 103, x: 29000, y: 78500, spread: 800, count: 1, respawn: 30}, {vnum: 102, x: 29000, y: 78500, spread: 800, count: 3, respawn: 30},
+		{vnum: 102, x: 34500, y: 80500, spread: 800, count: 4, respawn: 30}, {vnum: 108, x: 42000, y: 55500, spread: 800, count: 5, respawn: 30},
+		{vnum: 102, x: 42000, y: 91000, spread: 800, count: 5, respawn: 30}, {vnum: 108, x: 56500, y: 71000, spread: 800, count: 4, respawn: 30},
+		{vnum: 103, x: 55500, y: 64000, spread: 800, count: 1, respawn: 30}, {vnum: 102, x: 55500, y: 64000, spread: 800, count: 3, respawn: 30},
+		{vnum: 102, x: 41500, y: 84500, spread: 800, count: 4, respawn: 30}, {vnum: 104, x: 56000, y: 94000, spread: 800, count: 5, respawn: 45},
+		{vnum: 103, x: 55000, y: 98500, spread: 800, count: 5, respawn: 45}, {vnum: 104, x: 18500, y: 66500, spread: 800, count: 4, respawn: 45},
+		{vnum: 105, x: 30000, y: 59500, spread: 800, count: 1, respawn: 45}, {vnum: 104, x: 30000, y: 59500, spread: 800, count: 3, respawn: 45},
+		{vnum: 103, x: 20000, y: 68500, spread: 800, count: 5, respawn: 45}, {vnum: 104, x: 43500, y: 102500, spread: 800, count: 4, respawn: 45},
+		{vnum: 103, x: 22000, y: 91000, spread: 800, count: 4, respawn: 45}, {vnum: 104, x: 17500, y: 90500, spread: 800, count: 5, respawn: 45},
+		{vnum: 105, x: 22000, y: 81000, spread: 800, count: 1, respawn: 45}, {vnum: 104, x: 22000, y: 81000, spread: 800, count: 3, respawn: 45},
+		{vnum: 103, x: 61500, y: 79000, spread: 800, count: 5, respawn: 45}, {vnum: 104, x: 39000, y: 44500, spread: 800, count: 5, respawn: 45},
+		{vnum: 103, x: 23500, y: 85000, spread: 800, count: 4, respawn: 45}, {vnum: 104, x: 20000, y: 60500, spread: 800, count: 5, respawn: 45},
+		{vnum: 105, x: 45500, y: 46000, spread: 800, count: 1, respawn: 45}, {vnum: 104, x: 45500, y: 46000, spread: 800, count: 3, respawn: 45},
+		{vnum: 103, x: 68500, y: 84000, spread: 800, count: 5, respawn: 45}, {vnum: 104, x: 65000, y: 76500, spread: 800, count: 5, respawn: 45},
+		{vnum: 103, x: 19500, y: 80000, spread: 800, count: 4, respawn: 45}, {vnum: 104, x: 41000, y: 101000, spread: 800, count: 5, respawn: 45},
+		{vnum: 105, x: 35000, y: 44500, spread: 800, count: 1, respawn: 45}, {vnum: 104, x: 35000, y: 44500, spread: 800, count: 3, respawn: 45},
+		{vnum: 103, x: 62500, y: 87500, spread: 800, count: 5, respawn: 45}, {vnum: 104, x: 61000, y: 65500, spread: 800, count: 4, respawn: 45},
+		{vnum: 103, x: 20500, y: 72000, spread: 800, count: 5, respawn: 45}, {vnum: 104, x: 63500, y: 80500, spread: 800, count: 4, respawn: 45},
+		{vnum: 105, x: 59500, y: 77500, spread: 800, count: 1, respawn: 45}, {vnum: 104, x: 59500, y: 77500, spread: 800, count: 3, respawn: 45},
+		{vnum: 103, x: 69500, y: 66500, spread: 800, count: 4, respawn: 45}, {vnum: 104, x: 67000, y: 86500, spread: 800, count: 4, respawn: 45},
+		{vnum: 103, x: 48500, y: 44500, spread: 800, count: 5, respawn: 45}, {vnum: 104, x: 62000, y: 75500, spread: 800, count: 4, respawn: 45},
+		{vnum: 105, x: 63500, y: 66500, spread: 800, count: 1, respawn: 45}, {vnum: 104, x: 63500, y: 66500, spread: 800, count: 3, respawn: 45},
+		{vnum: 103, x: 43500, y: 53500, spread: 800, count: 4, respawn: 45}, {vnum: 109, x: 48500, y: 107500, spread: 800, count: 4, respawn: 60},
+		{vnum: 110, x: 63500, y: 94500, spread: 800, count: 4, respawn: 60}, {vnum: 105, x: 62500, y: 100500, spread: 800, count: 5, respawn: 60},
+		{vnum: 109, x: 73000, y: 83500, spread: 800, count: 4, respawn: 60}, {vnum: 110, x: 35000, y: 109000, spread: 800, count: 4, respawn: 60},
+		{vnum: 105, x: 69000, y: 90000, spread: 800, count: 5, respawn: 60}, {vnum: 109, x: 74500, y: 68500, spread: 800, count: 5, respawn: 60},
+		{vnum: 110, x: 66000, y: 41000, spread: 800, count: 5, respawn: 60}, {vnum: 105, x: 53000, y: 43500, spread: 800, count: 5, respawn: 60},
+		{vnum: 109, x: 20500, y: 96500, spread: 800, count: 4, respawn: 60}, {vnum: 110, x: 39500, y: 109500, spread: 800, count: 4, respawn: 60},
+		{vnum: 105, x: 71000, y: 44000, spread: 800, count: 4, respawn: 60}, {vnum: 109, x: 46500, y: 33000, spread: 800, count: 4, respawn: 60},
+		{vnum: 114, x: 68500, y: 36500, spread: 800, count: 5, respawn: 60}, {vnum: 110, x: 30000, y: 21000, spread: 800, count: 4, respawn: 60},
+		{vnum: 111, x: 59500, y: 35000, spread: 800, count: 4, respawn: 60}, {vnum: 114, x: 35000, y: 28000, spread: 800, count: 4, respawn: 60},
+		{vnum: 110, x: 64500, y: 33500, spread: 800, count: 4, respawn: 60}, {vnum: 111, x: 36500, y: 24000, spread: 800, count: 4, respawn: 60},
+		{vnum: 114, x: 16000, y: 29000, spread: 800, count: 4, respawn: 60}, {vnum: 110, x: 12000, y: 113000, spread: 800, count: 4, respawn: 60},
+		{vnum: 111, x: 14000, y: 34000, spread: 800, count: 4, respawn: 60}, {vnum: 114, x: 42500, y: 29500, spread: 800, count: 5, respawn: 60},
+		{vnum: 110, x: 8000, y: 35500, spread: 800, count: 4, respawn: 60},
 		{vnum: 8001, spots: []Spot{{37000, 106000}, {13000, 58000}, {60000, 44000}}},
 		{vnum: 8001, spots: []Spot{{43000, 39000}, {63000, 91000}, {57000, 103000}}},
 		{vnum: 8001, spots: []Spot{{73000, 63000}, {16000, 87000}, {69000, 52000}}},
@@ -120,7 +267,8 @@ func Spawns() []Spawn {
 			for _, p := range s.spots {
 				spots = append(spots, Spot{m.X + p.X, m.Y + p.Y})
 			}
-			all = append(all, Spawn{VNum: s.vnum, X: m.X + s.x, Y: m.Y + s.y, Spread: s.spread, Count: count, Spots: spots})
+			all = append(all, Spawn{VNum: s.vnum, X: m.X + s.x, Y: m.Y + s.y, Spread: s.spread, Count: count, Spots: spots,
+				Respawn: time.Duration(s.respawn) * time.Second})
 		}
 	}
 	return all

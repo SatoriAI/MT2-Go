@@ -322,3 +322,24 @@ func TestTheBlowGapFollowsTheGamesClock(t *testing.T) {
 		t.Fatal("the second blow was dropped")
 	}
 }
+
+// A monster whose spawn sets its own time comes back after that time, not the fields'
+// default: a dog of a pack 45 s, still away at 44.
+func TestAMonsterComesBackAfterItsSpawnsTime(t *testing.T) {
+	s, dog, client := aDog(t, homeX+100)
+	dog.spawn.Respawn = 45 * time.Second
+	old := dog.p.add.VID
+	s.hit(old, slayer, 0, noon)
+	read(t, client, damageSize+deadSize)
+	dog.nextStroll = noon.Add(time.Hour)
+	s.tick(noon.Add(corpseTime))
+	read(t, client, deleteSize)
+
+	s.tick(noon.Add(44 * time.Second))
+	expectNothing(t, client)
+	s.tick(noon.Add(45 * time.Second))
+
+	if add := protocol.NewReader(read(t, client, addSize)[1:]); add.U32() == old || dog.p.dead() {
+		t.Fatal("not back")
+	}
+}

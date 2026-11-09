@@ -2,7 +2,7 @@
 
 ## What the player sees
 
-Clicking a monster picks it: its name, level and a hit-point bar appear at the top of the screen. Attacking it swings at it, and each blow that lands shows its damage over the monster and lowers the bar. At zero the monster plays its death, lies a moment, and fades away; twenty seconds later another of its kind stands somewhere in its field. NPCs cannot be fought. A monster that is hit fights back: it turns on its attacker, follows them, and bites every two seconds or so, and the player's hit-point bar drops with each bite. Run far enough, or keep out of reach for ten seconds, and it gives up and walks home. A player whose hit points run out dies ([dying.md](dying.md)). Killing gives experience ([experience.md](experience.md)).
+Clicking a monster picks it: its name, level and a hit-point bar appear at the top of the screen. Attacking it swings at it, and each blow that lands shows its damage over the monster and lowers the bar. At zero the monster plays its death, lies a moment, and fades away; half a minute to a minute later, by how far out it stood, another of its kind stands somewhere in its pack's place ([monsters.md](monsters.md)). NPCs cannot be fought. A monster that is hit fights back: it turns on its attacker, follows them, and bites every two seconds or so, and the player's hit-point bar drops with each bite. Run far enough, or keep out of reach for ten seconds, and it gives up and walks home. A player whose hit points run out dies ([dying.md](dying.md)). Killing gives experience ([experience.md](experience.md)).
 
 A level-1 sura without a weapon takes about 10 to 12 off a wild dog a blow, so a dog takes about twelve; with 10 more points of strength, about five. The damage is this server's own formula, not the original's: see below.
 
@@ -64,7 +64,7 @@ A level-1 sura without a weapon takes about 10 to 12 off a wild dog a blow, so a
 - **Speed:** a blow sooner than 15000 ms divided by the player's attack speed (at least 80 ms; 100 ms at a new character's 150) after their last on the same victim is dropped without a word: open-mt2's rule, after the original's, against tools that send blows faster than the client swings. It is checked on both sides: the attacker's last victim, and the victim's last attacker, which catches a player switching between two victims to double up.
 - **Death:** a blow that takes the last hit point sends the attacker its damage, everyone who picked the monster its 0%, and everyone who sees it its death; the picks end. The body cannot be hit, picked or moved.
 - **A body** is shown lying, with the client's dead state in its ADD, to anyone who arrives while it lies there.
-- **The world loop** owns every monster that can be killed, wandering or not, and takes the body away two seconds after the death, with DELETE to those who see it, as open-mt2 does, and twenty seconds after the death puts a new monster of the kind at a random point of its spawn's area, with a new vid and all its hit points: this server's pause, chosen for the village fields.
+- **The world loop** owns every monster that can be killed, wandering or not, and takes the body away two seconds after the death, with DELETE to those who see it, as open-mt2 does, and after its spawn's time, 30, 45 or 60 seconds by its band, or twenty for a spawn that sets none, puts a new monster of the kind at a random point of its spawn's area, with a new vid and all its hit points.
 - **Skills** (an ATTACK with a skill) are dropped: a skill's victims are this server's to pick when it is used, and a blow and a skill's strike go through the same `strike` ([skills.md](skills.md)). While Enchanted Blade runs, its bonus adds to every blow's attack. Blows and picks the client sent before it took in Change character are dropped, as moves and chat are.
 
 ### Monsters fighting back
@@ -105,7 +105,7 @@ The original takes the defence off the attack and scales the stat part by a hit 
 
 - **The packets and what the client does with them:** the client's source, `Packet.h`, `PythonNetworkStreamPhaseGame.cpp`, `InstanceBaseEffect.cpp`, `ActorInstanceBattle.cpp`, `PythonPlayerEventHandler.cpp`, `PythonPlayer.cpp`, and `uitarget.py`.
 - **The attack's stat part and a monster's defence:** the client's character window and open-mt2's `MobPoints.ts`. **The reach and the speed rule:** open-mt2 (`PlayerBattleAgainstMobStrategy.ts`, `Player.ts`), read for facts. The monsters' values: the client's `mob_proto` dump.
-- **The body's two seconds:** open-mt2. **The twenty-second return:** this server's.
+- **The body's two seconds:** open-mt2. **The returns:** this server's, the band times the veteran's and the designer's.
 - **A monster's attack and chase as the client shows them:** `InstanceBase.cpp` (`PushTCPState`, the FUNC_ATTACK and FUNC_WAIT branches), `NetworkActorManager.cpp`. **The fight's numbers,** a hit monster targeting its attacker, its reach and 15%, its bite every 2,000 × 100 ÷ attack speed ms, its step each half second towards nine tenths of its range, and giving up after ten seconds or 5,000: open-mt2's `Behavior.ts` and `Monster.ts`, read for facts. **The bite:** the original's monster attack (open-mt2's `MobPoints.ts`, `MonsterBattle.ts`) of twice level and strength and the dice, without its hit rate, under this server's mitigation, as Dawid chose. **The walk of 400 a second:** this server's estimate.
 
 ## What proves it
@@ -119,7 +119,7 @@ The original takes the defence off the attack and scales the stat part by a hit 
   - an NPC neither fought nor picked;
   - a kill telling the attacker, the onlookers, and ending the picks;
   - a body neither hit, picked nor moved;
-  - the body taken away after two seconds and a new monster returning after twenty, with a new vid and full hit points;
+  - the body taken away after two seconds and a new monster returning after twenty, with a new vid and full hit points, or after its spawn's own time;
   - walking out of sight, and picking another, ending a pick;
   - taking a boar called Dzik away keeping a player called dzik findable;
   - the gap between blows following attack speed, and switching between two victims not getting round it;

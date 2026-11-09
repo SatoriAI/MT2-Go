@@ -117,11 +117,12 @@ var gear = append(append([]Drop{}, potions...),
 	Drop{VNum: 11800, Count: 1, Chance: 20})
 
 // The materials upgrades take from +5 on: wolves leave a claw, for weapons, and boars a
-// tooth, for armour, each 5 times in 100. Bears and tigers leave the first gear.
+// tooth, for armour, each 3 times in 100, as the fuller fields give many more of them to
+// kill. Bears and tigers leave the first gear.
 var (
-	wolfDrops      = append(append([]Drop{}, potions...), Drop{VNum: 30028, Count: 1, Chance: 500})
-	alphaWolfDrops = append(append([]Drop{}, gear...), Drop{VNum: 30028, Count: 1, Chance: 500})
-	boarDrops      = append(append([]Drop{}, gear...), Drop{VNum: 30004, Count: 1, Chance: 500})
+	wolfDrops      = append(append([]Drop{}, potions...), Drop{VNum: 30028, Count: 1, Chance: 300})
+	alphaWolfDrops = append(append([]Drop{}, gear...), Drop{VNum: 30028, Count: 1, Chance: 300})
+	boarDrops      = append(append([]Drop{}, gear...), Drop{VNum: 30004, Count: 1, Chance: 300})
 )
 
 // firstGear is each class's first weapon and armour, which the stones leave one of, and

@@ -79,7 +79,7 @@ Damage, target, death and drops use the same packets as for monsters ([combat.md
 - **Destroyed:**
   - The drop owner is told, the drops are rolled and laid, and experience is shared, as for any monster ([drops.md](drops.md), [experience.md](experience.md)).
   - The potions, the materials and the gear are each one kind, picked evenly from its list.
-  - It comes back after ten minutes, where a village monster takes 20 seconds.
+  - It comes back after ten minutes, where a field monster takes 30 to 60 seconds.
 
 ## How we know
 
