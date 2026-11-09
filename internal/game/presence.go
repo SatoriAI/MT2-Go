@@ -1,8 +1,10 @@
 package game
 
 import (
+	"math"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/SatoriAI/MT2-Go/internal/account"
 	"github.com/SatoriAI/MT2-Go/internal/event"
@@ -53,8 +55,9 @@ type present struct {
 	// char is the player's character, stored under ID; the vid lasts one login. While the
 	// player is in the world, its level, experience and stats change only under the
 	// record's lock: others' kills raise them.
-	char  *account.Character
-	fight *fight // a monster's hit points; nil for those that cannot be fought
+	char   *account.Character
+	fight  *fight // a monster's hit points; nil for those that cannot be fought
+	tether tether // where a player's character can be, by the server's reckoning
 	// sees is who this player has been shown, by vid. Seeing is mutual, so both sides
 	// change together, and leaving tells exactly these.
 	sees map[uint32]*present
@@ -302,4 +305,59 @@ func toViewers(p *present, packet []byte) {
 	for _, other := range p.sees {
 		other.send(packet)
 	}
+}
+
+// A tether is where the server reckons a player's character can be, and since when: it
+// follows their moves half as fast again as the client runs (4.5 units a second for each
+// point of move speed), banking at most tetherCredit unspent, and a move may land within
+// tetherLength of it, the 1000 a run reports ahead either way and 500 for lateness
+// (docs/mechanics/other-players.md). A zero time is where the server put the character.
+type tether struct {
+	x, y int32
+	at   time.Time
+}
+
+const (
+	tetherLength = 2500
+	tetherCredit = 2 * time.Second
+)
+
+// walk takes the player's move if it lands within their tether, and shows it to the
+// others; one further is not taken: the character is put where the tether has gone to, for
+// the others and, with SYNC_POSITION, for the player's own client. It returns where the
+// character is now. The dead stay where they fell.
+func (w *presence) walk(vid uint32, m protocol.Move, now time.Time) (int32, int32) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	p := w.all[vid]
+	if p.dead() {
+		return p.add.X, p.add.Y
+	}
+	p.tether = p.tether.towards(m.X, m.Y, 1.5*4.5*float64(p.add.MoveSpeed), now)
+	l := p.tether
+	dx, dy := int64(m.X)-int64(l.x), int64(m.Y)-int64(l.y)
+	if dx*dx+dy*dy <= tetherLength*tetherLength {
+		w.moveLocked(p, m)
+		return m.X, m.Y
+	}
+	w.moveLocked(p, protocol.Move{Type: protocol.MoveWait, Rotation: m.Rotation, X: l.x, Y: l.y, Time: m.Time})
+	p.send(protocol.EncodeSyncPosition(vid, l.x, l.y))
+	return l.x, l.y
+}
+
+// towards is the tether followed towards x, y at rate units a second for the time it has
+// banked since it last moved, up to tetherCredit. Reaching the point spends only the time
+// that took, so the moves of a burst after a stall share it.
+func (l tether) towards(x, y int32, rate float64, now time.Time) tether {
+	if l.at.IsZero() {
+		return tether{x: l.x, y: l.y, at: now}
+	}
+	banked := min(now.Sub(l.at), tetherCredit)
+	dx, dy := float64(x)-float64(l.x), float64(y)-float64(l.y)
+	far := math.Hypot(dx, dy)
+	if needed := time.Duration(far / rate * float64(time.Second)); needed <= banked {
+		return tether{x: x, y: y, at: now.Add(needed - banked)}
+	}
+	k := rate * banked.Seconds() / far
+	return tether{x: l.x + int32(dx*k), y: l.y + int32(dy*k), at: now}
 }

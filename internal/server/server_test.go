@@ -801,6 +801,12 @@ func TestEnteringBeforeStartEndsTheConnection(t *testing.T) {
 // present again, as the client does.
 func (h *harness) hendraInWorld() (*client, uint32) {
 	h.t.Helper()
+	return h.hendraInWorldAt(0, 0)
+}
+
+// hendraInWorldAt is hendraInWorld with Hendra standing x east and y south of the start.
+func (h *harness) hendraInWorldAt(x, y int32) (*client, uint32) {
+	h.t.Helper()
 	h.createAccount("admin")
 	key := h.authenticate("admin")
 	game := h.enterSelection("admin", key)
@@ -808,8 +814,14 @@ func (h *harness) hendraInWorld() (*client, uint32) {
 	game.chooseEmpire(3, sequenceByte)
 	game.createCharacter(0, "Hendra", 6, 1)
 	game.read(65)
+	h.exec(`UPDATE characters SET x = x + $1, y = y + $2 WHERE name = 'Hendra'`, x, y)
 	game.selectCharacter(0)
-	game.expectLoading()
+	if x == 0 && y == 0 {
+		game.expectLoading()
+	} else {
+		game.expect(protocol.EncodePhase(protocol.PhaseLoading))
+		game.read(46 + 1021 + 1531) // the main character elsewhere, points and skills
+	}
 	game.enterGame()
 	game.read(2 + 5 + 2 + 35 + 54 + noBlocksSize) // phase, time, channel, the player, their info and blocks
 	return game, key
@@ -842,16 +854,19 @@ func TestACharacterStartsWhereItStoodWhenItLeft(t *testing.T) {
 	}
 }
 
+// Hendra steps from 100 inside Jinno's map, its west edge at 921600, to 100 past it, a
+// position on no known map, which is not kept: she starts again where she last stood on
+// the map.
 func TestAPositionOnNoKnownMapIsNotSaved(t *testing.T) {
 	h := start(t)
-	game, key := h.hendraInWorld()
-	game.send(moveTo(5, 5))
+	game, key := h.hendraInWorldAt(921700-963400, 0)
+	game.send(moveTo(921500, 278200))
 	game.expectOpen()
 
 	_ = game.conn.Close()
 
-	if x, y := h.startHendra(key); x != 963400 || y != 278200 {
-		t.Fatalf("started at (%d, %d), want Jinno's start", x, y)
+	if x, y := h.startHendra(key); x != 921700 || y != 278200 {
+		t.Fatalf("started at (%d, %d), want where she last stood on the map", x, y)
 	}
 }
 

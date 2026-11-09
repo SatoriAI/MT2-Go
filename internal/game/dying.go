@@ -45,6 +45,7 @@ func (w *presence) revive(vid uint32, town bool, x, y int32) bool {
 	if town {
 		p.add.X, p.add.Y = x, y
 	}
+	p.tether = tether{x: p.add.X, y: p.add.Y} // walking on from where they rose
 	p.send(protocol.EncodeChat(protocol.ChatCommand, vid, p.info.Empire, "CloseRestartWindow"))
 	p.send(p.appearance()...)
 	p.send(protocol.EncodePointChange(vid, protocol.PointHP, 0, int32(c.HP)), //nolint:gosec // small

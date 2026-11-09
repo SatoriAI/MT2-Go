@@ -37,7 +37,7 @@ func swirling(t *testing.T) (*session, net.Conn, net.Conn) {
 	read(t, client, 3*addSize+addSize+infoSize) // the dogs, then Kira
 	read(t, kira, 3*addSize+addSize+infoSize)
 	sess := &session{svc: s, conn: hendra.out.(*network.Conn), phase: protocol.PhaseGame, rand: rand.New(rand.NewPCG(5, 6)), //nolint:gosec // a fixed seed
-		playing: &character{vid: 1000, Character: *c}}
+		playing: playingAs(hendra)}
 	return sess, client, kira
 }
 

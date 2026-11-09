@@ -25,7 +25,7 @@ func dropping(t *testing.T) (*session, *keptItems, net.Conn, net.Conn) {
 	read(t, client, addSize+infoSize)
 	read(t, kira, addSize+infoSize)
 	sess := &session{svc: s, conn: hendra.out.(*network.Conn), phase: protocol.PhaseGame, rand: newRand(),
-		playing: &character{vid: 1000, Character: *hendra.char}, gold: 20, inventory: item.Inventory{
+		playing: playingAs(hendra), gold: 20, inventory: item.Inventory{
 			{ID: 1, VNum: 27001, Count: 5, Cell: 0}, {ID: 2, VNum: 10, Count: 1, Worn: item.Weapon}}}
 	return sess, kept, client, kira
 }

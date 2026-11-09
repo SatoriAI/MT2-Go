@@ -1,67 +1,19 @@
 package game
 
 import (
-	"context"
-	"io"
-	"log/slog"
 	"math"
-	"math/rand/v2"
 	"net"
 	"net/netip"
 	"testing"
 	"time"
 
 	"github.com/SatoriAI/MT2-Go/internal/handshake"
-	"github.com/SatoriAI/MT2-Go/internal/network"
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
 	"github.com/SatoriAI/MT2-Go/internal/world"
 )
 
 // home is where the test monsters stand, in Jinno's first village.
 const homeX, homeY = 963400, 278200
-
-// watcher opens a connection and returns the server's side, to put a player on, and the
-// client's, to read what that player is told.
-func watcher(t *testing.T) (*network.Conn, net.Conn) {
-	t.Helper()
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	accepted := make(chan *network.Conn, 1)
-	ctx, cancel := context.WithCancel(context.Background())
-	done := make(chan error, 1)
-	go func() {
-		done <- network.Serve(ctx, ln, func(c *network.Conn) network.Session {
-			accepted <- c
-			return idle{}
-		}, network.Timeouts{}, slog.New(slog.DiscardHandler))
-	}()
-	client, err := net.Dial("tcp", ln.Addr().String())
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		_ = client.Close()
-		cancel()
-		if err := <-done; err != nil {
-			t.Error(err)
-		}
-	})
-	return <-accepted, client
-}
-
-// worldWith is a game service whose world holds the mobs of spawns, put there at noon with
-// a fixed seed, so every stroll is the same each run.
-func worldWith(t *testing.T, spawns ...world.Spawn) *Service {
-	t.Helper()
-	s := NewService(nil, nil, nil, nil, nil, nil, handshake.NewClock(), netip.AddrPort{}, spawns)
-	s.rand = rand.New(rand.NewPCG(1, 2)) //nolint:gosec // a fixed seed, so each run strolls the same
-	if err := s.spawn(noon); err != nil {
-		t.Fatal(err)
-	}
-	return s
-}
 
 // playerAt puts a player x east of the monsters' home and returns their client, with what
 // they were shown on entering read.
@@ -71,25 +23,6 @@ func (s *Service) playerAt(t *testing.T, x int32, shown int) net.Conn {
 	s.presence.enter(&present{out: conn, add: protocol.CharacterAdd{VID: 1000, X: x, Y: homeY}})
 	read(t, client, shown)
 	return client
-}
-
-func read(t *testing.T, c net.Conn, n int) []byte {
-	t.Helper()
-	_ = c.SetReadDeadline(time.Now().Add(time.Second))
-	b := make([]byte, n)
-	if _, err := io.ReadFull(c, b); err != nil {
-		t.Fatalf("reading %d bytes: %v", n, err)
-	}
-	return b
-}
-
-// expectNothing checks nothing more arrives for a moment.
-func expectNothing(t *testing.T, c net.Conn) {
-	t.Helper()
-	_ = c.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
-	if n, err := c.Read(make([]byte, 1)); n > 0 || err == nil {
-		t.Fatal("something arrived")
-	}
 }
 
 const addSize, moveSize = 35, 24

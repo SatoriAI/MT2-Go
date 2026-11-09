@@ -322,7 +322,7 @@ func (s *session) onAttack(body []byte) error {
 	if err != nil {
 		return err
 	}
-	now := time.Now()
+	now := s.svc.now()
 	p := s.playing
 	gap := blowGap(s.svc.presence.attackSpeedOf(p.vid))
 	if a.Skill != 0 || (a.Victim == s.lastVictim && now.Sub(s.lastBlow) < gap) {

@@ -339,6 +339,7 @@ func (w *presence) dash(pl, v *present, clock uint32) {
 	x := v.add.X + int32(dx/gap*dashStop)
 	y := v.add.Y + int32(dy/gap*dashStop)
 	w.moveLocked(pl, protocol.Move{Type: protocol.MoveWait, Rotation: rotationTowards(v.add.X-x, v.add.Y-y), X: x, Y: y, Time: clock})
+	pl.tether = tether{x: x, y: y}
 }
 
 // stunFor is how long a stun holds a monster: the client's two seconds.

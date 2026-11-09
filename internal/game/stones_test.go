@@ -22,21 +22,6 @@ func aStone(t *testing.T, x int32) (*Service, *monster, *present, net.Conn) {
 	return s, s.monsters[0], p, client
 }
 
-// drain reads whatever arrives until a moment passes with nothing.
-func drain(t *testing.T, c net.Conn) []byte {
-	t.Helper()
-	var got []byte
-	b := make([]byte, 4096)
-	for {
-		_ = c.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
-		n, err := c.Read(b)
-		got = append(got, b[:n]...)
-		if err != nil {
-			return got
-		}
-	}
-}
-
 // strikeStone takes damage off the stone for the player, as a blow or skill would.
 func strikeStone(s *Service, p *present, stone *monster, damage int, now time.Time) {
 	s.presence.mu.Lock()

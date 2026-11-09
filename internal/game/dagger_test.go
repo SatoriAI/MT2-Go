@@ -267,7 +267,7 @@ func TestANinjaTakesUpDaggerAtItsTeacher(t *testing.T) {
 	ninja.char.Class, ninja.char.Level = account.Ninja, 5
 	read(t, client, addSize+infoSize)
 	sess := &session{svc: s, conn: ninja.out.(*network.Conn), phase: protocol.PhaseGame,
-		playing: &character{vid: 1000, Character: *ninja.char}}
+		playing: playingAs(ninja)}
 
 	if err := sess.onClick(vidBody(1)); err != nil {
 		t.Fatal(err)

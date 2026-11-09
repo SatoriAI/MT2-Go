@@ -24,7 +24,7 @@ func atTheSmith(t *testing.T, gold uint32, carrying item.Inventory, rolled func(
 	client, hendra := aPlayer(t, s, 1000, 7, "Hendra", 100)
 	read(t, client, addSize+infoSize) // the blacksmith
 	sess := &session{svc: s, conn: hendra.out.(*network.Conn), phase: protocol.PhaseGame,
-		playing: &character{vid: 1000, Character: *hendra.char}, inventory: carrying, gold: gold, rand: rolling(rolled)}
+		playing: playingAs(hendra), inventory: carrying, gold: gold, rand: rolling(rolled)}
 	return sess, kept, client, s.lastVID.Load()
 }
 

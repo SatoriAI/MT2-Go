@@ -807,3 +807,11 @@ func TestAnArrowsTargetIsShownWithItsShooter(t *testing.T) {
 		t.Fatalf("add got %x", got)
 	}
 }
+
+// SYNC_POSITION carries its length, then each character's vid and where the server has it.
+func TestASyncedPositionIsSent(t *testing.T) {
+	got := EncodeSyncPosition(1000, 963400, -5)
+	if want := mustHex(t, "05"+"0f00"+"e8030000"+"48b30e00"+"fbffffff"); !bytes.Equal(got, want) {
+		t.Fatalf("got  %x\nwant %x", got, want)
+	}
+}

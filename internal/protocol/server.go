@@ -705,3 +705,16 @@ func EncodeFlyTarget(header ServerHeader, shooter uint32, f FlyTarget) []byte {
 	w.I32(f.Y)
 	return w.Bytes()
 }
+
+// EncodeSyncPosition puts one character where the server has it. Sent for the player's own
+// vid, it moves their character back there: the client blends it over, and plays a fall
+// past 150, as it would after a knockback.
+func EncodeSyncPosition(vid uint32, x, y int32) []byte {
+	const size = 1 + 2 + 4 + 4 + 4
+	w := NewWriter(byte(ServerSyncPosition), size)
+	w.U16(size)
+	w.U32(vid)
+	w.I32(x)
+	w.I32(y)
+	return w.Bytes()
+}

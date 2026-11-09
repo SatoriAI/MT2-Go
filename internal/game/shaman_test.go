@@ -189,7 +189,7 @@ func TestAShamanTakesUpDragonAtHerTeacher(t *testing.T) {
 	shaman.char.Class, shaman.char.Level = account.Shaman, 5
 	read(t, client, addSize+infoSize)
 	sess := &session{svc: s, conn: shaman.out.(*network.Conn), phase: protocol.PhaseGame,
-		playing: &character{vid: 1000, Character: *shaman.char}}
+		playing: playingAs(shaman)}
 
 	if err := sess.onClick(vidBody(1)); err != nil {
 		t.Fatal(err)

@@ -15,12 +15,21 @@ const appearanceSize = 35 + 54
 // far read, and the character's appearance as its own client was shown it.
 func (h *harness) enterWorld(account, name string, kingdom byte, race uint16) (*client, []byte) {
 	h.t.Helper()
+	return h.enterWorldAt(account, name, kingdom, race, 0, 0)
+}
+
+// enterWorldAt is enterWorld with the character standing x east and y south of the start,
+// as if it had walked there before: a test reaches the edge of view by walking a little
+// from there, as no move may go further than a character can walk.
+func (h *harness) enterWorldAt(account, name string, kingdom byte, race uint16, x, y int32) (*client, []byte) {
+	h.t.Helper()
 	h.createAccount(account)
 	game := h.enterSelection(account, h.authenticate(account))
 	game.expect(protocol.EncodePhase(protocol.PhaseSelect))
 	game.chooseEmpire(kingdom, sequenceByte)
 	game.createCharacter(0, name, race, 1)
 	game.read(65)
+	h.exec(`UPDATE characters SET x = x + $1, y = y + $2 WHERE name = $3`, x, y, name)
 	game.selectCharacter(0)
 	game.expect(protocol.EncodePhase(protocol.PhaseLoading))
 	game.read(46 + 1021 + 1531) // the main character, points and skills
@@ -34,7 +43,14 @@ func (h *harness) enterWorld(account, name string, kingdom byte, race uint16) (*
 // Hendra and Kira enter Jinno's first village, Hendra first; each sees the other.
 func (h *harness) hendraAndKira() (hendra, kira *client) {
 	h.t.Helper()
-	hendra, hendraLook := h.enterWorld("admin", "Hendra", 3, 6)
+	return h.hendraAndKiraApart(0, 0)
+}
+
+// hendraAndKiraApart is hendraAndKira with Hendra standing x east and y south of the
+// start, still in Kira's view.
+func (h *harness) hendraAndKiraApart(x, y int32) (hendra, kira *client) {
+	h.t.Helper()
+	hendra, hendraLook := h.enterWorldAt("admin", "Hendra", 3, 6, x, y)
 	kira, kiraLook := h.enterWorld("bob", "Kira", 3, 0)
 	kira.expect(hendraLook)
 	hendra.expect(kiraLook)
@@ -142,6 +158,7 @@ const (
 	startX, startY = 963400, 278200
 	edgeOfView     = startX + 8000 // still in view
 	outOfView      = startX + 9000
+	nearTheEdge    = 7600 // east of the start, a walk of 1400 from outOfView
 )
 
 // movedBy is a move as moveTo sends it, as the server passes it on for vid.
@@ -160,7 +177,7 @@ func (c *client) expectAppearanceAt(vid uint32, x, y int32) {
 
 func TestWalkingOutOfViewHidesBothFromEachOther(t *testing.T) {
 	h := start(t)
-	hendra, kira := h.hendraAndKira()
+	hendra, kira := h.hendraAndKiraApart(nearTheEdge, 0)
 
 	hendra.send(moveTo(outOfView, startY))
 
@@ -173,32 +190,32 @@ func TestWalkingOutOfViewHidesBothFromEachOther(t *testing.T) {
 // that brought them.
 func TestWalkingBackIntoViewShowsBothBeforeTheMove(t *testing.T) {
 	h := start(t)
-	hendra, kira := h.hendraAndKira()
+	hendra, kira := h.hendraAndKiraApart(nearTheEdge, 0)
 	hendra.send(moveTo(outOfView, startY))
 	kira.expect(protocol.EncodeCharacterDelete(1))
 	hendra.expect(protocol.EncodeCharacterDelete(2))
 
-	hendra.send(moveTo(startX+100, startY))
+	hendra.send(moveTo(startX+nearTheEdge, startY))
 
-	kira.expectAppearanceAt(1, startX+100, startY)
-	kira.expect(movedBy(1, startX+100, startY))
+	kira.expectAppearanceAt(1, startX+nearTheEdge, startY)
+	kira.expect(movedBy(1, startX+nearTheEdge, startY))
 	hendra.expectAppearanceAt(2, startX, startY)
 }
 
 func TestTheEdgeOfViewIsStillInView(t *testing.T) {
 	h := start(t)
-	hendra, kira := h.hendraAndKira()
+	hendra, kira := h.hendraAndKiraApart(nearTheEdge, 0)
 
-	kira.send(moveTo(edgeOfView, startY))
+	hendra.send(moveTo(edgeOfView, startY))
 
-	hendra.expect(movedBy(2, edgeOfView, startY))
+	kira.expect(movedBy(1, edgeOfView, startY))
 }
 
 // The view is a circle: 6000 along each axis is about 8485 away, out of view, though
-// neither distance alone reaches the edge.
+// neither distance alone reaches the edge; Hendra walks there from 5000 along each.
 func TestTheViewIsMeasuredInAStraightLine(t *testing.T) {
 	h := start(t)
-	hendra, kira := h.hendraAndKira()
+	hendra, kira := h.hendraAndKiraApart(5000, 5000)
 
 	hendra.send(moveTo(startX+6000, startY+6000))
 
@@ -209,23 +226,22 @@ func TestTheViewIsMeasuredInAStraightLine(t *testing.T) {
 // A player entering out of view of another hears nothing of them until they meet.
 func TestPlayersOutOfViewMeetByWalking(t *testing.T) {
 	h := start(t)
-	hendra, _ := h.enterWorld("admin", "Hendra", 3, 6)
-	hendra.send(moveTo(outOfView, startY))
+	hendra, _ := h.enterWorldAt("admin", "Hendra", 3, 6, outOfView-startX, 0)
 	hendra.expectOpen()
 	kira, _ := h.enterWorld("bob", "Kira", 3, 0)
 	kira.expectOpen()
 	hendra.expectOpen()
 
-	kira.send(moveTo(outOfView-1000, startY+500))
+	kira.send(moveTo(startX+1400, startY+500))
 
 	kira.expectAppearanceAt(1, outOfView, startY)
-	hendra.expectAppearanceAt(2, outOfView-1000, startY+500)
-	hendra.expect(movedBy(2, outOfView-1000, startY+500))
+	hendra.expectAppearanceAt(2, startX+1400, startY+500)
+	hendra.expect(movedBy(2, startX+1400, startY+500))
 }
 
 func TestALineOutOfViewIsNotHeard(t *testing.T) {
 	h := start(t)
-	hendra, kira := h.hendraAndKira()
+	hendra, kira := h.hendraAndKiraApart(nearTheEdge, 0)
 	hendra.send(moveTo(outOfView, startY))
 	kira.expect(protocol.EncodeCharacterDelete(1))
 	hendra.expect(protocol.EncodeCharacterDelete(2))
@@ -240,9 +256,9 @@ func TestALineOutOfViewIsNotHeard(t *testing.T) {
 func TestLeavingTellsOnlyThoseWhoSawThePlayer(t *testing.T) {
 	h := start(t)
 	hendra, _ := h.enterWorld("admin", "Hendra", 3, 6)
-	sora, _ := h.enterWorld("carl", "Sora", 3, 0)
+	sora, _ := h.enterWorldAt("carl", "Sora", 3, 0, nearTheEdge, 0)
 	sora.expectAppearanceAt(1, startX, startY)
-	hendra.expectAppearanceAt(2, startX, startY)
+	hendra.expectAppearanceAt(2, startX+nearTheEdge, startY)
 	sora.send(moveTo(outOfView, startY))
 	sora.expect(protocol.EncodeCharacterDelete(1))
 	hendra.expect(protocol.EncodeCharacterDelete(2))

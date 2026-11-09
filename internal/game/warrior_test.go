@@ -38,7 +38,7 @@ func warring(t *testing.T, dogs int) (*session, net.Conn) {
 	rugor.add.MoveSpeed, rugor.add.AttackSpeed = points.MoveSpeed, points.AttackSpeed
 	read(t, client, (dogs+1)*addSize)
 	sess := &session{svc: s, conn: rugor.out.(*network.Conn), phase: protocol.PhaseGame, rand: rand.New(rand.NewPCG(5, 6)), //nolint:gosec // a fixed seed
-		playing: &character{vid: 1000, Character: *c}}
+		playing: playingAs(rugor)}
 	return sess, client
 }
 
@@ -226,7 +226,7 @@ func TestAWarriorTakesUpBodyAtItsTeacher(t *testing.T) {
 	rugor.char.Class, rugor.char.Level = account.Warrior, 5
 	read(t, client, addSize+infoSize)
 	sess := &session{svc: s, conn: rugor.out.(*network.Conn), phase: protocol.PhaseGame,
-		playing: &character{vid: 1000, Character: *rugor.char}}
+		playing: playingAs(rugor)}
 
 	if err := sess.onClick(vidBody(1)); err != nil {
 		t.Fatal(err)

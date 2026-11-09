@@ -57,7 +57,7 @@ func training(t *testing.T, class account.Class, level uint8, group account.Skil
 	hendra.char.Class, hendra.char.Level, hendra.char.SkillGroup, hendra.char.Skills = class, level, group, learnt
 	read(t, client, 2*(addSize+infoSize)) // the two teachers
 	sess := &session{svc: s, conn: hendra.out.(*network.Conn), phase: protocol.PhaseGame,
-		playing: &character{vid: 1000, Character: *hendra.char}}
+		playing: playingAs(hendra)}
 	return sess, kept, client, 1, 2
 }
 

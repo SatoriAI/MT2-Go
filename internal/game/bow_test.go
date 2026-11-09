@@ -49,7 +49,7 @@ func archerAmong(t *testing.T, x int32, count uint8, dogs int) (*session, *keptI
 	drain(t, client)
 	drain(t, viewer)
 	s := &session{svc: svc, conn: cien.out.(*network.Conn), phase: protocol.PhaseGame, rand: rand.New(rand.NewPCG(5, 6)), //nolint:gosec // a fixed seed
-		playing: &character{vid: 1000, Character: *c}, inventory: item.Inventory{
+		playing: playingAs(cien), inventory: item.Inventory{
 			{ID: 1, VNum: 2000, Count: 1, Worn: item.Weapon}, {ID: 2, VNum: 8000, Count: count, Worn: item.Arrow}}}
 	return s, kept, client, viewer
 }
@@ -282,7 +282,7 @@ func TestTheWeaponTraderSellsArrowsByTheGold(t *testing.T) {
 	client, hendra := aPlayer(t, svc, 1000, 7, "Hendra", 100)
 	read(t, client, addSize+infoSize)
 	s := &session{svc: svc, conn: hendra.out.(*network.Conn), phase: protocol.PhaseGame,
-		playing: &character{vid: 1000, Character: *hendra.char}}
+		playing: playingAs(hendra)}
 
 	if err := s.onClick(vidBody(svc.lastVID.Load())); err != nil {
 		t.Fatal(err)
