@@ -129,7 +129,11 @@ func (w *presence) attack(playerVID, vid uint32, gap time.Duration, r *rand.Rand
 		return blowTooSoon
 	}
 	f.lastAttacker, f.lastBlowAt = p, now
-	return w.strike(p, v, combat.Damage(attackerOf(p.char), f.defender, r), now)
+	damage, flag := combat.Damage(attackerOf(p.char), f.defender, r), protocol.DamageNormal
+	if crit := buffBonus(p.char, skill.Critical); crit > 0 && r.IntN(100) < crit {
+		damage, flag = 2*damage, protocol.DamageCritical
+	}
+	return w.strikeAs(p, v, damage, flag, now)
 }
 
 // attackerOf is what the player's blows are made of: their character, the weapon they
@@ -146,7 +150,11 @@ func buffBonus(c *account.Character, stat skill.Stat) int {
 	var bonus int
 	for sk := range c.Buffs {
 		p, _ := skill.Lookup(sk)
-		bonus += p.Bonus(stat, skill.Bearer{Strength: c.Strength, Vitality: c.Vitality, Intelligence: c.Intelligence}, c.Skills[sk])
+		bearer, level := skill.Bearer{Strength: c.Strength, Vitality: c.Vitality, Intelligence: c.Intelligence}, c.Skills[sk]
+		if by, cast := c.BuffBy[sk]; cast {
+			bearer, level = skill.Bearer{Intelligence: by.Intelligence}, by.Level
+		}
+		bonus += p.Bonus(stat, bearer, level)
 	}
 	return bonus
 }
@@ -157,6 +165,12 @@ func buffBonus(c *account.Character, stat skill.Stat) int {
 // killed dies for everyone who sees it, its drops and experience given. Called under the
 // lock.
 func (w *presence) strike(p, v *present, damage int, now time.Time) blow {
+	return w.strikeAs(p, v, damage, protocol.DamageNormal, now)
+}
+
+// strikeAs strikes as strike does, the damage drawn as flag: a critical blow's own.
+// Called under the lock.
+func (w *presence) strikeAs(p, v *present, damage int, flag uint8, now time.Time) blow {
 	f := v.fight
 	vid := v.add.VID
 	p.char.LastFought = now
@@ -164,7 +178,7 @@ func (w *presence) strike(p, v *present, damage int, now time.Time) blow {
 	f.hp -= damage
 	f.damageBy[p] += damage
 	f.hitAt = now
-	p.send(protocol.EncodeDamage(vid, protocol.DamageNormal, int32(damage))) //nolint:gosec // at most the hit points
+	p.send(protocol.EncodeDamage(vid, flag, int32(damage))) //nolint:gosec // at most the hit points
 	for t := range f.targetedBy {
 		t.send(protocol.EncodeTarget(vid, f.hpPercent()))
 	}

@@ -14,7 +14,8 @@ import (
 // themselves, and its buffs of speed and attack; the warrior's Mental attacks, which
 // stun, and its buff of defence; the ninja's Dagger attacks, from behind, at a dash, and
 // poisoning; the sura's Black Magic, magic attacks, one slowing, and a shield; and the
-// shaman's spells, burning, stunning and chaining.
+// shaman's spells, burning, stunning and chaining, and her buffs and heal for herself or
+// another.
 const (
 	FingerStrike    account.Skill = "finger_strike"
 	DragonSwirl     account.Skill = "dragon_swirl"
@@ -37,6 +38,12 @@ const (
 	DarkProtection  account.Skill = "dark_protection"
 	GhostStrike     account.Skill = "ghost_strike"
 	DarkOrb         account.Skill = "dark_orb"
+	Blessing        account.Skill = "blessing"
+	Reflection      account.Skill = "reflection"
+	DragonsHelp     account.Skill = "dragons_help"
+	Heal            account.Skill = "heal"
+	Swiftness       account.Skill = "swiftness"
+	AttackUp        account.Skill = "attack_up"
 	FlyingTalisman  account.Skill = "flying_talisman"
 	ShootingDragon  account.Skill = "shooting_dragon"
 	DragonRoar      account.Skill = "dragon_roar"
@@ -90,6 +97,10 @@ type Proto struct {
 	// Drain is the mana a toggle takes every five seconds it runs, at its power; it ends
 	// once there is not enough.
 	Drain Scaled
+	// Ally is that it lands on the player picked within Aim, else on the caster; Heal is
+	// what it heals instead of a buff.
+	Ally bool
+	Heal Spell
 	// A buff raises each stat Raises names, by its formula, for Lasts seconds. Toggle is
 	// that using it again ends it.
 	Raises map[Stat]Formula
@@ -103,12 +114,16 @@ type Proto struct {
 type Stat string
 
 const (
-	Attack      Stat = "attack"
-	Defence     Stat = "defence"
-	AttackSpeed Stat = "attack_speed"
-	MoveSpeed   Stat = "move_speed"
-	DamageTaken Stat = "damage_taken" // a percent more of every bite
-	ManaShield  Stat = "mana_shield"  // a percent of every bite taken from mana instead
+	Attack       Stat = "attack"
+	Defence      Stat = "defence"
+	AttackSpeed  Stat = "attack_speed"
+	MoveSpeed    Stat = "move_speed"
+	DamageTaken  Stat = "damage_taken"  // a percent more of every bite
+	ManaShield   Stat = "mana_shield"   // a percent of every bite taken from mana instead
+	Resistance   Stat = "resistance"    // a percent less of every bite, after armour
+	Reflect      Stat = "reflect"       // a percent of every bite taken back to the biter
+	Critical     Stat = "critical"      // a percent chance of a blow striking twice as hard
+	CastingSpeed Stat = "casting_speed" // more than the 100 at which cooldowns run as listed
 )
 
 // Spell is a magic attack's damage, as its tooltip works it out, for its caster at a
@@ -360,6 +375,39 @@ var protos = map[account.Skill]Proto{
 		Magic: func(c Caster, k int32) int32 {
 			return 120 + 6*c.Level + (5*c.Vitality+5*c.Dexterity+40*c.Intelligence+12*c.MTK)*c.AR*k/10000
 		}},
+	// The shaman's buffs and heal, settled by the veteran and the designer: the client's
+	// skilltable for mana, cooldowns, runs and range, its formulas of the caster's INT,
+	// each landing on a player picked within range, else on her. Blessing: 40 + 160k, a
+	// run of 60 + 200k; (0.3·iq + 5)(2k + 0.5)/(k + 1.5) percent less of every bite.
+	Blessing: {Class: account.Shaman, Group: "dragon", Mana: Scaled{40, 160}, Cooldown: Scaled{10, 0}, Aim: 800, Ally: true,
+		Raises: map[Stat]Formula{Resistance: func(b Bearer, k int32) int32 { return (30*int32(b.Intelligence) + 500) * (2*k + 50) / (k + 150) }},
+		Lasts:  Scaled{60, 200}},
+	// Reflection: 40 + 160k, a run of 60 + 200k; 5 + (0.3·iq + 5)·k percent of every bite
+	// back to the biter.
+	Reflection: {Class: account.Shaman, Group: "dragon", Mana: Scaled{40, 160}, Cooldown: Scaled{10, 0}, Aim: 1000, Ally: true,
+		Raises: map[Stat]Formula{Reflect: func(b Bearer, k int32) int32 { return 500 + (30*int32(b.Intelligence)+500)*k/100 }},
+		Lasts:  Scaled{60, 200}},
+	// Dragon's Help: 40 + 160k, a run of 60 + 100k; (0.3·iq + 5)(2k + 0.5)/(k + 1.5)
+	// percent chance of a blow striking twice as hard.
+	DragonsHelp: {Class: account.Shaman, Group: "dragon", Mana: Scaled{40, 160}, Cooldown: Scaled{10, 0}, Aim: 1000, Ally: true,
+		Raises: map[Stat]Formula{Critical: func(b Bearer, k int32) int32 { return (30*int32(b.Intelligence) + 500) * (2*k + 50) / (k + 150) }},
+		Lasts:  Scaled{60, 100}},
+	// Heal: 40 + 200k; 200 + 4·lv + (10·iq + 6·MTK + 600 to 800)·k hit points, no hit rate.
+	Heal: {Class: account.Shaman, Group: "healing", Mana: Scaled{40, 200}, Cooldown: Scaled{10, 0}, Aim: 1000, Ally: true,
+		Dice: [2]int32{600, 800},
+		Heal: func(c Caster, k int32) int32 { return 200 + 4*c.Level + (10*c.Intelligence+6*c.MTK+c.Dice)*k/100 }},
+	// Swiftness: 60 + 120k, a run of 60 + 100k; 5 + 35k on the move speed, and 3 + 33k on
+	// the casting speed.
+	Swiftness: {Class: account.Shaman, Group: "healing", Mana: Scaled{60, 120}, Cooldown: Scaled{10, 0}, Aim: 1000, Ally: true,
+		Raises: map[Stat]Formula{
+			MoveSpeed:    func(_ Bearer, k int32) int32 { return 500 + 35*k },
+			CastingSpeed: func(_ Bearer, k int32) int32 { return 300 + 33*k },
+		},
+		Lasts: Scaled{60, 100}},
+	// Attack Up: 60 + 120k, a run of 60 + 100k; 5 + (0.2·iq + 15)·k on the attack.
+	AttackUp: {Class: account.Shaman, Group: "healing", Mana: Scaled{60, 120}, Cooldown: Scaled{10, 0}, Aim: 1000, Ally: true,
+		Raises: map[Stat]Formula{Attack: func(b Bearer, k int32) int32 { return 500 + (20*int32(b.Intelligence)+1500)*k/100 }},
+		Lasts:  Scaled{60, 100}},
 	// The shaman's attacks, settled by the veteran and the designer: the client's
 	// skilltable for mana, cooldowns, victims, range and splash, and its tooltips'
 	// damage, as Black Magic's. Flying Talisman: 30 + 160k, 7 s, on the monster picked

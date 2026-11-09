@@ -148,8 +148,9 @@ func (w *presence) bite(m *monster, t *present, now time.Time, clock uint32, r *
 	b := combat.Biter{Level: m.proto.Level, Strength: m.proto.Strength, DamageMin: m.proto.DamageMin,
 		DamageMax: m.proto.DamageMax}
 	bitten := combat.Bite(b, combat.Defender{Level: ch.Level, Vitality: ch.Vitality, Armour: armourOf(ch)}, r)
-	damage := uint32(bitten * (100 + buffBonus(ch, skill.DamageTaken)) / 100) //nolint:gosec // at least 1
-	damage = min(w.shield(t, damage), ch.HP)
+	bitten = bitten * (100 + buffBonus(ch, skill.DamageTaken)) / 100
+	bitten = bitten * (100 - min(maxResistance, buffBonus(ch, skill.Resistance))) / 100
+	damage := min(w.shield(t, uint32(max(1, bitten))), ch.HP) //nolint:gosec // at least 1
 	ch.HP -= damage
 	ch.LastFought = now
 	vid := t.add.VID
@@ -158,8 +159,16 @@ func (w *presence) bite(m *monster, t *present, now time.Time, clock uint32, r *
 	c.lastExchange, c.fromX, c.fromY, c.nextBite = now, me.add.X, me.add.Y, now.Add(biteGap(m.proto.AttackSpeed))
 	if ch.HP == 0 {
 		w.die(t)
+		return
+	}
+	if back := int(damage) * buffBonus(ch, skill.Reflect) / 100; back > 0 {
+		w.strike(t, me, back, now) // it can kill the biter, at their hand
 	}
 }
+
+// maxResistance is the most a resistance cuts a bite by, in hundredths: the designer's
+// half.
+const maxResistance = 50
 
 // shield takes the share of a bite the player's mana shield turns onto their mana, and
 // tells them; with too little mana for it, the shield ends and the whole bite is theirs.

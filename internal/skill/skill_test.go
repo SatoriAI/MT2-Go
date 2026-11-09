@@ -84,6 +84,12 @@ func TestASkillCostsAndWaitsWhatTheClientWorksOut(t *testing.T) {
 		{LightningThrow, func(k float64) float64 { return 30 + 150*k }, func(float64) float64 { return 7 }, func(float64) float64 { return 0 }},
 		{SummonLightning, func(k float64) float64 { return 50 + 150*k }, func(float64) float64 { return 15 }, func(float64) float64 { return 0 }},
 		{LightningClaw, func(k float64) float64 { return 40 + 180*k }, func(float64) float64 { return 10 }, func(float64) float64 { return 0 }},
+		{Blessing, func(k float64) float64 { return 40 + 160*k }, func(float64) float64 { return 10 }, func(k float64) float64 { return 60 + 200*k }},
+		{Reflection, func(k float64) float64 { return 40 + 160*k }, func(float64) float64 { return 10 }, func(k float64) float64 { return 60 + 200*k }},
+		{DragonsHelp, func(k float64) float64 { return 40 + 160*k }, func(float64) float64 { return 10 }, func(k float64) float64 { return 60 + 100*k }},
+		{Heal, func(k float64) float64 { return 40 + 200*k }, func(float64) float64 { return 10 }, func(float64) float64 { return 0 }},
+		{Swiftness, func(k float64) float64 { return 60 + 120*k }, func(float64) float64 { return 10 }, func(k float64) float64 { return 60 + 100*k }},
+		{AttackUp, func(k float64) float64 { return 60 + 120*k }, func(float64) float64 { return 10 }, func(k float64) float64 { return 60 + 100*k }},
 	}
 	for _, c := range cases {
 		p, _ := Lookup(c.skill)

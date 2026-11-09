@@ -26,14 +26,15 @@ func (s *session) onUseSkill(body []byte) error {
 	}
 	sk, known := skillByVNum(int(u.VNum))
 	now := s.svc.now()
-	cooled := func(wait time.Duration) bool { return s.svc.cooldowns.over(s.playing.ID, sk, now, wait) }
+	cooled := func() bool { return s.svc.cooldowns.over(s.playing.ID, sk, now) }
 	if !known {
 		s.conn.Log().Debug("skill not used", "vnum", u.VNum)
 		return nil
 	}
-	switch s.svc.presence.useSkill(s.playing.vid, sk, u.Target, now, s.svc.clock.Now(), s.rand, cooled) {
+	happened, wait := s.svc.presence.useSkill(s.playing.vid, sk, u.Target, now, s.svc.clock.Now(), s.rand, cooled)
+	switch happened {
 	case skillUsed:
-		s.svc.cooldowns.used(s.playing.ID, sk, now)
+		s.svc.cooldowns.used(s.playing.ID, sk, now.Add(wait))
 	case skillRefused:
 		s.conn.Log().Debug("skill not used", "vnum", u.VNum)
 	case toggledOff: // its cooldown runs from when it was turned on, as the client counts it
@@ -50,11 +51,13 @@ const (
 	toggledOff
 )
 
-// cooldowns are when each character last used each skill. They are kept by the server,
-// not the connection, so changing character or logging in again does not end them.
+// cooldowns are when each character's skills are ready again. They are kept by the
+// server, not the connection, so changing character or logging in again does not end them.
+// Each is worked out when the skill is used, as the client fixes its own then, so a casting
+// speed lost afterwards does not lengthen it.
 type cooldowns struct {
-	mu   sync.Mutex
-	last map[cooldown]time.Time
+	mu    sync.Mutex
+	ready map[cooldown]time.Time
 }
 
 type cooldown struct {
@@ -63,20 +66,20 @@ type cooldown struct {
 }
 
 // over is whether the character's skill has cooled down by now.
-func (c *cooldowns) over(character uint32, sk account.Skill, now time.Time, wait time.Duration) bool {
+func (c *cooldowns) over(character uint32, sk account.Skill, now time.Time) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return !now.Before(c.last[cooldown{character, sk}].Add(wait))
+	return !now.Before(c.ready[cooldown{character, sk}])
 }
 
-// used notes the character used the skill now.
-func (c *cooldowns) used(character uint32, sk account.Skill, now time.Time) {
+// used notes the character used the skill, which is ready again at a time.
+func (c *cooldowns) used(character uint32, sk account.Skill, ready time.Time) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.last == nil {
-		c.last = map[cooldown]time.Time{}
+	if c.ready == nil {
+		c.ready = map[cooldown]time.Time{}
 	}
-	c.last[cooldown{character, sk}] = now
+	c.ready[cooldown{character, sk}] = ready
 }
 
 // buffEnd is when a buff a player started is due to end, for the world loop.
@@ -94,8 +97,8 @@ func (b buffEnd) due() time.Time { return b.at }
 // an attack strikes and a buff starts. A toggle already running is ended instead, for
 // nothing, as the client turns it off. It reports what became of it.
 func (w *presence) useSkill(vid uint32, sk account.Skill, target uint32, now time.Time, clock uint32, r *rand.Rand,
-	cooled func(time.Duration) bool,
-) outcome {
+	cooled func() bool,
+) (outcome, time.Duration) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	pl := w.all[vid]
@@ -103,18 +106,20 @@ func (w *presence) useSkill(vid uint32, sk account.Skill, target uint32, now tim
 	level := c.Skills[sk]
 	proto, _ := skill.Lookup(sk)
 	if pl.dead() || level == 0 {
-		return skillRefused
+		return skillRefused, 0
 	}
 	if _, running := c.Buffs[sk]; running && proto.Toggle {
 		w.endBuffLocked(pl, sk)
-		return toggledOff
+		return toggledOff, 0
 	}
 	victim := aimed(pl, target, proto)
 	weapon, _ := item.Lookup(c.Weapon)
 	cost := proto.Mana.At(skill.Power(level))
-	if !cooled(proto.CooldownAt(level)) || !proto.Wieldable(weapon) || (proto.Target || proto.Aim > 0) && victim == nil || c.SP < cost {
-		return skillRefused
+	if !cooled() || !proto.Wieldable(weapon) ||
+		(proto.Target || proto.Aim > 0 && !proto.Ally) && victim == nil || c.SP < cost {
+		return skillRefused, 0
 	}
+	wait := cooldownOf(proto.CooldownAt(level), castingSpeedOf(c))
 	c.SP -= cost
 	pl.send(protocol.EncodePointChange(vid, protocol.PointSP, -int32(cost), int32(c.SP))) //nolint:gosec // small
 	percent := int(proto.Damage.At(skill.Power(level)))
@@ -122,6 +127,8 @@ func (w *presence) useSkill(vid uint32, sk account.Skill, target uint32, now tim
 		w.dash(pl, victim, clock)
 	}
 	switch {
+	case proto.Ally:
+		w.help(pl, allyOf(pl, target, proto), sk, proto, level, now, r)
 	case victim != nil:
 		w.splash(pl, victim, proto, percent, level, now, r)
 	case proto.Reach > 0:
@@ -129,7 +136,7 @@ func (w *presence) useSkill(vid uint32, sk account.Skill, target uint32, now tim
 	default:
 		w.startBuff(pl, sk, now.Add(proto.LastsAt(level)))
 	}
-	return skillUsed
+	return skillUsed, wait
 }
 
 // aimed is the monster an attack on one lands on: with Target, the one the player picked
@@ -137,7 +144,7 @@ func (w *presence) useSkill(vid uint32, sk account.Skill, target uint32, now tim
 // else the nearest living one in front of them within it. Nil for none, and for an attack
 // on none. Called under the lock.
 func aimed(pl *present, target uint32, proto skill.Proto) *present {
-	if !proto.Target && proto.Aim == 0 {
+	if !proto.Target && proto.Aim == 0 || proto.Ally {
 		return nil
 	}
 	reach := int64(attackReach)
@@ -424,6 +431,47 @@ func distance(p, o *present) int64 {
 	return dx*dx + dy*dy
 }
 
+// allyOf is who a skill for an ally lands on: the player picked, if they live within its
+// range and are of the caster's kingdom, else the caster. Called under the lock.
+func allyOf(pl *present, target uint32, proto skill.Proto) *present {
+	if v, seen := pl.sees[target]; seen && v.isPlayer() && v.char != nil && !v.dead() &&
+		v.info.Empire == pl.info.Empire && within(pl, v, proto.Aim) {
+		return v
+	}
+	return pl
+}
+
+// help casts the skill for an ally on them: a heal of its formula's hit points, told to
+// them, or its buff, running at the caster's level of it and INT however their own
+// differ, renewed if it runs already. Called under the lock.
+func (w *presence) help(pl, to *present, sk account.Skill, proto skill.Proto, level uint8, now time.Time, r *rand.Rand) {
+	if proto.Heal != nil {
+		gain := proto.Heal(casterOf(pl.char, proto.DiceOf(pl.char.Intelligence), r), int32(skill.Power(level))) //nolint:gosec // the power is at most 50
+		points, _ := to.char.Points()
+		to.send(restore(to, points.MaxHP, points.MaxSP, uint32(gain), 0)...) //nolint:gosec // a positive formula
+		return
+	}
+	c := to.char
+	if c.BuffBy == nil {
+		c.BuffBy = map[account.Skill]account.BuffCaster{}
+	}
+	c.BuffBy[sk] = account.BuffCaster{Level: level, Intelligence: pl.char.Intelligence}
+	w.startBuff(to, sk, now.Add(proto.LastsAt(level)))
+}
+
+// cooldownOf is a cooldown at a casting speed, shortened as the client shortens it: by
+// 10000 over the speed in whole hundredths, so 7 s at 104 is 6.72 s (`PythonPlayerSkill.cpp`).
+func cooldownOf(listed time.Duration, speed int) time.Duration {
+	return listed * time.Duration(10000/speed) / 100
+}
+
+// castingSpeedOf is the speed the character casts at: 100, at which cooldowns run as the
+// skill lists them, and what their buffs add, which shortens every cooldown as the client
+// counts it (cooldownOf).
+func castingSpeedOf(c *account.Character) int {
+	return 100 + buffBonus(c, skill.CastingSpeed)
+}
+
 // startBuff starts the buff until a time, shows its effect on the player to them and
 // everyone who sees them, and leaves its end for the world loop. Called under the lock.
 func (w *presence) startBuff(pl *present, sk account.Skill, until time.Time) {
@@ -503,6 +551,7 @@ func (w *presence) endBuff(b buffEnd) {
 // Called under the lock.
 func (w *presence) endBuffLocked(pl *present, sk account.Skill) {
 	delete(pl.char.Buffs, sk)
+	delete(pl.char.BuffBy, sk)
 	w.showAffects(pl, sk)
 }
 
@@ -528,6 +577,9 @@ func (w *presence) showAffects(pl *present, sk account.Skill) {
 	if p.Raise(skill.AttackSpeed) || p.Raise(skill.MoveSpeed) {
 		pl.send(protocol.EncodePointChange(pl.add.VID, protocol.PointAttackSpeed, 0, int32(pl.add.AttackSpeed)),
 			protocol.EncodePointChange(pl.add.VID, protocol.PointMoveSpeed, 0, int32(pl.add.MoveSpeed)))
+	}
+	if p.Raise(skill.CastingSpeed) {
+		pl.send(protocol.EncodePointChange(pl.add.VID, protocol.PointCastingSpeed, 0, int32(castingSpeedOf(c)))) //nolint:gosec // small
 	}
 	toViewers(pl, update)
 }

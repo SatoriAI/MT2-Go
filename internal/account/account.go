@@ -80,6 +80,12 @@ type SkillGroup string
 // Skill is one of the skills a skill group teaches, by name.
 type Skill string
 
+// BuffCaster is what a buff cast by a character runs at: their level of the skill and
+// their intelligence.
+type BuffCaster struct {
+	Level, Intelligence uint8
+}
+
 // Shortcut is what a taskbar slot holds: an item the character owns, by its id, or a
 // skill it has learnt.
 type Shortcut struct {
@@ -132,7 +138,9 @@ type Character struct {
 	// Skills is each skill learnt, at its level from 1; read on Start, as they are kept
 	// apart from the character's row.
 	Skills map[Skill]uint8
-	// Buffs are in play only: each buff skill running, until when.
+	// Buffs are in play only: each buff skill running, until when. BuffBy is who cast
+	// those another cast, as the caster's skill level and INT they run at.
 	Buffs  map[Skill]time.Time
+	BuffBy map[Skill]BuffCaster
 	Blocks Blocks
 }

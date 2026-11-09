@@ -143,7 +143,7 @@ func TestStumpStunsSomeAroundHerButNeverAStone(t *testing.T) {
 	rugor.char.Class, rugor.char.SP, rugor.char.Skills = account.Warrior, 100000, map[account.Skill]uint8{skill.Stump: 20}
 	stone := stones.monsters[0]
 	for range 50 {
-		stones.presence.useSkill(1000, skill.Stump, 0, noon, 0, stones.rand, func(time.Duration) bool { return true })
+		stones.presence.useSkill(1000, skill.Stump, 0, noon, 0, stones.rand, func() bool { return true })
 	}
 	if stone.p.fight.stunned {
 		t.Fatal("the stone was stunned")

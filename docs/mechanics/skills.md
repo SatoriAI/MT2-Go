@@ -11,7 +11,7 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
 - **Who is turned away.** A teacher tells anyone of another class, anyone below level 5, and anyone already on their path, why not.
 
 **Raising a skill.** The + beside a skill raises it a level for a point, up to 20, where the + goes. Each level from 5 brings one more point.
-- **What can be raised:** Weaponry's Finger Strike, Dragon Swirl, Enchanted Blade and Enchanted Armour, Body's Three-Way Cut (Trzystronne Cięcie), Sword Spin (Wir Miecza), Berserk and Sword Aura (Aura Miecza), and Mental's Spirit Strike (Duchowe Uderzenie), Bash (Walnięcie), Stump (Tąpnięcie), Strong Body (Silne Ciało) and Sword Strike (Uderzenie Miecza), Dagger's Ambush (Zasadzka), Fast Attack (Szybki Atak) and Rolling Dagger (Wirujący Sztylet), and Black Magic's Dark Strike (Mroczne Uderzenie), Flame Strike (Ogniste Uderzenie), Dark Protection (Mroczna Ochrona), Ghost Strike (Duchowy Cios) and Dark Orb (Mroczna Sfera), and the shaman's attacks: Dragon's Flying Talisman (Latający Talizman), Shooting Dragon (Strzelający Smok) and Dragon Roar (Smoczy Skowyt), and Healing's Lightning Throw (Rzut Piorunem), Summon Lightning (Przywołanie Błyskawicy) and Lightning Claw (Burzowy Szpon). The others show in the window, but raising one says «Tej umiejętności nie można jeszcze rozwijać.»
+- **What can be raised:** Weaponry's Finger Strike, Dragon Swirl, Enchanted Blade and Enchanted Armour, Body's Three-Way Cut (Trzystronne Cięcie), Sword Spin (Wir Miecza), Berserk and Sword Aura (Aura Miecza), and Mental's Spirit Strike (Duchowe Uderzenie), Bash (Walnięcie), Stump (Tąpnięcie), Strong Body (Silne Ciało) and Sword Strike (Uderzenie Miecza), Dagger's Ambush (Zasadzka), Fast Attack (Szybki Atak) and Rolling Dagger (Wirujący Sztylet), and Black Magic's Dark Strike (Mroczne Uderzenie), Flame Strike (Ogniste Uderzenie), Dark Protection (Mroczna Ochrona), Ghost Strike (Duchowy Cios) and Dark Orb (Mroczna Sfera), and the shaman's attacks: Dragon's Flying Talisman (Latający Talizman), Shooting Dragon (Strzelający Smok) and Dragon Roar (Smoczy Skowyt), and Healing's Lightning Throw (Rzut Piorunem), Summon Lightning (Przywołanie Błyskawicy) and Lightning Claw (Burzowy Szpon), and her buffs and heal: Blessing (Błogosławieństwo), Reflection (Odbicie) and Dragon's Help (Pomoc Smoka) of Dragon, Heal (Leczenie), Swiftness (Zwinność) and Attack Up (Zwiększenie Ataku) of Healing. The others show in the window, but raising one says «Tej umiejętności nie można jeszcze rozwijać.»
 **Using a skill.** They are used from the skill window or the taskbar, as the client uses any skill.
 - **Finger Strike:** on the monster she has picked, within a blow's reach, one strike of two and a half blows and more at the first level, four and a quarter at 20. It can't be used again for 10 seconds.
 - **Dragon Swirl:** the sura spins her blade, and every monster around her within 500 is struck at once. Each blow is more than two of hers at the first level, three and a half at 20. Every monster struck turns on her. It costs mana and can't be used again for 15 seconds.
@@ -43,6 +43,13 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
   - **Lightning Throw:** the monster picked up to 1800 off and up to four around it. 7 seconds.
   - **Summon Lightning:** the monster picked up to 1500 off and up to fourteen within 400 of it, each perhaps stunned. 15 seconds.
   - **Lightning Claw:** the monster picked up to 2500 off, then jumping to the nearest not yet struck within 600 of the last, seven in all, each jump a little weaker. 10 seconds.
+- **The shaman's buffs and heal** land on the player she has picked, of her kingdom and in reach, or else on herself, and run at her level of the skill and her INT, whoever they land on; casting one again renews it:
+  - **Blessing:** every bite takes less, by a share that grows with her INT, never more than half.
+  - **Reflection:** a share of every bite goes back to the monster that bit, which it can kill.
+  - **Dragon's Help:** a chance for each blow to strike twice as hard, drawn as a critical hit.
+  - **Heal:** hit points back at once.
+  - **Swiftness:** faster steps, and every cooldown a little shorter.
+  - **Attack Up:** harder blows.
 
 ## What the client does
 
@@ -66,8 +73,10 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
   - It then plays the motion and sends MOVE with `FUNC_SKILL` and the motion, which others replay, and USE_SKILL with the skill's number.
   - During the motion it reports its own hits as ATTACK with the skill's number, which this server drops.
 - **The glow:** an effect bit in CHARACTER_ADD and CHARACTER_UPDATE draws a buff's effect on the character, Enchanted Blade's glow or Enchanted Armour's shimmer. For the player's own character it also lights the skill's slot as on. Bit 19 is the blade's, 21 the armour's, 14 Berserk's, 15 Sword Aura's and 16 Strong Body's (`InstanceBase.h`).
-- **A stun** is bit 5 of a monster's effects, AFFECT_STUN, which the client draws as the monster asleep on its feet, **a poison** bit 3, AFFECT_POISON, and **a slow** bit 4, AFFECT_SLOW. Dark Protection is bit 25, and **a fire** on a monster bit 28, AFFECT_FIRE. A DAMAGE flagged 2, DAMAGE_POISON, is drawn as poison's hit (`InstanceBase.h`, `InstanceBaseEffect.cpp`).
+- **A stun** is bit 5 of a monster's effects, AFFECT_STUN, which the client draws as the monster asleep on its feet, **a poison** bit 3, AFFECT_POISON, and **a slow** bit 4, AFFECT_SLOW. Dark Protection is bit 25, the shaman's Blessing 22, Reflection 23, Swiftness 24, Dragon's Help 29 and Attack Up 30, and **a fire** on a monster bit 28, AFFECT_FIRE. A DAMAGE flagged 2, DAMAGE_POISON, is drawn as poison's hit (`InstanceBase.h`, `InstanceBaseEffect.cpp`).
 - **A spell's tooltip** reads the weapon's attack, VALUE3 to VALUE4 and its grade, for its `mtk`, and the hit rate, (min(90, (4·DEX + 2·level)/6) + 210)/300, for its `ar` (`PythonSkill.cpp`, `PythonPlayer.cpp`). A weapon's magic attack, which its own tooltip shows and the skilltable's `mwep` reads, is its VALUE1 to VALUE2 and its grade's VALUE5 (`uitooltip.py`).
+- **A cooldown at a casting speed** is the skill's times 10000 over the speed in whole hundredths, fixed when the skill is used (`PythonPlayerSkill.cpp`), and a critical blow is DAMAGE flagged 32, DAMAGE_CRITICAL.
+- **A shaman's buffs and heal** carry the client's CAN_USE_FOR_ME, NEED_TARGET and ONLY_FOR_ALLIANCE, and USE_SKILL names the player picked.
 - **A toggle turned off** is sent as USE_SKILL like any use, and the client then counts no new cooldown: it runs on from when the toggle was turned on (`PythonPlayerSkill.cpp`).
 - **The warrior's skills** need a target for Three-Way Cut, and a sword or two-handed weapon for all but Berserk, the client's NEED_TARGET and WEAPON_LIMITATION (`skilldesc.txt`). The skill window lists each group's skills from its first place, so Three-Way Cut is a Body warrior's first as Finger Strike is a Weaponry sura's (`playersettingmodule.py`).
 
@@ -158,6 +167,15 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
     - Lightning Throw: 60 + 4·lv + (7·iq + 8·MTK + any number from 5·iq to 15·iq)·ar·k, the picked within 1800, five in all within 200.
     - Summon Lightning: 40 + 4·lv + (13·iq + 7·MTK + any number from 5·iq to 16·iq)·ar·k, the picked within 1500, fifteen in all within 400, stunning at (50 + 1000k/6)/10 percent, its own base where Mental's is 100.
     - Lightning Claw: (50 + 5·lv + (6·iq + 6·MTK + 1 to 800)·ar·k)·(1 − 0.13·jump), the picked within 2500, then each jump from the last struck to the nearest living monster not yet struck within 600, the veteran's reach, seven in all, stopping when none is in reach. The 2500 is how far it is cast.
+  - **The shaman's buffs and heal,** settled the same way: the skilltable for mana, cooldowns, runs and ranges, its formulas of the caster's INT.
+    - **Whom they land on:** the player picked if they live within its range, 800 for Blessing and 1000 for the rest, and are of the caster's kingdom; else the caster, with nothing picked, a monster picked, a stranger or one too far. There are no parties yet, so the client's ONLY_FOR_ALLIANCE is read as of her kingdom, the veteran's reading.
+    - **At whose level:** a buff runs at the caster's level of the skill and INT when it was cast, kept with it on the one it runs on, so it is as strong on a warrior as on her, and raising the skill or INT while it runs changes nothing until it is cast again. Casting it again renews its run. Its effect, speeds and casting speed are shown to the one it runs on as their own buffs' are.
+    - Blessing: (0.3·iq + 5)(2k + 0.5)/(k + 1.5) percent off every bite, after armour, Berserk's price and before the mana shield, half at most, the designer's cap; 60 + 200k seconds.
+    - Reflection: 5 + (0.3·iq + 5)·k percent of the hit points a bite took struck back at the biter, at the bitten one's hand, so it counts towards their kill; 60 + 200k seconds.
+    - Dragon's Help: (0.3·iq + 5)(2k + 0.5)/(k + 1.5) percent chance of each blow striking twice as hard, drawn as a critical hit; a minimal critical hit, the debaters' choice, for blows only; 60 + 100k seconds.
+    - Heal: 200 + 4·lv + (10·iq + 6·MTK + 600 to 800)·k hit points at once, no more than the maximum, told as POINT_CHANGE. Removing bad effects waits for something to put them on players.
+    - Swiftness: 5 + 35k on the move speed and 3 + 33k on the casting speed, told as point 21; every cooldown of the one it runs on is shortened as the client shortens it, to 10000 over their casting speed in whole hundredths, worked out when the skill is used, so 7 s at 104 is 6.72 s, and kept if Swiftness ends meanwhile; 60 + 100k seconds.
+    - Attack Up: 5 + (0.2·iq + 15)·k on the attack; 60 + 100k seconds.
   - **Burn:** the skilltable's 0.2·iq·k percent for each one left alive, and lv + 5·iq·k in all, the veteran's reading of which is which, a fifth of it every two seconds for five turns, the designer's: counted as turns, so the whole is always dealt, however the world loop's first tick falls: as poison, its turns are the burner's, never provoke, end when the burner leaves or dies, and can kill at their hand; a second renews it; stones are never set alight. Its turns are told as ordinary damage, as the client has no damage flag for fire, and its flames as AFFECT_FIRE. The world loop keeps the burning in a list beside the poisoned.
   - **Slow:** the veteran's 30 in a hundred off the monster's pace for the skilltable's 10 + 10k seconds, at its chance for each one left alive. Its pace, shown in the CHARACTER_UPDATE with the bit, is what it walks at while it chases; its bites keep their time. Its fight ending or its time running out gives its pace back; its death ends it; stones are never slowed.
   - **Poison:** the veteran's.
@@ -240,6 +258,10 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
   - Lightning Claw chaining from each victim to the next within 600 and no further;
   - Summon Lightning's own stun chance, and an attack that does not stun never stunning;
   - a shaman taking up Dragon at her teacher.
+- `internal/game/support_test.go`:
+  - Blessing landing on the player picked, at the caster's level and INT, shown on her; a buff landing on the caster with nothing picked, a stranger, or one too far;
+  - Blessing cutting a bite, and by half at most; Reflection sending a share back; Dragon's Help making some blows critical;
+  - Heal giving the player picked its hit points, told; Swiftness telling and shortening cooldowns; Attack Up adding to the attack.
 - `internal/game/magic_test.go`:
   - Dark Strike doing its tooltip's damage through armour, and reaching 1400 off to five;
   - Flame Strike burning the four within 500;
@@ -264,7 +286,7 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
 
 ## Not done yet
 
-- Fear and Dispel, which only matter against players; Enchanted Armour's reflect; Finger Strike's pierce. Archery, whose teachers stand but which has no skills yet, Black Magic's summoned spirit, and the shaman's buffs and heal, cast on herself or another player; the ninja's stealth and poison cloud.
+- Fear and Dispel, which only matter against players; Enchanted Armour's reflect; Finger Strike's pierce. Archery, whose teachers stand but which has no skills yet, Black Magic's summoned spirit, and Heal's removal of bad effects; the ninja's stealth and poison cloud. Parties, which the shaman's buffs would then keep to.
 - Body's Charge and Sword Strike's knockback, which push monsters the server owns.
 - Damage at the motion's hit, and no blows during a skill's motion.
 - The mana Enchanted Blade drains while it runs in the original, and keeping it over a relog.
