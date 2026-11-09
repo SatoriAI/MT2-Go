@@ -1,6 +1,9 @@
 package world
 
-import "time"
+import (
+	"math"
+	"time"
+)
 
 // Spawn is a place where the world puts mobs: Count of the kind VNum, each at a random
 // point within Spread of X, Y, or, for a stone, at one of its Spots picked afresh each
@@ -257,12 +260,22 @@ var spawnsByMap = map[string][]spawnAt{
 	},
 }
 
-// Spawns returns every place the world puts mobs, in world coordinates.
+// Spawns returns every place the world puts mobs, in world coordinates, as many in each
+// pack as its map's Mobs says.
 func Spawns() []Spawn {
+	return spawnsOn(maps)
+}
+
+// spawnsOn is every place the maps put mobs, each pack's count multiplied by its map's
+// Mobs.
+func spawnsOn(maps []Map) []Spawn {
 	var all []Spawn
 	for _, m := range maps {
 		for _, s := range spawnsByMap[m.Name] {
 			count := max(s.count, 1)
+			if count > 1 {
+				count = max(1, int(math.Round(float64(count)*m.Mobs)))
+			}
 			var spots []Spot
 			for _, p := range s.spots {
 				spots = append(spots, Spot{m.X + p.X, m.Y + p.Y})

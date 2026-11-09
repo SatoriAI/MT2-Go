@@ -180,21 +180,26 @@ func TestPacksStandApart(t *testing.T) {
 	}
 }
 
-// Each first village's fields are full: at least 380 monsters, at least 70 within 15000
-// of the start, the nearest pack within 4500 of it.
+// Each first village's fields are full, as the world serves them, its Mobs applied: at
+// least 380 monsters, at least 70 within 15000 of the start, the nearest within 4500.
 func TestEveryFirstVillagesFieldsAreFull(t *testing.T) {
-	for name, all := range monsterAreas(t) {
+	for _, e := range []account.Empire{account.EmpireShinsoo, account.EmpireChunjo, account.EmpireJinno} {
+		x, y, _ := e.StartPosition()
+		home, _ := MapAt(x, y)
 		total, near, nearest := 0, 0, math.Inf(1)
-		for _, a := range all {
-			d := fromStart(name, a)
-			total += a.count
+		for _, s := range Spawns() {
+			if m, _ := MapAt(s.X, s.Y); m.Name != home.Name || s.VNum >= 9000 || len(s.Spots) > 0 {
+				continue
+			}
+			d := math.Hypot(float64(s.X-x), float64(s.Y-y))
+			total += s.Count
 			if d < 15000 {
-				near += a.count
+				near += s.Count
 			}
 			nearest = min(nearest, d)
 		}
 		if total < 380 || near < 70 || nearest > 4500 {
-			t.Errorf("%s: %d monsters, %d within 15000, the nearest pack %.0f out", name, total, near, nearest)
+			t.Errorf("%s: %d monsters, %d within 15000, the nearest pack %.0f out", home.Name, total, near, nearest)
 		}
 	}
 }
@@ -296,5 +301,60 @@ func TestASpawnCarriesItsTimeToComeBack(t *testing.T) {
 	}
 	if dogs == 0 {
 		t.Fatal("no dogs")
+	}
+}
+
+// A map's Mobs multiplies its packs, rounded and never below one, and no other map's:
+// Jinno's packs of 3, 4 and 5 at 2, 1.5 and 0.1, while its leaders, NPCs and stones stay
+// one each.
+func TestAMapsMobsMultiplyItsPacks(t *testing.T) {
+	type place struct {
+		vnum uint16
+		x, y int32
+	}
+	count := func(on []Map) map[place]int {
+		got := map[place]int{}
+		for _, s := range spawnsOn(on) {
+			if len(s.Spots) > 0 { // a stone, which stands at one of its spots
+				if s.Count != 1 {
+					t.Errorf("a stone %d of %d", s.VNum, s.Count)
+				}
+				continue
+			}
+			got[place{s.VNum, s.X, s.Y}] += s.Count
+		}
+		return got
+	}
+	plain := count(maps)
+	for _, c := range []struct {
+		mobs float64
+		want map[int]int // a pack's count as placed, and as the map holds it
+	}{
+		{2, map[int]int{3: 6, 4: 8, 5: 10}},
+		{1.5, map[int]int{3: 5, 4: 6, 5: 8}},
+		{0.1, map[int]int{3: 1, 4: 1, 5: 1}},
+	} {
+		changed := slices.Clone(maps)
+		changed[2].Mobs = c.mobs // metin2_map_c1, Jinno
+		got := count(changed)
+		for p, n := range plain {
+			expect := n
+			if m, _ := MapAt(p.x, p.y); m.Name == "metin2_map_c1" && n > 1 {
+				expect = c.want[n]
+			}
+			if got[p] != expect {
+				t.Errorf("at %v: %d at (%d, %d) holds %d, want %d", c.mobs, p.vnum, p.x, p.y, got[p], expect)
+			}
+		}
+	}
+}
+
+// Every map says how many monsters its packs hold: one it forgot would hold a single
+// monster a pack.
+func TestEveryMapSaysHowManyMobsItHolds(t *testing.T) {
+	for _, m := range maps {
+		if m.Mobs <= 0 {
+			t.Errorf("%s: Mobs %v", m.Name, m.Mobs)
+		}
 	}
 }
