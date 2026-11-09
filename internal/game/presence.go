@@ -38,6 +38,8 @@ type presence struct {
 	event    *event.Event                      // the event running; nil for none
 	ground   map[uint32]*groundItem            // items lying in the world, by vid
 	groundOn map[string]map[uint32]*groundItem // the same, by the map each lies on and vid
+	trades   map[uint32]*trade                 // the trades going on, under each side's vid
+	settled  map[uint32]settlement             // what trades others kept changed for players, for each to take
 }
 
 // sender is where a player's packets go: their connection, which only queues them.
@@ -172,6 +174,9 @@ func (w *presence) moveLocked(p *present, m protocol.Move) {
 	var mine [][]byte
 	if p.isPlayer() {
 		mine = w.groundSeen(p, fromX, fromY)
+	}
+	if p.isPlayer() && len(w.trades) > 0 {
+		w.walkedAway(p)
 	}
 	for _, other := range w.onMap[p.world] { // only those on its map can come into or leave its view
 		if other == p {

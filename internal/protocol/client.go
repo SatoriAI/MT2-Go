@@ -394,3 +394,30 @@ func DecodeShoot(body []byte) (uint8, error) {
 	sk := r.U8()
 	return sk, r.Err()
 }
+
+// The client's EXCHANGE subheaders: a trade asked for, an item or yang offered, an accept
+// and a cancel. It never sends the subheader for taking an item back, 2.
+const (
+	ExchangeStart  byte = 0
+	ExchangeAdd    byte = 1
+	ExchangeYang   byte = 3
+	ExchangeAccept byte = 4
+	ExchangeCancel byte = 5
+)
+
+// Exchange is a client EXCHANGE: for a start, Arg is the vid of the player traded with;
+// for yang, the amount; for an item, Pos is where it is in the inventory and Shown the
+// cell of the trade window it was dropped on.
+type Exchange struct {
+	Sub   byte
+	Arg   uint32
+	Shown uint8
+	Pos   ItemPos
+}
+
+// DecodeExchange reads EXCHANGE, whose fields are the same for every subheader.
+func DecodeExchange(body []byte) (Exchange, error) {
+	r := NewReader(body)
+	e := Exchange{Sub: r.U8(), Arg: r.U32(), Shown: r.U8(), Pos: r.itemPos()}
+	return e, r.Err()
+}

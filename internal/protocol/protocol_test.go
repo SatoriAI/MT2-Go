@@ -815,3 +815,32 @@ func TestASyncedPositionIsSent(t *testing.T) {
 		t.Fatalf("got  %x\nwant %x", got, want)
 	}
 }
+
+// EXCHANGE is a subheader, a u32, a u8 and an item position, then the sequence byte: an
+// item offered names its inventory place and the trade window cell it was dropped on.
+func TestAnExchangeNamesItsSubheaderAndArguments(t *testing.T) {
+	frame, used, err := NextFrame(mustHex(t, "1b"+"01"+"00000000"+"05"+"01"+"0c00"+"af"))
+	if err != nil || used != 11 {
+		t.Fatalf("framed %d, %v", used, err)
+	}
+	if e, err := DecodeExchange(frame.Body); err != nil || e != (Exchange{Sub: ExchangeAdd, Shown: 5, Pos: ItemPos{Window: 1, Cell: 12}}) {
+		t.Fatalf("got %+v, %v", e, err)
+	}
+	if e, _ := DecodeExchange(mustHex(t, "00"+"e9030000"+"00"+"000000")); e != (Exchange{Sub: ExchangeStart, Arg: 1001}) {
+		t.Fatalf("start: %+v", e)
+	}
+}
+
+// The server's EXCHANGE is 47 bytes: subheader, whether it is the player's own side, a
+// u32, a position whose cell is the trade window's, a count as a u32, then three empty
+// sockets and seven empty bonuses.
+func TestAnExchangeNewsIsFortySevenBytes(t *testing.T) {
+	got := EncodeExchange(ExchangeNews{Sub: ExchangeAdded, Mine: true, Arg: 27001, Shown: 5, Count: 3})
+	want := mustHex(t, "2a"+"01"+"01"+"79690000"+"00"+"0500"+"03000000"+strings.Repeat("00", 33))
+	if !bytes.Equal(got, want) {
+		t.Fatalf("got  %x\nwant %x", got, want)
+	}
+	if got := EncodeExchange(ExchangeNews{Sub: ExchangeAccepted, Arg: 1}); !bytes.Equal(got[:7], mustHex(t, "2a"+"04"+"00"+"01000000")) {
+		t.Fatalf("accept %x", got[:7])
+	}
+}

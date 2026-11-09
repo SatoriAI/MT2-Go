@@ -63,6 +63,7 @@ const (
 	ServerGroundDel        ServerHeader = 0x1B // an item on the ground is gone from view
 	ServerItemOwner        ServerHeader = 0x1F // who alone may pick an item up, or nobody
 	ServerShop             ServerHeader = 0x26 // a shop opening, or why a buy or sale was refused
+	ServerExchange         ServerHeader = 0x2A // a trade with another player opening, changing or ending
 	ServerQuickslotAdd     ServerHeader = 0x1C // a taskbar slot filled
 	ServerQuickslotDel     ServerHeader = 0x1D // a taskbar slot emptied
 	ServerQuickslotSwap    ServerHeader = 0x1E // two taskbar slots swapped

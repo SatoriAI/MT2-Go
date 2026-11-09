@@ -151,6 +151,7 @@ var fixedSizes = map[protocol.ServerHeader]int{
 	protocol.ServerMainCharacter:    len(protocol.EncodeMainCharacter(protocol.MainCharacter{})),
 	protocol.ServerTime:             len(protocol.EncodeTime(0)),
 	protocol.ServerChannel:          len(protocol.EncodeChannel(0)),
+	protocol.ServerExchange:         len(protocol.EncodeExchange(protocol.ExchangeNews{})),
 }
 
 // packets cuts what a client was sent into whole packets, by each one's length: its own,
