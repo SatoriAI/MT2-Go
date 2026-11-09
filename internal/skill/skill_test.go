@@ -196,12 +196,19 @@ func TestAStunsChanceIsTheClients(t *testing.T) {
 	}
 }
 
-// A poison's chance is the tooltip's 1 + 4k percent, in thousandths: 12 at the first
-// level, 30 at 20.
-func TestAPoisonsChanceIsTheTooltips(t *testing.T) {
-	for level, want := range map[uint8]int{1: 12, 10: 18, 20: 30} {
-		if got := PoisonChance(level); got != want {
-			t.Errorf("at %d: %d, want %d", level, got, want)
+// A poison's chance is its skill's, in thousandths: Rolling Dagger's tooltip 1 + 4k
+// percent, 12 at the first level and 30 at 20, and Poison Arrow's skilltable 80k percent,
+// 40 at the first, 176 at 10 and 400 at 20.
+func TestAPoisonsChanceIsItsSkills(t *testing.T) {
+	for sk, wants := range map[account.Skill]map[uint8]uint32{
+		RollingDagger: {1: 12, 10: 18, 20: 30},
+		PoisonArrow:   {1: 40, 10: 176, 20: 400},
+	} {
+		p, _ := Lookup(sk)
+		for level, want := range wants {
+			if got := p.Poisons.At(Power(level)); got != want {
+				t.Errorf("%s at %d: %d, want %d", sk, level, got, want)
+			}
 		}
 	}
 }

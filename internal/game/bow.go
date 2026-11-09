@@ -2,15 +2,17 @@ package game
 
 import (
 	"math/rand/v2"
+	"slices"
 	"time"
 
+	"github.com/SatoriAI/MT2-Go/internal/account"
 	"github.com/SatoriAI/MT2-Go/internal/item"
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
+	"github.com/SatoriAI/MT2-Go/internal/skill"
 )
 
-// shootReach is how far from its victim an arrow may land: the bow's 2500 in the client's
-// skilltable and a margin of 300 for positions arriving late, the debaters' reach.
-const shootReach = 2800
+// shootReach is how far from its victim an arrow may land, a blow's or a skill's.
+const shootReach = skill.ShootReach
 
 // A bow's shot takes a motion of 1.5 s at attack speed 100, the client's bow attack.msa,
 // and the next is let go no sooner than shotGapAtSpeed over the attack speed: that motion
@@ -34,33 +36,102 @@ func (s *session) onFlyTarget(body []byte) error {
 	return nil
 }
 
-// onAddFlyTarget shows everyone who sees the player another target of their skill's
-// arrows. Skills that shoot are not used yet, so it changes nothing else.
+// onAddFlyTarget keeps another target the client aimed the arrows of the skill it is about
+// to use at, up to as many as a skill shoots, and shows it to everyone who sees the
+// player.
 func (s *session) onAddFlyTarget(body []byte) error {
 	f, err := protocol.DecodeFlyTarget(body)
 	if err != nil {
 		return err
 	}
+	if f.Target != 0 && len(s.flyAdds) < maxFlyAdds {
+		s.flyAdds = append(s.flyAdds, f.Target)
+	}
 	s.svc.presence.aim(s.playing.vid, protocol.ServerAddFlyTarget, f)
 	return nil
 }
 
+// maxFlyAdds is the most further targets the client queues for a skill's arrows: the most
+// arrows a skill lets go, 2 + 6k at its 0.5, less the one picked.
+const maxFlyAdds = 4
+
+// volleyFor is how long after an arrow skill is used its arrows may still be let go: its
+// longest motion, Repetitive Shot's five arrows, takes about three seconds.
+const volleyFor = 4 * time.Second
+
+// volley is what an arrow skill has left to shoot: each arrow at the next of its targets,
+// or all at its one, for percent of a blow, until a time.
+type volley struct {
+	skill   account.Skill
+	level   uint8
+	targets []uint32
+	left    int
+	percent int
+	until   time.Time
+}
+
+// loose is the volley of an arrow skill used at level on the monster picked, and for a fan
+// on the further ones the client aimed at too. Its arrows share its damage, each
+// arrow's part of it added to it.
+func loose(sk account.Skill, proto skill.Proto, level uint8, picked uint32, adds []uint32, now time.Time) volley {
+	power := skill.Power(level)
+	arrows := int(proto.Arrows.At(power))
+	targets := []uint32{picked}
+	percent := int(proto.Damage.At(power))
+	if proto.Fan {
+		for _, t := range adds {
+			if !slices.Contains(targets, t) {
+				targets = append(targets, t)
+			}
+		}
+		arrows = min(arrows, len(targets))
+	} else {
+		percent = (percent + int(proto.EachArrow)*arrows) / arrows
+	}
+	return volley{skill: sk, level: level, targets: targets, left: arrows, percent: percent, until: now.Add(volleyFor)}
+}
+
+// next is the target of the volley's next arrow, and false once it has none left.
+func (v *volley) next(sk account.Skill, now time.Time) (uint32, bool) {
+	if v.left == 0 || v.skill != sk || now.After(v.until) {
+		return 0, false
+	}
+	at := v.targets[0]
+	if len(v.targets) > 1 {
+		at, v.targets = v.targets[0], v.targets[1:]
+	}
+	v.left--
+	return at, true
+}
+
 // onShoot lands the arrow the player let go on what it flew at, and uses one of their
-// arrows up. The client decides nothing about the hit, so the server does: a shot with no
-// target, sooner than the bow lets another go, without arrows worn, by a skill, or at
-// nothing it can hit is dropped, and no arrow is used.
+// arrows up. The client decides nothing about the hit, so the server does: a plain shot
+// with no target, or sooner than the bow lets another go, a skill's past what the skill
+// last used has left to shoot, one without arrows worn, or at nothing it can hit is
+// dropped, and no arrow is used.
 func (s *session) onShoot(body []byte) error {
-	sk, err := protocol.DecodeShoot(body)
+	vnum, err := protocol.DecodeShoot(body)
 	if err != nil {
 		return err
 	}
 	now := s.svc.now()
-	target := s.flyTarget
-	s.flyTarget = 0
 	arrows, worn := s.inventory.WornIn(item.Arrow)
+	if vnum != 0 {
+		sk, _ := skillByVNum(int(vnum))
+		target, left := s.volley.next(sk, now)
+		if !worn || !left || s.svc.presence.shootSkill(s.playing.vid, target, s.volley, s.rand, now) == blowRefused {
+			s.conn.Log().Debug("skill shot dropped", "skill", vnum, "target", target, "arrows", worn)
+			return nil
+		}
+		s.lastShot = now // a plain shot waits on it as on another
+		_, err = s.useOne(arrows)
+		return err
+	}
+	target := s.flyTarget
+	s.flyTarget, s.flyAdds = 0, nil
 	gap := shotGap(s.svc.presence.attackSpeedOf(s.playing.vid))
-	if sk != 0 || target == 0 || !worn || now.Sub(s.lastShot) < gap {
-		s.conn.Log().Debug("shot dropped", "skill", sk, "target", target, "arrows", worn)
+	if target == 0 || !worn || now.Sub(s.lastShot) < gap {
+		s.conn.Log().Debug("shot dropped", "target", target, "arrows", worn)
 		return nil
 	}
 	if s.svc.presence.shoot(s.playing.vid, target, s.rand, now) == blowRefused {
@@ -92,4 +163,26 @@ func (w *presence) shoot(playerVID, vid uint32, r *rand.Rand, now time.Time) blo
 		return blowRefused
 	}
 	return w.land(p, v, r, now)
+}
+
+// shootSkill lands an arrow of the volley's skill on the monster vid, with its splash and
+// poison, if the player holds a bow, and it is alive, in sight and within reach.
+func (w *presence) shootSkill(playerVID, vid uint32, v volley, r *rand.Rand, now time.Time) blow {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	p := w.all[playerVID]
+	at, seen := p.sees[vid]
+	if p.dead() || !seen || at.fight == nil || at.dead() || !within(p, at, shootReach) || !bowInHand(p.char) {
+		return blowRefused
+	}
+	proto, _ := skill.Lookup(v.skill)
+	w.splash(p, at, proto, v.percent, v.level, now, r)
+	return blowLanded
+}
+
+// levelOf is the player's level of the skill.
+func (w *presence) levelOf(vid uint32, sk account.Skill) uint8 {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.all[vid].char.Skills[sk]
 }

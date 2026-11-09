@@ -76,3 +76,21 @@ func TestEveryWeaponrySkillIsKept(t *testing.T) {
 		t.Fatalf("learnt %v, %v", learnt, err)
 	}
 }
+
+// Archery's skills are kept too, the last group's.
+func TestEveryArcherySkillIsKept(t *testing.T) {
+	items, cid := hendrasItems(t)
+	s := Skills(items)
+	ctx := context.Background()
+	names := []account.Skill{"repetitive_shot", "arrow_shower", "fire_arrow", "feather_walk", "poison_arrow"}
+
+	for _, sk := range names {
+		if _, err := s.Raise(ctx, cid, sk); err != nil {
+			t.Fatalf("%s: %v", sk, err)
+		}
+	}
+
+	if learnt, err := s.Learnt(ctx, cid); err != nil || len(learnt) != len(names) {
+		t.Fatalf("learnt %v, %v", learnt, err)
+	}
+}

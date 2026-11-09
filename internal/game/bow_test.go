@@ -23,11 +23,19 @@ const flyTargetSize = 17
 // hit points enough to take any shot.
 func archer(t *testing.T, x int32, count uint8) (*session, *keptItems, net.Conn, net.Conn) {
 	t.Helper()
-	svc := worldWith(t, world.Spawn{VNum: 101, X: homeX, Y: homeY, Count: 1})
-	bare := *svc.monsters[0].proto
-	bare.Drops, bare.Yang = nil, mob.Yang{}
-	svc.monsters[0].proto = &bare
-	svc.monsters[0].p.fight.hp, svc.monsters[0].p.fight.maxHP = 100000, 100000
+	return archerAmong(t, x, count, 1)
+}
+
+// archerAmong is archer among as many dogs, all at one spot.
+func archerAmong(t *testing.T, x int32, count uint8, dogs int) (*session, *keptItems, net.Conn, net.Conn) {
+	t.Helper()
+	svc := worldWith(t, world.Spawn{VNum: 101, X: homeX, Y: homeY, Count: dogs})
+	for _, m := range svc.monsters {
+		bare := *m.proto
+		bare.Drops, bare.Yang = nil, mob.Yang{}
+		m.proto = &bare
+		m.p.fight.hp, m.p.fight.maxHP = 100000, 100000
+	}
 	svc.now = func() time.Time { return noon }
 	kept := &keptItems{moved: map[int64]uint16{}, worn: map[int64]item.Wear{}, count: map[int64]uint8{}}
 	svc.items = kept

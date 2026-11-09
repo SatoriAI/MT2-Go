@@ -27,14 +27,21 @@ func (s *session) onUseSkill(body []byte) error {
 	sk, known := skillByVNum(int(u.VNum))
 	now := s.svc.now()
 	cooled := func() bool { return s.svc.cooldowns.over(s.playing.ID, sk, now) }
-	if !known {
+	proto, _ := skill.Lookup(sk)
+	_, arrows := s.inventory.WornIn(item.Arrow)
+	if !known || proto.Arrows != (skill.Scaled{}) && !arrows {
 		s.conn.Log().Debug("skill not used", "vnum", u.VNum)
 		return nil
 	}
+	adds := s.flyAdds
+	s.flyAdds = nil // aimed for this use alone, whatever becomes of it
 	happened, wait := s.svc.presence.useSkill(s.playing.vid, sk, u.Target, now, s.svc.clock.Now(), s.rand, cooled)
 	switch happened {
 	case skillUsed:
 		s.svc.cooldowns.used(s.playing.ID, sk, now.Add(wait))
+		if proto.Arrows != (skill.Scaled{}) {
+			s.volley = loose(sk, proto, s.svc.presence.levelOf(s.playing.vid, sk), u.Target, adds, now)
+		}
 	case skillRefused:
 		s.conn.Log().Debug("skill not used", "vnum", u.VNum)
 	case toggledOff: // its cooldown runs from when it was turned on, as the client counts it
@@ -127,6 +134,7 @@ func (w *presence) useSkill(vid uint32, sk account.Skill, target uint32, now tim
 		w.dash(pl, victim, clock)
 	}
 	switch {
+	case proto.Arrows != (skill.Scaled{}): // its arrows land as the client lets them go
 	case proto.Ally:
 		w.help(pl, allyOf(pl, target, proto), sk, proto, level, now, r)
 	case victim != nil:
@@ -177,14 +185,17 @@ func ahead(p, o *present) bool {
 // splash strikes the attack's victims around at: the monster itself if the attack is on
 // one, and every living monster the player sees within its reach of it, only those in
 // front of the player if the attack strikes ahead of them, the nearest first up to its
-// number, each for percent of a blow's damage through the same defence and luck, as many
-// times as it hits while the victim lives. A stunning attack may stun each it leaves
-// alive. Called under the lock.
+// number, each for percent of a blow's damage, or its splash share of that, through the
+// same defence and luck, as many times as it hits while the victim lives. A stunning
+// attack may stun each it leaves alive. Called under the lock.
 func (w *presence) splash(pl, at *present, proto skill.Proto, percent int, level uint8, now time.Time, r *rand.Rand) {
 	victims := victimsOf(pl, at, proto)
 	a := attackerOf(pl.char)
 	for jump, v := range victims {
 		share := percent
+		if proto.SplashShare > 0 && v != at {
+			share = share * proto.SplashShare / 100
+		}
 		if proto.FromBehind > 0 && !ahead(v, pl) {
 			share = share * proto.FromBehind / 100
 		}
@@ -209,7 +220,7 @@ func (w *presence) splash(pl, at *present, proto skill.Proto, percent int, level
 		if proto.Stuns > 0 && r.IntN(1000) < proto.StunChance(level) {
 			w.stun(v, now)
 		}
-		if proto.Poisons && r.IntN(1000) < skill.PoisonChance(level) {
+		if proto.Poisons != (skill.Scaled{}) && r.IntN(1000) < int(proto.Poisons.At(skill.Power(level))) {
 			w.poison(v, pl, now)
 		}
 		if proto.Slows && r.IntN(1000) < skill.SlowChance(level) {

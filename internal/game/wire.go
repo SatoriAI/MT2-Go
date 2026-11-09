@@ -270,6 +270,11 @@ var skillVNums = map[account.Skill]uint8{
 	skill.Ambush:          31,
 	skill.FastAttack:      32,
 	skill.RollingDagger:   33,
+	skill.RepetitiveShot:  46,
+	skill.ArrowShower:     47,
+	skill.FireArrow:       48,
+	skill.FeatherWalk:     49,
+	skill.PoisonArrow:     50,
 	skill.DarkStrike:      76,
 	skill.FlameStrike:     77,
 	skill.DarkProtection:  79,
@@ -295,14 +300,15 @@ const castingSpeed = 100
 
 // affectBits are the bits a buff sets in a character's effects, which the client draws,
 // its AFFECT_ numbers (InstanceBase.h): 19 is the glow Enchanted Blade puts on the blade,
-// 14 Berserk's, 15 Sword Aura's, 16 Strong Body's, 25 Dark Protection's, and the shaman's
-// 22, 23, 24, 29 and 30.
+// 14 Berserk's, 15 Sword Aura's, 16 Strong Body's, 17 Feather Walk's, 25 Dark
+// Protection's, and the shaman's 22, 23, 24, 29 and 30.
 var affectBits = map[account.Skill]uint64{
 	skill.EnchantedBlade:  1 << 19,
 	skill.EnchantedArmour: 1 << 21,
 	skill.Berserk:         1 << 14,
 	skill.SwordAura:       1 << 15,
 	skill.StrongBody:      1 << 16,
+	skill.FeatherWalk:     1 << 17,
 	skill.DarkProtection:  1 << 25,
 	skill.Blessing:        1 << 22,
 	skill.Reflection:      1 << 23,
@@ -369,6 +375,11 @@ var skillWindowSlots = map[account.Skill]uint8{
 	skill.Ambush:          1,
 	skill.FastAttack:      2,
 	skill.RollingDagger:   3,
+	skill.RepetitiveShot:  1,
+	skill.ArrowShower:     2,
+	skill.FireArrow:       3,
+	skill.FeatherWalk:     4,
+	skill.PoisonArrow:     5,
 	skill.DarkStrike:      1,
 	skill.FlameStrike:     2,
 	skill.DarkProtection:  4,

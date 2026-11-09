@@ -50,6 +50,11 @@ const (
 	LightningThrow  account.Skill = "lightning_throw"
 	SummonLightning account.Skill = "summon_lightning"
 	LightningClaw   account.Skill = "lightning_claw"
+	RepetitiveShot  account.Skill = "repetitive_shot"
+	ArrowShower     account.Skill = "arrow_shower"
+	FireArrow       account.Skill = "fire_arrow"
+	FeatherWalk     account.Skill = "feather_walk"
+	PoisonArrow     account.Skill = "poison_arrow"
 )
 
 // MaxLevel is the most a skill rises to with points; the client hides its + there.
@@ -84,8 +89,8 @@ type Proto struct {
 	// What else it does: stun, poison, burn or slow each one it leaves alive, strike FromBehind
 	// percent as hard one struck from behind, none for no more, and with Dash move the
 	// player beside the one aimed at first. A magic attack's damage is Magic's instead.
-	Stuns      int // the base of its chance to stun, in thousandths; none for no stun
-	Poisons    bool
+	Stuns      int    // the base of its chance to stun, in thousandths; none for no stun
+	Poisons    Scaled // its chance to poison, in thousandths; none for no poison
 	Burns      bool
 	Chain      int64 // how far a chain jumps from each victim to the next
 	Slows      bool
@@ -93,7 +98,15 @@ type Proto struct {
 	Dash       bool
 	Magic      Spell
 	Dice       [2]int32 // the least and most of the number a spell's tooltip rolls
-	DiceByIQ   bool     // that those are multiples of the caster's INT
+	// An arrow skill lets Arrows go from a bow, each landing as the client shoots it, at
+	// the one aimed at, or with Fan each at the next the client aimed it at; EachArrow is
+	// what each adds to the total Damage, which its arrows share. Those its arrows splash
+	// take SplashShare percent of it, none for all.
+	Arrows      Scaled
+	Fan         bool
+	EachArrow   uint32
+	SplashShare int
+	DiceByIQ    bool // that those are multiples of the caster's INT
 	// Drain is the mana a toggle takes every five seconds it runs, at its power; it ends
 	// once there is not enough.
 	Drain Scaled
@@ -170,6 +183,7 @@ const (
 	Sword            Wield = "sword"               // a one-handed sword
 	SwordOrTwoHanded Wield = "sword_or_two_handed" // the client's SWORD|TWO_HANDED
 	DaggerOrSword    Wield = "dagger_or_sword"     // the client's DAGGER|DOUBLE_SWORD|SWORD
+	Bow              Wield = "bow"
 )
 
 // Wieldable is whether the skill may be used, or its buff run, with the weapon in hand.
@@ -181,6 +195,8 @@ func (p Proto) Wieldable(weapon item.Proto) bool {
 		return weapon.Sword || weapon.TwoHanded
 	case DaggerOrSword:
 		return weapon.Dagger || weapon.Sword
+	case Bow:
+		return weapon.Bow
 	}
 	return true
 }
@@ -217,10 +233,6 @@ func (p Proto) Bonus(stat Stat, b Bearer, level uint8) int {
 // StunChance is the chance, in thousandths, a stunning attack at level stuns each monster
 // it leaves alive: the client's (base + 1000k/6)/10 percent, its base Stuns.
 func (p Proto) StunChance(level uint8) int { return p.Stuns + 10*int(Power(level))/6 }
-
-// PoisonChance is the chance, in thousandths, a poisoning attack at level poisons each
-// monster it leaves alive: its tooltip's 1 + 4k percent.
-func PoisonChance(level uint8) int { return (100 + 4*int(Power(level))) / 10 }
 
 // SlowChance is the chance, in thousandths, a slowing attack at level slows each monster
 // it leaves alive: the client's (333 + 300k)/10 percent.
@@ -333,9 +345,9 @@ var protos = map[account.Skill]Proto{
 	FastAttack: {Class: account.Ninja, Group: "dagger", Mana: Scaled{40, 160}, Cooldown: Scaled{20, 0},
 		Target: true, Aim: 800, Dash: true, Damage: Scaled{100, 250}, Wields: DaggerOrSword},
 	// Rolling Dagger: 50 + 140k, 25 s, up to 12 within 250 around her, each perhaps
-	// poisoned.
+	// poisoned, at its tooltip's 1 + 4k percent.
 	RollingDagger: {Class: account.Ninja, Group: "dagger", Mana: Scaled{50, 140}, Cooldown: Scaled{25, 0},
-		Reach: 250, Victims: 12, Damage: Scaled{150, 150}, Poisons: true, Wields: DaggerOrSword},
+		Reach: 250, Victims: 12, Damage: Scaled{150, 150}, Poisons: Scaled{10, 40}, Wields: DaggerOrSword},
 	// Black Magic, settled by the veteran and the designer: the client's skilltable for
 	// mana, cooldowns, victims, range and splash, and its tooltips' damage, as numbers of
 	// INT, the weapon's magic attack and the hit rate, which no armour cuts. Dark Strike:
@@ -446,7 +458,37 @@ var protos = map[account.Skill]Proto{
 	LightningClaw: {Class: account.Shaman, Group: "healing", Mana: Scaled{40, 180}, Cooldown: Scaled{10, 0},
 		Target: true, Aim: 2500, Chain: 600, Victims: 7, Dice: [2]int32{1, 800},
 		Magic: func(c Caster, k int32) int32 { return 50 + 5*c.Level + (6*c.Intelligence+6*c.MTK+c.Dice)*c.AR*k/10000 }},
+	// Archery, settled by the veteran and the designer: the client's skilltable for mana,
+	// cooldowns, arrows, victims, range and splash, and the tooltips' attack terms as a
+	// blow's percent, without their stat terms, as the other physical skills. Each arrow
+	// lands as the client lets it go, on a monster within a shot's reach. Repetitive Shot:
+	// 40 + 130k, 15 s, 2 + 6k arrows at the one picked, sharing 100 + 20 for each arrow +
+	// 80k percent.
+	RepetitiveShot: {Class: account.Ninja, Group: "archery", Mana: Scaled{40, 130}, Cooldown: Scaled{15, 0},
+		Target: true, Aim: ShootReach, Arrows: Scaled{2, 6}, EachArrow: 20, Damage: Scaled{100, 80}, Wields: Bow},
+	// Arrow Shower: 30 + 130k, 18 s, 2 + 6k arrows, each at the next the client aimed it at,
+	// for 0.8 of 100 + 170k percent.
+	ArrowShower: {Class: account.Ninja, Group: "archery", Mana: Scaled{30, 130}, Cooldown: Scaled{18, 0},
+		Target: true, Aim: ShootReach, Arrows: Scaled{2, 6}, Fan: true, Damage: Scaled{80, 136}, Wields: Bow},
+	// Fire Arrow: 50 + 130k, 25 s, one arrow at the one picked for 150 + 260k percent, and
+	// 60 in a hundred of it on up to 11 more within 300 of it; drawn as fire, burning none.
+	FireArrow: {Class: account.Ninja, Group: "archery", Mana: Scaled{50, 130}, Cooldown: Scaled{25, 0},
+		Target: true, Aim: ShootReach, Arrows: Scaled{1, 0}, Reach: 300, Victims: 12, SplashShare: 60,
+		Damage: Scaled{150, 260}, Wields: Bow},
+	// Feather Walk: 30 + 40k, 30 + 30k s, a run of 15 + 30k; 60k on the move speed.
+	FeatherWalk: {Class: account.Ninja, Group: "archery", Mana: Scaled{30, 40}, Cooldown: Scaled{30, 30},
+		Raises: map[Stat]Formula{MoveSpeed: func(_ Bearer, k int32) int32 { return 60 * k }}, Lasts: Scaled{15, 30}},
+	// Poison Arrow: 40 + 160k, 25 s, one arrow at the one picked for 100 + 120k percent,
+	// and half of it on up to 11 more within 300 of it, each perhaps poisoned, at the
+	// skilltable's 80k percent; its knockback is left out.
+	PoisonArrow: {Class: account.Ninja, Group: "archery", Mana: Scaled{40, 160}, Cooldown: Scaled{25, 0},
+		Target: true, Aim: ShootReach, Arrows: Scaled{1, 0}, Reach: 300, Victims: 12, SplashShare: 50,
+		Damage: Scaled{100, 120}, Poisons: Scaled{0, 800}, Wields: Bow},
 }
+
+// ShootReach is how far from the archer an arrow may land: the bow's 2500 in the client's
+// skilltable and a margin of 300 for positions arriving late, the debaters' reach.
+const ShootReach = 2800
 
 // powers is a skill's power at each level, in hundredths: the client's own table, which
 // its formulas for mana and cooldowns read too.
