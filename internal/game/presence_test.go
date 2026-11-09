@@ -80,6 +80,7 @@ func TestEnteringABusyMapDoesNotOverflowTheNewcomersQueue(t *testing.T) {
 	c := conns(t, 2)
 	var w presence
 	w.all, w.byName = map[uint32]*present{}, map[string]*present{}
+	w.onMap = map[string]map[uint32]*present{"": w.all} // all at 0, 0, on no known map
 	for vid := range uint32(20000) {
 		w.all[vid+1] = &present{out: c[0], add: protocol.CharacterAdd{VID: vid + 1}, sees: map[uint32]*present{}}
 	}

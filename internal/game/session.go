@@ -100,7 +100,7 @@ type loop struct {
 func NewService(store Accounts, whispers Whispers, items Items, taskbar Taskbar, skills Skills, keys *account.Keys, clock handshake.Clock, public netip.AddrPort,
 	spawns []world.Spawn) *Service {
 	return &Service{store: store, whispers: whispers, items: items, taskbar: taskbar, skills: skills, keys: keys, clock: clock, public: public, claims: map[uint32]*claim{},
-		presence: presence{all: map[uint32]*present{}, byName: map[string]*present{}, ground: map[uint32]*groundItem{}}, now: time.Now,
+		presence: presence{all: map[uint32]*present{}, onMap: map[string]map[uint32]*present{}, byName: map[string]*present{}, ground: map[uint32]*groundItem{}}, now: time.Now,
 		loop: loop{spawns: spawns, rand: newRand(), byPresent: map[*present]*monster{}, kinds: map[uint16]*mob.Proto{}, called: map[*monster][]*monster{}}}
 }
 

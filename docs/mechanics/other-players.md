@@ -66,7 +66,7 @@ Another player's ADD (`01`) and INFO (`88`) are the ones on [entering-the-world.
 
 ## What the server does
 
-`internal/game/presence.go` keeps who is in the world, by vid, with the map each stands on (from `internal/world`), where they are, and whom each has been shown. Two players see each other when they are on the same map and at most 8000 apart, the edge included; seeing is always mutual, so both sides change together. Players on no known map share one map with each other; only bad data puts a character there.
+`internal/game/presence.go` keeps who is in the world, by vid and by the map each stands on (from `internal/world`), so a move looks only at those on its map, where they are, and whom each has been shown. Two players see each other when they are on the same map and at most 8000 apart, the edge included; seeing is always mutual, so both sides change together. Players on no known map share one map with each other; only bad data puts a character there.
 
 The range is open-mt2's choice; the client takes any, and draws characters up to 20000 away, so everyone in range is drawn. Who sees whom changes only when someone enters, moves or leaves, as in open-mt2.
 
@@ -124,7 +124,7 @@ The range is open-mt2's choice; the client takes any, and draws characters up to
 
 ## Not done yet
 
-- A spatial grid, so a move is checked against those nearby rather than everyone on the map; a measurement should ask for it first.
+- A spatial grid within a map, so a move is checked against those nearby rather than everyone on the map; the record is kept by map already, and a measurement should ask for the grid first.
 - A margin against flickering, for two players walking along the edge of each other's range.
 - Changing map. A player's map is taken on entering only, which holds while the only way to another map is entering it; a warp must update it, or the player stays visible on the old map.
 - CHARACTER_UPDATE (`13`) for the guild; equipment uses it ([equipment.md](equipment.md)).

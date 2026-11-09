@@ -24,18 +24,19 @@ const viewRange = 8000
 // never held across a slow client. A send that fails is left: that connection closes itself.
 type presence struct {
 	mu       sync.Mutex
-	all      map[uint32]*present    // by vid
-	byName   map[string]*present    // players, by lower-cased name: unique regardless of case
-	fallen   []death                // monsters killed since the world loop last asked
-	provoked []provocation          // blows on living monsters since the world loop last asked
-	laid     []timed                // items players dropped since the world loop last asked, to clear away
-	buffs    []buffEnd              // buffs players started since the world loop last asked, to end
-	calls    []call                 // waves stones called since the world loop last asked
-	poisoned []*present             // monsters poisoned since the world loop last asked, to tick
-	drains   []buffEnd              // toggles started since the world loop last asked that drain mana
-	burned   []*present             // monsters set alight since the world loop last asked, to tick
-	event    *event.Event           // the event running; nil for none
-	ground   map[uint32]*groundItem // items lying in the world, by vid
+	all      map[uint32]*present            // by vid
+	onMap    map[string]map[uint32]*present // the same, by the map each stands on and vid
+	byName   map[string]*present            // players, by lower-cased name: unique regardless of case
+	fallen   []death                        // monsters killed since the world loop last asked
+	provoked []provocation                  // blows on living monsters since the world loop last asked
+	laid     []timed                        // items players dropped since the world loop last asked, to clear away
+	buffs    []buffEnd                      // buffs players started since the world loop last asked, to end
+	calls    []call                         // waves stones called since the world loop last asked
+	poisoned []*present                     // monsters poisoned since the world loop last asked, to tick
+	drains   []buffEnd                      // toggles started since the world loop last asked that drain mana
+	burned   []*present                     // monsters set alight since the world loop last asked, to tick
+	event    *event.Event                   // the event running; nil for none
+	ground   map[uint32]*groundItem         // items lying in the world, by vid
 }
 
 // sender is where a player's packets go: their connection, which only queues them.
@@ -126,7 +127,7 @@ func (w *presence) enterLocked(p *present) {
 	}
 	p.sees = map[uint32]*present{}
 	var others [][]byte
-	for _, other := range w.all {
+	for _, other := range w.onMap[p.world] {
 		if p.inView(other) {
 			link(p, other)
 			other.send(p.appearance()...)
@@ -138,6 +139,10 @@ func (w *presence) enterLocked(p *present) {
 	}
 	p.send(others...)
 	w.all[p.add.VID] = p
+	if w.onMap[p.world] == nil {
+		w.onMap[p.world] = map[uint32]*present{}
+	}
+	w.onMap[p.world][p.add.VID] = p
 	if p.isPlayer() {
 		w.byName[strings.ToLower(p.info.Name)] = p
 	}
@@ -167,7 +172,7 @@ func (w *presence) moveLocked(p *present, m protocol.Move) {
 	if p.isPlayer() {
 		mine = w.groundSeen(p, fromX, fromY)
 	}
-	for _, other := range w.all {
+	for _, other := range w.onMap[p.world] { // only those on its map can come into or leave its view
 		if other == p {
 			continue
 		}
@@ -207,6 +212,7 @@ func (w *presence) leave(vid uint32) *present {
 func (w *presence) leaveLocked(p *present) {
 	vid := p.add.VID
 	delete(w.all, vid)
+	delete(w.onMap[p.world], vid)
 	if p.isPlayer() {
 		delete(w.byName, strings.ToLower(p.info.Name)) // a mob's name may be a player's too
 		// The connection stays open through Change character and a restart: the client must
