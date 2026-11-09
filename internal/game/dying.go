@@ -16,7 +16,7 @@ func (w *presence) die(p *present) {
 	}
 	w.endBuffs(p)
 	if lost := p.char.LoseExpOnDeath(); lost > 0 {
-		p.send(protocol.EncodePointChange(vid, protocol.PointExp, -int32(lost), int32(p.char.Exp))) //nolint:gosec // under 2^31
+		p.send(pointTold(vid, protocol.PointExp, -int(lost), p.char.Exp))
 	}
 	p.send(protocol.EncodeDead(vid))
 	toViewers(p, protocol.EncodeDead(vid))
@@ -48,8 +48,8 @@ func (w *presence) revive(vid uint32, town bool, x, y int32) bool {
 	p.tether = tether{x: p.add.X, y: p.add.Y} // walking on from where they rose
 	p.send(protocol.EncodeChat(protocol.ChatCommand, vid, p.info.Empire, "CloseRestartWindow"))
 	p.send(p.appearance()...)
-	p.send(protocol.EncodePointChange(vid, protocol.PointHP, 0, int32(c.HP)), //nolint:gosec // small
-		protocol.EncodePointChange(vid, protocol.PointSP, 0, int32(c.SP))) //nolint:gosec // small
+	p.send(pointTold(vid, protocol.PointHP, 0, c.HP),
+		pointTold(vid, protocol.PointSP, 0, c.SP))
 	w.enterLocked(p)
 	return true
 }

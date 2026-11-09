@@ -20,7 +20,7 @@ type Events interface {
 // on and off. Events are created from the command line, another process, so the server
 // reads them rather than being told. A failed read keeps what runs until the next look,
 // and a look takes at most until the next, so a database that stops answering is noticed.
-func (s *Service) WatchEvents(ctx context.Context, events Events, every time.Duration, log *slog.Logger) error {
+func (svc *Service) WatchEvents(ctx context.Context, events Events, every time.Duration, log *slog.Logger) error {
 	t := time.NewTicker(every)
 	defer t.Stop()
 	for {
@@ -31,7 +31,7 @@ func (s *Service) WatchEvents(ctx context.Context, events Events, every time.Dur
 		case err != nil:
 			log.Warn("events not checked", "err", err)
 		default:
-			s.presence.switchEvent(e, running)
+			svc.presence.switchEvent(e, running)
 		}
 		select {
 		case <-ctx.Done():

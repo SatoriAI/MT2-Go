@@ -103,10 +103,10 @@ func restore(p *present, maxHP, maxSP, hp, sp uint32) [][]byte {
 	vid := p.add.VID
 	var told [][]byte
 	if newHP != c.HP {
-		told = append(told, protocol.EncodePointChange(vid, protocol.PointHP, int32(newHP-c.HP), int32(newHP))) //nolint:gosec // small
+		told = append(told, pointTold(vid, protocol.PointHP, newHP-c.HP, newHP))
 	}
 	if newSP != c.SP {
-		told = append(told, protocol.EncodePointChange(vid, protocol.PointSP, int32(newSP-c.SP), int32(newSP))) //nolint:gosec // small
+		told = append(told, pointTold(vid, protocol.PointSP, newSP-c.SP, newSP))
 	}
 	c.HP, c.SP = newHP, newSP
 	return told

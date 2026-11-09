@@ -16,12 +16,12 @@ import (
 // client takes any. It draws characters up to 20000 away, so all of these are drawn.
 const viewRange = 8000
 
-// presence is who stands in the world, players and mobs, and who sees whom: a player and
-// anything else on the same map within viewRange of each other. Mobs see no mobs, so the
-// many standing in the fields cost nothing between themselves. Packets go out under the
-// lock, so every player is told of the same things in the same order: a character always
-// appears before its moves. Sending only queues, so the lock is never held across a slow
-// client. A send that fails is left: that connection closes itself.
+// presence is the world record. It holds who stands in the world, players and mobs, and
+// who sees whom, a player and anything else on the same map within viewRange of each
+// other. Mobs see no mobs, so the many standing in the fields cost nothing between themselves.
+// Packets go out under the lock, so every player is told of the same things in the same
+// order: a character always appears before its moves. Sending only queues, so the lock is
+// never held across a slow client. A send that fails is left: that connection closes itself.
 type presence struct {
 	mu       sync.Mutex
 	all      map[uint32]*present    // by vid
@@ -233,9 +233,9 @@ func (w *presence) sendOff(p *present) bool {
 
 // tellMap shows a notice to every player on the map p stands on.
 func (w *presence) tellMap(p *present, line string) {
+	notice := protocol.EncodeChat(protocol.ChatNotice, 0, 0, textToClient(line)) // outside the lock, to keep it short
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	notice := protocol.EncodeChat(protocol.ChatNotice, 0, 0, textToClient(line))
 	for _, other := range w.byName {
 		if other.world == p.world {
 			other.send(notice)
@@ -305,6 +305,11 @@ func toViewers(p *present, packet []byte) {
 	for _, other := range p.sees {
 		other.send(packet)
 	}
+}
+
+// showMob shows those who see the monster its effects now.
+func showMob(v *present) {
+	toViewers(v, protocol.EncodeCharacterUpdate(v.info, v.add, mobAffects(v)))
 }
 
 // A tether is where the server reckons a player's character can be, and since when: it

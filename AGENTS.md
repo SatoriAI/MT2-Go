@@ -40,7 +40,7 @@ Every game mechanic has a page in `docs/mechanics/`: what the client does, the e
 - **`internal/protocol` is pure:** bytes in, values out, no sockets, no database, no clock. Every packet test compares exact bytes.
 - **Header types are per direction** (`ClientHeader`, `ServerHeader`): numbers are reused across directions.
 - **Game types and wire types stay apart.** `internal/account` holds the game's own types (`Empire`, `Character`, `Class`, `Sex`, `SkillGroup`); `internal/protocol` holds packet layouts. The game port converts between them in `internal/game/wire.go`, the one place the client's numbers for named things appear. It is an adapter for the original client's encoding and goes when the protocol stops carrying those numbers, so never let them into the model; the store never imports `protocol`.
-- **What the game names is stored by name**, as text with a CHECK listing the allowed values (`empire IN ('shinsoo', 'chunjo', 'jinno')`), so the tables read without a lookup. NULL means not chosen yet; the store reads it as `""`. Quantities stay numbers.
+- **What the game names is stored by name**, as text with a CHECK listing the allowed values (`empire IN ('shinsoo', 'chunjo', 'jinno')`), so the tables read without a lookup. A new name, such as a skill's, costs a migration rewriting its CHECK; that is accepted. NULL means not chosen yet; the store reads it as `""`. Quantities stay numbers.
 - **The schema guarantees what the wire needs.** A column sent to the client has a CHECK matching its field (`level` 1–255 for a u8, name length in bytes), so no stored row can fail to encode. Names are unique on `lower(name)`.
 - **The environment is read only in `internal/config`** (forbidigo enforces it), and `.env.example` documents exactly the variables it reads (a config test enforces that).
 - **Errors wrap with `%w` and are checked with `errors.Is`/`errors.As`.** A session returns an error to end its connection; it never panics.
@@ -54,7 +54,7 @@ internal/config/    environment -> Config
 internal/protocol/  packet layouts, framing, byte reading and writing
 internal/network/   TCP: one goroutine per connection, cutting the stream into packets
 internal/handshake/ the time sync every connection starts with
-internal/auth/      the login port: password check, login key
+internal/auth/      the login port: password check, login key; tested end to end, in internal/server
 internal/game/      the game port: login by key, kingdom, characters, entering the world
 internal/account/   the game's types for accounts and characters, starting and derived values, login keys
 internal/store/     PostgreSQL: pool, embedded migrations, queries

@@ -15,7 +15,7 @@ const saveTimeout = 5 * time.Second
 // SavePlayers saves every player in the world every so often until ctx ends, so a crash
 // loses at most that much of their play. Leaving the world saves too, and it runs as the
 // connection closes, so nothing is lost when ctx ends at shutdown.
-func (s *Service) SavePlayers(ctx context.Context, every time.Duration, log *slog.Logger) error {
+func (svc *Service) SavePlayers(ctx context.Context, every time.Duration, log *slog.Logger) error {
 	t := time.NewTicker(every)
 	defer t.Stop()
 	for {
@@ -23,11 +23,11 @@ func (s *Service) SavePlayers(ctx context.Context, every time.Duration, log *slo
 		case <-ctx.Done():
 			return nil
 		case <-t.C:
-			for _, p := range s.presence.players() {
+			for _, p := range svc.presence.players() {
 				if ctx.Err() != nil {
 					return nil // at shutdown each player is saved on leaving, without waiting on this round
 				}
-				s.saveInWorld(p, log)
+				svc.saveInWorld(p, log)
 			}
 		}
 	}
@@ -37,11 +37,11 @@ func (s *Service) SavePlayers(ctx context.Context, every time.Duration, log *slo
 // left was saved on leaving. One lying dead is not saved until they restart or leave.
 // Holding p.saving keeps this save and the one on leaving in order, so an older snapshot
 // never lands after the last.
-func (s *Service) saveInWorld(p *present, log *slog.Logger) {
+func (svc *Service) saveInWorld(p *present, log *slog.Logger) {
 	p.saving.Lock()
 	defer p.saving.Unlock()
-	if c, ok := s.presence.snapshot(p); ok {
-		s.save(c, log, slog.LevelDebug) // warned once, on leaving, not every minute
+	if c, ok := svc.presence.snapshot(p); ok {
+		svc.save(c, log, slog.LevelDebug) // warned once, on leaving, not every minute
 	}
 }
 
@@ -50,8 +50,8 @@ func (s *Service) saveInWorld(p *present, log *slog.Logger) {
 // is the world record's, as the periodic save's is, so the two never disagree. A player
 // who leaves dead is saved as a restart in town would leave them: at their kingdom's
 // start, with all their hit points and mana.
-func (s *Service) leaveAndSave(c *character, empire account.Empire, log *slog.Logger) {
-	p := s.presence.leave(c.vid)
+func (svc *Service) leaveAndSave(c *character, empire account.Empire, log *slog.Logger) {
+	p := svc.presence.leave(c.vid)
 	p.saving.Lock()
 	defer p.saving.Unlock()
 	saved := c.Character
@@ -63,21 +63,21 @@ func (s *Service) leaveAndSave(c *character, empire account.Empire, log *slog.Lo
 		points, _ := saved.Points()
 		saved.HP, saved.SP = points.MaxHP, points.MaxSP
 	}
-	s.save(saved, log, slog.LevelWarn)
+	svc.save(saved, log, slog.LevelWarn)
 }
 
 // save keeps the character's progress, and where it stands if that is on a map the server
 // knows; otherwise the last good position stays, logged at offMap. It has its own
 // context, since at shutdown it runs after the server's is cancelled.
-func (s *Service) save(c account.Character, log *slog.Logger, offMap slog.Level) {
+func (svc *Service) save(c account.Character, log *slog.Logger, offMap slog.Level) {
 	ctx, cancel := context.WithTimeout(context.Background(), saveTimeout)
 	defer cancel()
 	if _, ok := world.MapAt(c.X, c.Y); !ok {
 		log.Log(ctx, offMap, "position not saved: on no known map", "character", c.Name, "x", c.X, "y", c.Y)
-	} else if err := s.store.SavePosition(ctx, c.ID, c.X, c.Y); err != nil {
+	} else if err := svc.store.SavePosition(ctx, c.ID, c.X, c.Y); err != nil {
 		log.Error("position not saved", "character", c.Name, "err", err)
 	}
-	if err := s.store.SaveProgress(ctx, c); err != nil {
+	if err := svc.store.SaveProgress(ctx, c); err != nil {
 		log.Error("progress not saved", "character", c.Name, "err", err)
 	}
 }

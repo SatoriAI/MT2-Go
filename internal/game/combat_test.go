@@ -32,14 +32,14 @@ var (
 
 // hit lands a blow of player 1000 on the victim, as a character with a's level, class and
 // stats and all its hit points, which the player keeps from their first blow on.
-func (s *Service) hit(victim uint32, a combat.Attacker, gap time.Duration, now time.Time) blow {
-	if p := s.presence.all[1000]; p.char == nil {
+func (svc *Service) hit(victim uint32, a combat.Attacker, gap time.Duration, now time.Time) blow {
+	if p := svc.presence.all[1000]; p.char == nil {
 		c := &account.Character{Level: a.Level, Class: a.Class, Stats: a.Stats}
 		points, _ := c.Points()
 		c.HP, c.SP = points.MaxHP, points.MaxSP // whole, so nothing heals
 		p.char = c
 	}
-	return s.presence.attack(1000, victim, gap, someRand, now)
+	return svc.presence.attack(1000, victim, gap, someRand, now)
 }
 
 func dogDefender(t *testing.T) combat.Defender {

@@ -118,7 +118,7 @@ func (s *session) choose(ctx context.Context, group account.SkillGroup) error {
 	return s.conn.Send(append([][]byte{
 		protocol.EncodeChangeSkillGroup(skillGroupNumber(s.playing.Class, group)),
 		protocol.EncodeSkillLevels(skillLevels(nil)),
-		protocol.EncodePointChange(s.playing.vid, protocol.PointSkillPoints, 0, int32(points)), //nolint:gosec // under 2^31
+		pointTold(s.playing.vid, protocol.PointSkillPoints, 0, points),
 		script("Od dziś podążasz drogą " + paths[group] + ".[ENTER][DONE]"),
 	}, s.forgetSkillSlots()...)...)
 }
@@ -143,7 +143,7 @@ func (s *session) raiseSkill(ctx context.Context, arg string) error {
 	}
 	levels, points := s.svc.presence.raised(s.playing.vid, sk, level)
 	return s.conn.Send(protocol.EncodeSkillLevels(levels),
-		protocol.EncodePointChange(s.playing.vid, protocol.PointSkillPoints, -1, int32(points))) //nolint:gosec // under 2^31
+		pointTold(s.playing.vid, protocol.PointSkillPoints, -1, points))
 }
 
 // tell shows a line from the NPC the player talks to, with an OK that answers nothing.

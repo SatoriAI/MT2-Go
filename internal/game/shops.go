@@ -146,5 +146,5 @@ func (s *session) sell(cell, count uint8) error {
 // yangChanged tells the player their yang changed by amount, to what they have now. The
 // client says how much they got when it is more, and nothing when it is less.
 func (s *session) yangChanged(amount int64) []byte {
-	return protocol.EncodePointChange(s.playing.vid, protocol.PointGold, int32(amount), int32(s.gold)) //nolint:gosec // under 2^31
+	return pointTold(s.playing.vid, protocol.PointGold, amount, s.gold)
 }

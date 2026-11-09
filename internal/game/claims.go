@@ -24,12 +24,12 @@ type claim struct {
 // connection that held it: that one is stopped, and claimCharacter returns once it has
 // saved, reporting whether there was one, so the caller knows to read the character
 // again. Each character is in play on one connection at most.
-func (s *Service) claimCharacter(ctx context.Context, id uint32, stop func()) (mine *claim, displaced bool, err error) {
+func (svc *Service) claimCharacter(ctx context.Context, id uint32, stop func()) (mine *claim, displaced bool, err error) {
 	mine = &claim{character: id, stop: stop, done: make(chan struct{})}
-	s.mu.Lock()
-	previous := s.claims[id]
-	s.claims[id] = mine
-	s.mu.Unlock()
+	svc.mu.Lock()
+	previous := svc.claims[id]
+	svc.claims[id] = mine
+	svc.mu.Unlock()
 	if previous == nil {
 		return mine, false, nil
 	}
@@ -46,17 +46,17 @@ func (s *Service) claimCharacter(ctx context.Context, id uint32, stop func()) (m
 	given := mine
 	go func() {
 		<-previous.done
-		s.release(given)
+		svc.release(given)
 	}()
 	return nil, false, err
 }
 
 // release lets go of the character, unless another connection has claimed it since.
-func (s *Service) release(c *claim) {
-	s.mu.Lock()
-	if s.claims[c.character] == c {
-		delete(s.claims, c.character)
+func (svc *Service) release(c *claim) {
+	svc.mu.Lock()
+	if svc.claims[c.character] == c {
+		delete(svc.claims, c.character)
 	}
-	s.mu.Unlock()
+	svc.mu.Unlock()
 	close(c.done)
 }

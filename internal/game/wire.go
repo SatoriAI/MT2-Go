@@ -457,3 +457,15 @@ func bodyPart(c account.Character) uint16 {
 func weaponPart(c account.Character) uint16 {
 	return uint16(c.Weapon) //nolint:gosec // weapon vnums are under 2^16
 }
+
+// integer is the integers the game keeps a point's change and value in.
+type integer interface {
+	~int | ~int32 | ~int64 | ~uint8 | ~uint16 | ~uint32
+}
+
+// pointTold is POINT_CHANGE for a point of the character vid: its change, and its value
+// now. The casts are unchecked: a caller keeps both under 2^31, as every point the game
+// keeps is.
+func pointTold[D, V integer](vid uint32, point protocol.Point, change D, value V) []byte {
+	return protocol.EncodePointChange(vid, point, int32(change), int32(value))
+}
