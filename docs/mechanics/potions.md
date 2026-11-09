@@ -58,6 +58,7 @@ A potion that would do nothing isn't used up: a red one at full hit points, a bl
   - healing no further than the maximum;
   - a blue potion restoring mana, with its own effect;
   - the last potion emptying its cell;
+  - a potion drunk on a closed connection ending the session and healing nothing;
   - a potion not used up at full hit points, at full mana, or by the dead;
   - a failed write healing nothing;
   - drinking in a fight;

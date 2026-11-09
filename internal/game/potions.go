@@ -16,6 +16,17 @@ func (s *session) drink(it item.Item) error {
 	if !s.svc.presence.wouldDrink(s.playing.vid, p) {
 		return nil
 	}
+	if used, err := s.useOne(it); !used || err != nil {
+		return err
+	}
+	s.svc.presence.drink(s.playing.vid, p)
+	return nil
+}
+
+// useOne uses one of the item's stack up: the stack is kept one fewer, or forgotten with its
+// last, and the client shown it. Arrows worn out of their place undress the character of
+// them. If it cannot be kept, the client is shown the stack as it was, and nothing is used.
+func (s *session) useOne(it item.Item) (bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), saveTimeout)
 	defer cancel()
 	left := it
@@ -27,8 +38,8 @@ func (s *session) drink(it item.Item) error {
 		err = s.svc.items.SetCount(ctx, it.ID, left.Count)
 	}
 	if err != nil {
-		s.conn.Log().Error("potion not used up", "item", it.ID, "err", err)
-		return s.conn.Send(itemSet(it))
+		s.conn.Log().Error("item not used up", "item", it.ID, "err", err)
+		return false, s.conn.Send(itemSet(it))
 	}
 	shown := itemSet(left)
 	if left.Count == 0 {
@@ -38,10 +49,12 @@ func (s *session) drink(it item.Item) error {
 		s.inventory.Replace(left)
 	}
 	if err := s.conn.Send(append([][]byte{shown}, s.followTaskbar()...)...); err != nil {
-		return err
+		return true, err
 	}
-	s.svc.presence.drink(s.playing.vid, p)
-	return nil
+	if left.Count == 0 && it.Worn != "" {
+		s.dress()
+	}
+	return true, nil
 }
 
 // wouldDrink reports whether the potion would do the player any good: they are alive and

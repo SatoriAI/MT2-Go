@@ -3,7 +3,7 @@
 ## What the player sees
 
 Clicking a shopkeeper in a village walks the character to them and opens their shop: a window of five by eight cells beside the inventory, each item with its price in its tooltip.
-- **The weapon trader** (Handlarz Bronią) sells each class's first weapon.
+- **The weapon trader** (Handlarz Bronią) sells each class's first weapon, and a hundred arrows for the ninja's bow ([bow.md](bow.md)).
 - **The armour trader** (Handlarz Zbrojami) sells each class's first armour and helmet, the first shoes and the first shield.
 - **The general store** (Handlarka Różności) sells the red and blue potions, singly and twenty to a pack.
 
@@ -58,16 +58,17 @@ The client's SHOP is the one packet framed by its subheader. A subheader the ser
   | the first armours (11200, 11400, 11600, 11800) | 3000 | 600 |
   | the first helmets (12200, 12340, 12480, 12620) and shoes (15000) | 500 | 100 |
   | Bojowa Tarcza+0 (13000) | 400 | 80 |
+  | Drewniana Strzała (8000) | 5 to a yang, so 20 for a hundred | 0 |
   | their grades +1 to +9 ([upgrading.md](upgrading.md)) | not sold | a weapon 20 at +1 to 150 at +9; armour 1000 at +1 to 16000 at +9; a helmet or shoes 160 at +1 to 4000 at +9; the shield 160 at +1 to 4000 at +9 |
   | Szpon Wilka (30028), Ząb Dzika (30004) | not sold | 100 |
 
-  - **The price** is the client's item_proto shop price, but 100 for each first weapon, which it prices at nothing or 100.
+  - **The price** is the client's item_proto shop price, but 100 for each first weapon, which it prices at nothing or 100. For a kind flagged COUNT_PER_1GOLD, the arrows, that price is how many a yang buys, and a ware costs its count over it, never under 1.
   - **What a shop pays** is the client's sell value divided by 5, exactly what the tooltip shows. A gate test checks it is never more than the price, so buying and selling back never makes yang.
 - **The wares** are on the shopkeeper's kind, each in a cell written out:
 
   | Shopkeeper | Sells |
   |---|---|
-  | 9001 | the five first weapons, along the top row |
+  | 9001 | the five first weapons, along the top row, and a hundred arrows under the dagger |
   | 9002 | the four first armours along the top row, the four helmets and the shoes on the third, below them, and the shield on the fourth |
   | 9003 | each potion singly on the top row, and twenty to a pack on the next |
 

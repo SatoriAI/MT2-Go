@@ -775,3 +775,35 @@ func TestTheRefineDialogIsSixtyBytes(t *testing.T) {
 		t.Fatalf("got  %x\nwant %x", got, want)
 	}
 }
+
+// FLY_TARGETING and ADD_FLY_TARGETING name the arrow's target and its point, and SHOOT the
+// skill letting it go, 0 for a plain shot, each then the sequence byte.
+func TestAnArrowsTargetAndItsShotAreRead(t *testing.T) {
+	for _, header := range []string{"33", "35"} {
+		frame, used, err := NextFrame(mustHex(t, header+"07000000"+"fbffffff"+"09000000"+"af"))
+		if err != nil || used != 14 {
+			t.Fatalf("0x%s framed %d, %v", header, used, err)
+		}
+		if f, err := DecodeFlyTarget(frame.Body); err != nil || f != (FlyTarget{Target: 7, X: -5, Y: 9}) {
+			t.Fatalf("0x%s got %+v, %v", header, f, err)
+		}
+	}
+	frame, used, err := NextFrame(mustHex(t, "36"+"2e"+"af"))
+	if err != nil || used != 3 {
+		t.Fatalf("shoot framed %d, %v", used, err)
+	}
+	if sk, err := DecodeShoot(frame.Body); err != nil || sk != 46 {
+		t.Fatalf("shoot got %d, %v", sk, err)
+	}
+}
+
+// What another's arrow flies at goes as the shooter, the target and the point.
+func TestAnArrowsTargetIsShownWithItsShooter(t *testing.T) {
+	got := EncodeFlyTarget(ServerFlyTarget, 1000, FlyTarget{Target: 7, X: -5, Y: 9})
+	if want := mustHex(t, "47"+"e8030000"+"07000000"+"fbffffff"+"09000000"); !bytes.Equal(got, want) {
+		t.Fatalf("got  %x\nwant %x", got, want)
+	}
+	if got := EncodeFlyTarget(ServerAddFlyTarget, 1000, FlyTarget{}); got[0] != 0x45 || len(got) != 17 {
+		t.Fatalf("add got %x", got)
+	}
+}

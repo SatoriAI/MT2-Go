@@ -121,7 +121,7 @@ func (w *presence) attack(playerVID, vid uint32, gap time.Duration, r *rand.Rand
 	defer w.mu.Unlock()
 	p := w.all[playerVID]
 	v, seen := p.sees[vid]
-	if p.dead() || !seen || v.fight == nil || v.dead() || !within(p, v, attackReach) {
+	if p.dead() || !seen || v.fight == nil || v.dead() || !within(p, v, attackReach) || bowInHand(p.char) {
 		return blowRefused
 	}
 	f := v.fight
@@ -129,19 +129,36 @@ func (w *presence) attack(playerVID, vid uint32, gap time.Duration, r *rand.Rand
 		return blowTooSoon
 	}
 	f.lastAttacker, f.lastBlowAt = p, now
-	damage, flag := combat.Damage(attackerOf(p.char), f.defender, r), protocol.DamageNormal
+	return w.land(p, v, r, now)
+}
+
+// land strikes the monster with one of the player's blows, a swing's or an arrow's, at its
+// rolled damage, twice that when a critical chance comes up. Called under the lock.
+func (w *presence) land(p, v *present, r *rand.Rand, now time.Time) blow {
+	damage, flag := combat.Damage(attackerOf(p.char), v.fight.defender, r), protocol.DamageNormal
 	if crit := buffBonus(p.char, skill.Critical); crit > 0 && r.IntN(100) < crit {
 		damage, flag = 2*damage, protocol.DamageCritical
 	}
 	return w.strikeAs(p, v, damage, flag, now)
 }
 
+// bowInHand is whether the character holds a bow, which only shoots.
+func bowInHand(c *account.Character) bool {
+	weapon, _ := item.Lookup(c.Weapon)
+	return weapon.Bow
+}
+
 // attackerOf is what the player's blows are made of: their character, the weapon they
-// hold, and what their running buffs add to the attack. Called under the lock.
+// hold with the arrows a bow shoots, and what their running buffs add to the attack.
+// Called under the lock.
 func attackerOf(c *account.Character) combat.Attacker {
 	weapon, _ := item.Lookup(c.Weapon)
-	return combat.Attacker{Level: c.Level, Class: c.Class, Stats: c.Stats, WeaponMin: weapon.AttackMin,
-		WeaponMax: weapon.AttackMax, Bonus: uint16(buffBonus(c, skill.Attack))} //nolint:gosec // attack buffs only add
+	least, most := weapon.AttackMin, weapon.AttackMax
+	if arrows, _ := item.Lookup(c.Arrow); weapon.Bow {
+		least, most = least+arrows.AttackMin, most+arrows.AttackMax
+	}
+	return combat.Attacker{Level: c.Level, Class: c.Class, Stats: c.Stats, WeaponMin: least,
+		WeaponMax: most, Bonus: uint16(buffBonus(c, skill.Attack))} //nolint:gosec // attack buffs only add
 }
 
 // buffBonus is what the character's running buffs add to a stat. A buff runs until the

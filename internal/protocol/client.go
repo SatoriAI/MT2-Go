@@ -372,3 +372,25 @@ func DecodeRefine(body []byte) (Refine, error) {
 	q := Refine{Cell: r.U8(), Type: r.U8()}
 	return q, r.Err()
 }
+
+// FlyTarget is what the player's next arrow flies at: a character, or 0 for a point on the
+// ground, and the point, in the world's coordinates.
+type FlyTarget struct {
+	Target uint32
+	X, Y   int32
+}
+
+// DecodeFlyTarget reads FLY_TARGETING or ADD_FLY_TARGETING, which share their bytes.
+func DecodeFlyTarget(body []byte) (FlyTarget, error) {
+	r := NewReader(body)
+	f := FlyTarget{Target: r.U32(), X: r.I32(), Y: r.I32()}
+	return f, r.Err()
+}
+
+// DecodeShoot reads an arrow let go: the client's number for the skill it is shot by, 0 for
+// a plain blow.
+func DecodeShoot(body []byte) (uint8, error) {
+	r := NewReader(body)
+	sk := r.U8()
+	return sk, r.Err()
+}

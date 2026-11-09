@@ -38,7 +38,7 @@ func (s *session) openShop(vid uint32, keeper mob.Proto) error {
 	var cells [protocol.ShopCells]protocol.ShopItem
 	for _, w := range keeper.Sells {
 		kind, _ := item.Lookup(w.VNum)
-		cells[w.Cell] = protocol.ShopItem{VNum: w.VNum, Price: kind.Price * uint32(w.Count), Count: w.Count}
+		cells[w.Cell] = protocol.ShopItem{VNum: w.VNum, Price: kind.PriceOf(w.Count), Count: w.Count}
 	}
 	return s.conn.Send(protocol.EncodeShopStart(vid, cells))
 }
@@ -87,7 +87,7 @@ func (s *session) buy(pos uint8) error {
 	}
 	ware := keeper.Sells[i]
 	kind, _ := item.Lookup(ware.VNum)
-	price := kind.Price * uint32(ware.Count)
+	price := kind.PriceOf(ware.Count)
 	if s.gold < price {
 		return s.conn.Send(protocol.EncodeShopError(protocol.ShopNotEnoughYang))
 	}

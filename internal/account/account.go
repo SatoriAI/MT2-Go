@@ -124,8 +124,9 @@ type Character struct {
 	// Weapon and Body are the vnums of the weapon and armour worn, or 0. Body is read with
 	// the character for the select screen; in play both follow what is put on and off.
 	Weapon, Body uint32
-	// Head, Feet and Shield are the helmet, shoes and shield worn, or 0, in play only.
-	Head, Feet, Shield uint32
+	// Head, Feet and Shield are the helmet, shoes and shield worn, or 0, and Arrow the
+	// arrows, in play only.
+	Head, Feet, Shield, Arrow uint32
 	// LastFought is in play only: when it last landed a blow or took a bite.
 	// It lives here, not on the world record's entry, which must stay small (world-loop.md).
 	LastFought  time.Time

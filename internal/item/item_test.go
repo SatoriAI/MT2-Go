@@ -155,13 +155,15 @@ func TestOnlyTheClassesAKindIsForMayWearIt(t *testing.T) {
 	}
 }
 
-// Every kind that is worn says who may wear it and adds to a blow or sets against one.
+// Every kind that is worn says who may wear it and adds to a blow or sets against one;
+// all but arrows, which stack, are worn one at a time.
 func TestEveryWornKindHasItsClassesAndStats(t *testing.T) {
 	for _, vnum := range VNums() {
 		p, _ := Lookup(vnum)
-		weapon := p.Wear == Weapon && p.AttackMin > 0 && p.AttackMin <= p.AttackMax && p.Defence == 0
-		armour := p.Wear != Weapon && p.Defence > 0 && p.AttackMax == 0
-		if p.Wear != "" && (len(p.Classes) == 0 || p.Stack != 1 || (!weapon && !armour)) {
+		weapon := p.Wear == Weapon && p.AttackMin > 0 && p.AttackMin <= p.AttackMax && p.Defence == 0 && p.Stack == 1
+		armour := p.Wear != Weapon && p.Wear != Arrow && p.Defence > 0 && p.AttackMax == 0 && p.Stack == 1
+		arrows := p.Wear == Arrow && p.AttackMin > 0 && p.Defence == 0 && p.Stack == MaxStack
+		if p.Wear != "" && (len(p.Classes) == 0 || (!weapon && !armour && !arrows)) {
 			t.Errorf("kind %d: %+v", vnum, p)
 		}
 	}
@@ -258,7 +260,7 @@ func TestGearComesInTheClientsNineGrades(t *testing.T) {
 		}
 	}
 	for _, vnum := range VNums() {
-		if p, _ := Lookup(vnum); p.Graded != (p.Wear != "") {
+		if p, _ := Lookup(vnum); p.Graded != (p.Wear != "" && p.Wear != Arrow) {
 			t.Errorf("kind %d graded %v", vnum, p.Graded)
 		}
 	}
@@ -278,6 +280,42 @@ func TestEachClassHasItsHelmetAndAllWearTheShoes(t *testing.T) {
 	for _, class := range []account.Class{account.Warrior, account.Ninja, account.Sura, account.Shaman} {
 		if shoes.CanWear(class) != nil {
 			t.Errorf("a %s cannot wear the shoes", class)
+		}
+	}
+}
+
+// Arrows are the ninja's, worn in a place of their own, stacking to 200, and add 3 to a
+// bow's least attack; the bow and its grades shoot.
+func TestArrowsAreTheNinjasAndTheBowShoots(t *testing.T) {
+	arrows, ok := Lookup(8000)
+	if !ok || arrows.Wear != Arrow || arrows.Stack != 200 || arrows.AttackMin != 3 || arrows.AttackMax != 0 ||
+		!slices.Equal(arrows.Classes, []account.Class{account.Ninja}) {
+		t.Fatalf("arrows %+v", arrows)
+	}
+	for g := uint32(0); g <= MaxGrade; g++ {
+		if bow, _ := Lookup(2000 + g); !bow.Bow {
+			t.Errorf("Łuk+%d does not shoot", g)
+		}
+	}
+	for _, vnum := range []uint32{10, 1000, 3000, 7000} {
+		if p, _ := Lookup(vnum); p.Bow {
+			t.Errorf("kind %d shoots", vnum)
+		}
+	}
+}
+
+// A kind sold by the gold costs a gold for every PerGold of it, never less than one; the
+// rest cost their price for each: a hundred arrows are 20, one is 1, a sword 100.
+func TestAKindSoldByTheGoldCostsItsCountOverIt(t *testing.T) {
+	arrows, _ := Lookup(8000)
+	sword, _ := Lookup(10)
+	for _, c := range []struct {
+		p     Proto
+		count uint8
+		want  uint32
+	}{{arrows, 100, 20}, {arrows, 1, 1}, {arrows, 12, 2}, {sword, 1, 100}, {sword, 2, 200}} {
+		if got := c.p.PriceOf(c.count); got != c.want {
+			t.Errorf("%d of %q: %d, want %d", c.count, c.p.Name, got, c.want)
 		}
 	}
 }

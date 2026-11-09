@@ -142,5 +142,5 @@ The original takes the defence off the attack and scales the stat part by a hit 
 ## Not done yet
 
 - Aggressive monsters, which attack on sight (the `AGGR` AI flag; none of the four field kinds has it), and a group of monsters joining a fight.
-- Bows, critical and penetrating blows, and every bonus that comes with items. Skills, their stuns, poisons, slows and burns, magic damage, and the bites Berserk makes harder are on [skills.md](skills.md).
+- Penetrating blows, and every bonus that comes with items. Shooting with a bow is on [bow.md](bow.md); skills, their stuns, poisons, slows and burns, magic damage, critical blows, and the bites Berserk makes harder are on [skills.md](skills.md).
 - Players fighting players.

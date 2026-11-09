@@ -21,6 +21,9 @@ const (
 	ClientShop            ClientHeader = 0x32 // buying, selling or closing a shop, by subheader
 	ClientScriptAnswer    ClientHeader = 0x1D // the button picked in an NPC's dialog
 	ClientUseSkill        ClientHeader = 0x34 // a skill used, by the client's number for it
+	ClientFlyTarget       ClientHeader = 0x33 // what the bow's next arrow flies at
+	ClientAddFlyTarget    ClientHeader = 0x35 // another a skill's arrows fly at
+	ClientShoot           ClientHeader = 0x36 // an arrow let go, a blow's or a skill's
 	ClientQuickslotAdd    ClientHeader = 0x10 // an item or skill dragged to the taskbar
 	ClientQuickslotDel    ClientHeader = 0x11 // a slot dragged off the taskbar
 	ClientQuickslotSwap   ClientHeader = 0x12 // a slot dragged onto another
@@ -72,6 +75,8 @@ const (
 	ServerDead             ServerHeader = 0x0E // a character dies
 	ServerTarget           ServerHeader = 0x3F // the target's hit points, as a percentage
 	ServerDamage           ServerHeader = 0x87 // damage dealt, drawn over the victim
+	ServerFlyTarget        ServerHeader = 0x47 // what another's arrow flies at
+	ServerAddFlyTarget     ServerHeader = 0x45 // another their skill's arrows fly at
 	ServerSkillLevels      ServerHeader = 0x4C // every skill's level, by the client's number for it
 	ServerScript           ServerHeader = 0x2D // an NPC's dialog: text, buttons
 	ServerRefineInfo       ServerHeader = 0x77 // the refine dialog: what upgrading an item takes
