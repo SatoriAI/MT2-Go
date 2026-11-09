@@ -141,7 +141,7 @@ func (s *session) onEnterGame() error {
 	}
 	// Only now is the player in the game phase: leaving the world takes them out of the
 	// record, so they must be in it.
-	me.tether = tether{x: p.X, y: p.Y}
+	me.tether, p.UnseenUntil = tether{x: p.X, y: p.Y}, s.svc.now().Add(unseenFor)
 	s.svc.presence.enter(me)
 	s.phase = protocol.PhaseGame
 	s.conn.Log().Info("entered the world", "character", p.Name, "x", p.X, "y", p.Y)

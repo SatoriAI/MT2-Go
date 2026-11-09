@@ -70,7 +70,7 @@ func (s *session) onCommand(ctx context.Context, command string) error {
 		// The restart dialog's buttons, which the client shows once its character died.
 		town := name == "restart_town"
 		x, y, _ := s.empire.StartPosition()
-		if s.svc.presence.revive(s.playing.vid, town, x, y) && town {
+		if s.svc.presence.revive(s.playing.vid, town, x, y, s.svc.now()) && town {
 			s.playing.X, s.playing.Y = x, y
 		}
 		return nil

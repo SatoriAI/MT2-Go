@@ -217,7 +217,7 @@ func TestRestartingHereGivesHalfTheHitPoints(t *testing.T) {
 	p := s.presence.all[1000]
 	points, _ := c.Points()
 
-	if !s.presence.revive(1000, false, 0, 0) {
+	if !s.presence.revive(1000, false, 0, 0, noon) {
 		t.Fatal("not revived")
 	}
 
@@ -258,7 +258,7 @@ func TestRestartingInTownGivesAllTheHitPointsAtTheStart(t *testing.T) {
 	p := s.presence.all[1000]
 	points, _ := c.Points()
 
-	s.presence.revive(1000, true, homeX+20000, homeY)
+	s.presence.revive(1000, true, homeX+20000, homeY, noon)
 
 	expectRevival(t, client, p, points.MaxHP, points.MaxSP)
 	if p.add.X != homeX+20000 {
@@ -275,7 +275,7 @@ func TestRestartingWhileAliveChangesNothing(t *testing.T) {
 	s, _, client, c := suraHits(t, 100)
 	hp := c.HP
 
-	if s.presence.revive(1000, true, 0, 0) {
+	if s.presence.revive(1000, true, 0, 0, noon) {
 		t.Fatal("revived a living player")
 	}
 	if c.HP != hp {

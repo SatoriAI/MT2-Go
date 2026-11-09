@@ -57,6 +57,32 @@ type monster struct {
 	nextStroll time.Time
 	diedAt     time.Time // zero while alive
 	chase      *chase    // its fight with a player who hit it; nil when it is not fighting
+	pack       *pack     // the monsters at its spawn's centre, itself among them; nil for a stone or one summoned
+}
+
+// pack is the monsters standing at one spawn centre: a pack of a kind, and its leader with
+// it. They fight together and come back together.
+type pack struct {
+	members   []*monster
+	calmUntil time.Time // until its monsters, walking home from a fight, attack no one on sight
+}
+
+// packReach is how far from a packmate a monster may stand and still join its fight: the
+// veteran's, about a pack's spread and a stroll either way.
+const packReach = 3000
+
+// down is whether every monster of the pack is dead, and when the last of them died.
+func (k *pack) down() (bool, time.Time) {
+	var last time.Time
+	for _, m := range k.members {
+		if m.diedAt.IsZero() {
+			return false, time.Time{}
+		}
+		if m.diedAt.After(last) {
+			last = m.diedAt
+		}
+	}
+	return true, last
 }
 
 // Run puts the world's mobs in it, then walks the monsters until ctx ends.
@@ -78,6 +104,7 @@ func (svc *Service) Run(ctx context.Context) error {
 
 // spawn puts every spawn's mobs in the world, each at a random point of its area.
 func (svc *Service) spawn(now time.Time) error {
+	packs := map[[2]int32]*pack{}
 	for i := range svc.spawns {
 		sp := &svc.spawns[i]
 		proto, ok := svc.kind(sp.VNum)
@@ -90,7 +117,16 @@ func (svc *Service) spawn(now time.Time) error {
 			}
 		}
 		for range sp.Count {
-			svc.spawnOne(proto, sp, now)
+			m := svc.spawnOne(proto, sp, now)
+			if m == nil || len(sp.Spots) > 0 || proto.Kind == mob.Stone {
+				continue
+			}
+			centre := [2]int32{sp.X, sp.Y}
+			if packs[centre] == nil {
+				packs[centre] = &pack{}
+			}
+			m.pack = packs[centre]
+			m.pack.members = append(m.pack.members, m)
 		}
 	}
 	return nil
@@ -109,15 +145,19 @@ func (svc *Service) kind(vnum uint16) (*mob.Proto, bool) {
 	return &p, true
 }
 
-func (svc *Service) spawnOne(proto *mob.Proto, sp *world.Spawn, now time.Time) {
+func (svc *Service) spawnOne(proto *mob.Proto, sp *world.Spawn, now time.Time) *monster {
 	// Whatever can be killed is the loop's to take away and bring back, wandering or not.
 	if !proto.Fightable() {
 		svc.presence.enter(svc.newMob(*proto, sp.X+svc.spread(sp.Spread), sp.Y+svc.spread(sp.Spread), 0))
-		return
+		return nil
 	}
 	m := &monster{proto: proto, spawn: sp, wanders: proto.Wanders()}
 	svc.monsters = append(svc.monsters, m) // before a stone's wave
+	if proto.Aggressive {
+		svc.watchers = append(svc.watchers, m)
+	}
 	svc.place(m, now)
+	return m
 }
 
 // place puts the monster in the world afresh, with a new vid and all its hit points: at a
@@ -234,14 +274,15 @@ func (svc *Service) tick(now time.Time) {
 	svc.keepGround(now)
 	svc.keepBuffs(now)
 	svc.engage(n.provoked, now)
+	svc.lookOut(now)
 	for _, m := range svc.monsters {
 		switch {
 		case !m.diedAt.IsZero() && !m.gone && !now.Before(m.diedAt.Add(corpseTime)):
 			svc.presence.leave(m.p.add.VID)
 			m.gone = true
 			svc.forget = svc.forget || m.summoned
-		case m.gone && !m.summoned && !now.Before(m.diedAt.Add(m.respawnAfter())):
-			svc.place(m, now)
+		case m.gone && !m.summoned:
+			svc.bringBack(m, now)
 		case m.diedAt.IsZero() && m.wanders && m.chase == nil && !now.Before(m.nextStroll):
 			svc.stroll(m, now)
 		}
@@ -267,6 +308,23 @@ func (svc *Service) tick(now time.Time) {
 	case !now.Before(svc.nextPlayerRegen):
 		svc.presence.regenPlayers(now)
 		svc.nextPlayerRegen = now.Add(playerRegenEvery)
+	}
+}
+
+// bringBack puts a monster whose body is gone back in the world once its time has come:
+// its own time after its death, or, for one of a pack, its time after the last of the pack
+// died, the whole pack together.
+func (svc *Service) bringBack(m *monster, now time.Time) {
+	if m.pack == nil {
+		if !now.Before(m.diedAt.Add(m.respawnAfter())) {
+			svc.place(m, now)
+		}
+		return
+	}
+	if down, last := m.pack.down(); down && !now.Before(last.Add(m.respawnAfter())) {
+		for _, mate := range m.pack.members {
+			svc.place(mate, now)
+		}
 	}
 }
 

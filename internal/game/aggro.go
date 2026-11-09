@@ -58,8 +58,79 @@ func (svc *Service) engage(provoked []provocation, now time.Time) {
 			}
 			continue
 		}
-		m.chase = &chase{target: pr.by, nextStep: now, nextBite: now, lastExchange: now, fromX: m.x, fromY: m.y}
-		svc.fighting = append(svc.fighting, m)
+		svc.chaseOn(m, pr.by, now)
+		svc.rally(m, pr.by, now)
+	}
+}
+
+// The client's AGGRESSIVE_SIGHT, the same for every kind: how near a player must come for
+// an aggressive monster to attack. A monster ignores players more than ignoredAbove levels
+// above its own, and anyone for unseenFor after they enter the world or rise.
+const (
+	aggressiveSight = 2000
+	ignoredAbove    = 10
+	unseenFor       = 5 * time.Second
+)
+
+// lookOut sets each aggressive monster that lives and fights no one on the nearest player
+// it sees within its sight, alive and seen, and its pack with it.
+func (svc *Service) lookOut(now time.Time) {
+	type sighting struct {
+		m *monster
+		t *present
+	}
+	if len(svc.watchers) == 0 {
+		return // no lock taken where nothing looks out
+	}
+	var spotted []sighting
+	svc.presence.mu.Lock()
+	for _, m := range svc.watchers {
+		if m.chase == nil && m.diedAt.IsZero() && !m.gone && (m.pack == nil || !now.Before(m.pack.calmUntil)) {
+			if t := prey(m, now); t != nil {
+				spotted = append(spotted, sighting{m, t})
+			}
+		}
+	}
+	svc.presence.mu.Unlock()
+	for _, s := range spotted {
+		if s.m.chase == nil { // a packmate spotted first may have rallied it
+			svc.chaseOn(s.m, s.t, now)
+			svc.rally(s.m, s.t, now)
+		}
+	}
+}
+
+// prey is the nearest player the monster sees within its sight whom it would attack, or
+// nil. Called under the lock.
+func prey(m *monster, now time.Time) *present {
+	var nearest *present
+	for _, p := range m.p.sees {
+		if p.dead() || now.Before(p.char.UnseenUntil) || p.char.Level > m.proto.Level+ignoredAbove ||
+			!within(m.p, p, aggressiveSight) || (nearest != nil && distance(m.p, p) >= distance(m.p, nearest)) {
+			continue
+		}
+		nearest = p
+	}
+	return nearest
+}
+
+// chaseOn sets the monster on the player.
+func (svc *Service) chaseOn(m *monster, target *present, now time.Time) {
+	m.chase = &chase{target: target, nextStep: now, nextBite: now, lastExchange: now, fromX: m.x, fromY: m.y}
+	svc.fighting = append(svc.fighting, m)
+}
+
+// rally sets every packmate of the monster that lives within packReach of it and fights
+// no one on the player it turned on: hit one of a pack, and the pack comes.
+func (svc *Service) rally(m *monster, target *present, now time.Time) {
+	if m.pack == nil {
+		return
+	}
+	for _, mate := range m.pack.members {
+		dx, dy := int64(mate.x-m.x), int64(mate.y-m.y)
+		if mate != m && mate.diedAt.IsZero() && mate.chase == nil && dx*dx+dy*dy <= packReach*packReach {
+			svc.chaseOn(mate, target, now)
+		}
 	}
 }
 
@@ -90,6 +161,9 @@ func (svc *Service) goHome(m *monster, now time.Time) {
 		(walkPerSecond * float64(max(m.proto.MoveSpeed, 1)) / 100) * float64(time.Second))
 	m.x, m.y = m.homeX, m.homeY
 	m.nextStroll = now.Add(walk + svc.strollWait()) // not before the client has walked it home
+	if m.pack != nil && m.pack.calmUntil.Before(now.Add(walk)) {
+		m.pack.calmUntil = now.Add(walk) // it looks out for no one on the way
+	}
 }
 
 // fightStep takes one step of the monster's fight: a bite if its target is in reach and

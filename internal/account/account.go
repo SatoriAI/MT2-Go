@@ -127,6 +127,10 @@ type Character struct {
 	// Head, Feet and Shield are the helmet, shoes and shield worn, or 0, and Arrow the
 	// arrows, in play only.
 	Head, Feet, Shield, Arrow uint32
+	// UnseenUntil is when aggressive monsters may first see the character after it enters
+	// the world or rises, in play only; kept here rather than on the world record's entry,
+	// which every move scans.
+	UnseenUntil time.Time
 	// LastFought is in play only: when it last landed a blow or took a bite.
 	// It lives here, not on the world record's entry, which must stay small (world-loop.md).
 	LastFought  time.Time

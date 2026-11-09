@@ -27,7 +27,7 @@ func (w *presence) die(p *present) {
 // player is taken out of the world and put back: those who see them get them afresh, and
 // they get their own character, alive, then everyone in view. It reports whether the
 // player was dead; a restart while alive changes nothing.
-func (w *presence) revive(vid uint32, town bool, x, y int32) bool {
+func (w *presence) revive(vid uint32, town bool, x, y int32, now time.Time) bool {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	p := w.all[vid]
@@ -46,6 +46,7 @@ func (w *presence) revive(vid uint32, town bool, x, y int32) bool {
 		p.add.X, p.add.Y = x, y
 	}
 	p.tether = tether{x: p.add.X, y: p.add.Y} // walking on from where they rose
+	c.UnseenUntil = now.Add(unseenFor)
 	p.send(protocol.EncodeChat(protocol.ChatCommand, vid, p.info.Empire, "CloseRestartWindow"))
 	p.send(p.appearance()...)
 	p.send(pointTold(vid, protocol.PointHP, 0, c.HP),

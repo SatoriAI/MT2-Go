@@ -181,7 +181,7 @@ func TestARestartEndsTheFightAndARefusedBlowStartsNone(t *testing.T) {
 	s, dog, _, c := suraHits(t, 100)
 	c.HP = 0
 
-	s.presence.revive(1000, false, 0, 0)
+	s.presence.revive(1000, false, 0, 0, noon)
 
 	if !c.LastFought.IsZero() {
 		t.Fatalf("still fighting since %v after a restart", c.LastFought)
