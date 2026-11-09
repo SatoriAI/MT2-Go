@@ -20,14 +20,16 @@ The world record links a player with anyone in view; two mobs never link. Mobs o
 
 ## Measured
 
-`make bench` (`internal/game/world_bench_test.go`) measures the world record and loop with players and wild dogs spread at random over the three first maps, a counting sink standing in for each player's connection. It runs each benchmark six times; compare medians, since a single run can be far off (the first baseline, from one run, put a move among 1,000 players at 90 µs; six runs give 52). Medians on an Apple M3 Pro, Go 1.27.3, 2026-11-04, without the race detector, with combat in:
+`make bench` (`internal/game/world_bench_test.go`) measures the world record and loop with players and wild dogs spread at random over the three first maps, a counting sink standing in for each player's connection. It runs each benchmark six times; compare medians, since a single run can be far off (the first baseline, from one run, put a move among 1,000 players at 90 µs; six runs give 52). Medians on an Apple M3 Pro, Go 1.27.3, 2026-11-09, without the race detector, with the record kept by map:
 
 | One operation | 100 players, 160 monsters (today) | 1,000 and 1,600 | 10,000 and 16,000 |
 |---|---|---|---|
-| A player's move | 3.5 µs | 52 µs | 537 µs |
-| A monster's stroll | 3.4 µs | 43 µs | 613 µs |
-| A tick with nothing due | 0.4 µs | 4.3 µs | 45 µs |
-| A player entering and leaving | 2.8 µs | 33 µs | 369 µs |
+| A player's move | 1.0 µs | 13 µs | 159 µs |
+| A monster's stroll | 1.5 µs | 15 µs | 238 µs |
+| A tick with nothing due | 0.47 µs | 4.4 µs | 44 µs |
+| A player entering and leaving | 1.4 µs | 9.1 µs | 105 µs |
+
+Before the record was kept by map (2026-11-04, with combat in), a move cost 3.5, 52 and 537 µs, a stroll 3.4, 43 and 613, and entering 2.8, 33 and 369; the paragraphs below measure against those.
 
 Combat added a monster's hit points and pickers to the record and bodies and returns to the loop. Moves, strolls and entering stayed within 4% of the figures before it; an idle tick, which now also looks for bodies to take away and monsters to bring back, costs a quarter to two fifths more. A first version, which read every monster's death under the world lock each tick, tripled the idle tick and held the lock 97 µs of each tick at 16,000 monsters; the record now keeps a short list of the monsters killed since the loop last asked, so the loop's work under the lock grows with deaths, not with monsters.
 
@@ -51,13 +53,13 @@ What players drop is laid down by their connection under the world's lock, and i
 
 Skills add no field to the record's entries: a buff's end is handed to the loop with its news, into a queue in order, and a character's effects are worked out from its running buffs when it is shown, rather than kept on its entry, which would have grown every monster's too. The character gained a map of its buffs, beside its skills. Measured against main, three rounds alternately with the client closed, every benchmark stayed within 3%; a regeneration round first read up to 7% slower, and three more rounds of it alone read 0 to 3%.
 
-A move costs about 20 ns per character in the world, as the scan predicts. The world lock is held for every move, so the share of each second it is held is the moves per second times their cost:
+A move costs about 15 ns per character on its own map, as the scan predicts; before the record was kept by map it was about 20 ns per character in the world. The world lock is held for every move, so the share of each second it is held is the moves per second times their cost, the figures before keeping it by map in brackets:
 
-- **Today:** 100 player moves and 11 strolls a second hold the lock for 0.4 ms of each second: 0.04%.
-- **Ten times today:** 5.6% of each second.
-- **A hundred times:** about six seconds of every second; the lock would never be free.
+- **Today:** 100 player moves and 11 strolls a second hold the lock for 0.12 ms of each second: 0.012% (0.04%).
+- **Ten times today:** 1.5% of each second (5.6%).
+- **A hundred times:** about two seconds of every second (six); the lock would never be free.
 
-The cost grows with the square of the crowd: more players move, and each move scans more. Holding the lock a quarter of each second is where waiting to move would start to show, and that comes at about 3,500 players with today's monsters, or about 2,000 with a monster and a half per player. Idle ticks cost nothing worth counting at any size.
+The cost grows with the square of the crowd: more players move, and each move scans more. Holding the lock a quarter of each second is where waiting to move would start to show. Before the record was kept by map that came at about 3,500 players with today's monsters, or about 2,000 with a monster and a half per player; with each move scanning its own map, a third of the world, it comes at about √3 times as many, some 6,000 and 3,500. That is the conservative reckoning: at 1,000 players a move measured four times cheaper, not three, which would put it nearer 7,000 and 4,000. Idle ticks cost nothing worth counting at any size.
 
 **What the estimate assumes,** each of which moves the limit:
 - **A walking player moves about once a second,** and a monster strolls every 15 s on average. Twice the move rate brings the limit down by about a third.
@@ -65,7 +67,7 @@ The cost grows with the square of the crowd: more players move, and each move sc
 - **Players are spread evenly over the maps.** Real players crowd the village centres, where each sees many more others, so a real move links and sends more under the lock than these do, and the real limit is lower than the estimate.
 - **No contention:** the benchmarks run one move at a time; real goroutines waiting on the lock are not measured. A load test with real connections is the step that would.
 
-**The first fix, when it is needed:** keep the record by map, so a move scans its own map only. With the three villages that divides every cost above by three, and every map added divides it further. A grid within each map comes next, if one map ever holds more than about a thousand characters; that also answers the crowding above. Monsters nobody sees could stand still, as open-mt2's do, which takes their strolls off the lock altogether. Run `make bench` before and after any of these.
+**Kept by map since 2026-11-09:** a move, a stroll and an arrival scan the record of their own map only, which divided their cost by about three with the three villages, half to three quarters less at every size in the table above, as estimated; the idle tick and regeneration, which scan no one, stayed within 1% of main in the same alternating rounds. Every map added divides it further. Each entry's map is taken on entering, so a warp, when there is one, must move it between maps. A grid within each map comes next, if one map ever holds more than about a thousand characters; that also answers the crowding above. Monsters nobody sees could stand still, as open-mt2's do, which takes their strolls off the lock altogether. Run `make bench` before and after any of these.
 
 Finger Strike and Enchanted Armour add nothing to the loop but a bite's look at the defender's buffs. Measured against main, two rounds alternately with the client closed, every benchmark stayed within 2% but the idle tick, 7 to 10% slower, at 0.26 ns a monster, in three more rounds of it alone. The profile puts the time in `tick`'s own loop over the monsters, and that loop compiles to the same instructions on both builds, only at another address: it is where the code is laid out, not what it does, and will move again with the next change elsewhere.
 
