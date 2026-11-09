@@ -27,7 +27,7 @@ func (s *sink) Send(...[]byte) error {
 	return nil
 }
 
-var worldSizes = []struct{ players, monsters int }{{100, 160}, {1000, 1600}, {10000, 16000}}
+var worldSizes = []struct{ players, monsters int }{{100, 1250}, {1000, 12500}, {10000, 125000}}
 
 // The three first maps, in world coordinates, which the players and monsters share.
 var firstMaps = []struct{ x, y int32 }{{409600, 896000}, {0, 102400}, {921600, 204800}}

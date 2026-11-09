@@ -4,6 +4,7 @@ import (
 	"math"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/SatoriAI/MT2-Go/internal/account"
 )
@@ -52,41 +53,148 @@ func TestEveryFirstVillageHasItsBlacksmith(t *testing.T) {
 	}
 }
 
-// Each first village has its second ring of stronger monsters: blue wolves, alpha blue
-// wolves with red boars, bears with grizzlies, and tigers.
-func TestEveryFirstVillageHasItsSecondRing(t *testing.T) {
-	for _, village := range []string{"metin2_map_a1", "metin2_map_b1", "metin2_map_c1"} {
-		count := map[uint16]int{}
-		for _, s := range spawnsByMap[village] {
-			count[s.vnum] += s.count
+// bands are how far from its kingdom's start each kind of monster stands: dogs nearest,
+// then wolves and boars, alpha and blue wolves, and the second ring, overlapping a
+// little where a kind leads a pack.
+var bands = map[uint16]struct{ from, to float64 }{
+	101: {2500, 10000},
+	102: {9000, 18000}, 108: {9000, 18000},
+	103: {9000, 30000}, 104: {18000, 30000},
+	105: {18000, 42000}, 109: {30000, 42000},
+	110: {30000, 55000}, 111: {42000, 55000}, 114: {42000, 55000},
+}
+
+// backAfter is how long a pack that far from the start takes to come back, in seconds.
+func backAfter(d float64) int {
+	switch {
+	case d < 18000:
+		return 30
+	case d < 30000:
+		return 45
+	}
+	return 60
+}
+
+// leaders are the kinds that lead a pack of their kin: an alpha wolf three wolves, an
+// alpha blue wolf three blue wolves.
+var leaders = map[uint16]uint16{103: 102, 105: 104}
+
+// monsterAreas are each first village's monster packs.
+func monsterAreas(t *testing.T) map[string][]spawnAt {
+	t.Helper()
+	got := map[string][]spawnAt{}
+	for _, e := range []account.Empire{account.EmpireShinsoo, account.EmpireChunjo, account.EmpireJinno} {
+		x, y, _ := e.StartPosition()
+		m, _ := MapAt(x, y)
+		for _, a := range areas(m.Name) {
+			if a.vnum < 9000 {
+				got[m.Name] = append(got[m.Name], a)
+			}
 		}
-		for vnum, want := range map[uint16]int{104: 6, 105: 3, 109: 3, 110: 3, 111: 3, 114: 6} {
-			if count[vnum] != want {
-				t.Errorf("%s: %d of %d, want %d", village, count[vnum], vnum, want)
+	}
+	return got
+}
+
+func fromStart(name string, a spawnAt) float64 {
+	for _, e := range []account.Empire{account.EmpireShinsoo, account.EmpireChunjo, account.EmpireJinno} {
+		x, y, _ := e.StartPosition()
+		if m, _ := MapAt(x, y); m.Name == name {
+			return math.Hypot(float64(a.x-(x-m.X)), float64(a.y-(y-m.Y)))
+		}
+	}
+	return 0
+}
+
+// packs are a village's monster spawns grouped by the centre they share.
+func packs(all []spawnAt) map[[2]int32][]spawnAt {
+	byCentre := map[[2]int32][]spawnAt{}
+	for _, a := range all {
+		byCentre[[2]int32{a.x, a.y}] = append(byCentre[[2]int32{a.x, a.y}], a)
+	}
+	return byCentre
+}
+
+// Each kind of monster stands in its band from the kingdom's start, and comes back as its
+// distance says: within 18000 after 30 s, within 30000 after 45, further out after 60.
+func TestEveryMonsterStandsInItsBand(t *testing.T) {
+	for name, all := range monsterAreas(t) {
+		for _, a := range all {
+			band, known := bands[a.vnum]
+			if d := fromStart(name, a); !known || d < band.from || d >= band.to || a.respawn != backAfter(d) {
+				t.Errorf("%s: %d at (%d, %d), %.0f out, back after %d s", name, a.vnum, a.x, a.y, d, a.respawn)
 			}
 		}
 	}
 }
 
-// The second ring lies 30000 to 55000 from each kingdom's start, and each of its areas at
-// least 9000 from every other spawn but its own.
-func TestTheSecondRingLiesOutFromTheStartAndApart(t *testing.T) {
-	ring := map[uint16]bool{104: true, 105: true, 109: true, 110: true, 111: true, 114: true}
-	for _, e := range []account.Empire{account.EmpireShinsoo, account.EmpireChunjo, account.EmpireJinno} {
-		x, y, _ := e.StartPosition()
-		m, _ := MapAt(x, y)
-		for _, a := range areas(m.Name) {
-			if !ring[a.vnum] {
-				continue
+// A pack is 3 to 5 of one kind, or a leader with 3 of its kin, standing at one centre.
+func TestEveryPackIsOneKindOrALeaderWithItsKin(t *testing.T) {
+	for name, all := range monsterAreas(t) {
+		for centre, pack := range packs(all) {
+			switch {
+			case len(pack) == 1 && pack[0].count >= 3 && pack[0].count <= 5:
+			case len(pack) == 2 && pack[0].count+pack[1].count == 4 &&
+				(pack[0].count == 1 && leaders[pack[0].vnum] == pack[1].vnum ||
+					pack[1].count == 1 && leaders[pack[1].vnum] == pack[0].vnum):
+			default:
+				t.Errorf("%s: at %v %+v", name, centre, pack)
 			}
-			if d := math.Hypot(float64(a.x-(x-m.X)), float64(a.y-(y-m.Y))); d < 30000 || d > 55000 {
-				t.Errorf("%s: %d at (%d, %d) is %.0f from the start", m.Name, a.vnum, a.x, a.y, d)
-			}
-			for _, o := range areas(m.Name) {
-				if (o.x != a.x || o.y != a.y) && math.Hypot(float64(o.x-a.x), float64(o.y-a.y)) < 9000 {
-					t.Errorf("%s: %d at (%d, %d) is near %d at (%d, %d)", m.Name, a.vnum, a.x, a.y, o.vnum, o.x, o.y)
+		}
+	}
+}
+
+// Packs stand apart, 2500 between centres near the village and 4000 where either lies
+// past 30000; and their centres 2500 from every NPC and 3500 from every stone's spot.
+func TestPacksStandApart(t *testing.T) {
+	for name, all := range monsterAreas(t) {
+		var centres [][2]int32
+		for c := range packs(all) {
+			centres = append(centres, c)
+		}
+		var spots []Spot
+		for _, s := range spawnsByMap[name] {
+			spots = append(spots, s.spots...)
+		}
+		for i, a := range centres {
+			da := fromStart(name, spawnAt{x: a[0], y: a[1]})
+			for _, o := range centres[i+1:] {
+				gap := 2500.0
+				if max(da, fromStart(name, spawnAt{x: o[0], y: o[1]})) >= 30000 {
+					gap = 4000
+				}
+				if d := math.Hypot(float64(o[0]-a[0]), float64(o[1]-a[1])); d < gap {
+					t.Errorf("%s: packs at %v and %v are %.0f apart", name, a, o, d)
 				}
 			}
+			for _, n := range areas(name) {
+				if n.vnum >= 9000 && math.Hypot(float64(n.x-a[0]), float64(n.y-a[1])) < 2500 {
+					t.Errorf("%s: the pack at %v is near NPC %d", name, a, n.vnum)
+				}
+			}
+			for _, p := range spots {
+				if math.Hypot(float64(p.X-a[0]), float64(p.Y-a[1])) < 3500 {
+					t.Errorf("%s: the pack at %v is near a stone's spot %v", name, a, p)
+				}
+			}
+		}
+	}
+}
+
+// Each first village's fields are full: at least 380 monsters, at least 70 within 15000
+// of the start, the nearest pack within 4500 of it.
+func TestEveryFirstVillagesFieldsAreFull(t *testing.T) {
+	for name, all := range monsterAreas(t) {
+		total, near, nearest := 0, 0, math.Inf(1)
+		for _, a := range all {
+			d := fromStart(name, a)
+			total += a.count
+			if d < 15000 {
+				near += a.count
+			}
+			nearest = min(nearest, d)
+		}
+		if total < 380 || near < 70 || nearest > 4500 {
+			t.Errorf("%s: %d monsters, %d within 15000, the nearest pack %.0f out", name, total, near, nearest)
 		}
 	}
 }
@@ -171,5 +279,22 @@ func TestEveryFirstVillageHasItsTeachers(t *testing.T) {
 				t.Errorf("%s: %d of teacher %d", village, count[vnum], vnum)
 			}
 		}
+	}
+}
+
+// A spawn carries its band's time to come back in, as the game reads it: 30 s for every
+// dog pack.
+func TestASpawnCarriesItsTimeToComeBack(t *testing.T) {
+	dogs := 0
+	for _, s := range Spawns() {
+		if s.VNum == 101 {
+			dogs++
+			if s.Respawn != 30*time.Second {
+				t.Errorf("dogs at (%d, %d) back after %v", s.X, s.Y, s.Respawn)
+			}
+		}
+	}
+	if dogs == 0 {
+		t.Fatal("no dogs")
 	}
 }

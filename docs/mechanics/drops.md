@@ -44,9 +44,9 @@ Seen from the real client: a red potion laid at (977491, 272599) is `1a 53ea0e00
   | Monster | Drops |
   |---|---|
   | Dziki Pies (101) | red potion, 8 in 100; blue potion, 8 in 100 |
-  | Wilk (102) | the same, and a Szpon Wilka (30028), 5 in 100 |
-  | Alfa Wilk (103) | the potions; each class's first weapon and armour, 2 in 1,000 each, about 2 in 100 for any one; and a Szpon Wilka, 5 in 100 |
-  | Dzik (108) | the potions and the first gear, as Alfa Wilk, and a Ząb Dzika (30004), 5 in 100 |
+  | Wilk (102) | the same, and a Szpon Wilka (30028), 3 in 100 |
+  | Alfa Wilk (103) | the potions; each class's first weapon and armour, 2 in 1,000 each, about 2 in 100 for any one; and a Szpon Wilka, 3 in 100 |
+  | Dzik (108) | the potions and the first gear, as Alfa Wilk, and a Ząb Dzika (30004), 3 in 100 |
   | Nieb. Wilk (104) | as Wilk |
   | Nieb. Alfa Wilk (105) | as Alfa Wilk |
   | Czerw. Dzik (109) | as Dzik |

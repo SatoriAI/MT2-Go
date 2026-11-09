@@ -26,8 +26,7 @@ const (
 )
 
 // A dead monster's body lies corpseTime, as open-mt2's does; a new one takes its place
-// in its spawn's area respawnAfter its death, this server's choice for the village
-// fields.
+// in its spawn's area after its spawn's time, or respawnAfter for a spawn that sets none.
 const (
 	corpseTime   = 2 * time.Second
 	respawnAfter = 20 * time.Second
@@ -271,11 +270,14 @@ func (svc *Service) tick(now time.Time) {
 	}
 }
 
-// respawnAfter is how long after its death the monster comes back: a stone's own time, or
-// the village fields'.
+// respawnAfter is how long after its death the monster comes back: a stone's own time, its
+// spawn's, set by how far its band lies from the village, or else the fields' default.
 func (m *monster) respawnAfter() time.Duration {
-	if m.proto.Respawn > 0 {
+	switch {
+	case m.proto.Respawn > 0:
 		return m.proto.Respawn
+	case m.spawn.Respawn > 0:
+		return m.spawn.Respawn
 	}
 	return respawnAfter
 }

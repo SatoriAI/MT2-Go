@@ -2,7 +2,7 @@
 
 ## What the player sees
 
-Each first village has its villagers: the weapon and armour dealers, the general store, the storekeeper, the old lady, and fishermen along the water, each standing where the minimap marks them, with their name over their head. In the fields around the village are wild dogs, wolves, alpha wolves and boars. Every few seconds a monster strolls a few steps and stops, facing where it went. Walking away, they fade out like other players; walking back, they are there again. Monsters can be fought, and fight back when hit ([combat.md](combat.md)); NPCs cannot.
+Each first village has its villagers: the weapon and armour dealers, the general store, the storekeeper, the old lady, and fishermen along the water, each standing where the minimap marks them, with their name over their head. The fields around the village are full: some 385 to 440 monsters a map, in packs of three to five, the first wild dogs a few thousand steps past the gate, then wolves and boars, alpha and blue wolves, and further out bears, grizzlies and tigers. Every few seconds a monster strolls a few steps and stops, facing where it went. Walking away, they fade out like other players; walking back, they are there again. Monsters can be fought, and fight back when hit ([combat.md](combat.md)); NPCs cannot.
 
 ## What the client does
 
@@ -30,7 +30,20 @@ The packets are the ones on [other-players.md](other-players.md) and [entering-t
 ## What the server does
 
 - **What each kind is** (`internal/mob`): only the kinds the world spawns, with the client's `mob_proto` move and attack speeds. NPCs never move. The names are the Polish client's own, in UTF-8, turned into cp1250 for the INFO (`internal/game/wire.go`).
-- **Where they stand** (`internal/world/spawns.go`): a table per first village. The NPCs are at the client's minimap marks for them (`locale/pl/map/metin2_map_*_point.txt`). The monster areas are this server's own: open-mt2's spawn files come from the original server's data, which this repository keeps out. Each village has five, 10000 to 30000 from its start and at least 7000 from its shops, and a second ring of four, 30000 to 55000 out and 9000 from anything else, the stronger the further: blue wolves; alpha blue wolves with red boars; bears with grizzlies; tigers. All were chosen by a throwaway script over the client's own terrain: no cell the attribute map (`attr.atr`) marks blocked or water within the area's spread plus a stroll, and no step steeper than 60 height units per 200 in the height map (`height.raw`). The first guess, placed by eye on the minimap, put one Jinno area on a cliff: 69% of it blocked. Each area puts its count of monsters at random points within its spread.
+- **Where they stand** (`internal/world/spawns.go`): a table per first village. The NPCs are at the client's minimap marks for them (`locale/pl/map/metin2_map_*_point.txt`). The monster areas are this server's own: open-mt2's spawn files come from the original server's data, which this repository keeps out.
+  - **The packs,** settled by the veteran and the designer, the veteran deciding: some 385 to 440 monsters a map, against 54 before, in packs of 3 to 5, each one kind or a leader among its kin (an alpha wolf with three wolves, an alpha blue wolf with three blue wolves), in bands from the start that overlap a little:
+
+    | From the start | Kinds | Packs | Back after |
+    |---|---|---|---|
+    | 2,500 to 10,000 | wild dogs | up to 20 | 30 s |
+    | 9,000 to 18,000 | wolves, boars, an alpha wolf leading wolves | 30 | 30 s |
+    | 18,000 to 30,000 | alpha wolves, blue wolves, an alpha blue wolf leading blue wolves | 30 | 45 s |
+    | 30,000 to 42,000 | alpha blue wolves, red boars, bears | 13 | 60 s |
+    | 42,000 to 55,000 | grizzlies, tigers, bears | 11 | 60 s |
+
+  - **Where:** pack centres 2,500 apart within 30,000 and 4,000 beyond, and 2,500 from every NPC and 3,500 from every stone's spot. A monster stands up to 800 from its centre and strolls 600 more, so the nearest may come within some 1,100 of the village's start or an NPC: the edge of the village, as the veteran asked, not inside it. Each pack puts its monsters at random points within 800 of its centre.
+  - **Terrain:** the places were chosen by a throwaway script over the client's own terrain: within the pack's 800 and a stroll of 600, no water cell in the attribute map (`attr.atr`), at most 2 in 100 of its cells blocked, such as single trees, and no step steeper than 60 height units per 200 in the height map (`height.raw`, times its HeightScale of 0.5). The very first areas, placed by eye on the minimap, put one of Jinno's on a cliff, 69% of it blocked.
+  - **Chunjo's village** sits among walls and rough ground, so its open land near the gate holds 6 dog packs, the nearest 4,100 out, against 15 to 17 in the other two villages, the nearest 2,600 out.
 - **The world loop** (`internal/game/monsters.go`, `docs/decisions/world-loop.md`) starts with the server. It puts every mob in the world record, then every 100 ms walks each monster whose stroll is due: a random point within 600 of where it was spawned, every 5 to 25 seconds, open-mt2's numbers for an idle monster. A monster fighting a player does not stroll; it walks home when it gives up and strolls again from there ([combat.md](combat.md)).
 - **Seeing:** mobs are on the same world record as players, under the same view rule and order (`internal/game/presence.go`). A player sees mobs within 8000 on the same map, and a mob walking into view appears before its move, already where it was heading, as a player does. Where a character stands and the way it last faced are kept, so someone meeting a monster after a stroll sees it facing the way it went. Mobs never see each other. A player entering sees the mobs in view in the same single send as the players.
 - **The sura's teachers** stand a few steps east of the old lady in each village, at this server's own spots, as the minimap marks leave them out, not checked against the terrain; clicking one opens their dialog ([skills.md](skills.md)). The blacksmith, Kowal (20016), stands a few steps further east, on the same terms ([upgrading.md](upgrading.md)).
@@ -45,7 +58,8 @@ The packets are the ones on [other-players.md](other-players.md) and [entering-t
 ## What proves it
 
 - `internal/mob/mob_test.go`: every kind the world spawns is known and has real speeds; only monsters wander.
-- `internal/world/spawns_test.go`: every spawn area lies on its map; spawns are in world coordinates; a blacksmith and the second ring in each first village, the ring 30000 to 55000 from the start and 9000 from any other spawn.
+- `internal/world/spawns_test.go`: every spawn area lies on its map; spawns are in world coordinates; a blacksmith in each first village; every monster in its band and back after the time its distance gives; every pack 3 to 5 of one kind or a leader with three of its kin; pack centres apart, and 2,500 from every NPC and 3,500 from every stone's spot; each village with at least 380 monsters, at least 70 within 15,000 of the start, the nearest pack within 4,500; a spawn carrying its time to come back.
+- `internal/game/combat_test.go`: a monster coming back after its spawn's own time.
 - `internal/game/monsters_test.go`, with a fixed seed and the time given:
   - a monster standing until its stroll is due, then walking within 600 of home with type 0, facing where it goes;
   - resting between strolls;

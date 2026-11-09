@@ -90,7 +90,7 @@ The cell is one byte, which the bag's 90 cells fit.
 
 - `internal/upgrade/upgrade_test.go`: a sword from +0 to +9 by the table; armour, a helmet, shoes and the shield taking a tooth; a failure costing a grade only from the step to +5; only gear below +9 upgraded.
 - `internal/item/item_test.go`: the grades' names, attack and defence as the client's; their sell prices; every worn kind graded.
-- `internal/mob/mob_test.go`: wolves and boars leaving the materials, 5 in 100; only the blacksmith upgrading.
+- `internal/mob/mob_test.go`: wolves and boars leaving the materials, 3 in 100; only the blacksmith upgrading.
 - `internal/protocol/protocol_test.go`: GIVE_ITEM and REFINE read and framed; REFINE_INFORMATION_NEW byte for byte.
 - `internal/store/upgrade_test.go` (PostgreSQL): an upgrade kept whole, a stack used up forgotten; one the yang cannot cover changing nothing.
 - `internal/game/upgrade_test.go`:
