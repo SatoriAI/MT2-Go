@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/SatoriAI/MT2-Go/internal/account"
+	"github.com/SatoriAI/MT2-Go/internal/item"
 )
 
 // Skills keeps each character's skill group and the skills it has learnt.
@@ -57,26 +58,56 @@ func (s Skills) Raise(ctx context.Context, characterID uint32, skill account.Ski
 }
 
 // ErrNotTrained means a training found the skill no longer at the level it was read at, or
-// the book or stone no longer the character's in its bag.
+// the book or stone no longer the character's in its bag, or an aid it spent no longer
+// held.
 var ErrNotTrained = errors.New("store: the skill or what trains it changed")
 
 // Train keeps a read of a book or a soul stone, all of it or none: the skill from level
-// from at level to, the same on a failed read, and next read no sooner than next; and the
-// book or stone used, which never stack, forgotten.
-func (s Skills) Train(ctx context.Context, characterID uint32, skill account.Skill, from, to uint8, next time.Time, used int64) error {
+// From at level To, the same on a failed read, and its next read no sooner than Next; the
+// book or stone used, which never stack, forgotten; and the aids it spent.
+func (s Skills) Train(ctx context.Context, characterID uint32, r account.Read) error {
 	return pgx.BeginFunc(ctx, s.Pool, func(tx pgx.Tx) error {
 		tag, err := tx.Exec(ctx, `UPDATE skills SET level = $4, next_read = $5
-			WHERE character_id = $1 AND skill = $2 AND level = $3`, characterID, skill, from, to, next)
+			WHERE character_id = $1 AND skill = $2 AND level = $3`, characterID, r.Skill, r.From, r.To, r.Next)
 		if err != nil {
 			return err
 		}
 		if tag.RowsAffected() != 1 {
 			return ErrNotTrained
 		}
-		tag, err = tx.Exec(ctx, `DELETE FROM items WHERE id = $1 AND character_id = $2 AND worn IS NULL`, used, characterID)
-		if err == nil && tag.RowsAffected() != 1 {
-			err = ErrNotTrained
+		if tag, err = tx.Exec(ctx, `DELETE FROM items WHERE id = $1 AND character_id = $2 AND worn IS NULL`,
+			r.Used, characterID); err != nil {
+			return err
 		}
-		return err
+		if tag.RowsAffected() != 1 {
+			return ErrNotTrained
+		}
+		for _, aid := range r.Spent {
+			if tag, err = tx.Exec(ctx, `UPDATE characters SET aids = array_remove(aids, $2) WHERE id = $1 AND $2 = ANY(aids)`,
+				characterID, aid); err != nil {
+				return err
+			}
+			if tag.RowsAffected() != 1 {
+				return ErrNotTrained
+			}
+		}
+		return nil
+	})
+}
+
+// TakeAid keeps the aid an item leaves on the character and what is left of the item, its
+// stack one fewer or forgotten, both or neither. A second of an aid held is refused with
+// account.ErrAidHeld, the item kept.
+func (s Skills) TakeAid(ctx context.Context, characterID uint32, aid account.Aid, left item.Item) error {
+	return pgx.BeginFunc(ctx, s.Pool, func(tx pgx.Tx) error {
+		tag, err := tx.Exec(ctx, `UPDATE characters SET aids = array_append(aids, $2)
+			WHERE id = $1 AND NOT $2 = ANY(aids)`, characterID, aid)
+		if err != nil {
+			return err
+		}
+		if tag.RowsAffected() != 1 {
+			return account.ErrAidHeld
+		}
+		return keepLeft(ctx, tx, characterID, left)
 	})
 }

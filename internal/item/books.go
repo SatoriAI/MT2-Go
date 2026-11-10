@@ -55,12 +55,21 @@ var books = []struct {
 // one to G10 (docs/mechanics/skills.md).
 const SoulStone = 50513
 
+// The two helpers of a read (docs/mechanics/skills.md): Zwój Egzorcyzmu lets the next read
+// its wait holds up go ahead, and Rada Pustelnika raises the next book read's chance.
+const (
+	ExorcismScroll = 71001
+	HermitsAdvice  = 71094
+)
+
 // withBooks adds the skill books and the soul stone to the kinds.
 func withBooks(kinds map[uint32]Proto) map[uint32]Proto {
 	for _, b := range books {
 		kinds[b.vnum] = Proto{VNum: b.vnum, Name: b.name, Size: 1, Stack: 1, Teaches: b.teaches, Price: 1000, SellPrice: 200}
 	}
 	kinds[SoulStone] = Proto{VNum: SoulStone, Name: "Kamień Duchowy", Size: 1, Stack: 1, Price: 1000, SellPrice: 200}
+	kinds[ExorcismScroll] = Proto{VNum: ExorcismScroll, Name: "Zwój Egzorcyzmu", Size: 1, Stack: 1, Aid: account.NoReadWait}
+	kinds[HermitsAdvice] = Proto{VNum: HermitsAdvice, Name: "Rada Pustelnika", Size: 1, Stack: 1, Aid: account.ReadBonus}
 	return kinds
 }
 

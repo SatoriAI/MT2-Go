@@ -59,6 +59,9 @@ type Proto struct {
 	HP, SP uint16
 	// Teaches is the skill a book trains; "" for anything else.
 	Teaches account.Skill
+	// Aid is what a kind used leaves on the character until something uses it up; "" for
+	// anything else.
+	Aid account.Aid
 
 	// What a shop asks for one, and pays for one: the client's item_proto sell price
 	// divided by 5, as its tooltip works it out, so what it shows is what is paid.

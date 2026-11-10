@@ -17,7 +17,8 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
 - **A soul stone,** Kamień Duchowy, makes an M10 a Grand Master, G1, and raises a Grand Master to G10: 40 times in a hundred up to G3, 30 to G6, 20 to G9. Using one asks which skill to train, listing those it may raise now, with Anuluj last.
 - **The wait:** after a book or a stone, the skill can't be trained again for 4 hours: «Kolejną naukę możesz podjąć za 3 godz. 20 min.», the minutes rounded up.
 - **Refused,** with the book kept: a skill below M1 («Ta umiejętność musi najpierw zostać Mistrzem.»), one at M10 («Tej umiejętności nie rozwiniesz już księgą.»), and one not the player's («Nie znasz tej umiejętności.»). A stone with nothing ready says a skill must be at least M10.
-- **Where they come from:** Metin stones leave a skill book 3 times in 100, and monsters of level 15 or more 3 times in 1,000, each the book of one skill of any class, so players trade the others. Only Metin Bitwy leaves a soul stone, once in 100.
+- **The helpers:** Rada Pustelnika gives the next book read two and a half times its chance, never past certain, so an M9's 20 becomes 50; the read spends it, raised or not, and soul stones leave it held. Zwój Egzorcyzmu lets the next read its wait holds up go ahead at once, a book's or a soul stone's, which then waits its 4 hours again; «Zwój Egzorcyzmu pozwolił ci ćwiczyć od razu.» A read no wait holds up leaves it held. Each is held until spent, shown as an icon with the client's tooltip, and kept over a relog; a second of one held is refused, «Ten efekt jest już aktywny.», and kept.
+- **Where they come from:** Metin stones leave a skill book 3 times in 100, and monsters of level 15 or more 3 times in 1,000, each the book of one skill of any class, so players trade the others. Only Metin Bitwy leaves a soul stone, once in 100. The stones leave Zwój Egzorcyzmu once in 100 and Rada Pustelnika once in 200, and Metin Bitwy each 3 times in 100; nothing else leaves them.
 - **What it is worth:** a skill's power grows with it, to 0.72 at M10 and 1.15 at G10, and with it its damage, its buff and its mana cost.
 - **What can be raised:** Weaponry's Finger Strike, Dragon Swirl, Enchanted Blade and Enchanted Armour, Body's Three-Way Cut (Trzystronne Cięcie), Sword Spin (Wir Miecza), Berserk and Sword Aura (Aura Miecza), and Mental's Spirit Strike (Duchowe Uderzenie), Bash (Walnięcie), Stump (Tąpnięcie), Strong Body (Silne Ciało) and Sword Strike (Uderzenie Miecza), Dagger's Ambush (Zasadzka), Fast Attack (Szybki Atak) and Rolling Dagger (Wirujący Sztylet), Archery's Repetitive Shot (Powtarzalny Strzał), Arrow Shower (Deszcz Strzał), Fire Arrow (Ognista Strzała), Feather Walk (Bezszelestny Chód) and Poison Arrow (Trująca Strzała), and Black Magic's Dark Strike (Mroczne Uderzenie), Flame Strike (Ogniste Uderzenie), Dark Protection (Mroczna Ochrona), Ghost Strike (Duchowy Cios) and Dark Orb (Mroczna Sfera), and the shaman's attacks: Dragon's Flying Talisman (Latający Talizman), Shooting Dragon (Strzelający Smok) and Dragon Roar (Smoczy Skowyt), and Healing's Lightning Throw (Rzut Piorunem), Summon Lightning (Przywołanie Błyskawicy) and Lightning Claw (Burzowy Szpon), and her buffs and heal: Blessing (Błogosławieństwo), Reflection (Odbicie) and Dragon's Help (Pomoc Smoka) of Dragon, Heal (Leczenie), Swiftness (Zwinność) and Attack Up (Zwiększenie Ataku) of Healing. The others show in the window, but raising one says «Tej umiejętności nie można jeszcze rozwijać.»
 **Using a skill.** They are used from the skill window or the taskbar, as the client uses any skill.
@@ -115,6 +116,8 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
 | CHARACTER_ADD `01`, CHARACTER_UPDATE `13` | 35 each | the effects, two u32 words: bit 19 of the first is Enchanted Blade, 21 Enchanted Armour, 14 Berserk, 15 Sword Aura, 16 Strong Body, and on a monster 5 its stun, 3 its poison, 4 its slow, with its slower pace, and 28 its fire; and the move and attack speeds |
 | POINT_CHANGE `11` | 17 | the attack speed is point 17, the move speed 19 |
 | DAMAGE `87` | 10 | a poison's turn has flag 2 |
+| AFFECT_ADD `7E` | 22 | type u32 (512 Rada Pustelnika's, 513 Zwój Egzorcyzmu's), point u8, value i32, flag u32, duration i32 (0x1FFFFFFF, the client's forever, which it hides for these two), mana cost i32; all but the type and duration 0 |
+| AFFECT_REMOVE `7F` | 6 | type u32, point u8 (0) |
 
 ## What the server does
 
@@ -138,6 +141,7 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
   - The books are the client's per-skill books of the 38 skills the game has, each named and priced as the client's, not stacking; the soul stone is 50513 (`internal/item/books.go`).
   - A book is checked under the world's lock: the skill the player's group's and learnt, at M1 to M9, and its wait over. A soul stone lists the player's skills at M10 to G9 whose wait is over, in the skill window's order. The answer is checked again: the stone still in the bag, the skill still ready. The last answer cancels.
   - The roll is the connection's own. The read is written in one transaction: the skill at its level, the same on a failure, its next read 4 hours on (`skills.next_read`), and the book or stone used up, as neither stacks, all or none of it. Then the player is shown the item gone, their skills on a rise, and a line.
+  - **The helpers** (`internal/game/aids.go`): Rada Pustelnika and Zwój Egzorcyzmu, item_proto's USE_AFFECT kinds 71094 and 71001, leave an aid, `account.ReadBonus` or `account.NoReadWait`, kept by name in the character's `aids` and taken in one transaction with the item used up; one held already is refused, under the world's lock and again by the database. A read is checked with the aids it would spend: Zwój past a wait, Rada on a book; the read keeps the skill, its wait, the item used up and those aids spent all or none. Entering the world shows each aid held with AFFECT_ADD, and a read that spends one hides it with AFFECT_REMOVE. The debaters agreed on all but two, which the veteran's memory decided: Zwój lifts a wait already running, rather than only sparing the one after a failure, and the stones' chances.
   - The original waited a day between reads; the debaters shortened it for a small server. The waits are the character's, kept by skill, so logging in again does not end them.
 - **Power and costs past 20:** a skill's power follows the client's table to G10. The client works a cost out with k in single precision, the formula in double, the result rounded to single precision and then down (`PythonSkill.cpp`, `ProcessFormula`; `Poly.cpp`). The server does the same, so at G10, where k is 1.15, Lightning Claw costs 247, as the client says.
 - **On the taskbar,** a skill learnt is kept by name, and its key sends USE_SKILL like the skill window ([taskbar.md](taskbar.md)).
@@ -231,7 +235,7 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
   - The rules are this server's own, settled in a debate between a Metin2 veteran and a genre designer:
     - points from level 5;
     - a free change of path below 20;
-    - Masters by the point after 17, books from M1 to M10 and soul stones from M10 to G10, at the chances above, a 4-hour wait, books and stones only from monsters and stones; Perfect and the helper items later. Where the two differed, the veteran's memory of the original decided, as for the soul stone's question rather than training the first skill ready.
+    - Masters by the point after 17, books from M1 to M10 and soul stones from M10 to G10, at the chances above, a 4-hour wait, books and stones only from monsters and stones; Perfect later. The helpers came after, as above, as drops, tradeable like any other item, though the client flags them not to be. Where the two differed, the veteran's memory of the original decided, as for the soul stone's question rather than training the first skill ready.
   - open-mt2 gives points the same way, and the original sells the change of path.
 
 ## What proves it
@@ -256,7 +260,9 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
   - a soul stone asking which skill, listing those ready in order, and training the one picked; making an M10 a Grand Master, shown as grade 2;
   - a cancelled stone, or one gone from the bag, kept;
   - a stone with nothing ready saying why, or how long to wait.
-- `internal/mob/mob_test.go`: books from every stone and from monsters of level 15 or more, every book teaching a skill; soul stones from Metin Bitwy only.
+- `internal/game/aids_test.go`: Rada raising an M9 on a roll of 45 and an M1 on 99, spent; spent on a failed read; leaving a soul stone as it is, and kept; Zwój letting a book read past its wait, spent, with its line and the wait set again; kept by a read no wait held up; putting a waiting skill among a soul stone's, spent by training it; a helper used held and shown, the item used up; a second refused and kept, and one only the store held taken from it and shown; one the store cannot keep not held; both spent by a waiting book read, both icons going; Rada kept by a read refused for its wait; Zwój kept by a soul stone with no wait; the aids shown on entering.
+- `internal/store/skills_test.go`, also: an aid kept with its item used up and read with the character, a second refused and its item kept; a read spending its aids, and one naming an aid not held changing nothing.
+- `internal/mob/mob_test.go`: books from every stone and from monsters of level 15 or more, every book teaching a skill; soul stones from Metin Bitwy only; the helpers only from the stones, at their chances.
 - `internal/server/books_test.go` (real sockets and database): a book read, gone from the bag and the database, the skill kept at M1 or M2 with its wait.
 - `internal/game/skills_test.go`:
   - a sura taking up a teacher's group, in the client's order;
@@ -342,6 +348,6 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
 - Body's Charge, Sword Strike's and Poison Arrow's knockback, which push monsters the server owns.
 - Damage at the motion's hit, and no blows during a skill's motion.
 - The mana Enchanted Blade drains while it runs in the original, and keeping it over a relog.
-- Perfect Master, at 40; the original's helpers, Rada Pustelnika and Zwój Egzorcyzmu; the generic book 50300; the soul stone's cost in alignment, which this server does not have.
+- Perfect Master, at 40; the generic book 50300; the helpers' anti-flags, which would keep them from being dropped, sold or traded; the soul stone's cost in alignment, which this server does not have.
 - Support and horse skills.
 - A reset item.

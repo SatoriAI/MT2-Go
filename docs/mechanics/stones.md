@@ -32,6 +32,7 @@
 - **The gear** is one of each class's first weapons and armours.
 - **A piece of the rare gear,** 4 times in 100 from every stone: one +0 kind of the gear past the first from level 21 ([equipment.md](equipment.md)).
 - **A skill book,** 3 times in 100 from every stone, is the book of one skill of any class; Metin Bitwy also leaves a soul stone once in 100 ([skills.md](skills.md)).
+- **The helpers of a read:** Zwój Egzorcyzmu once in 100 and Rada Pustelnika once in 200 from every stone, and from Metin Bitwy each 3 times in 100 ([skills.md](skills.md)).
 
 ## What the client does
 

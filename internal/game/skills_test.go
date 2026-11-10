@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/SatoriAI/MT2-Go/internal/account"
+	"github.com/SatoriAI/MT2-Go/internal/item"
 	"github.com/SatoriAI/MT2-Go/internal/network"
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
 	"github.com/SatoriAI/MT2-Go/internal/skill"
@@ -21,6 +22,9 @@ type keptSkills struct {
 	learnt map[account.Skill]uint8
 	reads  map[account.Skill]time.Time
 	used   []int64 // the book or stone each training used up
+	spent  account.Aids
+	aids   account.Aids // the aids held, which TakeAid adds to
+	left   []item.Item  // what TakeAid left of each item used
 	fail   error
 }
 
@@ -28,18 +32,30 @@ func (k *keptSkills) Learnt(context.Context, uint32) (map[account.Skill]uint8, m
 	return k.learnt, k.reads, k.fail
 }
 
-func (k *keptSkills) Train(_ context.Context, _ uint32, s account.Skill, from, to uint8, next time.Time, used int64) error {
+func (k *keptSkills) Train(_ context.Context, _ uint32, r account.Read) error {
 	if k.fail != nil {
 		return k.fail
 	}
-	if k.learnt[s] != from {
+	if k.learnt[r.Skill] != r.From {
 		return errors.New("trained from another level")
 	}
 	if k.reads == nil {
 		k.reads = map[account.Skill]time.Time{}
 	}
-	k.learnt[s], k.reads[s] = to, next
-	k.used = append(k.used, used)
+	k.learnt[r.Skill], k.reads[r.Skill] = r.To, r.Next
+	k.used = append(k.used, r.Used)
+	k.spent = append(k.spent, r.Spent...)
+	return nil
+}
+
+func (k *keptSkills) TakeAid(_ context.Context, _ uint32, aid account.Aid, left item.Item) error {
+	if k.fail != nil {
+		return k.fail
+	}
+	if k.aids.Has(aid) {
+		return account.ErrAidHeld
+	}
+	k.aids, k.left = append(k.aids, aid), append(k.left, left)
 	return nil
 }
 

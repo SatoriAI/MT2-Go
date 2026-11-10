@@ -18,14 +18,31 @@ import (
 // whether it raises one at that level at all.
 type chance func(level uint8) (uint16, bool)
 
+// trainer is how a book or a soul stone trains: its odds, what the player is told of a
+// failed read, and whether Rada Pustelnika raises its chance, as it does only a book's.
+type trainer struct {
+	odds    chance
+	lost    string
+	boosted bool
+}
+
+var (
+	byBook  = trainer{skill.BookChance, "Księga przepadła.", true}
+	byStone = trainer{skill.SoulChance, "Kamień Duchowy przepadł.", false}
+)
+
+// bonusTenths is how many times its chance Rada Pustelnika gives a book read, in tenths:
+// the client's 2.5, never past certain.
+const bonusTenths = 25
+
 // readBook trains the skill the book teaches: at M1 to M9, and once its wait is over, the
 // skill may rise a level, and the book is used up either way. Anything else is refused
 // with a line saying why, and the book is kept.
 func (s *session) readBook(ctx context.Context, book item.Item, sk account.Skill) error {
-	level, why := s.svc.record.trainable(s.playing.vid, sk, s.svc.now(), skill.BookChance)
+	level, spent, why := s.svc.record.trainable(s.playing.vid, sk, s.svc.now(), byBook)
 	switch why {
 	case "":
-		return s.train(ctx, book, sk, level, skill.BookChance, "Księga przepadła.")
+		return s.train(ctx, book, sk, level, byBook, spent)
 	case notYetTrainable:
 		if level < skill.Master {
 			why = "Ta umiejętność musi najpierw zostać Mistrzem."
@@ -72,39 +89,49 @@ func (s *session) useSoulStone(ctx context.Context, t *talk, answer uint8) error
 		return nil
 	}
 	sk := t.skills[answer]
-	level, why := s.svc.record.trainable(s.playing.vid, sk, s.svc.now(), skill.SoulChance)
+	level, spent, why := s.svc.record.trainable(s.playing.vid, sk, s.svc.now(), byStone)
 	if why != "" {
 		s.conn.Log().Debug("soul stone refused", "skill", sk, "why", why)
 		return nil
 	}
-	return s.train(ctx, stone, sk, level, skill.SoulChance, "Kamień Duchowy przepadł.")
+	return s.train(ctx, stone, sk, level, byStone, spent)
 }
 
-// train rolls the chance that the book or stone raises the skill from level, keeps the
-// read, the skill's next wait and the book or stone used up, as neither stacks, then
-// tells the player: the item gone, their skills on a rise, and a line. A write that fails
-// changes nothing, the client having moved nothing itself.
-func (s *session) train(ctx context.Context, used item.Item, sk account.Skill, level uint8, odds chance, lost string) error {
+// train rolls the chance that the book or stone raises the skill from level, two and a
+// half times it with Rada Pustelnika spent, and keeps the read: the skill's next wait,
+// the book or stone used up, as neither stacks, and the aids spent. Then it tells the
+// player: the item gone, their skills on a rise, the aids' icons gone, and a line. A
+// write that fails changes nothing, the client having moved nothing itself.
+func (s *session) train(ctx context.Context, used item.Item, sk account.Skill, level uint8, by trainer, spent account.Aids) error {
 	now := s.svc.now()
-	percent, _ := odds(level)
+	percent, _ := by.odds(level)
+	if spent.Has(account.ReadBonus) {
+		percent = min(100, percent*bonusTenths/10)
+	}
 	to := level
 	if s.rand.IntN(100) < int(percent) {
 		to = level + 1
 	}
-	next := now.Add(skill.ReadWait)
-	if err := s.svc.skills.Train(ctx, s.playing.ID, sk, level, to, next, used.ID); err != nil {
+	read := account.Read{Skill: sk, From: level, To: to, Next: now.Add(skill.ReadWait), Used: used.ID, Spent: spent}
+	if err := s.svc.skills.Train(ctx, s.playing.ID, read); err != nil {
 		s.conn.Log().Error("training not kept", "skill", sk, "item", used.ID, "err", err)
 		return nil
 	}
 	s.inventory = slices.DeleteFunc(s.inventory, func(held item.Item) bool { return held.ID == used.ID })
-	levels := s.svc.record.trained(s.playing.vid, sk, to, next)
+	levels := s.svc.record.trained(s.playing.vid, read)
 	packets := append([][]byte{itemCleared(used)}, s.followTaskbar()...)
-	line := "Nie udało się. " + lost
+	for _, aid := range spent {
+		packets = append(packets, aidGone(aid))
+	}
+	if spent.Has(account.NoReadWait) {
+		packets = append(packets, infoLine("Zwój Egzorcyzmu pozwolił ci ćwiczyć od razu."))
+	}
+	line := "Nie udało się. " + by.lost
 	if to > level {
 		packets = append(packets, protocol.EncodeSkillLevels(levels))
 		line = "Udało się! Umiejętność osiągnęła poziom " + gradeName(to) + "."
 	}
-	s.conn.Log().Info("skill trained", "skill", sk, "from", level, "to", to, "item", used.VNum)
+	s.conn.Log().Info("skill trained", "skill", sk, "from", level, "to", to, "item", used.VNum, "aids", spent)
 	return s.conn.Send(append(packets, infoLine(line))...)
 }
 
@@ -124,25 +151,33 @@ func waitLine(wait time.Duration) string {
 	return fmt.Sprintf("Kolejną naukę możesz podjąć za %d godz. %d min.", int(wait.Hours()), int(wait.Minutes())%60)
 }
 
-// trainable is the level of the skill, if the player may train it now with what odds
-// raise: they learnt it, which only a skill of their group can be, it is at a level the
-// odds raise, and its wait is over. Else it says why not: a line for the player, or
-// notYetTrainable for a level the odds do not raise, with the level, for the caller to
-// word.
-func (w *record) trainable(vid uint32, sk account.Skill, now time.Time, odds chance) (uint8, string) {
+// trainable is the level of the skill, if the player may train it now by the book or
+// stone: they learnt it, which only a skill of their group can be, it is at a level the
+// odds raise, and its wait is over or Zwój Egzorcyzmu lets it go ahead. With it come the
+// aids the read would spend: that Zwój, and Rada Pustelnika for a read it raises. Else it
+// says why not: a line for the player, or notYetTrainable for a level the odds do not
+// raise, with the level, for the caller to word.
+func (w *record) trainable(vid uint32, sk account.Skill, now time.Time, by trainer) (uint8, account.Aids, string) {
 	l, unlock := w.lock()
 	defer unlock()
 	c := l.all[vid].char
 	level, learnt := c.Skills[sk]
-	switch _, raises := odds(level); {
+	var spent account.Aids
+	switch _, raises := by.odds(level); {
 	case !learnt:
-		return 0, "Nie znasz tej umiejętności."
+		return 0, nil, "Nie znasz tej umiejętności."
 	case !raises:
-		return level, notYetTrainable
-	case now.Before(c.SkillReads[sk]):
-		return level, waitLine(c.SkillReads[sk].Sub(now))
+		return level, nil, notYetTrainable
+	case !now.Before(c.SkillReads[sk]):
+	case c.Aids.Has(account.NoReadWait):
+		spent = append(spent, account.NoReadWait)
+	default:
+		return level, nil, waitLine(c.SkillReads[sk].Sub(now))
 	}
-	return level, ""
+	if by.boosted && c.Aids.Has(account.ReadBonus) {
+		spent = append(spent, account.ReadBonus)
+	}
+	return level, spent, ""
 }
 
 // readySkill is a skill a soul stone may train now, at its level.
@@ -152,8 +187,8 @@ type readySkill struct {
 }
 
 // soulReady is the player's skills a soul stone raises now, in the order the skill window
-// shows them, and, with none, how long until the soonest one it raises is out of its wait;
-// 0 when it raises none.
+// shows them, those waiting too while they hold Zwój Egzorcyzmu; and, with none, how long
+// until the soonest one it raises is out of its wait, 0 when it raises none.
 func (w *record) soulReady(vid uint32, now time.Time) ([]readySkill, time.Duration) {
 	l, unlock := w.lock()
 	defer unlock()
@@ -164,7 +199,7 @@ func (w *record) soulReady(vid uint32, now time.Time) ([]readySkill, time.Durati
 		if _, raises := skill.SoulChance(level); !raises {
 			continue
 		}
-		if wait := c.SkillReads[sk].Sub(now); wait > 0 {
+		if wait := c.SkillReads[sk].Sub(now); wait > 0 && !c.Aids.Has(account.NoReadWait) {
 			if soonest == 0 || wait < soonest {
 				soonest = wait
 			}
@@ -176,16 +211,18 @@ func (w *record) soulReady(vid uint32, now time.Time) ([]readySkill, time.Durati
 	return ready, soonest
 }
 
-// trained puts the skill at the level a read left it and its next wait, and returns
-// every skill's level for the client. A self-buff of it running adds at its new level.
-func (w *record) trained(vid uint32, sk account.Skill, level uint8, next time.Time) protocol.SkillLevels {
+// trained puts the skill at the level a read left it and its next wait, takes off the
+// aids it spent, and returns every skill's level for the client. A self-buff of it
+// running adds at its new level.
+func (w *record) trained(vid uint32, r account.Read) protocol.SkillLevels {
 	l, unlock := w.lock()
 	defer unlock()
 	pl := l.all[vid]
 	c := pl.char
-	c.Skills[sk], c.SkillReads[sk] = level, next
-	if _, running := c.Buffs[sk]; running {
-		l.showAffects(pl, sk)
+	c.Skills[r.Skill], c.SkillReads[r.Skill] = r.To, r.Next
+	l.spend(c, r.Spent)
+	if _, running := c.Buffs[r.Skill]; running {
+		l.showAffects(pl, r.Skill)
 	}
 	return skillLevels(c.Skills)
 }

@@ -134,7 +134,7 @@ func (s *session) onEnterGame() error {
 	}
 	err := s.conn.Send(slices.Concat(
 		[][]byte{protocol.EncodePhase(protocol.PhaseGame), protocol.EncodeTime(s.svc.clock.Now()), protocol.EncodeChannel(1)},
-		me.appearance(), [][]byte{s.blockMode()}, s.inventoryShown(), s.taskbarShown(),
+		me.appearance(), [][]byte{s.blockMode()}, s.inventoryShown(), s.taskbarShown(), s.aidsShown(),
 	)...)
 	if err != nil {
 		return err

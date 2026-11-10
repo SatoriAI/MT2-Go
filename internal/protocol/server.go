@@ -390,6 +390,42 @@ func EncodeDamage(vid uint32, flags uint8, damage int32) []byte {
 	return w.Bytes()
 }
 
+// Affect is an affect on the player, as the client's AFFECT_ADD carries it: its type,
+// the point it changes by value, its affect flag, how long it lasts in seconds, and the
+// mana it takes.
+type Affect struct {
+	Type     uint32
+	Point    uint8
+	Value    int32
+	Flag     uint32
+	Duration int32
+	ManaCost int32
+}
+
+// AffectForever is the client's INFINITE_AFFECT_DURATION: an affect held until something
+// uses it up.
+const AffectForever int32 = 0x1FFFFFFF
+
+// EncodeAffectAdd tells the client an affect is on the player.
+func EncodeAffectAdd(a Affect) []byte {
+	w := NewWriter(byte(ServerAffectAdd), 22)
+	w.U32(a.Type)
+	w.U8(a.Point)
+	w.I32(a.Value)
+	w.U32(a.Flag)
+	w.I32(a.Duration)
+	w.I32(a.ManaCost)
+	return w.Bytes()
+}
+
+// EncodeAffectRemove tells the client the affect of that type, on that point, is gone.
+func EncodeAffectRemove(typ uint32, point uint8) []byte {
+	w := NewWriter(byte(ServerAffectRemove), 6)
+	w.U32(typ)
+	w.U8(point)
+	return w.Bytes()
+}
+
 // EncodeDead tells the client the character died; it plays the death and keeps the body
 // until the character is deleted.
 func EncodeDead(vid uint32) []byte {

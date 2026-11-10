@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/SatoriAI/MT2-Go/internal/account"
+	"github.com/SatoriAI/MT2-Go/internal/item"
 	"github.com/SatoriAI/MT2-Go/internal/mob"
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
 	"github.com/SatoriAI/MT2-Go/internal/skill"
@@ -21,9 +22,11 @@ type Skills interface {
 	Choose(ctx context.Context, characterID uint32, group account.SkillGroup) error
 	// Raise keeps the skill at the level a point raised it to.
 	Raise(ctx context.Context, characterID uint32, s account.Skill, level uint8) error
-	// Train keeps a read of a book or a soul stone: the skill from level from at to, next
-	// read no sooner than next, and the book or stone used, all or none of it.
-	Train(ctx context.Context, characterID uint32, s account.Skill, from, to uint8, next time.Time, used int64) error
+	// Train keeps a read of a book or a soul stone, all or none of it.
+	Train(ctx context.Context, characterID uint32, r account.Read) error
+	// TakeAid keeps the aid an item leaves and what is left of the item, or refuses one held
+	// already with account.ErrAidHeld.
+	TakeAid(ctx context.Context, characterID uint32, aid account.Aid, left item.Item) error
 }
 
 // changeBefore is the level a character may still change its skill group below, giving

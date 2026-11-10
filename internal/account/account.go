@@ -110,6 +110,32 @@ type Blocks []Block
 
 func (b Blocks) Has(block Block) bool { return slices.Contains(b, block) }
 
+// Aid is a help an item leaves on a character, held until something uses it up.
+type Aid string
+
+const (
+	ReadBonus  Aid = "read_bonus"   // Rada Pustelnika's: the next book read's chance two and a half times
+	NoReadWait Aid = "no_read_wait" // Zwój Egzorcyzmu's: the next read its wait holds up goes ahead
+)
+
+// ErrAidHeld means the character already holds the aid an item would leave.
+var ErrAidHeld = errors.New("account: that aid is held already")
+
+// Aids is what a character holds, each at most once.
+type Aids []Aid
+
+func (a Aids) Has(aid Aid) bool { return slices.Contains(a, aid) }
+
+// Read is a read of a book or a soul stone, kept all or none: the skill from level From
+// at To, its next read no sooner than Next, the item Used up, and the aids it Spent.
+type Read struct {
+	Skill    Skill
+	From, To uint8
+	Next     time.Time
+	Used     int64
+	Spent    Aids
+}
+
 // Character is one of an account's characters, as far as the game knows it so far.
 type Character struct {
 	ID         uint32
@@ -151,4 +177,5 @@ type Character struct {
 	Buffs  map[Skill]time.Time
 	BuffBy map[Skill]BuffCaster
 	Blocks Blocks
+	Aids   Aids
 }
