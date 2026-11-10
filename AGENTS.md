@@ -72,6 +72,8 @@ docs/decisions/     why the rules here are what they are
 
 A connection's goroutine is the only one that touches its session, so session state needs no lock; any goroutine may `Send` on a connection, which queues (`docs/decisions/connections.md`). A connection that has not logged in 30 seconds after connecting is closed, and every write to a client gives up after 10; a session returns `network.ErrHangUp` to end its connection without logging a warning. State shared between connections (`account.Keys`) locks itself.
 
+The world record (`internal/game/record.go`) is the game's shared state, behind one lock. Its guarded fields live in `state`, and what may be done only while the lock is held is a method of `locked`, the view of `state` that `record.lock()` hands out, so a call without the lock does not compile. Never build a `locked` or touch `record.state` yourself; tests read it, single-threaded.
+
 ## Decisions worth not relitigating
 
 - **One process, two ports** — auth and game share memory, so login keys need no Redis. See `docs/decisions/architecture.md`.

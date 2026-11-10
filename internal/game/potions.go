@@ -13,13 +13,13 @@ import (
 // or to a player already full of all it restores, is not used up.
 func (s *session) drink(it item.Item) error {
 	p, _ := item.Lookup(it.VNum)
-	if !s.svc.presence.wouldDrink(s.playing.vid, p) {
+	if !s.svc.record.wouldDrink(s.playing.vid, p) {
 		return nil
 	}
 	if used, err := s.useOne(it); !used || err != nil {
 		return err
 	}
-	s.svc.presence.drink(s.playing.vid, p)
+	s.svc.record.drink(s.playing.vid, p)
 	return nil
 }
 
@@ -59,10 +59,10 @@ func (s *session) useOne(it item.Item) (bool, error) {
 
 // wouldDrink reports whether the potion would do the player any good: they are alive and
 // short of something it restores.
-func (w *presence) wouldDrink(vid uint32, potion item.Proto) bool {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	p := w.all[vid]
+func (w *record) wouldDrink(vid uint32, potion item.Proto) bool {
+	l, unlock := w.lock()
+	defer unlock()
+	p := l.all[vid]
 	if p.dead() {
 		return false
 	}
@@ -74,10 +74,10 @@ func (w *presence) wouldDrink(vid uint32, potion item.Proto) bool {
 // drink heals the player by what the potion restores, up to their maximum, and draws its
 // effect for them and everyone who sees them. One who died since it was used up is not
 // healed, and one healed to full meanwhile sees no effect of nothing.
-func (w *presence) drink(vid uint32, potion item.Proto) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	p := w.all[vid]
+func (w *record) drink(vid uint32, potion item.Proto) {
+	l, unlock := w.lock()
+	defer unlock()
+	p := l.all[vid]
 	if p.dead() {
 		return
 	}
@@ -92,7 +92,7 @@ func (w *presence) drink(vid uint32, potion item.Proto) {
 	}
 	drawn := protocol.EncodeSpecialEffect(effect, vid)
 	p.send(append(told, drawn)...)
-	toViewers(p, drawn)
+	l.toViewers(p, drawn)
 }
 
 // restore gives the player hp and sp more, each up to its maximum, and returns what to

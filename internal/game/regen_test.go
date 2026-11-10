@@ -18,7 +18,7 @@ func hurtSura(t *testing.T, hp, sp uint32) (*Service, net.Conn, *account.Charact
 	client := s.playerAt(t, homeX, 0)
 	c := &account.Character{HP: hp, SP: sp, Level: 1, Class: account.Sura,
 		Stats: account.Stats{Strength: 5, Vitality: 3, Dexterity: 3, Intelligence: 5}}
-	s.presence.all[1000].char = c
+	s.record.state.all[1000].char = c
 	s.tick(noon)
 	return s, client, c
 }
@@ -76,7 +76,7 @@ func TestTheDeadDoNotHeal(t *testing.T) {
 // it sees its bar fill; once whole it leaves the list of the hurt.
 func TestAHurtMonsterHealsUntilWhole(t *testing.T) {
 	s, dog, client := aDog(t, homeX+100)
-	s.presence.target(1000, dog.p.add.VID)
+	s.record.target(1000, dog.p.add.VID)
 	read(t, client, targetSize)
 	dog.p.fight.hp = 115
 	s.hurt(dog, noon)
@@ -98,7 +98,7 @@ func TestAHurtMonsterHealsUntilWhole(t *testing.T) {
 // A monster that died, or is whole, is not healed and leaves the list, telling nobody.
 func TestADeadOrWholeMonsterIsNotHealed(t *testing.T) {
 	s, dog, client := aDog(t, homeX+100)
-	s.presence.target(1000, dog.p.add.VID)
+	s.record.target(1000, dog.p.add.VID)
 	read(t, client, targetSize)
 	s.hurt(dog, noon)
 
@@ -119,7 +119,7 @@ func TestADeadOrWholeMonsterIsNotHealed(t *testing.T) {
 // A blow puts the monster on the list of the hurt, once however many blows land.
 func TestABlowPutsAMonsterOnTheListOfTheHurtOnce(t *testing.T) {
 	s, dog, _, _ := suraHits(t, 100)
-	s.presence.attack(1000, dog.p.add.VID, 0, someRand, noon.Add(time.Second))
+	s.record.attack(1000, dog.p.add.VID, 0, someRand, noon.Add(time.Second))
 
 	s.tick(noon.Add(time.Second))
 
@@ -181,13 +181,13 @@ func TestARestartEndsTheFightAndARefusedBlowStartsNone(t *testing.T) {
 	s, dog, _, c := suraHits(t, 100)
 	c.HP = 0
 
-	s.presence.revive(1000, false, 0, 0, noon)
+	s.record.revive(1000, false, 0, 0, noon)
 
 	if !c.LastFought.IsZero() {
 		t.Fatalf("still fighting since %v after a restart", c.LastFought)
 	}
-	s.presence.move(1000, protocol.Move{X: homeX + 2000, Y: homeY})
-	if got := s.presence.attack(1000, dog.p.add.VID, 0, someRand, noon.Add(time.Second)); got != blowRefused {
+	s.record.move(1000, protocol.Move{X: homeX + 2000, Y: homeY})
+	if got := s.record.attack(1000, dog.p.add.VID, 0, someRand, noon.Add(time.Second)); got != blowRefused {
 		t.Fatalf("a blow from 2000 away came to %v", got)
 	}
 	if !c.LastFought.IsZero() {

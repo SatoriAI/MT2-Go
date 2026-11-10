@@ -35,12 +35,12 @@ func (s *session) onUseSkill(body []byte) error {
 	}
 	adds := s.flyAdds
 	s.flyAdds = nil // aimed for this use alone, whatever becomes of it
-	happened, wait := s.svc.presence.useSkill(s.playing.vid, sk, u.Target, now, s.svc.clock.Now(), s.rand, cooled)
+	happened, wait := s.svc.record.useSkill(s.playing.vid, sk, u.Target, now, s.svc.clock.Now(), s.rand, cooled)
 	switch happened {
 	case skillUsed:
 		s.svc.cooldowns.used(s.playing.ID, sk, now.Add(wait))
 		if proto.Shoots() {
-			s.volley = loose(sk, proto, s.svc.presence.levelOf(s.playing.vid, sk), u.Target, adds, now)
+			s.volley = loose(sk, proto, s.svc.record.levelOf(s.playing.vid, sk), u.Target, adds, now)
 		}
 	case skillRefused:
 		s.conn.Log().Debug("skill not used", "vnum", u.VNum)
@@ -103,12 +103,12 @@ func (b buffEnd) due() time.Time { return b.at }
 // it strikes alone is in reach, and they have its mana: the mana is spent and told, then
 // an attack strikes and a buff starts. A toggle already running is ended instead, for
 // nothing, as the client turns it off. It reports what became of it.
-func (w *presence) useSkill(vid uint32, sk account.Skill, target uint32, now time.Time, clock uint32, r *rand.Rand,
+func (w *record) useSkill(vid uint32, sk account.Skill, target uint32, now time.Time, clock uint32, r *rand.Rand,
 	cooled func() bool,
 ) (outcome, time.Duration) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	pl := w.all[vid]
+	l, unlock := w.lock()
+	defer unlock()
+	pl := l.all[vid]
 	c := pl.char
 	level := c.Skills[sk]
 	proto, _ := skill.Lookup(sk)
@@ -116,10 +116,10 @@ func (w *presence) useSkill(vid uint32, sk account.Skill, target uint32, now tim
 		return skillRefused, 0
 	}
 	if _, running := c.Buffs[sk]; running && proto.Toggle {
-		w.endBuffLocked(pl, sk)
+		l.stopBuff(pl, sk)
 		return toggledOff, 0
 	}
-	victim := aimed(pl, target, proto)
+	victim := l.aimed(pl, target, proto)
 	weapon, _ := item.Lookup(c.Weapon)
 	cost := proto.Mana.At(skill.Power(level))
 	if !cooled() || !proto.Wieldable(weapon) ||
@@ -131,18 +131,18 @@ func (w *presence) useSkill(vid uint32, sk account.Skill, target uint32, now tim
 	pl.send(pointTold(vid, protocol.PointSP, -int(cost), c.SP))
 	percent := int(proto.Damage.At(skill.Power(level)))
 	if proto.Dash && victim != nil {
-		w.dash(pl, victim, clock)
+		l.dash(pl, victim, clock)
 	}
 	switch {
 	case proto.Shoots(): // its arrows land as the client lets them go
 	case proto.Ally:
-		w.help(pl, allyOf(pl, target, proto), sk, proto, level, now, r)
+		l.help(pl, l.allyOf(pl, target, proto), sk, proto, level, now, r)
 	case victim != nil:
-		w.splash(pl, victim, proto, percent, level, now, r)
+		l.splash(pl, victim, proto, percent, level, now, r)
 	case proto.Reach > 0:
-		w.splash(pl, pl, proto, percent, level, now, r)
+		l.splash(pl, pl, proto, percent, level, now, r)
 	default:
-		w.startBuff(pl, sk, now.Add(proto.LastsAt(level)))
+		l.startBuff(pl, sk, now.Add(proto.LastsAt(level)))
 	}
 	return skillUsed, wait
 }
@@ -150,8 +150,8 @@ func (w *presence) useSkill(vid uint32, sk account.Skill, target uint32, now tim
 // aimed is the monster an attack on one lands on: with Target, the one the player picked
 // if it lives within a blow's reach; with Aim, the one picked if it lives within Aim, or
 // else the nearest living one in front of them within it. Nil for none, and for an attack
-// on none. Called under the lock.
-func aimed(pl *present, target uint32, proto skill.Proto) *present {
+// on none.
+func (l locked) aimed(pl *present, target uint32, proto skill.Proto) *present {
 	if !proto.NeedsVictim() {
 		return nil
 	}
@@ -182,9 +182,9 @@ func ahead(p, o *present) bool {
 // front of the player if the attack strikes ahead of them, the nearest first up to its
 // number, each for percent of a blow's damage, or its splash share of that, through the
 // same defence and luck, as many times as it hits while the victim lives. Each it leaves
-// alive may be afflicted as the attack afflicts (afflictions). Called under the lock.
-func (w *presence) splash(pl, at *present, proto skill.Proto, percent int, level uint8, now time.Time, r *rand.Rand) {
-	victims := victimsOf(pl, at, proto)
+// alive may be afflicted as the attack afflicts (afflictions).
+func (l locked) splash(pl, at *present, proto skill.Proto, percent int, level uint8, now time.Time, r *rand.Rand) {
+	victims := l.victimsOf(pl, at, proto)
 	a := attackerOf(pl.char)
 	for jump, v := range victims {
 		share := percent
@@ -205,7 +205,7 @@ func (w *presence) splash(pl, at *present, proto skill.Proto, percent int, level
 			} else {
 				damage = combat.Damage(a, v.fight.defender, r) * share / 100
 			}
-			if blow = w.strike(pl, v, damage, now); blow == blowKilled {
+			if blow = l.strike(pl, v, damage, now); blow == blowKilled {
 				break
 			}
 		}
@@ -214,18 +214,17 @@ func (w *presence) splash(pl, at *present, proto skill.Proto, percent int, level
 		}
 		for _, af := range afflictions {
 			if chance, has := af.chance(proto, pl.char, level); has && r.IntN(1000) < chance {
-				af.put(w, pl, v, level, now)
+				af.put(l, pl, v, level, now)
 			}
 		}
 	}
 }
 
 // affliction is a status an attack may put on each monster it leaves alive: whether the
-// attack has it and its chance, in thousandths, and what putting it on does. Called under
-// the lock.
+// attack has it and its chance, in thousandths, and what putting it on does.
 type affliction struct {
 	chance func(proto skill.Proto, c *account.Character, level uint8) (int, bool)
-	put    func(w *presence, by, v *present, level uint8, now time.Time)
+	put    func(l locked, by, v *present, level uint8, now time.Time)
 }
 
 // afflictions are rolled in this order, so a fixed seed rolls each the same.
@@ -234,30 +233,30 @@ var afflictions = []affliction{
 		chance: func(p skill.Proto, _ *account.Character, level uint8) (int, bool) {
 			return p.StunChance(level), p.Stuns > 0
 		},
-		put: func(w *presence, _, v *present, _ uint8, now time.Time) { w.stun(v, now) },
+		put: func(l locked, _, v *present, _ uint8, now time.Time) { l.stun(v, now) },
 	},
 	{ // a poison
 		chance: func(p skill.Proto, _ *account.Character, level uint8) (int, bool) {
 			chance := int(p.Poisons.At(skill.Power(level)))
 			return chance, chance > 0
 		},
-		put: func(w *presence, by, v *present, _ uint8, now time.Time) { w.poison(v, by, now) },
+		put: func(l locked, by, v *present, _ uint8, now time.Time) { l.poison(v, by, now) },
 	},
 	{ // a slow
 		chance: func(p skill.Proto, _ *account.Character, level uint8) (int, bool) {
 			return skill.SlowChance(level), p.Slows
 		},
-		put: func(w *presence, _, v *present, level uint8, now time.Time) {
-			w.slow(v, now.Add(skill.SlowsFor(level)))
+		put: func(l locked, _, v *present, level uint8, now time.Time) {
+			l.slow(v, now.Add(skill.SlowsFor(level)))
 		},
 	},
 	{ // a burn
 		chance: func(p skill.Proto, c *account.Character, level uint8) (int, bool) {
 			return skill.BurnChance(c.Intelligence, level), p.Burns
 		},
-		put: func(w *presence, by, v *present, level uint8, _ time.Time) {
+		put: func(l locked, by, v *present, level uint8, _ time.Time) {
 			c := by.char
-			w.burn(v, by, max(1, skill.BurnDamage(c.Level, c.Intelligence, level)/burnTurns))
+			l.burn(v, by, max(1, skill.BurnDamage(c.Level, c.Intelligence, level)/burnTurns))
 		},
 	},
 }
@@ -270,8 +269,8 @@ const chainLoss = 13
 // either a chain jumping from each victim to the nearest living monster not yet struck
 // within its reach, or every living monster within its reach of the one aimed at, or of
 // the player, only those in front of them if it strikes ahead, the nearest first; up to
-// its number. Called under the lock.
-func victimsOf(pl, at *present, proto skill.Proto) []*present {
+// its number.
+func (l locked) victimsOf(pl, at *present, proto skill.Proto) []*present {
 	var victims []*present
 	if at != pl {
 		victims = append(victims, at)
@@ -307,7 +306,7 @@ func victimsOf(pl, at *present, proto skill.Proto) []*present {
 
 // casterOf is what the player's spells are made of: their character, the weapon's magic
 // attack rolled from its least to its most, the spell's dice rolled the same way, and
-// their hit rate. Called under the lock.
+// their hit rate. Its caller holds the record's lock, under which the character changes.
 func casterOf(c *account.Character, dice [2]int32, r *rand.Rand) skill.Caster {
 	weapon, _ := item.Lookup(c.Weapon)
 	return skill.Caster{Level: int32(c.Level), Strength: int32(c.Strength), Vitality: int32(c.Vitality),
@@ -329,22 +328,21 @@ func roll(least, most int32, r *rand.Rand) int32 {
 const slowSpeed = 70
 
 // slow holds the monster to slowSpeed of its pace until a time, however long it had left,
-// and shows everyone who sees it the slow and its pace. Called under the lock.
-func (w *presence) slow(v *present, until time.Time) {
+// and shows everyone who sees it the slow and its pace.
+func (l locked) slow(v *present, until time.Time) {
 	v.fight.slowedUntil = until
 	if !v.fight.slowed {
 		v.fight.slowed = true
 		v.add.MoveSpeed = uint8(int(v.add.MoveSpeed) * slowSpeed / 100) //nolint:gosec // a share of a u8
-		showMob(v)
+		l.showMob(v)
 	}
 }
 
-// quicken ends the monster's slow, giving back its pace for everyone who sees it. Called
-// under the lock.
-func (w *presence) quicken(v *present, speed uint8) {
+// quicken ends the monster's slow, giving back its pace for everyone who sees it.
+func (l locked) quicken(v *present, speed uint8) {
 	v.fight.slowed = false
 	v.add.MoveSpeed = speed
-	showMob(v)
+	l.showMob(v)
 }
 
 // dashStop is how far from its target a dash lands: the original client's warp
@@ -355,8 +353,8 @@ const dashStop = 270
 // dash moves the player to dashStop from the monster, on the line between it and where
 // they stood, facing it, for everyone who sees them, at the client clock's time: from
 // nearer too, back along that line, as the original's warp does; one standing on it, with
-// no line, stays. The player's own client plays the dash itself. Called under the lock.
-func (w *presence) dash(pl, v *present, clock uint32) {
+// no line, stays. The player's own client plays the dash itself.
+func (l locked) dash(pl, v *present, clock uint32) {
 	dx, dy := float64(pl.add.X-v.add.X), float64(pl.add.Y-v.add.Y)
 	gap := math.Hypot(dx, dy)
 	if gap == 0 {
@@ -364,7 +362,7 @@ func (w *presence) dash(pl, v *present, clock uint32) {
 	}
 	x := v.add.X + int32(dx/gap*dashStop)
 	y := v.add.Y + int32(dy/gap*dashStop)
-	w.moveLocked(pl, protocol.Move{Type: protocol.MoveWait, Rotation: rotationTowards(v.add.X-x, v.add.Y-y), X: x, Y: y, Time: clock})
+	l.shift(pl, protocol.Move{Type: protocol.MoveWait, Rotation: rotationTowards(v.add.X-x, v.add.Y-y), X: x, Y: y, Time: clock})
 	pl.tether = tether{x: x, y: y}
 }
 
@@ -372,12 +370,12 @@ func (w *presence) dash(pl, v *present, clock uint32) {
 const stunFor = 2 * time.Second
 
 // stun holds the monster where it stands for stunFor from now, however long it had left,
-// and shows everyone who sees it the stun. Called under the lock.
-func (w *presence) stun(v *present, now time.Time) {
+// and shows everyone who sees it the stun.
+func (l locked) stun(v *present, now time.Time) {
 	v.fight.stunnedUntil = now.Add(stunFor)
 	if !v.fight.stunned {
 		v.fight.stunned = true
-		showMob(v)
+		l.showMob(v)
 	}
 }
 
@@ -391,15 +389,15 @@ const (
 
 // poison sets the poisoner's poison on the monster for poisonFor from now, however long
 // the last had left, and shows it to everyone who sees it; one newly poisoned is handed
-// to the world loop to tick. Called under the lock.
-func (w *presence) poison(v, by *present, now time.Time) {
+// to the world loop to tick.
+func (l locked) poison(v, by *present, now time.Time) {
 	f := v.fight
 	f.poisonedUntil, f.poisoner = now.Add(poisonFor), by
 	f.poison = max(1, min(f.maxHP*poisonShare/10000, int(combat.Mean(attackerOf(by.char), f.defender))))
 	if !f.poisoned {
 		f.poisoned = true
-		w.news.poisoned = append(w.news.poisoned, v)
-		showMob(v)
+		l.news.poisoned = append(l.news.poisoned, v)
+		l.showMob(v)
 	}
 }
 
@@ -407,31 +405,31 @@ func (w *presence) poison(v, by *present, now time.Time) {
 // is whoever picked it; one it kills dies at their hand. It reports whether the poison
 // runs on; it ends, shown to everyone, once its time is up or its poisoner has left the
 // world or died. A poison never provokes. Called by the world loop.
-func (w *presence) poisonTick(v *present, now time.Time) bool {
-	w.mu.Lock()
-	defer w.mu.Unlock()
+func (w *record) poisonTick(v *present, now time.Time) bool {
+	l, unlock := w.lock()
+	defer unlock()
 	f := v.fight
-	if v.dead() || w.all[v.add.VID] != v || !f.poisoned {
+	if v.dead() || l.all[v.add.VID] != v || !f.poisoned {
 		return false
 	}
 	by := f.poisoner
-	if !now.Before(f.poisonedUntil) || w.all[by.add.VID] != by || by.dead() {
+	if !now.Before(f.poisonedUntil) || l.all[by.add.VID] != by || by.dead() {
 		f.poisoned = false
-		showMob(v)
+		l.showMob(v)
 		return false
 	}
-	return w.turnDamage(v, by, f.poison, protocol.DamagePoison, now)
+	return l.turnDamage(v, by, f.poison, protocol.DamagePoison, now)
 }
 
-// wake ends the monster's stun for everyone who sees it. Called under the lock.
-func (w *presence) wake(v *present) {
+// wake ends the monster's stun for everyone who sees it.
+func (l locked) wake(v *present) {
 	v.fight.stunned = false
-	showMob(v)
+	l.showMob(v)
 }
 
 // allyOf is who a skill for an ally lands on: the player picked, if they live within its
-// range and are of the caster's kingdom, else the caster. Called under the lock.
-func allyOf(pl *present, target uint32, proto skill.Proto) *present {
+// range and are of the caster's kingdom, else the caster.
+func (l locked) allyOf(pl *present, target uint32, proto skill.Proto) *present {
 	if v, seen := pl.sees[target]; seen && v.isPlayer() && v.char != nil && !v.dead() &&
 		v.info.Empire == pl.info.Empire && within(pl, v, proto.Aim) {
 		return v
@@ -441,8 +439,8 @@ func allyOf(pl *present, target uint32, proto skill.Proto) *present {
 
 // help casts the skill for an ally on them: a heal of its formula's hit points, told to
 // them, or its buff, running at the caster's level of it and INT however their own
-// differ, renewed if it runs already. Called under the lock.
-func (w *presence) help(pl, to *present, sk account.Skill, proto skill.Proto, level uint8, now time.Time, r *rand.Rand) {
+// differ, renewed if it runs already.
+func (l locked) help(pl, to *present, sk account.Skill, proto skill.Proto, level uint8, now time.Time, r *rand.Rand) {
 	if proto.Heal != nil {
 		gain := proto.Heal(casterOf(pl.char, proto.DiceOf(pl.char.Intelligence), r), int32(skill.Power(level))) //nolint:gosec // the power is at most 115
 		points, _ := to.char.Points()
@@ -454,7 +452,7 @@ func (w *presence) help(pl, to *present, sk account.Skill, proto skill.Proto, le
 		c.BuffBy = map[account.Skill]account.BuffCaster{}
 	}
 	c.BuffBy[sk] = account.BuffCaster{Level: level, Intelligence: pl.char.Intelligence}
-	w.startBuff(to, sk, now.Add(proto.LastsAt(level)))
+	l.startBuff(to, sk, now.Add(proto.LastsAt(level)))
 }
 
 // cooldownOf is a cooldown at a casting speed, shortened as the client shortens it: by
@@ -471,17 +469,17 @@ func castingSpeedOf(c *account.Character) int {
 }
 
 // startBuff starts the buff until a time, shows its effect on the player to them and
-// everyone who sees them, and leaves its end for the world loop. Called under the lock.
-func (w *presence) startBuff(pl *present, sk account.Skill, until time.Time) {
+// everyone who sees them, and leaves its end for the world loop.
+func (l locked) startBuff(pl *present, sk account.Skill, until time.Time) {
 	c := pl.char
 	if c.Buffs == nil {
 		c.Buffs = map[account.Skill]time.Time{}
 	}
 	c.Buffs[sk] = until
-	w.showAffects(pl, sk)
-	w.news.buffs = append(w.news.buffs, buffEnd{pl.add.VID, sk, until})
+	l.showAffects(pl, sk)
+	l.news.buffs = append(l.news.buffs, buffEnd{pl.add.VID, sk, until})
 	if p, _ := skill.Lookup(sk); p.Drain != (skill.Scaled{}) {
-		w.news.drains = append(w.news.drains, buffEnd{pl.add.VID, sk, until})
+		l.news.drains = append(l.news.drains, buffEnd{pl.add.VID, sk, until})
 	}
 }
 
@@ -491,10 +489,10 @@ const drainEvery = 5 * time.Second
 // drain takes the toggle's mana for the five seconds to come, and tells the player, if it
 // is still that run; with too little mana left, it ends instead. It reports whether it
 // runs on. Called by the world loop.
-func (w *presence) drain(b buffEnd) bool {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	pl := w.all[b.vid]
+func (w *record) drain(b buffEnd) bool {
+	l, unlock := w.lock()
+	defer unlock()
+	pl := l.all[b.vid]
 	if pl == nil || pl.char == nil || !pl.char.Buffs[b.skill].Equal(b.at) {
 		return false
 	}
@@ -502,7 +500,7 @@ func (w *presence) drain(b buffEnd) bool {
 	p, _ := skill.Lookup(b.skill)
 	cost := p.Drain.At(skill.Power(c.Skills[b.skill]))
 	if c.SP < cost {
-		w.endBuffLocked(pl, b.skill)
+		l.stopBuff(pl, b.skill)
 		return false
 	}
 	c.SP -= cost
@@ -512,35 +510,34 @@ func (w *presence) drain(b buffEnd) bool {
 
 // endBuff ends the player's buff that was due at a time, if it is still that run: one
 // turned off and started again since runs on, and one whose player left is gone.
-func (w *presence) endBuff(b buffEnd) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	pl := w.all[b.vid]
+func (w *record) endBuff(b buffEnd) {
+	l, unlock := w.lock()
+	defer unlock()
+	pl := l.all[b.vid]
 	if pl == nil || pl.char == nil || !pl.char.Buffs[b.skill].Equal(b.at) {
 		return
 	}
-	w.endBuffLocked(pl, b.skill)
+	l.stopBuff(pl, b.skill)
 }
 
-// endBuffLocked ends a running buff and takes its effect off the player for everyone.
-// Called under the lock.
-func (w *presence) endBuffLocked(pl *present, sk account.Skill) {
+// stopBuff ends a running buff and takes its effect off the player for everyone.
+func (l locked) stopBuff(pl *present, sk account.Skill) {
 	delete(pl.char.Buffs, sk)
 	delete(pl.char.BuffBy, sk)
-	w.showAffects(pl, sk)
+	l.showAffects(pl, sk)
 }
 
-// endBuffs ends every buff of a player who died. Called under the lock.
-func (w *presence) endBuffs(pl *present) {
+// stopBuffs ends every buff of a player who died.
+func (l locked) stopBuffs(pl *present) {
 	for sk := range pl.char.Buffs {
-		w.endBuffLocked(pl, sk)
+		l.stopBuff(pl, sk)
 	}
 }
 
 // showAffects tells the player and everyone who sees them the effects on them now, after
 // the buff began or ended, at the speeds they now move and strike at, and the player
-// their defence or speeds if it raises those. Called under the lock.
-func (w *presence) showAffects(pl *present, sk account.Skill) {
+// their defence or speeds if it raises those.
+func (l locked) showAffects(pl *present, sk account.Skill) {
 	c := pl.char
 	pl.add.MoveSpeed, pl.add.AttackSpeed = moveSpeed(c), attackSpeed(c)
 	update := protocol.EncodeCharacterUpdate(pl.info, pl.add, affectsOf(c))
@@ -556,14 +553,14 @@ func (w *presence) showAffects(pl *present, sk account.Skill) {
 	if p.Raise(skill.CastingSpeed) {
 		pl.send(pointTold(pl.add.VID, protocol.PointCastingSpeed, 0, castingSpeedOf(c)))
 	}
-	toViewers(pl, update)
+	l.toViewers(pl, update)
 }
 
 // keepBuffs ends the buffs whose time has come. They are queued in the order they end,
 // so only the head is looked at.
 func (svc *Service) keepBuffs(now time.Time) {
 	for len(svc.buffEnds) > 0 && !now.Before(svc.buffEnds[0].at) {
-		svc.presence.endBuff(svc.buffEnds[0])
+		svc.record.endBuff(svc.buffEnds[0])
 		svc.buffEnds = svc.buffEnds[1:]
 	}
 }

@@ -32,7 +32,7 @@ func (s *session) onFlyTarget(body []byte) error {
 		return err
 	}
 	s.flyTarget = f.Target
-	s.svc.presence.aim(s.playing.vid, protocol.ServerFlyTarget, f)
+	s.svc.record.aim(s.playing.vid, protocol.ServerFlyTarget, f)
 	return nil
 }
 
@@ -47,7 +47,7 @@ func (s *session) onAddFlyTarget(body []byte) error {
 	if f.Target != 0 && len(s.flyAdds) < maxFlyAdds {
 		s.flyAdds = append(s.flyAdds, f.Target)
 	}
-	s.svc.presence.aim(s.playing.vid, protocol.ServerAddFlyTarget, f)
+	s.svc.record.aim(s.playing.vid, protocol.ServerAddFlyTarget, f)
 	return nil
 }
 
@@ -119,7 +119,7 @@ func (s *session) onShoot(body []byte) error {
 	if vnum != 0 {
 		sk, _ := skillByVNum(int(vnum))
 		target, left := s.volley.next(sk, now)
-		if !worn || !left || s.svc.presence.shootSkill(s.playing.vid, target, s.volley, s.rand, now) == blowRefused {
+		if !worn || !left || s.svc.record.shootSkill(s.playing.vid, target, s.volley, s.rand, now) == blowRefused {
 			s.conn.Log().Debug("skill shot dropped", "skill", vnum, "target", target, "arrows", worn)
 			return nil
 		}
@@ -129,12 +129,12 @@ func (s *session) onShoot(body []byte) error {
 	}
 	target := s.flyTarget
 	s.flyTarget, s.flyAdds = 0, nil
-	gap := shotGap(s.svc.presence.attackSpeedOf(s.playing.vid))
+	gap := shotGap(s.svc.record.attackSpeedOf(s.playing.vid))
 	if target == 0 || !worn || now.Sub(s.lastShot) < gap {
 		s.conn.Log().Debug("shot dropped", "target", target, "arrows", worn)
 		return nil
 	}
-	if s.svc.presence.shoot(s.playing.vid, target, s.rand, now) == blowRefused {
+	if s.svc.record.shoot(s.playing.vid, target, s.rand, now) == blowRefused {
 		return nil
 	}
 	s.lastShot = now
@@ -144,45 +144,45 @@ func (s *session) onShoot(body []byte) error {
 
 // aim shows everyone who sees the player what their arrows fly at, while they live and
 // hold a bow.
-func (w *presence) aim(vid uint32, header protocol.ServerHeader, f protocol.FlyTarget) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	if p := w.all[vid]; !p.dead() && bowInHand(p.char) {
-		toViewers(p, protocol.EncodeFlyTarget(header, vid, f))
+func (w *record) aim(vid uint32, header protocol.ServerHeader, f protocol.FlyTarget) {
+	l, unlock := w.lock()
+	defer unlock()
+	if p := l.all[vid]; !p.dead() && bowInHand(p.char) {
+		l.toViewers(p, protocol.EncodeFlyTarget(header, vid, f))
 	}
 }
 
 // shoot lands the player's arrow on the monster vid as a blow, if they hold a bow, and it
 // is alive, in sight and within reach. Their session has seen their arrows.
-func (w *presence) shoot(playerVID, vid uint32, r *rand.Rand, now time.Time) blow {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	p := w.all[playerVID]
+func (w *record) shoot(playerVID, vid uint32, r *rand.Rand, now time.Time) blow {
+	l, unlock := w.lock()
+	defer unlock()
+	p := l.all[playerVID]
 	v, seen := p.sees[vid]
 	if p.dead() || !seen || v.fight == nil || v.dead() || !within(p, v, shootReach) || !bowInHand(p.char) {
 		return blowRefused
 	}
-	return w.land(p, v, r, now)
+	return l.land(p, v, r, now)
 }
 
 // shootSkill lands an arrow of the volley's skill on the monster vid, with its splash and
 // poison, if the player holds a bow, and it is alive, in sight and within reach.
-func (w *presence) shootSkill(playerVID, vid uint32, v volley, r *rand.Rand, now time.Time) blow {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	p := w.all[playerVID]
+func (w *record) shootSkill(playerVID, vid uint32, v volley, r *rand.Rand, now time.Time) blow {
+	l, unlock := w.lock()
+	defer unlock()
+	p := l.all[playerVID]
 	at, seen := p.sees[vid]
 	if p.dead() || !seen || at.fight == nil || at.dead() || !within(p, at, shootReach) || !bowInHand(p.char) {
 		return blowRefused
 	}
 	proto, _ := skill.Lookup(v.skill)
-	w.splash(p, at, proto, v.percent, v.level, now, r)
+	l.splash(p, at, proto, v.percent, v.level, now, r)
 	return blowLanded
 }
 
 // levelOf is the player's level of the skill.
-func (w *presence) levelOf(vid uint32, sk account.Skill) uint8 {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	return w.all[vid].char.Skills[sk]
+func (w *record) levelOf(vid uint32, sk account.Skill) uint8 {
+	l, unlock := w.lock()
+	defer unlock()
+	return l.all[vid].char.Skills[sk]
 }

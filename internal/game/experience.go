@@ -9,11 +9,11 @@ import (
 // shareExp gives out a dead monster's experience, multiplied by the running event: each
 // player who hurt it and is still in the world, alive, gets the share of it that matches
 // the share of its hit points they took, less or more by the gap between its level and
-// theirs. What rounding leaves goes to the killer. Called under the lock.
-func (w *presence) shareExp(f *fight, killer *present) {
+// theirs. What rounding leaves goes to the killer.
+func (l locked) shareExp(f *fight, killer *present) {
 	exp := uint64(f.exp)
-	if w.event != nil {
-		exp = w.event.Exp(exp)
+	if l.event != nil {
+		exp = l.event.Exp(exp)
 	}
 	total := uint64(f.maxHP) //nolint:gosec // hit points are positive
 	gains := map[*present]uint64{}
@@ -21,7 +21,7 @@ func (w *presence) shareExp(f *fight, killer *present) {
 	for p, damage := range f.damageBy {
 		share := exp * uint64(damage) / total //nolint:gosec // damage is positive
 		given += share
-		if w.all[p.add.VID] == p && !p.dead() {
+		if l.all[p.add.VID] == p && !p.dead() {
 			gains[p] += share
 		}
 	}
@@ -29,7 +29,7 @@ func (w *presence) shareExp(f *fight, killer *present) {
 	for p, share := range gains {
 		gain := share * uint64(account.GapPercent(f.defender.Level, p.char.Level)) / 100
 		if gain > 0 {
-			w.gainExp(p, uint32(gain)) //nolint:gosec // at most 18 times a monster's experience, far under 2^32
+			l.gainExp(p, uint32(gain)) //nolint:gosec // at most 18 times a monster's experience, far under 2^32
 		}
 	}
 }
@@ -37,7 +37,7 @@ func (w *presence) shareExp(f *fight, killer *present) {
 // gainExp adds experience to a player and tells them; on a level up, tells them their new
 // level, needs, stat and skill points and maximums, and everyone who sees them the new
 // level.
-func (w *presence) gainExp(p *present, gain uint32) {
+func (l locked) gainExp(p *present, gain uint32) {
 	c := p.char
 	levels := c.GainExp(gain)
 	vid := p.add.VID
@@ -62,7 +62,7 @@ func (w *presence) gainExp(p *present, gain uint32) {
 	if c.SkillGroup != "" {
 		p.send(pointTold(vid, protocol.PointSkillPoints, 0, skillPoints(c)))
 	}
-	toViewers(p, pointTold(vid, protocol.PointLevel, gained, c.Level))
+	l.toViewers(p, pointTold(vid, protocol.PointLevel, gained, c.Level))
 }
 
 // statsByName are the stats a player may spend a point on, as the character window's
@@ -80,14 +80,14 @@ var statsByName = map[string]struct {
 // spendStatPoint moves a stat point into the named stat, if the player has one and the
 // stat is below its cap, and tells them the stat, their points left and, for vitality or
 // intelligence, their new maximum hit points or mana. Anything else is ignored.
-func (w *presence) spendStatPoint(vid uint32, name string) {
+func (w *record) spendStatPoint(vid uint32, name string) {
 	s, known := statsByName[name]
 	if !known {
 		return
 	}
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	p := w.all[vid]
+	l, unlock := w.lock()
+	defer unlock()
+	p := l.all[vid]
 	c := p.char
 	stat := s.stat(c)
 	if !c.SpendStatPoint(stat) {

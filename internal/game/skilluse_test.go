@@ -63,7 +63,7 @@ func TestDragonSwirlStrikesEveryMonsterInItsReach(t *testing.T) {
 	}
 	read(t, client, 2*damageSize)
 	expectNothing(t, client)
-	pl := s.svc.presence.all[1000]
+	pl := s.svc.record.state.all[1000]
 	struck := 0
 	for _, m := range s.svc.monsters {
 		if m.p.fight.damageBy[pl] > 0 {
@@ -73,15 +73,15 @@ func TestDragonSwirlStrikesEveryMonsterInItsReach(t *testing.T) {
 			}
 		}
 	}
-	if struck != 2 || len(s.svc.presence.news.provoked) != 2 {
-		t.Fatalf("struck %d, provoked %d", struck, len(s.svc.presence.news.provoked))
+	if struck != 2 || len(s.svc.record.state.news.provoked) != 2 {
+		t.Fatalf("struck %d, provoked %d", struck, len(s.svc.record.state.news.provoked))
 	}
 }
 
 // A swirl's blow is a normal blow times the skill's: twice and a bit at its first level.
 func TestDragonSwirlStrikesHarderThanABlow(t *testing.T) {
 	s, _, _ := swirling(t)
-	pl := s.svc.presence.all[1000]
+	pl := s.svc.record.state.all[1000]
 	dog := s.svc.monsters[0].p.fight
 	mean := combat.Mean(attackerOf(pl.char), dog.defender)
 
@@ -107,8 +107,8 @@ func TestDragonSwirlKillsWhatItStrikesToDeath(t *testing.T) {
 	}
 
 	read(t, client, pointChangeSize)
-	if len(s.svc.presence.news.fallen) != 2 || s.svc.presence.all[1000].char.Exp == 0 {
-		t.Fatalf("%d fell, exp %d", len(s.svc.presence.news.fallen), s.svc.presence.all[1000].char.Exp)
+	if len(s.svc.record.state.news.fallen) != 2 || s.svc.record.state.all[1000].char.Exp == 0 {
+		t.Fatalf("%d fell, exp %d", len(s.svc.record.state.news.fallen), s.svc.record.state.all[1000].char.Exp)
 	}
 }
 
@@ -122,13 +122,13 @@ func TestDragonSwirlWaitsForItsCooldownAndSparesTheDead(t *testing.T) {
 	if err := s.onUseSkill(used(skill.DragonSwirl)); err != nil {
 		t.Fatal(err)
 	}
-	sp := s.svc.presence.all[1000].char.SP
+	sp := s.svc.record.state.all[1000].char.SP
 
 	s.svc.now = func() time.Time { return noon.Add(15*time.Second - time.Millisecond) }
 	if err := s.onUseSkill(used(skill.DragonSwirl)); err != nil {
 		t.Fatal(err)
 	}
-	if s.svc.presence.all[1000].char.SP != sp {
+	if s.svc.record.state.all[1000].char.SP != sp {
 		t.Fatal("used again before its cooldown")
 	}
 	s.svc.now = func() time.Time { return noon.Add(15 * time.Second) }
@@ -136,8 +136,8 @@ func TestDragonSwirlWaitsForItsCooldownAndSparesTheDead(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if s.svc.presence.all[1000].char.SP == sp || len(s.svc.presence.news.fallen) != 2 {
-		t.Fatalf("SP %d, %d fell", s.svc.presence.all[1000].char.SP, len(s.svc.presence.news.fallen))
+	if s.svc.record.state.all[1000].char.SP == sp || len(s.svc.record.state.news.fallen) != 2 {
+		t.Fatalf("SP %d, %d fell", s.svc.record.state.all[1000].char.SP, len(s.svc.record.state.news.fallen))
 	}
 }
 
@@ -150,14 +150,14 @@ func TestASkillThatCannotBeUsedIsNot(t *testing.T) {
 			s.svc.cooldowns.used(s.playing.ID, skill.DragonSwirl, noon.Add(time.Second))
 			return used(skill.DragonSwirl)
 		},
-		"too little mana": func(s *session) []byte { s.svc.presence.all[1000].char.SP = 56; return used(skill.DragonSwirl) },
+		"too little mana": func(s *session) []byte { s.svc.record.state.all[1000].char.SP = 56; return used(skill.DragonSwirl) },
 		"unlearnt": func(s *session) []byte {
-			delete(s.svc.presence.all[1000].char.Skills, skill.DragonSwirl)
+			delete(s.svc.record.state.all[1000].char.Skills, skill.DragonSwirl)
 			return used(skill.DragonSwirl)
 		},
-		"dead": func(s *session) []byte { s.svc.presence.all[1000].char.HP = 0; return used(skill.DragonSwirl) },
+		"dead": func(s *session) []byte { s.svc.record.state.all[1000].char.HP = 0; return used(skill.DragonSwirl) },
 		"the blade with no sword": func(s *session) []byte {
-			s.svc.presence.all[1000].char.Weapon = 1000 // a dagger
+			s.svc.record.state.all[1000].char.Weapon = 1000 // a dagger
 			return used(skill.EnchantedBlade)
 		},
 		"no such skill": func(*session) []byte {
@@ -167,14 +167,14 @@ func TestASkillThatCannotBeUsedIsNot(t *testing.T) {
 	for name, setup := range cases {
 		s, client, _ := swirling(t)
 		body := setup(s)
-		sp := s.svc.presence.all[1000].char.SP
+		sp := s.svc.record.state.all[1000].char.SP
 
 		if err := s.onUseSkill(body); err != nil {
 			t.Fatal(err)
 		}
 
 		expectNothing(t, client)
-		if s.svc.presence.all[1000].char.SP != sp || len(s.svc.presence.news.provoked) != 0 {
+		if s.svc.record.state.all[1000].char.SP != sp || len(s.svc.record.state.news.provoked) != 0 {
 			t.Errorf("%s: used", name)
 		}
 	}
@@ -194,7 +194,7 @@ func expectGlow(t *testing.T, c net.Conn, on bool) {
 // blows stronger while it runs.
 func TestEnchantedBladeGlowsAndStrengthensHerBlows(t *testing.T) {
 	s, client, kira := swirling(t)
-	pl := s.svc.presence.all[1000]
+	pl := s.svc.record.state.all[1000]
 	plain := attackerOf(pl.char).Bonus
 
 	if err := s.onUseSkill(used(skill.EnchantedBlade)); err != nil {
@@ -218,14 +218,14 @@ func TestEnchantedBladeUsedAgainEndsFree(t *testing.T) {
 		t.Fatal(err)
 	}
 	read(t, client, pointChangeSize+updateSize)
-	s.svc.presence.all[1000].char.SP = 0 // turning it off needs none, as the client checks none
+	s.svc.record.state.all[1000].char.SP = 0 // turning it off needs none, as the client checks none
 
 	if err := s.onUseSkill(used(skill.EnchantedBlade)); err != nil {
 		t.Fatal(err)
 	}
 
 	expectGlow(t, client, false)
-	if c := s.svc.presence.all[1000].char; c.SP != 0 || len(c.Buffs) != 0 || attackerOf(c).Bonus != 0 {
+	if c := s.svc.record.state.all[1000].char; c.SP != 0 || len(c.Buffs) != 0 || attackerOf(c).Bonus != 0 {
 		t.Fatalf("SP %d, buffs %v", c.SP, c.Buffs)
 	}
 }
@@ -240,7 +240,7 @@ func TestEnchantedBladeEndsAfterThreeMinutes(t *testing.T) {
 	for _, m := range s.svc.monsters {
 		m.nextStroll = noon.Add(time.Hour) // nothing in these ticks but the blade
 	}
-	c := s.svc.presence.all[1000].char
+	c := s.svc.record.state.all[1000].char
 	points, _ := c.Points()
 	c.HP, c.SP = points.MaxHP, points.MaxSP
 
@@ -281,12 +281,12 @@ func TestEnchantedBladeEndsOnDeath(t *testing.T) {
 		t.Fatal(err)
 	}
 	read(t, client, pointChangeSize+updateSize)
-	pl := s.svc.presence.all[1000]
+	pl := s.svc.record.state.all[1000]
 
-	s.svc.presence.mu.Lock()
-	pl.char.HP = 0
-	s.svc.presence.die(pl)
-	s.svc.presence.mu.Unlock()
+	s.svc.record.held(func(l locked) {
+		pl.char.HP = 0
+		l.die(pl)
+	})
 
 	expectGlow(t, client, false)
 	if len(pl.char.Buffs) != 0 {
@@ -324,7 +324,7 @@ func TestANewcomerSeesTheBladesGlow(t *testing.T) {
 // queueBuffEnds hands the world loop the buffs' ends from the news, as its tick does,
 // without the rest of a tick.
 func queueBuffEnds(s *Service) {
-	for _, b := range s.presence.takeNews().buffs {
+	for _, b := range s.record.takeNews().buffs {
 		s.buffEnds = inOrder(s.buffEnds, b)
 	}
 }
@@ -338,7 +338,7 @@ func TestDressingKeepsTheBladesGlow(t *testing.T) {
 	}
 	read(t, client, pointChangeSize+updateSize)
 
-	s.svc.presence.dress(1000, outfit{weapon: 10})
+	s.svc.record.dress(1000, outfit{weapon: 10})
 
 	expectGlow(t, client, true)
 }
@@ -351,10 +351,10 @@ func TestTakingTheSwordOffEndsTheBlade(t *testing.T) {
 	}
 	read(t, client, pointChangeSize+updateSize)
 
-	s.svc.presence.dress(1000, outfit{})
+	s.svc.record.dress(1000, outfit{})
 
 	expectGlow(t, client, false)
-	if c := s.svc.presence.all[1000].char; len(c.Buffs) != 0 {
+	if c := s.svc.record.state.all[1000].char; len(c.Buffs) != 0 {
 		t.Fatalf("buffs %v", c.Buffs)
 	}
 }
@@ -366,13 +366,13 @@ func TestACooldownOutlastsTheConnection(t *testing.T) {
 		t.Fatal(err)
 	}
 	again := &session{svc: s.svc, conn: s.conn, phase: protocol.PhaseGame, rand: s.rand, playing: s.playing}
-	sp := s.svc.presence.all[1000].char.SP
+	sp := s.svc.record.state.all[1000].char.SP
 
 	if err := again.onUseSkill(used(skill.DragonSwirl)); err != nil {
 		t.Fatal(err)
 	}
 
-	if s.svc.presence.all[1000].char.SP != sp {
+	if s.svc.record.state.all[1000].char.SP != sp {
 		t.Fatal("swirled again on a new connection")
 	}
 }
@@ -391,8 +391,8 @@ func usedOn(sk account.Skill, vid uint32) []byte {
 // blows and a bit at its first level; the other dog beside it is spared.
 func TestFingerStrikeStrikesTheOneSheTargets(t *testing.T) {
 	s, client, _ := swirling(t)
-	s.svc.presence.all[1000].char.Skills[skill.FingerStrike] = 1
-	pl := s.svc.presence.all[1000]
+	s.svc.record.state.all[1000].char.Skills[skill.FingerStrike] = 1
+	pl := s.svc.record.state.all[1000]
 	dog, other := s.svc.monsters[0].p, s.svc.monsters[1].p
 	mean := combat.Mean(attackerOf(pl.char), dog.fight.defender)
 
@@ -421,14 +421,14 @@ func TestFingerStrikeNeedsAMonsterInReach(t *testing.T) {
 	}
 	for name, target := range cases {
 		s, client, _ := swirling(t)
-		s.svc.presence.all[1000].char.Skills[skill.FingerStrike] = 1
+		s.svc.record.state.all[1000].char.Skills[skill.FingerStrike] = 1
 
 		if err := s.onUseSkill(usedOn(skill.FingerStrike, target(s))); err != nil {
 			t.Fatal(err)
 		}
 
 		expectNothing(t, client)
-		if s.svc.presence.all[1000].char.SP != 500 || len(s.svc.presence.news.provoked) != 0 {
+		if s.svc.record.state.all[1000].char.SP != 500 || len(s.svc.record.state.news.provoked) != 0 {
 			t.Errorf("%s: used", name)
 		}
 	}
@@ -439,7 +439,7 @@ func TestFingerStrikeNeedsAMonsterInReach(t *testing.T) {
 // runs, it is refused rather than turned off.
 func TestEnchantedArmourRaisesHerDefenceUntilItEnds(t *testing.T) {
 	s, client, kira := swirling(t)
-	c := s.svc.presence.all[1000].char
+	c := s.svc.record.state.all[1000].char
 	c.Skills[skill.EnchantedArmour] = 1
 	before, plain := defence(c), armourOf(c)
 
@@ -473,7 +473,7 @@ func TestEnchantedArmourRaisesHerDefenceUntilItEnds(t *testing.T) {
 // her her defence without it.
 func TestEnchantedArmourEndsWhenItsTimeIsUp(t *testing.T) {
 	s, client, _ := swirling(t)
-	c := s.svc.presence.all[1000].char
+	c := s.svc.record.state.all[1000].char
 	c.Skills[skill.EnchantedArmour] = 1
 	before := defence(c)
 	if err := s.onUseSkill(used(skill.EnchantedArmour)); err != nil {
@@ -501,7 +501,7 @@ func TestEnchantedArmourEndsWhenItsTimeIsUp(t *testing.T) {
 // bonus.
 func TestTheBladeAndTheArmourRunTogether(t *testing.T) {
 	s, client, _ := swirling(t)
-	c := s.svc.presence.all[1000].char
+	c := s.svc.record.state.all[1000].char
 	c.Skills[skill.EnchantedArmour] = 1
 	plain := armourOf(c)
 
@@ -535,7 +535,7 @@ func expectArmoured(t *testing.T, c net.Conn, on bool) {
 // defence with her new maximum mana.
 func TestIntelligenceRaisedUnderTheArmourTellsHerDefence(t *testing.T) {
 	s, client, _ := swirling(t)
-	c := s.svc.presence.all[1000].char
+	c := s.svc.record.state.all[1000].char
 	c.Skills[skill.EnchantedArmour], c.Intelligence, c.StatPoints = 20, 9, 1
 	if err := s.onUseSkill(used(skill.EnchantedArmour)); err != nil {
 		t.Fatal(err)
@@ -543,7 +543,7 @@ func TestIntelligenceRaisedUnderTheArmourTellsHerDefence(t *testing.T) {
 	read(t, client, pointChangeSize+updateSize+pointChangeSize)
 	before := defence(c)
 
-	s.svc.presence.spendStatPoint(1000, "iq")
+	s.svc.record.spendStatPoint(1000, "iq")
 
 	read(t, client, 3*pointChangeSize) // the stat, the points left, the maximum mana
 	if got := read(t, client, pointChangeSize); string(got) != string(defenceTold(before+1)) {
@@ -559,7 +559,7 @@ func defenceTold(d uint32) []byte {
 // is used; then it waits out its 10 seconds.
 func TestFingerStrikeCoolsDownOnlyOnceUsed(t *testing.T) {
 	s, client, _ := swirling(t)
-	s.svc.presence.all[1000].char.Skills[skill.FingerStrike] = 1
+	s.svc.record.state.all[1000].char.Skills[skill.FingerStrike] = 1
 	dog := s.svc.monsters[0].p
 	strike := func(at time.Duration, target uint32) {
 		s.svc.now = func() time.Time { return noon.Add(at) }

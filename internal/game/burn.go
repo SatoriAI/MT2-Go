@@ -15,14 +15,14 @@ const (
 
 // burn sets the burner's fire on the monster for burnTurns turns, taking each a
 // turn, however many the last had left, and shows it to everyone who sees it; one newly
-// alight is handed to the world loop to tick. Called under the lock.
-func (w *presence) burn(v, by *present, each int) {
+// alight is handed to the world loop to tick.
+func (l locked) burn(v, by *present, each int) {
 	f := v.fight
 	f.burnTurns, f.burner, f.burnEach = burnTurns, by, each
 	if !f.burning {
 		f.burning = true
-		w.news.burned = append(w.news.burned, v)
-		showMob(v)
+		l.news.burned = append(l.news.burned, v)
+		l.showMob(v)
 	}
 }
 
@@ -30,38 +30,38 @@ func (w *presence) burn(v, by *present, each int) {
 // whoever picked it; one it kills dies at their hand. It reports whether the fire burns
 // on; it goes out, shown to everyone, after its last turn, or once its burner has left the
 // world or died. A burn never provokes. Called by the world loop.
-func (w *presence) burnTick(v *present, now time.Time) bool {
-	w.mu.Lock()
-	defer w.mu.Unlock()
+func (w *record) burnTick(v *present, now time.Time) bool {
+	l, unlock := w.lock()
+	defer unlock()
 	f := v.fight
-	if v.dead() || w.all[v.add.VID] != v || !f.burning {
+	if v.dead() || l.all[v.add.VID] != v || !f.burning {
 		return false
 	}
 	by := f.burner
-	if w.all[by.add.VID] != by || by.dead() {
-		w.putOut(v)
+	if l.all[by.add.VID] != by || by.dead() {
+		l.putOut(v)
 		return false
 	}
-	if !w.turnDamage(v, by, f.burnEach, protocol.DamageNormal, now) {
+	if !l.turnDamage(v, by, f.burnEach, protocol.DamageNormal, now) {
 		return false
 	}
 	if f.burnTurns--; f.burnTurns == 0 {
-		w.putOut(v)
+		l.putOut(v)
 		return false
 	}
 	return true
 }
 
-// putOut ends the monster's fire for everyone who sees it. Called under the lock.
-func (w *presence) putOut(v *present) {
+// putOut ends the monster's fire for everyone who sees it.
+func (l locked) putOut(v *present) {
 	v.fight.burning = false
-	showMob(v)
+	l.showMob(v)
 }
 
 // turnDamage takes a turn's damage of a poison or fire off the monster for whoever set it, who
 // is told it with the flag, as is whoever picked the monster; one it kills dies at their
-// hand. It reports whether the monster lives on. Called under the lock.
-func (w *presence) turnDamage(v, by *present, each int, flag uint8, now time.Time) bool {
+// hand. It reports whether the monster lives on.
+func (l locked) turnDamage(v, by *present, each int, flag uint8, now time.Time) bool {
 	f := v.fight
 	damage := min(each, f.hp)
 	f.hp -= damage
@@ -71,7 +71,7 @@ func (w *presence) turnDamage(v, by *present, each int, flag uint8, now time.Tim
 		t.send(protocol.EncodeTarget(v.add.VID, f.hpPercent()))
 	}
 	if f.hp == 0 {
-		w.kill(by, v, now)
+		l.kill(by, v, now)
 		return false
 	}
 	return true

@@ -16,7 +16,7 @@ import (
 func casting(t *testing.T, dogs int) (*session, net.Conn) {
 	t.Helper()
 	s, client := warring(t, dogs)
-	c := s.svc.presence.all[1000].char
+	c := s.svc.record.state.all[1000].char
 	c.Class, c.SkillGroup, c.Weapon = account.Sura, "black_magic", 10
 	c.Intelligence, c.Dexterity, c.Vitality, c.Strength = 20, 10, 10, 5
 	c.Skills = map[account.Skill]uint8{skill.DarkStrike: 1, skill.FlameStrike: 1, skill.DarkProtection: 1,
@@ -39,7 +39,7 @@ func TestDarkStrikeDoesItsTooltipsDamageThroughArmour(t *testing.T) {
 	if got := read(t, client, pointChangeSize); string(got) != string(manaSpent(37, 463)) { // 30 + 140 × 0.05
 		t.Fatalf("told %x", got)
 	}
-	if got := dog.fight.damageBy[s.svc.presence.all[1000]]; got < 150 || got > 153 {
+	if got := dog.fight.damageBy[s.svc.record.state.all[1000]]; got < 150 || got > 153 {
 		t.Fatalf("struck for %d, want 150 to 153", got)
 	}
 }
@@ -48,9 +48,9 @@ func TestDarkStrikeDoesItsTooltipsDamageThroughArmour(t *testing.T) {
 func TestDarkStrikeReachesFarAndSplashes(t *testing.T) {
 	s, client := casting(t, 6)
 	for _, m := range s.svc.monsters[:6] {
-		s.svc.presence.mu.Lock()
-		s.svc.presence.moveLocked(m.p, protocol.Move{X: homeX + 1400, Y: homeY})
-		s.svc.presence.mu.Unlock()
+		s.svc.record.held(func(l locked) {
+			l.shift(m.p, protocol.Move{X: homeX + 1400, Y: homeY})
+		})
 	}
 	drain(t, client)
 
@@ -110,10 +110,10 @@ func TestGhostStrikeSlowsSome(t *testing.T) {
 // back at its own, for everyone.
 func TestASlowedMonsterWalksSlowerUntilItEnds(t *testing.T) {
 	s, dog, client, _ := suraHits(t, 280)
-	s.presence.mu.Lock()
-	s.presence.slow(dog.p, noon.Add(time.Second))
-	s.presence.moveLocked(s.presence.all[1000], protocol.Move{X: homeX + 2000, Y: homeY}) // so it walks a full step
-	s.presence.mu.Unlock()
+	s.record.held(func(l locked) {
+		l.slow(dog.p, noon.Add(time.Second))
+		l.shift(s.record.state.all[1000], protocol.Move{X: homeX + 2000, Y: homeY}) // so it walks a full step
+	})
 	drain(t, client)
 	from := dog.p.add.X
 
@@ -166,7 +166,7 @@ func TestDarkProtectionEndsWithoutTheManaForItsShare(t *testing.T) {
 // has less than that.
 func TestDarkProtectionDrainsManaUntilThereIsTooLittle(t *testing.T) {
 	s, client := casting(t, 1)
-	c := s.svc.presence.all[1000].char
+	c := s.svc.record.state.all[1000].char
 	if err := s.onUseSkill(used(skill.DarkProtection)); err != nil {
 		t.Fatal(err)
 	}
@@ -200,7 +200,7 @@ func TestTurningDarkProtectionOffStartsNoCooldown(t *testing.T) {
 	}
 	drain(t, client)
 
-	if _, running := s.svc.presence.all[1000].char.Buffs[skill.DarkProtection]; running {
+	if _, running := s.svc.record.state.all[1000].char.Buffs[skill.DarkProtection]; running {
 		t.Fatal("still running")
 	}
 	if got := s.svc.cooldowns.ready[cooldown{s.playing.ID, skill.DarkProtection}]; !got.Equal(on) {
@@ -213,12 +213,12 @@ func TestTurningDarkProtectionOffStartsNoCooldown(t *testing.T) {
 func TestDarkStrikesDamageSpreadsOverItsRange(t *testing.T) {
 	s, _ := casting(t, 1)
 	dog := s.svc.monsters[0].p
-	pl := s.svc.presence.all[1000]
+	pl := s.svc.record.state.all[1000]
 	pl.char.SP = 100000
 	most := 0
 	for range 100 {
 		before := dog.fight.damageBy[pl]
-		s.svc.presence.useSkill(1000, skill.DarkStrike, dog.add.VID, noon, 0, s.rand, func() bool { return true })
+		s.svc.record.useSkill(1000, skill.DarkStrike, dog.add.VID, noon, 0, s.rand, func() bool { return true })
 		most = max(most, dog.fight.damageBy[pl]-before)
 	}
 	if most < 152 {

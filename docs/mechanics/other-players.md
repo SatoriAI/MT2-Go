@@ -66,7 +66,7 @@ Another player's ADD (`01`) and INFO (`88`) are the ones on [entering-the-world.
 
 ## What the server does
 
-`internal/game/presence.go` keeps who is in the world, by vid and by the map each stands on (from `internal/world`), so a move looks only at those on its map, where they are, and whom each has been shown. Two players see each other when they are on the same map and at most 8000 apart, the edge included; seeing is always mutual, so both sides change together. Players on no known map share one map with each other; only bad data puts a character there.
+`internal/game/record.go` keeps who is in the world, by vid and by the map each stands on (from `internal/world`), so a move looks only at those on its map, where they are, and whom each has been shown. Two players see each other when they are on the same map and at most 8000 apart, the edge included; seeing is always mutual, so both sides change together. Players on no known map share one map with each other; only bad data puts a character there.
 
 The range is open-mt2's choice; the client takes any, and draws characters up to 20000 away, so everyone in range is drawn. Who sees whom changes only when someone enters, moves or leaves, as in open-mt2.
 
@@ -119,7 +119,7 @@ The range is open-mt2's choice; the client takes any, and draws characters up to
   - rising where she fell starting the tether afresh;
   - the tether following a restart in town and a dash;
   - the dead not walking.
-- `internal/game/presence_test.go`: a player whose connection closed while entering leaving without disturbing the others; someone entering a map of 20,000 players getting them all without filling their queue.
+- `internal/game/record_test.go`: a player whose connection closed while entering leaving without disturbing the others; someone entering a map of 20,000 players getting them all without filling their queue.
 - `internal/network/server_test.go`: sends from several goroutines arriving whole and in order; what was sent before a hang-up reaching the client; a client that stops reading being disconnected; a sender to a client far behind being refused at once rather than made to wait.
 
 ## Not done yet

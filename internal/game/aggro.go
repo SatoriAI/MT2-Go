@@ -75,24 +75,10 @@ const (
 // lookOut sets each aggressive monster that lives and fights no one on the nearest player
 // it sees within its sight, alive and seen, and its pack with it.
 func (svc *Service) lookOut(now time.Time) {
-	type sighting struct {
-		m *monster
-		t *present
-	}
 	if len(svc.watchers) == 0 {
 		return // no lock taken where nothing looks out
 	}
-	var spotted []sighting
-	svc.presence.mu.Lock()
-	for _, m := range svc.watchers {
-		if m.chase == nil && m.diedAt.IsZero() && !m.gone && (m.pack == nil || !now.Before(m.pack.calmUntil)) {
-			if t := prey(m, now); t != nil {
-				spotted = append(spotted, sighting{m, t})
-			}
-		}
-	}
-	svc.presence.mu.Unlock()
-	for _, s := range spotted {
+	for _, s := range svc.sightings(now) {
 		if s.m.chase == nil { // a packmate spotted first may have rallied it
 			svc.chaseOn(s.m, s.t, now)
 			svc.rally(s.m, s.t, now)
@@ -100,9 +86,31 @@ func (svc *Service) lookOut(now time.Time) {
 	}
 }
 
+// sighting is a watcher and the player it spotted.
+type sighting struct {
+	m *monster
+	t *present
+}
+
+// sightings are the players the free watchers spot, taken in one lock. A chase is the
+// loop's own, so lookOut sets them on after it, keeping the lock short.
+func (svc *Service) sightings(now time.Time) []sighting {
+	var spotted []sighting
+	l, unlock := svc.record.lock()
+	defer unlock()
+	for _, m := range svc.watchers {
+		if m.chase == nil && m.diedAt.IsZero() && !m.gone && (m.pack == nil || !now.Before(m.pack.calmUntil)) {
+			if t := l.prey(m, now); t != nil {
+				spotted = append(spotted, sighting{m, t})
+			}
+		}
+	}
+	return spotted
+}
+
 // prey is the nearest player the monster sees within its sight whom it would attack, or
-// nil. Called under the lock.
-func prey(m *monster, now time.Time) *present {
+// nil.
+func (l locked) prey(m *monster, now time.Time) *present {
 	return nearest(m.p, m.p.sees, func(p *present) bool {
 		return !p.dead() && !now.Before(p.char.UnseenUntil) && p.char.Level <= m.proto.Level+ignoredAbove &&
 			within(m.p, p, aggressiveSight)
@@ -135,7 +143,7 @@ func (svc *Service) fightOn(now time.Time) {
 	for _, m := range svc.fighting {
 		switch {
 		case m.chase == nil: // it died
-		case now.Before(m.chase.nextStep) || svc.presence.fightStep(m, now, svc.clock.Now(), svc.rand):
+		case now.Before(m.chase.nextStep) || svc.record.fightStep(m, now, svc.clock.Now(), svc.rand):
 			kept = append(kept, m)
 		default:
 			svc.goHome(m, now)
@@ -149,7 +157,7 @@ func (svc *Service) fightOn(now time.Time) {
 // strolls again. The world record has it home at once, while the client walks it there.
 func (svc *Service) goHome(m *monster, now time.Time) {
 	m.chase = nil
-	svc.presence.move(m.p.add.VID, protocol.Move{Type: protocol.MoveWait, Rotation: rotationTowards(m.homeX-m.x, m.homeY-m.y),
+	svc.record.move(m.p.add.VID, protocol.Move{Type: protocol.MoveWait, Rotation: rotationTowards(m.homeX-m.x, m.homeY-m.y),
 		X: m.homeX, Y: m.homeY, Time: svc.clock.Now()})
 	walk := time.Duration(math.Hypot(float64(m.homeX-m.x), float64(m.homeY-m.y)) /
 		(walkPerSecond * float64(max(m.proto.MoveSpeed, 1)) / 100) * float64(time.Second))
@@ -164,23 +172,23 @@ func (svc *Service) goHome(m *monster, now time.Time) {
 // its bite is due, otherwise a walk towards it. It reports false when the monster stops:
 // it died, its target left the world or died, it has not fought for too long, or it
 // strayed too far. Called from the world loop, which owns m.
-func (w *presence) fightStep(m *monster, now time.Time, clock uint32, r *rand.Rand) bool {
-	w.mu.Lock()
-	defer w.mu.Unlock()
+func (w *record) fightStep(m *monster, now time.Time, clock uint32, r *rand.Rand) bool {
+	l, unlock := w.lock()
+	defer unlock()
 	c, me := m.chase, m.p
 	t := c.target
-	if me.dead() || w.all[t.add.VID] != t || t.dead() || now.Sub(c.lastExchange) >= giveUpAfter ||
+	if me.dead() || l.all[t.add.VID] != t || t.dead() || now.Sub(c.lastExchange) >= giveUpAfter ||
 		!near(me.add.X, me.add.Y, c.fromX, c.fromY, leash) {
 		if me.fight.stunned && !me.dead() {
-			w.wake(me) // it goes home awake
+			l.wake(me) // it goes home awake
 		}
 		if me.fight.slowed && !me.dead() {
-			w.quicken(me, m.proto.MoveSpeed) // and at its own pace
+			l.quicken(me, m.proto.MoveSpeed) // and at its own pace
 		}
 		return false
 	}
 	if me.fight.slowed && !now.Before(me.fight.slowedUntil) {
-		w.quicken(me, m.proto.MoveSpeed)
+		l.quicken(me, m.proto.MoveSpeed)
 	}
 	c.nextStep = now.Add(chaseStep)
 	if me.fight.stunned {
@@ -188,17 +196,17 @@ func (w *presence) fightStep(m *monster, now time.Time, clock uint32, r *rand.Ra
 			c.nextStep = minTime(c.nextStep, me.fight.stunnedUntil) // it comes to on time
 			return true                                             // it stands, and bites nothing, until then
 		}
-		w.wake(me)
+		l.wake(me)
 	}
 	if within(me, t, int64(m.proto.AttackRange)*115/100) {
 		if !now.Before(c.nextBite) {
-			w.bite(m, t, now, clock, r)
+			l.bite(m, t, now, clock, r)
 		}
 		return true
 	}
 	x, y := approach(me.add.X, me.add.Y, t.add.X, t.add.Y, float64(m.proto.AttackRange)*0.9,
 		walkPerSecond*float64(me.add.MoveSpeed)/100*chaseStep.Seconds()) // a slowed one walks slower
-	w.moveLocked(me, protocol.Move{Type: protocol.MoveWait, Rotation: rotationTowards(x-me.add.X, y-me.add.Y),
+	l.shift(me, protocol.Move{Type: protocol.MoveWait, Rotation: rotationTowards(x-me.add.X, y-me.add.Y),
 		X: x, Y: y, Time: clock})
 	m.x, m.y = x, y
 	return true
@@ -207,18 +215,18 @@ func (w *presence) fightStep(m *monster, now time.Time, clock uint32, r *rand.Ra
 // bite has the monster attack its target where it stands: everyone who sees it sees the
 // attack, and the target is told the damage, more by what their buffs make them take, and
 // their hit points left, and dies at none.
-func (w *presence) bite(m *monster, t *present, now time.Time, clock uint32, r *rand.Rand) {
+func (l locked) bite(m *monster, t *present, now time.Time, clock uint32, r *rand.Rand) {
 	me, c, ch := m.p, m.chase, t.char
 	rotation := rotationTowards(t.add.X-me.add.X, t.add.Y-me.add.Y)
 	me.add.Rotation = float32(rotation) * 5
-	toViewers(me, protocol.EncodeMove(me.add.VID, protocol.Move{Type: protocol.MoveAttack, Rotation: rotation,
+	l.toViewers(me, protocol.EncodeMove(me.add.VID, protocol.Move{Type: protocol.MoveAttack, Rotation: rotation,
 		X: me.add.X, Y: me.add.Y, Time: clock}))
 	b := combat.Biter{Level: m.proto.Level, Strength: m.proto.Strength, DamageMin: m.proto.DamageMin,
 		DamageMax: m.proto.DamageMax}
 	bitten := combat.Bite(b, combat.Defender{Level: ch.Level, Vitality: ch.Vitality, Armour: armourOf(ch)}, r)
 	bitten = bitten * (100 + buffBonus(ch, skill.DamageTaken)) / 100
 	bitten = bitten * (100 - min(maxResistance, buffBonus(ch, skill.Resistance))) / 100
-	damage := min(w.shield(t, uint32(max(1, bitten))), ch.HP) //nolint:gosec // at least 1
+	damage := min(l.shield(t, uint32(max(1, bitten))), ch.HP) //nolint:gosec // at least 1
 	ch.HP -= damage
 	ch.LastFought = now
 	vid := t.add.VID
@@ -226,11 +234,11 @@ func (w *presence) bite(m *monster, t *present, now time.Time, clock uint32, r *
 		pointTold(vid, protocol.PointHP, -int(damage), ch.HP))
 	c.lastExchange, c.fromX, c.fromY, c.nextBite = now, me.add.X, me.add.Y, now.Add(biteGap(m.proto.AttackSpeed))
 	if ch.HP == 0 {
-		w.die(t)
+		l.die(t)
 		return
 	}
 	if back := int(damage) * buffBonus(ch, skill.Reflect) / 100; back > 0 {
-		w.strike(t, me, back, now) // it can kill the biter, at their hand
+		l.strike(t, me, back, now) // it can kill the biter, at their hand
 	}
 }
 
@@ -240,8 +248,8 @@ const maxResistance = 50
 
 // shield takes the share of a bite the player's mana shield turns onto their mana, and
 // tells them; with too little mana for it, the shield ends and the whole bite is theirs.
-// It returns what is left for their hit points. Called under the lock.
-func (w *presence) shield(t *present, damage uint32) uint32 {
+// It returns what is left for their hit points.
+func (l locked) shield(t *present, damage uint32) uint32 {
 	ch := t.char
 	share := buffBonus(ch, skill.ManaShield)
 	if share <= 0 {
@@ -251,7 +259,7 @@ func (w *presence) shield(t *present, damage uint32) uint32 {
 	if ch.SP < taken {
 		for sk := range ch.Buffs {
 			if p, _ := skill.Lookup(sk); p.Raise(skill.ManaShield) {
-				w.endBuffLocked(t, sk)
+				l.stopBuff(t, sk)
 			}
 		}
 		return damage

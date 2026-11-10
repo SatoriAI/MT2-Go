@@ -16,7 +16,7 @@ import (
 func archering(t *testing.T, dogs int, level uint8) *session {
 	t.Helper()
 	s, _, client, _ := archerAmong(t, 1500, 100, dogs)
-	c := s.svc.presence.all[1000].char
+	c := s.svc.record.state.all[1000].char
 	c.SkillGroup, c.SP = "archery", 1000
 	c.Skills = map[account.Skill]uint8{skill.RepetitiveShot: level, skill.ArrowShower: level, skill.FireArrow: level,
 		skill.FeatherWalk: level, skill.PoisonArrow: level}
@@ -48,7 +48,7 @@ func arrowsLeft(s *session) uint8 {
 
 // hurtEach is what each dog has taken from her.
 func hurtEach(s *session) []int {
-	pl := s.svc.presence.all[1000]
+	pl := s.svc.record.state.all[1000]
 	took := make([]int, len(s.svc.monsters))
 	for i, m := range s.svc.monsters {
 		took[i] = m.p.fight.damageBy[pl]
@@ -66,7 +66,7 @@ func TestRepetitiveShotLetsItsArrowsGoAtTheOnePicked(t *testing.T) {
 	if err := s.onUseSkill(usedOn(skill.RepetitiveShot, dog)); err != nil {
 		t.Fatal(err)
 	}
-	if sp := s.svc.presence.all[1000].char.SP; sp != 1000-46 || hurt(s) != 0 {
+	if sp := s.svc.record.state.all[1000].char.SP; sp != 1000-46 || hurt(s) != 0 {
 		t.Fatalf("SP %d, the dog took %d before an arrow flew", sp, hurt(s))
 	}
 	loosed(t, s, skill.RepetitiveShot)
@@ -185,8 +185,8 @@ func TestASkillsArrowsAreDroppedOutsideItsVolley(t *testing.T) {
 // An arrow skill is not used, and costs nothing, without arrows worn or a bow in hand.
 func TestAnArrowSkillNeedsArrowsAndABow(t *testing.T) {
 	for name, change := range map[string]func(s *session){
-		"no arrows": func(s *session) { s.inventory = s.inventory[:1]; s.svc.presence.all[1000].char.Arrow = 0 },
-		"no bow":    func(s *session) { s.svc.presence.all[1000].char.Weapon = 1000 },
+		"no arrows": func(s *session) { s.inventory = s.inventory[:1]; s.svc.record.state.all[1000].char.Arrow = 0 },
+		"no bow":    func(s *session) { s.svc.record.state.all[1000].char.Weapon = 1000 },
 	} {
 		s := archering(t, 1, 1)
 		change(s)
@@ -194,7 +194,7 @@ func TestAnArrowSkillNeedsArrowsAndABow(t *testing.T) {
 			t.Fatal(err)
 		}
 		loosed(t, s, skill.FireArrow)
-		if sp := s.svc.presence.all[1000].char.SP; sp != 1000 || hurt(s) != 0 {
+		if sp := s.svc.record.state.all[1000].char.SP; sp != 1000 || hurt(s) != 0 {
 			t.Fatalf("%s: SP %d, the dog took %d", name, sp, hurt(s))
 		}
 	}
@@ -204,7 +204,7 @@ func TestAnArrowSkillNeedsArrowsAndABow(t *testing.T) {
 // affect bit 17 shown to her, for 15 + 30k seconds.
 func TestFeatherWalkQuickensHerStep(t *testing.T) {
 	s, _, client, _ := archerAmong(t, 1500, 100, 1)
-	c := s.svc.presence.all[1000].char
+	c := s.svc.record.state.all[1000].char
 	c.SkillGroup, c.SP, c.Skills = "archery", 1000, map[account.Skill]uint8{skill.FeatherWalk: 1}
 	before := moveSpeed(c)
 	drain(t, client)
@@ -213,7 +213,7 @@ func TestFeatherWalkQuickensHerStep(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	pl := s.svc.presence.all[1000]
+	pl := s.svc.record.state.all[1000]
 	if got := drain(t, client); pl.add.MoveSpeed != before+3 || affectsOf(c)&(1<<17) == 0 ||
 		!bytes.Contains(got, protocol.EncodePointChange(1000, protocol.PointMoveSpeed, 0, int32(before+3))) {
 		t.Fatalf("speed %d from %d, affects %x, told %x", pl.add.MoveSpeed, before, affectsOf(c), got)
@@ -296,8 +296,8 @@ func TestArrowShowersAimsAreNotCarriedOver(t *testing.T) {
 // it is let go.
 func TestASkillsArrowNeedsArrowsAndABowWhenShot(t *testing.T) {
 	for name, change := range map[string]func(s *session){
-		"arrows taken off": func(s *session) { s.inventory = s.inventory[:1]; s.svc.presence.all[1000].char.Arrow = 0 },
-		"a dagger taken":   func(s *session) { s.svc.presence.all[1000].char.Weapon = 1000 },
+		"arrows taken off": func(s *session) { s.inventory = s.inventory[:1]; s.svc.record.state.all[1000].char.Arrow = 0 },
+		"a dagger taken":   func(s *session) { s.svc.record.state.all[1000].char.Weapon = 1000 },
 	} {
 		s := archering(t, 1, 1)
 		if err := s.onUseSkill(usedOn(skill.FireArrow, dogVIDs(s)[0])); err != nil {

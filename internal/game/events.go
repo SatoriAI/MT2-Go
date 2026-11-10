@@ -30,7 +30,7 @@ func (svc *Service) WatchEvents(ctx context.Context, events Events, every time.D
 		case err != nil:
 			log.Warn("events not checked", "err", err)
 		default:
-			svc.presence.switchEvent(e, running)
+			svc.record.switchEvent(e, running)
 		}
 		select {
 		case <-ctx.Done():
@@ -48,22 +48,22 @@ func lookForEvent(ctx context.Context, events Events, within time.Duration, now 
 
 // switchEvent makes e the running event, or none, and tells every player of the one that
 // ended and the one that began.
-func (w *presence) switchEvent(e event.Event, running bool) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	if (w.event == nil && !running) || (w.event != nil && running && w.event.ID == e.ID) {
+func (w *record) switchEvent(e event.Event, running bool) {
+	l, unlock := w.lock()
+	defer unlock()
+	if (l.event == nil && !running) || (l.event != nil && running && l.event.ID == e.ID) {
 		return
 	}
 	var notices [][]byte
-	if w.event != nil {
-		notices = append(notices, notice(fmt.Sprintf("Wydarzenie „%s” dobiegło końca.", w.event.Name)))
-		w.event = nil
+	if l.event != nil {
+		notices = append(notices, notice(fmt.Sprintf("Wydarzenie „%s” dobiegło końca.", l.event.Name)))
+		l.event = nil
 	}
 	if running {
-		w.event = &e
+		l.event = &e
 		notices = append(notices, eventNotice(e))
 	}
-	for _, p := range w.byName {
+	for _, p := range l.byName {
 		p.send(notices...)
 	}
 }

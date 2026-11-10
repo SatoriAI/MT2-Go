@@ -44,7 +44,7 @@ func (s *session) onWhisper(body []byte) error {
 	if p.Blocks.Has(account.BlockWhisper) {
 		return s.conn.Send(protocol.EncodeWhisper(protocol.WhisperSenderBlocked, w.To, ""))
 	}
-	recipient, outcome := s.svc.presence.whisper(w.To, protocol.EncodeWhisper(protocol.WhisperLine, p.Name, w.Text))
+	recipient, outcome := s.svc.record.whisper(w.To, protocol.EncodeWhisper(protocol.WhisperLine, p.Name, w.Text))
 	switch outcome {
 	case whisperNotFound:
 		return s.conn.Send(protocol.EncodeWhisper(protocol.WhisperNotOnline, w.To, ""))

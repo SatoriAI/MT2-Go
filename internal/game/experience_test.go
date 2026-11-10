@@ -26,9 +26,9 @@ func pointChange(t *testing.T, c net.Conn, vid uint32) (point protocol.Point, am
 func killAlone(t *testing.T, c *account.Character) (*Service, net.Conn) {
 	t.Helper()
 	s, dog, client := aDog(t, homeX+100)
-	s.presence.all[1000].char = c
+	s.record.state.all[1000].char = c
 	c.Strength, c.Class = 90, account.Warrior // one blow kills
-	s.presence.attack(1000, dog.p.add.VID, 0, someRand, noon)
+	s.record.attack(1000, dog.p.add.VID, 0, someRand, noon)
 	read(t, client, damageSize+deadSize)
 	return s, client
 }
@@ -65,11 +65,11 @@ func TestAMonsterAboveGivesMore(t *testing.T) {
 	s := worldWith(t, world.Spawn{VNum: 108, X: homeX, Y: homeY, Count: 1})
 	client := s.playerAt(t, homeX+100, addSize)
 	c := &account.Character{HP: 1000, SP: 1000, Level: 1, Class: account.Warrior, Stats: account.Stats{Strength: 90}}
-	s.presence.all[1000].char = c
+	s.record.state.all[1000].char = c
 	boar := s.monsters[0].p.add.VID
-	s.presence.attack(1000, boar, 0, someRand, noon) // a boar's 248 hit points take two blows
+	s.record.attack(1000, boar, 0, someRand, noon) // a boar's 248 hit points take two blows
 	read(t, client, damageSize)
-	s.presence.attack(1000, boar, 0, someRand, noon)
+	s.record.attack(1000, boar, 0, someRand, noon)
 	read(t, client, damageSize+deadSize)
 
 	if _, amount, _ := pointChange(t, client, 1000); amount != 87*130/100 {
@@ -82,13 +82,13 @@ func TestAMonsterAboveGivesMore(t *testing.T) {
 func TestFillingTheNeedRaisesTheLevelForTheirClientAndOnlookers(t *testing.T) {
 	s, dog, client := aDog(t, homeX+100)
 	c := &account.Character{HP: 1000, SP: 1000, Level: 1, Exp: 290, Class: account.Warrior, Stats: account.Stats{Strength: 90}}
-	s.presence.all[1000].char = c
+	s.record.state.all[1000].char = c
 	conn, onlooker := watcher(t)
-	s.presence.enter(&present{out: conn, add: protocol.CharacterAdd{VID: 2000, X: homeX + 200, Y: homeY}})
+	s.record.enter(&present{out: conn, add: protocol.CharacterAdd{VID: 2000, X: homeX + 200, Y: homeY}})
 	read(t, onlooker, addSize+addSize) // the dog and the player
 	read(t, client, addSize)           // the onlooker
 
-	s.presence.attack(1000, dog.p.add.VID, 0, someRand, noon)
+	s.record.attack(1000, dog.p.add.VID, 0, someRand, noon)
 	read(t, client, damageSize+deadSize)
 
 	points, _ := c.Points()
@@ -109,7 +109,7 @@ func TestFillingTheNeedRaisesTheLevelForTheirClientAndOnlookers(t *testing.T) {
 	if point, _, value := pointChange(t, onlooker, 1000); point != protocol.PointLevel || value != 2 {
 		t.Fatalf("the onlooker got point %d at %d, want the level at 2", point, value)
 	}
-	if s.presence.all[1000].info.Level != 2 {
+	if s.record.state.all[1000].info.Level != 2 {
 		t.Fatal("someone arriving later would see level 1")
 	}
 }
@@ -119,18 +119,18 @@ func TestFillingTheNeedRaisesTheLevelForTheirClientAndOnlookers(t *testing.T) {
 func TestExperienceIsSharedByTheDamageEachDealt(t *testing.T) {
 	s, dog, first := aDog(t, homeX+100)
 	conn, second := watcher(t)
-	s.presence.enter(&present{out: conn, add: protocol.CharacterAdd{VID: 2000, X: homeX + 150, Y: homeY}})
+	s.record.enter(&present{out: conn, add: protocol.CharacterAdd{VID: 2000, X: homeX + 150, Y: homeY}})
 	read(t, second, addSize+addSize)
 	read(t, first, addSize)
 	weak := &account.Character{HP: 1000, SP: 1000, Level: 1, Class: account.Warrior, Stats: account.Stats{Strength: 30}}
 	strong := &account.Character{HP: 1000, SP: 1000, Level: 1, Class: account.Warrior, Stats: account.Stats{Strength: 90}}
-	s.presence.all[1000].char, s.presence.all[2000].char = weak, strong
+	s.record.state.all[1000].char, s.record.state.all[2000].char = weak, strong
 	vid := dog.p.add.VID
 
-	s.presence.attack(1000, vid, 0, someRand, noon)
+	s.record.attack(1000, vid, 0, someRand, noon)
 	read(t, first, damageSize)
 	dealt := 126 - dog.p.fight.hp
-	s.presence.attack(2000, vid, 0, someRand, noon)
+	s.record.attack(2000, vid, 0, someRand, noon)
 	read(t, second, damageSize+deadSize)
 	read(t, first, deadSize)
 
@@ -147,18 +147,18 @@ func TestExperienceIsSharedByTheDamageEachDealt(t *testing.T) {
 func TestAPlayerWhoLeftGetsNoShare(t *testing.T) {
 	s, dog, killer := aDog(t, homeX+100)
 	conn, _ := watcher(t)
-	s.presence.enter(&present{out: conn, add: protocol.CharacterAdd{VID: 2000, X: homeX + 150, Y: homeY}})
+	s.record.enter(&present{out: conn, add: protocol.CharacterAdd{VID: 2000, X: homeX + 150, Y: homeY}})
 	read(t, killer, addSize)
 	gone := &account.Character{HP: 1000, SP: 1000, Level: 1, Class: account.Warrior, Stats: account.Stats{Strength: 30}}
-	s.presence.all[2000].char = gone
-	s.presence.all[1000].char = &account.Character{HP: 1000, SP: 1000, Level: 1, Class: account.Warrior, Stats: account.Stats{Strength: 90}}
+	s.record.state.all[2000].char = gone
+	s.record.state.all[1000].char = &account.Character{HP: 1000, SP: 1000, Level: 1, Class: account.Warrior, Stats: account.Stats{Strength: 90}}
 	vid := dog.p.add.VID
-	s.presence.attack(2000, vid, 0, someRand, noon)
+	s.record.attack(2000, vid, 0, someRand, noon)
 	dealt := 126 - dog.p.fight.hp
-	s.presence.leave(2000)
+	s.record.leave(2000)
 	read(t, killer, deleteSize)
 
-	s.presence.attack(1000, vid, 0, someRand, noon)
+	s.record.attack(1000, vid, 0, someRand, noon)
 	read(t, killer, damageSize+deadSize)
 
 	if _, amount, _ := pointChange(t, killer, 1000); amount != 15-int32(15*dealt/126) { //nolint:gosec // small
@@ -174,16 +174,16 @@ func TestAPlayerWhoLeftGetsNoShare(t *testing.T) {
 func TestSpendingAStatPointRaisesTheStat(t *testing.T) {
 	s, _, client := aDog(t, homeX+100)
 	c := &account.Character{HP: 1000, SP: 1000, Level: 2, StatPoints: 2, Class: account.Warrior, Stats: account.Stats{Strength: 6, Vitality: 4}}
-	s.presence.all[1000].char = c
+	s.record.state.all[1000].char = c
 
-	s.presence.spendStatPoint(1000, "st")
+	s.record.spendStatPoint(1000, "st")
 	if point, _, value := pointChange(t, client, 1000); point != protocol.PointST || value != 7 {
 		t.Fatalf("got point %d at %d, want strength 7", point, value)
 	}
 	if point, _, value := pointChange(t, client, 1000); point != protocol.PointStatPoints || value != 1 {
 		t.Fatalf("got point %d at %d, want 1 point left", point, value)
 	}
-	s.presence.spendStatPoint(1000, "ht")
+	s.record.spendStatPoint(1000, "ht")
 	pointChange(t, client, 1000)
 	pointChange(t, client, 1000)
 	points, _ := c.Points()
@@ -196,11 +196,11 @@ func TestSpendingAStatPointRaisesTheStat(t *testing.T) {
 func TestNoPointOrAnUnknownStatChangesNothing(t *testing.T) {
 	s, _, client := aDog(t, homeX+100)
 	c := &account.Character{HP: 1000, SP: 1000, Level: 1, Stats: account.Stats{Strength: 6}}
-	s.presence.all[1000].char = c
+	s.record.state.all[1000].char = c
 
-	s.presence.spendStatPoint(1000, "st")
+	s.record.spendStatPoint(1000, "st")
 	c.StatPoints = 1
-	s.presence.spendStatPoint(1000, "luck")
+	s.record.spendStatPoint(1000, "luck")
 
 	expectNothing(t, client)
 	if c.Strength != 6 || c.StatPoints != 1 {

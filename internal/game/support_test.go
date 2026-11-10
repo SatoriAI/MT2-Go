@@ -18,7 +18,7 @@ import (
 func supporting(t *testing.T) (*session, net.Conn, *present, net.Conn) {
 	t.Helper()
 	s, client := shamanising(t, 1)
-	c := s.svc.presence.all[1000].char
+	c := s.svc.record.state.all[1000].char
 	for _, sk := range []account.Skill{skill.Blessing, skill.Reflection, skill.DragonsHelp, skill.Heal, skill.Swiftness, skill.AttackUp} {
 		c.Skills[sk] = 1
 	}
@@ -41,7 +41,7 @@ func TestBlessingLandsOnThePlayerPicked(t *testing.T) {
 	if _, running := kira.char.Buffs[skill.Blessing]; !running || kira.char.BuffBy[skill.Blessing] != (account.BuffCaster{Level: 1, Intelligence: 20}) {
 		t.Fatalf("Kira's buffs %v by %v", kira.char.Buffs, kira.char.BuffBy)
 	}
-	if _, running := s.svc.presence.all[1000].char.Buffs[skill.Blessing]; running {
+	if _, running := s.svc.record.state.all[1000].char.Buffs[skill.Blessing]; running {
 		t.Fatal("it ran on the shaman too")
 	}
 	if got := drain(t, kiraClient); !bytes.Contains(got, protocol.EncodeCharacterUpdate(kira.info, kira.add, 1<<22)) {
@@ -61,7 +61,7 @@ func TestABuffLandsOnTheCasterWithNoAllyInReach(t *testing.T) {
 		if err := s.onUseSkill(usedOn(skill.Blessing, set(s, kira))); err != nil {
 			t.Fatal(err)
 		}
-		if _, running := s.svc.presence.all[1000].char.Buffs[skill.Blessing]; !running {
+		if _, running := s.svc.record.state.all[1000].char.Buffs[skill.Blessing]; !running {
 			t.Errorf("%s: not on the shaman", name)
 		}
 		if _, running := kira.char.Buffs[skill.Blessing]; running {
@@ -113,7 +113,7 @@ func TestReflectionSendsABiteBack(t *testing.T) {
 	c.Buffs = map[account.Skill]time.Time{skill.Reflection: noon.Add(time.Minute)}
 	c.BuffBy = map[account.Skill]account.BuffCaster{skill.Reflection: {Level: 20, Intelligence: 90}}
 	c.HP = 10000
-	pl := s.presence.all[1000]
+	pl := s.record.state.all[1000]
 	before := dog.p.fight.damageBy[pl]
 
 	s.tick(noon)
@@ -135,7 +135,7 @@ func TestDragonsHelpMakesSomeBlowsCritical(t *testing.T) {
 	dog.p.fight.hp, dog.p.fight.maxHP = 1000000, 1000000
 	critical := 0
 	for i := range 40 {
-		s.presence.attack(1000, dog.p.add.VID, 0, someRand, noon.Add(time.Duration(i)*time.Second))
+		s.record.attack(1000, dog.p.add.VID, 0, someRand, noon.Add(time.Duration(i)*time.Second))
 		d := protocol.NewReader(read(t, client, damageSize)[1:])
 		if _, flag, _ := d.U32(), d.U8(), d.I32(); flag == 1<<5 { // the client's DAMAGE_CRITICAL
 			critical++
@@ -168,7 +168,7 @@ func TestHealGivesThePlayerPickedHitPoints(t *testing.T) {
 // Talisman's 7 s becomes 6.72, so it is refused at 6.71 and may be cast again at 6.72.
 func TestSwiftnessShortensCooldowns(t *testing.T) {
 	s, client, _, _ := supporting(t)
-	c := s.svc.presence.all[1000].char
+	c := s.svc.record.state.all[1000].char
 	if err := s.onUseSkill(used(skill.Swiftness)); err != nil {
 		t.Fatal(err)
 	}
@@ -203,7 +203,7 @@ func TestSwiftnessShortensCooldowns(t *testing.T) {
 // cast at Swiftness's 104 is ready at 6.72 s even when Swiftness has ended since.
 func TestACooldownKeepsTheSpeedItWasCastAt(t *testing.T) {
 	s, client, _, _ := supporting(t)
-	c := s.svc.presence.all[1000].char
+	c := s.svc.record.state.all[1000].char
 	if err := s.onUseSkill(used(skill.Swiftness)); err != nil {
 		t.Fatal(err)
 	}
@@ -211,9 +211,9 @@ func TestACooldownKeepsTheSpeedItWasCastAt(t *testing.T) {
 	if err := s.onUseSkill(usedOn(skill.FlyingTalisman, dog)); err != nil {
 		t.Fatal(err)
 	}
-	s.svc.presence.mu.Lock()
-	s.svc.presence.endBuffs(s.svc.presence.all[1000])
-	s.svc.presence.mu.Unlock()
+	s.svc.record.held(func(l locked) {
+		l.stopBuffs(s.svc.record.state.all[1000])
+	})
 	drain(t, client)
 	s.svc.now = func() time.Time { return noon.Add(6720 * time.Millisecond) }
 	sp := c.SP

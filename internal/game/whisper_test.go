@@ -34,7 +34,7 @@ func TestAWhisperIsKeptWithATimeFromBeforeItReachedItsRecipient(t *testing.T) {
 	saved := &savedAt{}
 	s := NewService(Deps{Whispers: saved, Clock: handshake.NewClock()})
 	kira := &slowDelivery{}
-	s.presence.enter(&present{out: kira, add: protocol.CharacterAdd{VID: 2},
+	s.record.enter(&present{out: kira, add: protocol.CharacterAdd{VID: 2},
 		info: protocol.CharacterInfo{Name: "Kira"}, char: &account.Character{ID: 2, Name: "Kira"}})
 	conn, _ := watcher(t)
 	hendra := &session{svc: s, conn: conn, playing: &character{Character: account.Character{ID: 1, Name: "Hendra"}}}

@@ -22,7 +22,7 @@ type chance func(level uint8) (uint16, bool)
 // skill may rise a level, and the book is used up either way. Anything else is refused
 // with a line saying why, and the book is kept.
 func (s *session) readBook(ctx context.Context, book item.Item, sk account.Skill) error {
-	level, why := s.svc.presence.trainable(s.playing.vid, sk, s.svc.now(), skill.BookChance)
+	level, why := s.svc.record.trainable(s.playing.vid, sk, s.svc.now(), skill.BookChance)
 	switch why {
 	case "":
 		return s.train(ctx, book, sk, level, skill.BookChance, "Księga przepadła.")
@@ -44,7 +44,7 @@ const notYetTrainable = "level"
 // an M10, or a Grand Master below G10, whose wait is over. With none, the player is told
 // why, and the stone is kept.
 func (s *session) offerSoulStone(stone item.Item) error {
-	ready, wait := s.svc.presence.soulReady(s.playing.vid, s.svc.now())
+	ready, wait := s.svc.record.soulReady(s.playing.vid, s.svc.now())
 	if len(ready) == 0 {
 		if wait > 0 {
 			return s.conn.Send(infoLine(waitLine(wait)))
@@ -72,7 +72,7 @@ func (s *session) useSoulStone(ctx context.Context, t *talk, answer uint8) error
 		return nil
 	}
 	sk := t.skills[answer]
-	level, why := s.svc.presence.trainable(s.playing.vid, sk, s.svc.now(), skill.SoulChance)
+	level, why := s.svc.record.trainable(s.playing.vid, sk, s.svc.now(), skill.SoulChance)
 	if why != "" {
 		s.conn.Log().Debug("soul stone refused", "skill", sk, "why", why)
 		return nil
@@ -97,7 +97,7 @@ func (s *session) train(ctx context.Context, used item.Item, sk account.Skill, l
 		return nil
 	}
 	s.inventory = slices.DeleteFunc(s.inventory, func(held item.Item) bool { return held.ID == used.ID })
-	levels := s.svc.presence.trained(s.playing.vid, sk, to, next)
+	levels := s.svc.record.trained(s.playing.vid, sk, to, next)
 	packets := append([][]byte{itemCleared(used)}, s.followTaskbar()...)
 	line := "Nie udało się. " + lost
 	if to > level {
@@ -129,10 +129,10 @@ func waitLine(wait time.Duration) string {
 // odds raise, and its wait is over. Else it says why not: a line for the player, or
 // notYetTrainable for a level the odds do not raise, with the level, for the caller to
 // word.
-func (w *presence) trainable(vid uint32, sk account.Skill, now time.Time, odds chance) (uint8, string) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	c := w.all[vid].char
+func (w *record) trainable(vid uint32, sk account.Skill, now time.Time, odds chance) (uint8, string) {
+	l, unlock := w.lock()
+	defer unlock()
+	c := l.all[vid].char
 	level, learnt := c.Skills[sk]
 	switch _, raises := odds(level); {
 	case !learnt:
@@ -154,10 +154,10 @@ type readySkill struct {
 // soulReady is the player's skills a soul stone raises now, in the order the skill window
 // shows them, and, with none, how long until the soonest one it raises is out of its wait;
 // 0 when it raises none.
-func (w *presence) soulReady(vid uint32, now time.Time) ([]readySkill, time.Duration) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	c := w.all[vid].char
+func (w *record) soulReady(vid uint32, now time.Time) ([]readySkill, time.Duration) {
+	l, unlock := w.lock()
+	defer unlock()
+	c := l.all[vid].char
 	var ready []readySkill
 	var soonest time.Duration
 	for sk, level := range c.Skills {
@@ -178,14 +178,14 @@ func (w *presence) soulReady(vid uint32, now time.Time) ([]readySkill, time.Dura
 
 // trained puts the skill at the level a read left it and its next wait, and returns
 // every skill's level for the client. A self-buff of it running adds at its new level.
-func (w *presence) trained(vid uint32, sk account.Skill, level uint8, next time.Time) protocol.SkillLevels {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	pl := w.all[vid]
+func (w *record) trained(vid uint32, sk account.Skill, level uint8, next time.Time) protocol.SkillLevels {
+	l, unlock := w.lock()
+	defer unlock()
+	pl := l.all[vid]
 	c := pl.char
 	c.Skills[sk], c.SkillReads[sk] = level, next
 	if _, running := c.Buffs[sk]; running {
-		w.showAffects(pl, sk)
+		l.showAffects(pl, sk)
 	}
 	return skillLevels(c.Skills)
 }

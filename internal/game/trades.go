@@ -102,14 +102,14 @@ func (t *trade) changedAt(now time.Time) {
 // trades. Anything else is refused, with a line where the player could not know why;
 // asking again to trade with the one already traded with changes nothing, as dragging an
 // item onto them does.
-func (w *presence) startTrade(vid, with uint32) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	p, o := w.all[vid], w.all[with]
+func (w *record) startTrade(vid, with uint32) {
+	l, unlock := w.lock()
+	defer unlock()
+	p, o := l.all[vid], l.all[with]
 	if o == nil || o == p || !o.isPlayer() || o.world != p.world || p.dead() || o.dead() || !within(p, o, tradeReach) {
 		return
 	}
-	if t := w.trades[vid]; t != nil {
+	if t := l.trades[vid]; t != nil {
 		if _, other := t.side(vid); other.p != o {
 			inform(p, "Już handlujesz.")
 		}
@@ -119,7 +119,7 @@ func (w *presence) startTrade(vid, with uint32) {
 	case o.info.Empire != p.info.Empire:
 		inform(p, "Nie możesz handlować z graczem z innego królestwa.")
 		return
-	case w.trades[with] != nil:
+	case l.trades[with] != nil:
 		inform(p, "Ten gracz już handluje.")
 		return
 	case o.blocks.Has(account.BlockExchange):
@@ -127,17 +127,17 @@ func (w *presence) startTrade(vid, with uint32) {
 		return
 	}
 	t := &trade{sides: [2]*trader{{p: p, fromX: p.add.X, fromY: p.add.Y}, {p: o, fromX: o.add.X, fromY: o.add.Y}}}
-	w.trades[vid], w.trades[with] = t, t
+	l.trades[vid], l.trades[with] = t, t
 	p.send(protocol.EncodeExchange(protocol.ExchangeNews{Sub: protocol.ExchangeStarted, Arg: with}))
 	o.send(protocol.EncodeExchange(protocol.ExchangeNews{Sub: protocol.ExchangeStarted, Arg: vid}))
 }
 
 // offerItem adds an item the player carries to their offer: at the trade window cell they
 // dropped it on if it fits there, or the first it fits, once.
-func (w *presence) offerItem(vid uint32, it item.Item, shown uint8, now time.Time) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	t := w.trades[vid]
+func (w *record) offerItem(vid uint32, it item.Item, shown uint8, now time.Time) {
+	l, unlock := w.lock()
+	defer unlock()
+	t := l.trades[vid]
 	if t == nil || t.done != nil {
 		return
 	}
@@ -183,10 +183,10 @@ func (s *trader) free(p item.Proto) (uint8, bool) {
 }
 
 // offerYang sets the yang the player offers, once, to no more than they hold.
-func (w *presence) offerYang(vid, amount, held uint32, now time.Time) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	t := w.trades[vid]
+func (w *record) offerYang(vid, amount, held uint32, now time.Time) {
+	l, unlock := w.lock()
+	defer unlock()
+	t := l.trades[vid]
 	if t == nil || t.done != nil || amount == 0 {
 		return
 	}
@@ -224,10 +224,10 @@ type plan func(mine []offered, gave uint32, theirs []offered, gets uint32) ([]ui
 // accept takes the player's accept, at least acceptAfter since the last change and when
 // what the other side offers fits them. An accept refused is taken back on their screen.
 // Once both have accepted, accept returns the trade to keep, which then changes no more.
-func (w *presence) accept(vid uint32, now time.Time, planned plan) *trade {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	t := w.trades[vid]
+func (w *record) accept(vid uint32, now time.Time, planned plan) *trade {
+	l, unlock := w.lock()
+	defer unlock()
+	t := l.trades[vid]
 	if t == nil || t.done != nil {
 		return nil
 	}
@@ -260,21 +260,21 @@ func (w *presence) accept(vid uint32, now time.Time, planned plan) *trade {
 }
 
 // cancelTrade ends the player's trade, the other side told so.
-func (w *presence) cancelTrade(vid uint32) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	if t := w.trades[vid]; t != nil && t.done == nil {
+func (w *record) cancelTrade(vid uint32) {
+	l, unlock := w.lock()
+	defer unlock()
+	if t := l.trades[vid]; t != nil && t.done == nil {
 		_, other := t.side(vid)
-		w.endTrade(t)
+		l.endTrade(t)
 		inform(other.p, "Handel został anulowany.")
 	}
 }
 
 // breakTrade ends p's trade, unless it is being kept, both sides told it broke off: as p
-// died or walked away from it. Called under the lock.
-func (w *presence) breakTrade(p *present) {
-	if t := w.trades[p.add.VID]; t != nil && t.done == nil {
-		w.endTrade(t)
+// died or walked away from it.
+func (l locked) breakTrade(p *present) {
+	if t := l.trades[p.add.VID]; t != nil && t.done == nil {
+		l.endTrade(t)
 		for _, s := range t.sides {
 			inform(s.p, "Handel został przerwany.")
 		}
@@ -282,23 +282,22 @@ func (w *presence) breakTrade(p *present) {
 }
 
 // walkedAway breaks p's trade once p is further than walkAway along either axis from
-// where it began. Called under the lock, after every move of a player.
-func (w *presence) walkedAway(p *present) {
-	t := w.trades[p.add.VID]
+// where it began. It runs after every move of a player.
+func (l locked) walkedAway(p *present) {
+	t := l.trades[p.add.VID]
 	if t == nil {
 		return
 	}
 	me, _ := t.side(p.add.VID)
 	if max(p.add.X-me.fromX, me.fromX-p.add.X, p.add.Y-me.fromY, me.fromY-p.add.Y) > walkAway {
-		w.breakTrade(p)
+		l.breakTrade(p)
 	}
 }
 
-// endTrade takes the trade out of the world record and closes both windows. Called under
-// the lock.
-func (w *presence) endTrade(t *trade) {
+// endTrade takes the trade out of the world record and closes both windows.
+func (l locked) endTrade(t *trade) {
 	for _, s := range t.sides {
-		delete(w.trades, s.p.add.VID)
+		delete(l.trades, s.p.add.VID)
 		s.p.send(protocol.EncodeExchange(protocol.ExchangeNews{Sub: protocol.ExchangeEnded}))
 	}
 }
@@ -306,10 +305,10 @@ func (w *presence) endTrade(t *trade) {
 // leaveTrade ends the trade of a player leaving the world, the other side told so; for a
 // trade being kept it returns the channel that closes once it is, which the player must
 // wait for, so they never leave before what they then hold is stored.
-func (w *presence) leaveTrade(vid uint32) <-chan struct{} {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	t := w.trades[vid]
+func (w *record) leaveTrade(vid uint32) <-chan struct{} {
+	l, unlock := w.lock()
+	defer unlock()
+	t := l.trades[vid]
 	if t == nil {
 		return nil
 	}
@@ -317,33 +316,33 @@ func (w *presence) leaveTrade(vid uint32) <-chan struct{} {
 		return t.done
 	}
 	_, other := t.side(vid)
-	w.endTrade(t)
+	l.endTrade(t)
 	inform(other.p, "Handel został anulowany.")
 	return nil
 }
 
 // catchUp hands the player what a trade the other side kept changed for them, if one did
 // since they last asked, and reports whether they are trading.
-func (w *presence) catchUp(vid uint32) (settlement, bool, bool) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	h, kept := w.settled[vid]
-	delete(w.settled, vid)
-	return h, kept, w.trades[vid] != nil
+func (w *record) catchUp(vid uint32) (settlement, bool, bool) {
+	l, unlock := w.lock()
+	defer unlock()
+	h, kept := l.settled[vid]
+	delete(l.settled, vid)
+	return h, kept, l.trades[vid] != nil
 }
 
 // tradeKept closes the trade kept, with gold the yang each side then has, or failed. Each
 // side gets its settlement and is told what changed and that the window closed: the side
 // keeping it gets its settlement back, and the other has it left in the world record, for
 // its connection to take.
-func (w *presence) tradeKept(t *trade, keeper uint32, gold [2]uint32, failed bool) settlement {
-	w.mu.Lock()
-	defer w.mu.Unlock()
+func (w *record) tradeKept(t *trade, keeper uint32, gold [2]uint32, failed bool) settlement {
+	l, unlock := w.lock()
+	defer unlock()
 	defer close(t.done)
 	ended := protocol.EncodeExchange(protocol.ExchangeNews{Sub: protocol.ExchangeEnded})
 	var mine settlement
 	for i, s := range t.sides {
-		delete(w.trades, s.p.add.VID)
+		delete(l.trades, s.p.add.VID)
 		st, told := settlement{reload: true}, [][]byte{ended, infoLine("Handel nie powiódł się.")}
 		if !failed {
 			st, told = s.settled(t.sides[1-i], gold[i])
@@ -353,7 +352,7 @@ func (w *presence) tradeKept(t *trade, keeper uint32, gold [2]uint32, failed boo
 		if s.p.add.VID == keeper {
 			mine = st
 		} else {
-			w.settled[s.p.add.VID] = st
+			l.settled[s.p.add.VID] = st
 		}
 	}
 	return mine

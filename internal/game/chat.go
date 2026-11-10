@@ -39,7 +39,7 @@ func (s *session) onChat(ctx context.Context, body []byte) error {
 	}
 	p := s.playing
 	line := protocol.EncodeChat(protocol.ChatNormal, p.vid, empireNumbers[s.empire], p.Name+" : "+c.Text)
-	s.svc.presence.say(p.vid, line)
+	s.svc.record.say(p.vid, line)
 	return s.conn.Send(line)
 }
 
@@ -61,7 +61,7 @@ func (s *session) onCommand(ctx context.Context, command string) error {
 	case "setblockmode":
 		return s.onSetBlockMode(arg)
 	case "stat":
-		s.svc.presence.spendStatPoint(s.playing.vid, arg)
+		s.svc.record.spendStatPoint(s.playing.vid, arg)
 		return nil
 	case "skillup":
 		return s.raiseSkill(ctx, arg)
@@ -69,7 +69,7 @@ func (s *session) onCommand(ctx context.Context, command string) error {
 		// The restart dialog's buttons, which the client shows once its character died.
 		town := name == "restart_town"
 		x, y, _ := s.empire.StartPosition()
-		if s.svc.presence.revive(s.playing.vid, town, x, y, s.svc.now()) && town {
+		if s.svc.record.revive(s.playing.vid, town, x, y, s.svc.now()) && town {
 			s.playing.X, s.playing.Y = x, y
 		}
 		return nil

@@ -17,7 +17,7 @@ import (
 func shamanising(t *testing.T, dogs int) (*session, net.Conn) {
 	t.Helper()
 	s, client := warring(t, dogs)
-	c := s.svc.presence.all[1000].char
+	c := s.svc.record.state.all[1000].char
 	c.Class, c.SkillGroup, c.Weapon = account.Shaman, "dragon", 7000
 	c.Intelligence, c.Dexterity = 20, 10
 	c.Skills = map[account.Skill]uint8{skill.FlyingTalisman: 1, skill.ShootingDragon: 1, skill.DragonRoar: 1,
@@ -38,7 +38,7 @@ func TestFlyingTalismanDoesItsTooltipsDamage(t *testing.T) {
 	if got := read(t, client, pointChangeSize); string(got) != string(manaSpent(38, 462)) { // 30 + 160 × 0.05
 		t.Fatalf("told %x", got)
 	}
-	if got := dog.fight.damageBy[s.svc.presence.all[1000]]; got < 128 || got > 129 {
+	if got := dog.fight.damageBy[s.svc.record.state.all[1000]]; got < 128 || got > 129 {
 		t.Fatalf("struck for %d, want 128 to 129", got)
 	}
 }
@@ -61,26 +61,26 @@ func TestDragonRoarStrikesAroundHer(t *testing.T) {
 // told to the burner; after its fifth turn the fire goes out, shown to everyone.
 func TestABurnTakesItsShareThenGoesOut(t *testing.T) {
 	s, dog, client, _ := suraHits(t, 100)
-	s.presence.mu.Lock()
-	s.presence.burn(dog.p, s.presence.all[1000], 7)
-	s.presence.mu.Unlock()
+	s.record.held(func(l locked) {
+		l.burn(dog.p, s.record.state.all[1000], 7)
+	})
 	if got := read(t, client, updateSize); string(got) != string(protocol.EncodeCharacterUpdate(dog.p.info, dog.p.add, 1<<28)) {
 		t.Fatalf("got %x, want the fire shown", got)
 	}
 	before := dog.p.fight.hp
 
-	if !s.presence.burnTick(dog.p, noon.Add(burnEvery)) || dog.p.fight.hp != before-7 {
+	if !s.record.burnTick(dog.p, noon.Add(burnEvery)) || dog.p.fight.hp != before-7 {
 		t.Fatalf("hp %d from %d", dog.p.fight.hp, before)
 	}
 	if got := read(t, client, damageSize); string(got) != string(protocol.EncodeDamage(dog.p.add.VID, protocol.DamageNormal, 7)) {
 		t.Fatalf("told %x", got)
 	}
 	for turn := 2; turn < burnTurns; turn++ {
-		if !s.presence.burnTick(dog.p, noon.Add(time.Duration(turn)*burnEvery)) {
+		if !s.record.burnTick(dog.p, noon.Add(time.Duration(turn)*burnEvery)) {
 			t.Fatalf("out at turn %d", turn)
 		}
 	}
-	if s.presence.burnTick(dog.p, noon.Add(burnTurns*burnEvery)) || dog.p.fight.burning {
+	if s.record.burnTick(dog.p, noon.Add(burnTurns*burnEvery)) || dog.p.fight.burning {
 		t.Fatal("burns on past its fifth turn")
 	}
 }
@@ -90,9 +90,9 @@ func TestABurnTakesItsShareThenGoesOut(t *testing.T) {
 // burner's hand.
 func TestTheWorldLoopTicksBurnsAndTheyKill(t *testing.T) {
 	s, dog, _, c := suraHits(t, 100)
-	s.presence.mu.Lock()
-	s.presence.burn(dog.p, s.presence.all[1000], 3)
-	s.presence.mu.Unlock()
+	s.record.held(func(l locked) {
+		l.burn(dog.p, s.record.state.all[1000], 3)
+	})
 	s.tick(noon)                        // the loop takes up the blow and the fire
 	dog.chase = nil                     // so it neither bites nor walks
 	s.healing, dog.healing = nil, false // nor heals
@@ -106,10 +106,10 @@ func TestTheWorldLoopTicksBurnsAndTheyKill(t *testing.T) {
 
 	dog.p.fight.hp = 2
 	exp := c.Exp
-	s.presence.mu.Lock()
-	s.presence.burn(dog.p, s.presence.all[1000], 3)
-	s.presence.mu.Unlock()
-	if s.presence.burnTick(dog.p, noon.Add(time.Minute+burnEvery)) || !dog.p.dead() || c.Exp == exp {
+	s.record.held(func(l locked) {
+		l.burn(dog.p, s.record.state.all[1000], 3)
+	})
+	if s.record.burnTick(dog.p, noon.Add(time.Minute+burnEvery)) || !dog.p.dead() || c.Exp == exp {
 		t.Fatal("the fire did not kill it at her hand")
 	}
 }
@@ -128,7 +128,7 @@ func TestShootingDragonSetsSomeAlightButNeverAStone(t *testing.T) {
 	}
 	stone := s.monsters[0]
 	for range 100 {
-		s.presence.useSkill(1000, skill.ShootingDragon, stone.p.add.VID, noon, 0, s.rand, func() bool { return true })
+		s.record.useSkill(1000, skill.ShootingDragon, stone.p.add.VID, noon, 0, s.rand, func() bool { return true })
 	}
 	alight := 0
 	for _, m := range s.monsters[1:] {
@@ -151,12 +151,12 @@ func TestLightningClawChainsFromEachToTheNext(t *testing.T) {
 		if i == 3 {
 			x = homeX + 2000 + 2000
 		}
-		s.svc.presence.mu.Lock()
-		s.svc.presence.moveLocked(m.p, protocol.Move{X: x, Y: homeY})
-		s.svc.presence.mu.Unlock()
+		s.svc.record.held(func(l locked) {
+			l.shift(m.p, protocol.Move{X: x, Y: homeY})
+		})
 	}
 	drain(t, client)
-	pl := s.svc.presence.all[1000]
+	pl := s.svc.record.state.all[1000]
 	pl.char.SP = 100000
 
 	if err := s.onUseSkill(usedOn(skill.LightningClaw, s.svc.monsters[0].p.add.VID)); err != nil {
@@ -201,9 +201,9 @@ func TestAShamanTakesUpDragonAtHerTeacher(t *testing.T) {
 // two hundred casts on a dog too tough to die.
 func TestAnAttackThatDoesNotStunNeverStuns(t *testing.T) {
 	s, _ := warring(t, 1)
-	s.svc.presence.all[1000].char.SP = 100000
+	s.svc.record.state.all[1000].char.SP = 100000
 	for range 200 {
-		s.svc.presence.useSkill(1000, skill.SwordSpin, 0, noon, 0, s.rand, func() bool { return true })
+		s.svc.record.useSkill(1000, skill.SwordSpin, 0, noon, 0, s.rand, func() bool { return true })
 	}
 	if s.svc.monsters[0].p.fight.stunned {
 		t.Fatal("stunned by a spin")
@@ -221,7 +221,7 @@ func TestLightningThrowRollsByHerIntelligence(t *testing.T) {
 	}
 
 	drain(t, client)
-	if got := dog.fight.damageBy[s.svc.presence.all[1000]]; got < 112 || got > 120 {
+	if got := dog.fight.damageBy[s.svc.record.state.all[1000]]; got < 112 || got > 120 {
 		t.Fatalf("struck for %d, want 112 to 120", got)
 	}
 }
@@ -231,7 +231,7 @@ func TestLightningThrowRollsByHerIntelligence(t *testing.T) {
 // alight.
 func TestOnlyABurningSkillBurns(t *testing.T) {
 	s, _ := shamanising(t, 4)
-	c := s.svc.presence.all[1000].char
+	c := s.svc.record.state.all[1000].char
 	c.Intelligence, c.SP = 250, 100000
 	c.Skills[skill.FlyingTalisman] = skill.Master
 	dog := s.svc.monsters[0].p
@@ -243,7 +243,7 @@ func TestOnlyABurningSkillBurns(t *testing.T) {
 		}
 	}
 
-	if len(s.svc.presence.news.burned) != 0 {
-		t.Fatalf("%d set alight", len(s.svc.presence.news.burned))
+	if len(s.svc.record.state.news.burned) != 0 {
+		t.Fatalf("%d set alight", len(s.svc.record.state.news.burned))
 	}
 }

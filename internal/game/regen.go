@@ -20,10 +20,10 @@ const (
 
 // regenPlayers heals every living player out of a fight who is short of hit points or
 // mana, and tells them what they have now.
-func (w *presence) regenPlayers(now time.Time) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	for _, p := range w.byName {
+func (w *record) regenPlayers(now time.Time) {
+	l, unlock := w.lock()
+	defer unlock()
+	for _, p := range l.byName {
 		c := p.char
 		if c == nil || p.dead() || now.Sub(c.LastFought) < outOfFight {
 			continue
@@ -69,7 +69,7 @@ func (svc *Service) healMonsters(now time.Time) {
 			kept = append(kept, h)
 			continue
 		}
-		if h.m.p == h.p && svc.presence.heal(h.p, h.m.proto.RegenPercent, h.m.proto.HealsAfter, now) {
+		if h.m.p == h.p && svc.record.heal(h.p, h.m.proto.RegenPercent, h.m.proto.HealsAfter, now) {
 			h.next = now.Add(time.Duration(h.m.proto.RegenCycle) * time.Second)
 			kept = append(kept, h)
 			continue
@@ -85,9 +85,9 @@ func (svc *Service) healMonsters(now time.Time) {
 // heal gives the monster back percent of its hit points, at least one, and tells whoever
 // picked it, unless it was hit less than after ago. It reports whether the monster is
 // still short of them; a dead one is not healed.
-func (w *presence) heal(p *present, percent uint8, after time.Duration, now time.Time) bool {
-	w.mu.Lock()
-	defer w.mu.Unlock()
+func (w *record) heal(p *present, percent uint8, after time.Duration, now time.Time) bool {
+	l, unlock := w.lock()
+	defer unlock()
 	f := p.fight
 	if p.dead() || f.hp >= f.maxHP {
 		return false
@@ -100,7 +100,7 @@ func (w *presence) heal(p *present, percent uint8, after time.Duration, now time
 		t.send(protocol.EncodeTarget(p.add.VID, f.hpPercent()))
 	}
 	if f.stone {
-		w.showSmoke(p)
+		l.showSmoke(p)
 	}
 	return f.hp < f.maxHP
 }

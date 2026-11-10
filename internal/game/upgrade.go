@@ -35,7 +35,7 @@ func (s *session) onGiveItem(body []byte) error {
 		return err
 	}
 	s.upgrading = nil
-	smith, near := s.svc.presence.npcInReach(s.playing.vid, g.To)
+	smith, near := s.svc.record.npcInReach(s.playing.vid, g.To)
 	if !near || !smith.Upgrades {
 		s.conn.Log().Debug("give not taken", "to", g.To)
 		return nil
@@ -72,7 +72,7 @@ func (s *session) onRefine(ctx context.Context, body []byte) error {
 	if u == nil || !held || it.ID != u.item {
 		return nil
 	}
-	if _, near := s.svc.presence.npcInReach(s.playing.vid, u.smith); !near {
+	if _, near := s.svc.record.npcInReach(s.playing.vid, u.smith); !near {
 		return nil
 	}
 	kind, _ := item.Lookup(it.VNum)

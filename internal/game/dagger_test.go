@@ -19,7 +19,7 @@ import (
 func stabbing(t *testing.T, dogs int) (*session, net.Conn) {
 	t.Helper()
 	s, client := warring(t, dogs)
-	c := s.svc.presence.all[1000].char
+	c := s.svc.record.state.all[1000].char
 	c.Class, c.SkillGroup, c.Weapon = account.Ninja, "dagger", 1000
 	c.Skills = map[account.Skill]uint8{skill.Ambush: 1, skill.FastAttack: 1, skill.RollingDagger: 1}
 	return s, client
@@ -36,7 +36,7 @@ func TestAmbushStrikesHarderFromBehind(t *testing.T) {
 			t.Fatal(err)
 		}
 		drain(t, client)
-		return dog.fight.damageBy[s.svc.presence.all[1000]]
+		return dog.fight.damageBy[s.svc.record.state.all[1000]]
 	}
 	facing, behind := struckFacing(90), struckFacing(270)
 	if facing == 0 || behind < facing*14/10 || behind > facing*16/10 {
@@ -47,13 +47,13 @@ func TestAmbushStrikesHarderFromBehind(t *testing.T) {
 // Ambush needs a dagger or a sword in hand: with a glaive it is not used.
 func TestAmbushNeedsADaggerOrASword(t *testing.T) {
 	s, client := stabbing(t, 1)
-	s.svc.presence.all[1000].char.Weapon = 3000
+	s.svc.record.state.all[1000].char.Weapon = 3000
 	if err := s.onUseSkill(usedOn(skill.Ambush, s.svc.monsters[0].p.add.VID)); err != nil {
 		t.Fatal(err)
 	}
 	expectNothing(t, client)
 
-	s.svc.presence.all[1000].char.Weapon = 10
+	s.svc.record.state.all[1000].char.Weapon = 10
 	if err := s.onUseSkill(usedOn(skill.Ambush, s.svc.monsters[0].p.add.VID)); err != nil {
 		t.Fatal(err)
 	}
@@ -68,9 +68,9 @@ func TestFastAttackDashesToItsTarget(t *testing.T) {
 	read(t, client, addSize+infoSize) // Kira
 	drain(t, kira)
 	dog := s.svc.monsters[0]
-	s.svc.presence.mu.Lock()
-	s.svc.presence.moveLocked(dog.p, protocol.Move{X: homeX + 700, Y: homeY})
-	s.svc.presence.mu.Unlock()
+	s.svc.record.held(func(l locked) {
+		l.shift(dog.p, protocol.Move{X: homeX + 700, Y: homeY})
+	})
 	drain(t, client)
 	drain(t, kira)
 
@@ -78,7 +78,7 @@ func TestFastAttackDashesToItsTarget(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	pl := s.svc.presence.all[1000]
+	pl := s.svc.record.state.all[1000]
 	if pl.add.X != homeX+700-dashStop || pl.add.Y != homeY || dog.p.fight.damageBy[pl] == 0 {
 		t.Fatalf("at (%d, %d), struck %d", pl.add.X, pl.add.Y, dog.p.fight.damageBy[pl])
 	}
@@ -86,9 +86,9 @@ func TestFastAttackDashesToItsTarget(t *testing.T) {
 		t.Fatalf("Kira got %x, want her move", got)
 	}
 
-	s.svc.presence.mu.Lock()
-	s.svc.presence.moveLocked(dog.p, protocol.Move{X: pl.add.X + 900, Y: homeY})
-	s.svc.presence.mu.Unlock()
+	s.svc.record.held(func(l locked) {
+		l.shift(dog.p, protocol.Move{X: pl.add.X + 900, Y: homeY})
+	})
 	drain(t, client)
 	s.svc.cooldowns = cooldowns{}
 	if err := s.onUseSkill(usedOn(skill.FastAttack, dog.p.add.VID)); err != nil {
@@ -100,9 +100,9 @@ func TestFastAttackDashesToItsTarget(t *testing.T) {
 // Rolling Dagger strikes every dog within 250 of her, and not one 280 off.
 func TestRollingDaggerStrikesAroundHer(t *testing.T) {
 	s, client := stabbing(t, 3)
-	s.svc.presence.mu.Lock()
-	s.svc.presence.moveLocked(s.svc.monsters[3].p, protocol.Move{X: homeX + 380, Y: homeY})
-	s.svc.presence.mu.Unlock()
+	s.svc.record.held(func(l locked) {
+		l.shift(s.svc.monsters[3].p, protocol.Move{X: homeX + 380, Y: homeY})
+	})
 	drain(t, client)
 
 	if err := s.onUseSkill(used(skill.RollingDagger)); err != nil {
@@ -143,7 +143,7 @@ func TestRollingDaggerPoisonsSomeButNeverAStone(t *testing.T) {
 		m.p.fight.hp, m.p.fight.maxHP = 1000000, 1000000
 	}
 	for range 200 {
-		s.presence.useSkill(1000, skill.RollingDagger, 0, noon, 0, s.rand, func() bool { return true })
+		s.record.useSkill(1000, skill.RollingDagger, 0, noon, 0, s.rand, func() bool { return true })
 	}
 	stone, poisoned := s.monsters[0], 0
 	for _, m := range s.monsters[1:] {
@@ -160,9 +160,9 @@ func TestRollingDaggerPoisonsSomeButNeverAStone(t *testing.T) {
 func poisoned(t *testing.T) (*Service, *monster, net.Conn) {
 	t.Helper()
 	s, dog, client, _ := suraHits(t, 100)
-	s.presence.mu.Lock()
-	s.presence.poison(dog.p, s.presence.all[1000], noon)
-	s.presence.mu.Unlock()
+	s.record.held(func(l locked) {
+		l.poison(dog.p, s.record.state.all[1000], noon)
+	})
 	read(t, client, updateSize)
 	s.tick(noon) // the loop takes it up, and the dog bites back
 	drain(t, client)
@@ -178,7 +178,7 @@ func TestAPoisonTakesItsShareEveryTwoSeconds(t *testing.T) {
 	}
 	before := dog.p.fight.hp
 
-	s.presence.poisonTick(dog.p, noon.Add(poisonEvery))
+	s.record.poisonTick(dog.p, noon.Add(poisonEvery))
 
 	if got := dog.p.fight.hp; got != before-1 {
 		t.Fatalf("hp %d, from %d", got, before)
@@ -186,7 +186,7 @@ func TestAPoisonTakesItsShareEveryTwoSeconds(t *testing.T) {
 	if got := read(t, client, damageSize); string(got) != string(protocol.EncodeDamage(dog.p.add.VID, 2, 1)) { // the client's DAMAGE_POISON
 		t.Fatalf("told %x", got)
 	}
-	if len(s.presence.news.provoked) != 0 {
+	if len(s.record.state.news.provoked) != 0 {
 		t.Fatal("the poison provoked it")
 	}
 }
@@ -195,15 +195,15 @@ func TestAPoisonTakesItsShareEveryTwoSeconds(t *testing.T) {
 // thirty seconds from it instead.
 func TestAPoisonEndsAfterThirtySecondsOrIsRenewed(t *testing.T) {
 	s, dog, client := poisoned(t)
-	s.presence.mu.Lock()
-	s.presence.poison(dog.p, s.presence.all[1000], noon.Add(10*time.Second))
-	s.presence.mu.Unlock()
+	s.record.held(func(l locked) {
+		l.poison(dog.p, s.record.state.all[1000], noon.Add(10*time.Second))
+	})
 
-	if !s.presence.poisonTick(dog.p, noon.Add(poisonFor)) {
+	if !s.record.poisonTick(dog.p, noon.Add(poisonFor)) {
 		t.Fatal("ended at thirty seconds of the first, though renewed")
 	}
 	drain(t, client)
-	if s.presence.poisonTick(dog.p, noon.Add(10*time.Second+poisonFor)) || dog.p.fight.poisoned {
+	if s.record.poisonTick(dog.p, noon.Add(10*time.Second+poisonFor)) || dog.p.fight.poisoned {
 		t.Fatal("ran on past the second's thirty seconds")
 	}
 	if got := read(t, client, updateSize); string(got) != string(protocol.EncodeCharacterUpdate(dog.p.info, dog.p.add, 0)) {
@@ -216,14 +216,14 @@ func TestAPoisonEndsAfterThirtySecondsOrIsRenewed(t *testing.T) {
 func TestAPoisonKillsAtThePoisonersHand(t *testing.T) {
 	s, dog, _ := poisoned(t)
 	dog.p.fight.hp = 1
-	c := s.presence.all[1000].char
+	c := s.record.state.all[1000].char
 	exp := c.Exp
 
-	if s.presence.poisonTick(dog.p, noon.Add(poisonEvery)) {
+	if s.record.poisonTick(dog.p, noon.Add(poisonEvery)) {
 		t.Fatal("the poison runs on after its death")
 	}
 
-	if !dog.p.dead() || dog.p.fight.poisoned || c.Exp == exp || len(s.presence.news.fallen) != 1 {
+	if !dog.p.dead() || dog.p.fight.poisoned || c.Exp == exp || len(s.record.state.news.fallen) != 1 {
 		t.Fatalf("dead %v, poisoned %v, exp %d from %d", dog.p.dead(), dog.p.fight.poisoned, c.Exp, exp)
 	}
 }
@@ -231,9 +231,9 @@ func TestAPoisonKillsAtThePoisonersHand(t *testing.T) {
 // A poison ends once its poisoner has left the world.
 func TestAPoisonEndsWithItsPoisonerGone(t *testing.T) {
 	s, dog, _ := poisoned(t)
-	s.presence.leave(1000)
+	s.record.leave(1000)
 
-	if s.presence.poisonTick(dog.p, noon.Add(poisonEvery)) || dog.p.fight.poisoned {
+	if s.record.poisonTick(dog.p, noon.Add(poisonEvery)) || dog.p.fight.poisoned {
 		t.Fatal("it runs on for nobody")
 	}
 }
@@ -283,24 +283,24 @@ func TestFastAttackTimesItsDashAndBacksTheNearOut(t *testing.T) {
 	read(t, client, addSize+infoSize)
 	drain(t, kira)
 	dog := s.svc.monsters[0]
-	s.svc.presence.mu.Lock()
-	s.svc.presence.moveLocked(dog.p, protocol.Move{X: homeX + 700, Y: homeY})
-	s.svc.presence.mu.Unlock()
+	s.svc.record.held(func(l locked) {
+		l.shift(dog.p, protocol.Move{X: homeX + 700, Y: homeY})
+	})
 	drain(t, client)
 	drain(t, kira)
 
-	s.svc.presence.useSkill(1000, skill.FastAttack, dog.p.add.VID, noon, 4242, s.rand, func() bool { return true })
+	s.svc.record.useSkill(1000, skill.FastAttack, dog.p.add.VID, noon, 4242, s.rand, func() bool { return true })
 
 	got := packets(t, drain(t, kira))
 	i := slices.IndexFunc(got, func(p []byte) bool { return protocol.ServerHeader(p[0]) == protocol.ServerMove })
 	if i < 0 || binary.LittleEndian.Uint32(got[i][16:]) != 4242 {
 		t.Fatalf("Kira got %x, want the dash at 4242", got)
 	}
-	pl := s.svc.presence.all[1000]
-	s.svc.presence.mu.Lock()
-	s.svc.presence.moveLocked(pl, protocol.Move{X: dog.p.add.X - 200, Y: homeY})
-	s.svc.presence.mu.Unlock()
-	s.svc.presence.useSkill(1000, skill.FastAttack, dog.p.add.VID, noon, 4243, s.rand, func() bool { return true })
+	pl := s.svc.record.state.all[1000]
+	s.svc.record.held(func(l locked) {
+		l.shift(pl, protocol.Move{X: dog.p.add.X - 200, Y: homeY})
+	})
+	s.svc.record.useSkill(1000, skill.FastAttack, dog.p.add.VID, noon, 4243, s.rand, func() bool { return true })
 	if pl.add.X != dog.p.add.X-dashStop {
 		t.Fatalf("at %d, want %d", pl.add.X, dog.p.add.X-dashStop)
 	}

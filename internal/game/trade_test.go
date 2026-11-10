@@ -143,7 +143,7 @@ func TestATradeIsRefusedWhereItMayNotBe(t *testing.T) {
 		"of another kingdom": {func(k side) { k.p.info.Empire = 2 }, 1001, "Nie możesz handlować z graczem z innego królestwa."},
 		"already trading": {func(k side) {
 			aPlayer(t, k.s.svc, 1002, 9, "Ola", 700)
-			k.s.svc.presence.startTrade(1002, 1001)
+			k.s.svc.record.startTrade(1002, 1001)
 		}, 1001, "Ten gracz już handluje."},
 		"refusing trades": {func(k side) { k.p.blocks = account.Blocks{account.BlockExchange} }, 1001, "Ten gracz nie przyjmuje propozycji handlu."},
 		"out of reach":    {func(k side) { k.p.add.X = homeX + tradeReach + 1 }, 1001, ""},
@@ -444,7 +444,7 @@ func TestATradeThatCannotBeKeptChangesNothing(t *testing.T) {
 	if hendra.s.gold != 999 || len(hendra.s.inventory) != 1 || kira.s.gold != 49 || kira.s.inventory[0].ID != 2 {
 		t.Fatal("what they hold was not read again")
 	}
-	if len(hendra.s.svc.presence.trades) != 0 {
+	if len(hendra.s.svc.record.state.trades) != 0 {
 		t.Fatal("the trade goes on")
 	}
 }
@@ -469,7 +469,7 @@ func TestWhileTradingWhatIsHeldStaysAsItIs(t *testing.T) {
 	}
 	kira.at(acceptAfter)
 	kira.do(t, exchanging(protocol.ExchangeAccept, 0, 0, 0))
-	if hendra.s.svc.presence.accept(1000, noon.Add(acceptAfter), hendra.s.plan) == nil {
+	if hendra.s.svc.record.accept(1000, noon.Add(acceptAfter), hendra.s.plan) == nil {
 		t.Fatal("not being kept")
 	}
 	drain(t, kira.client)
@@ -490,14 +490,13 @@ func TestATradeEnds(t *testing.T) {
 	}{
 		"cancelled": {func(h, _ side) { h.do(t, exchanging(protocol.ExchangeCancel, 0, 0, 0)) }, "Handel został anulowany."},
 		"walked away": {func(h, _ side) {
-			h.s.svc.presence.move(1000, protocol.Move{X: homeX - walkAway - 1, Y: homeY})
+			h.s.svc.record.move(1000, protocol.Move{X: homeX - walkAway - 1, Y: homeY})
 		}, "Handel został przerwany."},
 		"died": {func(h, _ side) {
-			w := &h.s.svc.presence
-			w.mu.Lock()
-			h.p.char.HP = 0
-			w.die(h.p)
-			w.mu.Unlock()
+			h.s.svc.record.held(func(l locked) {
+				h.p.char.HP = 0
+				l.die(h.p)
+			})
 		}, "Handel został przerwany."},
 		"left": {func(h, _ side) { h.s.leaveTrade() }, "Handel został anulowany."},
 	}
@@ -512,7 +511,7 @@ func TestATradeEnds(t *testing.T) {
 		if got := hendra.told(t); !holds(got, exNews(protocol.ExchangeNews{Sub: protocol.ExchangeEnded})) {
 			t.Errorf("%s: Hendra told %x", name, got)
 		}
-		if len(kira.s.svc.presence.trades) != 0 {
+		if len(kira.s.svc.record.state.trades) != 0 {
 			t.Errorf("%s: the trade goes on", name)
 		}
 	}
@@ -522,9 +521,9 @@ func TestATradeEnds(t *testing.T) {
 func TestATradeGoesOnWithinItsWalk(t *testing.T) {
 	_, hendra, _ := started(t)
 
-	hendra.s.svc.presence.move(1000, protocol.Move{X: homeX - walkAway, Y: homeY + walkAway})
+	hendra.s.svc.record.move(1000, protocol.Move{X: homeX - walkAway, Y: homeY + walkAway})
 
-	if len(hendra.s.svc.presence.trades) != 2 {
+	if len(hendra.s.svc.record.state.trades) != 2 {
 		t.Fatal("the trade ended")
 	}
 }
@@ -533,8 +532,8 @@ func TestATradeGoesOnWithinItsWalk(t *testing.T) {
 // so it never leaves before the trade is stored.
 func TestLeavingWhileATradeIsKeptWaitsForIt(t *testing.T) {
 	_, hendra, kira := started(t)
-	w := &hendra.s.svc.presence
-	tr := w.trades[1000]
+	w := &hendra.s.svc.record
+	tr := w.state.trades[1000]
 	hendra.do(t, exchanging(protocol.ExchangeYang, 300, 0, 0))
 	kira.at(acceptAfter)
 	kira.do(t, exchanging(protocol.ExchangeAccept, 0, 0, 0))
@@ -557,7 +556,7 @@ func TestLeavingWhileATradeIsKeptWaitsForIt(t *testing.T) {
 	}
 
 	<-left
-	if hendra.s.gold != 700 || len(w.settled) != 0 || len(w.trades) != 0 {
-		t.Fatalf("Hendra holds %d yang; %d settlements wait", hendra.s.gold, len(w.settled))
+	if hendra.s.gold != 700 || len(w.state.settled) != 0 || len(w.state.trades) != 0 {
+		t.Fatalf("Hendra holds %d yang; %d settlements wait", hendra.s.gold, len(w.state.settled))
 	}
 }

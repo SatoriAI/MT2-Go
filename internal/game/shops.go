@@ -20,7 +20,7 @@ func (s *session) onClick(body []byte) error {
 	if err != nil {
 		return err
 	}
-	npc, ok := s.svc.presence.npcInReach(s.playing.vid, vid)
+	npc, ok := s.svc.record.npcInReach(s.playing.vid, vid)
 	switch {
 	case !ok:
 		return nil
@@ -46,10 +46,10 @@ func (s *session) openShop(vid uint32, keeper mob.Proto) error {
 // npcInReach returns the kind of the character vid, if it stands within reach of the
 // player, alive, on their map. Only an NPC's kind sells or teaches, so a monster or a
 // player found here is answered with nothing.
-func (w *presence) npcInReach(playerVID, vid uint32) (mob.Proto, bool) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	p, npc := w.all[playerVID], w.all[vid]
+func (w *record) npcInReach(playerVID, vid uint32) (mob.Proto, bool) {
+	l, unlock := w.lock()
+	defer unlock()
+	p, npc := l.all[playerVID], l.all[vid]
 	if npc == nil || p.dead() || npc.world != p.world || !near(p.add.X, p.add.Y, npc.add.X, npc.add.Y, npcReach+1) {
 		return mob.Proto{}, false
 	}

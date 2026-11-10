@@ -175,7 +175,7 @@ func TestAPotionDoesNotRaiseOneWhoDiedMeanwhile(t *testing.T) {
 	s, _, client, _ := thirsty(t, 0, 50, 1)
 	potion, _ := item.Lookup(27001)
 
-	s.svc.presence.drink(1000, potion)
+	s.svc.record.drink(1000, potion)
 
 	expectNothing(t, client)
 	if s.playing.HP != 0 {
@@ -190,7 +190,7 @@ func TestAPotionThatFoundHerFullShowsNoEffect(t *testing.T) {
 	s.playing.HP, _ = most(s)
 	potion, _ := item.Lookup(27001)
 
-	s.svc.presence.drink(1000, potion)
+	s.svc.record.drink(1000, potion)
 
 	expectNothing(t, client)
 	expectNothing(t, viewer)

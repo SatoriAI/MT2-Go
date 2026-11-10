@@ -81,7 +81,7 @@ func TestOnlyAShopkeeperWithinReachOpensAShop(t *testing.T) {
 	expectNothing(t, farClient)
 
 	dead, _, deadClient, beside := shopping(t, 100, 0, nil)
-	dead.svc.presence.all[1000].char.HP = 0
+	dead.svc.record.state.all[1000].char.HP = 0
 	if err := dead.onClick(vidBody(beside)); err != nil {
 		t.Fatal(err)
 	}

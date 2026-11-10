@@ -38,10 +38,10 @@ func dropped(window uint8, cell uint16, gold uint32, count uint8) []byte {
 // theOneLying is the one item on the ground.
 func theOneLying(t *testing.T, s *session) *groundItem {
 	t.Helper()
-	if len(s.svc.presence.ground) != 1 {
-		t.Fatalf("%d lie on the ground", len(s.svc.presence.ground))
+	if len(s.svc.record.state.ground) != 1 {
+		t.Fatalf("%d lie on the ground", len(s.svc.record.state.ground))
 	}
-	for _, it := range s.svc.presence.ground {
+	for _, it := range s.svc.record.state.ground {
 		return it
 	}
 	return nil
@@ -99,7 +99,7 @@ func TestADropThatCannotBeIsRefused(t *testing.T) {
 	} {
 		s, kept, client, _ := dropping(t)
 		if name == "while dead" {
-			s.svc.presence.all[1000].char.HP = 0
+			s.svc.record.state.all[1000].char.HP = 0
 		}
 
 		if err := s.onItemDrop(body); err != nil {
@@ -107,7 +107,7 @@ func TestADropThatCannotBeIsRefused(t *testing.T) {
 		}
 
 		expectNothing(t, client)
-		if len(s.svc.presence.ground) != 0 || len(kept.gone) != 0 || len(kept.count) != 0 || len(s.inventory) != 2 {
+		if len(s.svc.record.state.ground) != 0 || len(kept.gone) != 0 || len(kept.count) != 0 || len(s.inventory) != 2 {
 			t.Errorf("%s: dropped", name)
 		}
 	}
@@ -125,8 +125,8 @@ func TestADropThatCannotBeKeptLaysNothing(t *testing.T) {
 	}
 
 	expectNothing(t, client)
-	if len(s.svc.presence.ground) != 0 || s.gold != 20 || s.inventory[0].Count != 5 {
-		t.Fatalf("lie %d, has %d", len(s.svc.presence.ground), s.gold)
+	if len(s.svc.record.state.ground) != 0 || s.gold != 20 || s.inventory[0].Count != 5 {
+		t.Fatalf("lie %d, has %d", len(s.svc.record.state.ground), s.gold)
 	}
 }
 
@@ -165,12 +165,12 @@ func TestADroppedItemIsClearedAwayAfterAMinute(t *testing.T) {
 	vid := theOneLying(t, s).vid
 
 	s.svc.tick(noon.Add(lieFor - time.Millisecond))
-	if s.svc.presence.ground[vid] == nil {
+	if s.svc.record.state.ground[vid] == nil {
 		t.Fatal("cleared before its minute")
 	}
 	s.svc.tick(noon.Add(lieFor))
 
-	if got := read(t, client, groundDelSize); string(got) != string(protocol.EncodeGroundDel(vid)) || s.svc.presence.ground[vid] != nil {
+	if got := read(t, client, groundDelSize); string(got) != string(protocol.EncodeGroundDel(vid)) || s.svc.record.state.ground[vid] != nil {
 		t.Fatalf("got %x", got)
 	}
 }
@@ -183,7 +183,7 @@ func TestAnotherPlayerPicksUpWhatWasDroppedAtOnce(t *testing.T) {
 	}
 	read(t, client, itemSetSize+groundAddSize)
 
-	if _, got := s.svc.presence.pickUp(1001, theOneLying(t, s).vid, func(*groundItem) bool { return true }); got != picked {
+	if _, got := s.svc.record.pickUp(1001, theOneLying(t, s).vid, func(*groundItem) bool { return true }); got != picked {
 		t.Fatalf("Kira's pick-up: %v", got)
 	}
 }
@@ -201,16 +201,16 @@ func TestDropsOfPlayersAndMonstersAreEachClearedWhenDue(t *testing.T) {
 	s.svc.tick(noon) // takes her drop
 
 	monsters := &groundItem{vid: 9000, x: homeX, y: homeY, vnum: 27004, count: 1, dropped: noon}
-	s.svc.presence.drop(s.svc.presence.all[1000], []*groundItem{monsters})
+	s.svc.record.drop(s.svc.record.state.all[1000], []*groundItem{monsters})
 	s.svc.vanishing = inOrder(s.svc.vanishing, timed{9000, noon.Add(lieFor)})
 	read(t, client, groundAddSize)
 
 	s.svc.keepGround(noon.Add(lieFor))
-	if s.svc.presence.ground[9000] != nil || s.svc.presence.ground[hers] == nil {
-		t.Fatalf("the monster's lies: %v; hers: %v", s.svc.presence.ground[9000] != nil, s.svc.presence.ground[hers] != nil)
+	if s.svc.record.state.ground[9000] != nil || s.svc.record.state.ground[hers] == nil {
+		t.Fatalf("the monster's lies: %v; hers: %v", s.svc.record.state.ground[9000] != nil, s.svc.record.state.ground[hers] != nil)
 	}
 	s.svc.keepGround(noon.Add(lieFor + 2*time.Millisecond))
-	if s.svc.presence.ground[hers] != nil {
+	if s.svc.record.state.ground[hers] != nil {
 		t.Fatal("hers outlived its minute")
 	}
 }

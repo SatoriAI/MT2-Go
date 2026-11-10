@@ -16,14 +16,19 @@ import (
 // client takes any. It draws characters up to 20000 away, so all of these are drawn.
 const viewRange = 8000
 
-// presence is the world record. It holds who stands in the world, players and mobs, and
+// record is the world record. It holds who stands in the world, players and mobs, and
 // who sees whom, a player and anything else on the same map within viewRange of each
 // other. Mobs see no mobs, so the many standing in the fields cost nothing between themselves.
 // Packets go out under the lock, so every player is told of the same things in the same
 // order: a character always appears before its moves. Sending only queues, so the lock is
 // never held across a slow client. A send that fails is left: that connection closes itself.
-type presence struct {
-	mu       sync.Mutex
+type record struct {
+	mu    sync.Mutex
+	state state // reached only through lock
+}
+
+// state is what the record's lock guards.
+type state struct {
 	all      map[uint32]*present               // by vid
 	onMap    map[string]map[uint32]*present    // the same, by the map each stands on and vid
 	byName   map[string]*present               // players, by lower-cased name: unique regardless of case
@@ -35,13 +40,24 @@ type presence struct {
 	settled  map[uint32]settlement             // what trades others kept changed for players, for each to take
 }
 
-// newPresence is an empty world record.
-func newPresence() presence {
-	return presence{
+// newRecord is an empty world record.
+func newRecord() record {
+	return record{state: state{
 		all: map[uint32]*present{}, onMap: map[string]map[uint32]*present{}, byName: map[string]*present{},
 		ground: map[uint32]*groundItem{}, groundOn: map[string]map[uint32]*groundItem{},
 		trades: map[uint32]*trade{}, settled: map[uint32]settlement{},
-	}
+	}}
+}
+
+// locked is the world record's state while its lock is held. What may be done only under
+// the lock is a method of locked, so the compiler sees the lock taken first; a method
+// that uses nothing of it but its receiver, such as prey, takes one as that proof.
+type locked struct{ *state }
+
+// lock takes the record's lock, and hands back its state held and the way to let it go.
+func (w *record) lock() (locked, func()) {
+	w.mu.Lock()
+	return locked{&w.state}, w.mu.Unlock
 }
 
 // sender is where a player's packets go: their connection, which only queues them.
@@ -98,57 +114,56 @@ func (p *present) inView(o *present) bool {
 	return (p.isPlayer() || o.isPlayer()) && p.world == o.world && within(p, o, viewRange)
 }
 
-func link(a, b *present) {
+func (l locked) link(a, b *present) {
 	a.sees[b.add.VID] = b
 	b.sees[a.add.VID] = a
 }
 
 // unlink parts a and b, and a player stops targeting what they no longer see.
-func unlink(a, b *present) {
+func (l locked) unlink(a, b *present) {
 	delete(a.sees, b.add.VID)
 	delete(b.sees, a.add.VID)
-	untarget(a, b)
-	untarget(b, a)
+	l.untarget(a, b)
+	l.untarget(b, a)
 }
 
 // enter puts p in the world, and shows p and the others in its view to each other. The
 // newcomer gets everyone in one send, so a crowd does not fill their queue.
-func (w *presence) enter(p *present) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	w.enterLocked(p)
-	if w.event != nil && p.isPlayer() {
-		p.send(eventNotice(*w.event))
+func (w *record) enter(p *present) {
+	l, unlock := w.lock()
+	defer unlock()
+	l.admit(p)
+	if l.event != nil && p.isPlayer() {
+		p.send(eventNotice(*l.event))
 	}
 }
 
-// enterLocked puts p in the world: everyone in view and p are shown to each other. Called
-// under the lock.
-func (w *presence) enterLocked(p *present) {
+// admit puts p in the world: everyone in view and p are shown to each other.
+func (l locked) admit(p *present) {
 	p.world = ""
 	if m, ok := world.MapAt(p.add.X, p.add.Y); ok {
 		p.world = m.Name
 	}
 	p.sees = map[uint32]*present{}
 	var others [][]byte
-	for _, other := range w.onMap[p.world] {
+	for _, other := range l.onMap[p.world] {
 		if p.inView(other) {
-			link(p, other)
+			l.link(p, other)
 			other.send(p.appearance()...)
 			others = append(others, other.appearance()...)
 		}
 	}
 	if p.isPlayer() {
-		others = append(others, w.groundInView(p, false)...)
+		others = append(others, l.groundInView(p, false)...)
 	}
 	p.send(others...)
-	w.all[p.add.VID] = p
-	if w.onMap[p.world] == nil {
-		w.onMap[p.world] = map[uint32]*present{}
+	l.all[p.add.VID] = p
+	if l.onMap[p.world] == nil {
+		l.onMap[p.world] = map[uint32]*present{}
 	}
-	w.onMap[p.world][p.add.VID] = p
+	l.onMap[p.world][p.add.VID] = p
 	if p.isPlayer() {
-		w.byName[strings.ToLower(p.info.Name)] = p
+		l.byName[strings.ToLower(p.info.Name)] = p
 	}
 }
 
@@ -156,14 +171,14 @@ func (w *presence) enterLocked(p *present) {
 // who left it, on both sides, then shows the move to every player in view: someone just
 // met gets the character before its move. A moving player gets all its changes in one
 // send.
-func (w *presence) move(vid uint32, m protocol.Move) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	w.moveLocked(w.all[vid], m)
+func (w *record) move(vid uint32, m protocol.Move) {
+	l, unlock := w.lock()
+	defer unlock()
+	l.shift(l.all[vid], m)
 }
 
-// moveLocked is move, under the lock.
-func (w *presence) moveLocked(p *present, m protocol.Move) {
+// shift is move, under the lock.
+func (l locked) shift(p *present, m protocol.Move) {
 	vid := p.add.VID
 	if p.dead() {
 		return // a body lies where it fell
@@ -174,82 +189,82 @@ func (w *presence) moveLocked(p *present, m protocol.Move) {
 	p.add.X, p.add.Y, p.add.Rotation = m.X, m.Y, float32(m.Rotation)*5
 	var mine [][]byte
 	if p.isPlayer() {
-		mine = w.groundSeen(p, fromX, fromY)
+		mine = l.groundSeen(p, fromX, fromY)
 	}
-	if p.isPlayer() && len(w.trades) > 0 {
-		w.walkedAway(p)
+	if p.isPlayer() && len(l.trades) > 0 {
+		l.walkedAway(p)
 	}
-	for _, other := range w.onMap[p.world] { // only those on its map can come into or leave its view
+	for _, other := range l.onMap[p.world] { // only those on its map can come into or leave its view
 		if other == p {
 			continue
 		}
 		_, seen := p.sees[other.add.VID]
 		switch near := p.inView(other); {
 		case near && !seen:
-			link(p, other)
+			l.link(p, other)
 			other.send(p.appearance()...)
 			mine = append(mine, other.appearance()...)
 		case !near && seen:
-			unlink(p, other)
+			l.unlink(p, other)
 			other.send(protocol.EncodeCharacterDelete(vid))
 			mine = append(mine, protocol.EncodeCharacterDelete(other.add.VID))
 		}
 	}
 	p.send(mine...)
-	toViewers(p, protocol.EncodeMove(vid, m))
+	l.toViewers(p, protocol.EncodeMove(vid, m))
 }
 
 // say passes a packet from the player on to everyone who sees them.
-func (w *presence) say(vid uint32, packet []byte) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	toViewers(w.all[vid], packet)
+func (w *record) say(vid uint32, packet []byte) {
+	l, unlock := w.lock()
+	defer unlock()
+	l.toViewers(l.all[vid], packet)
 }
 
 // leave takes the player out of the world, and out of the view of everyone who sees them.
-func (w *presence) leave(vid uint32) *present {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	p := w.all[vid]
-	w.leaveLocked(p)
+func (w *record) leave(vid uint32) *present {
+	l, unlock := w.lock()
+	defer unlock()
+	p := l.all[vid]
+	l.remove(p)
 	return p
 }
 
-// leaveLocked takes p out of the world, telling those who saw it. Called under the lock.
-func (w *presence) leaveLocked(p *present) {
+// remove takes p out of the world, telling those who saw it.
+func (l locked) remove(p *present) {
 	vid := p.add.VID
-	delete(w.all, vid)
-	delete(w.onMap[p.world], vid)
+	delete(l.all, vid)
+	delete(l.onMap[p.world], vid)
 	if p.isPlayer() {
-		delete(w.byName, strings.ToLower(p.info.Name)) // a mob's name may be a player's too
+		delete(l.byName, strings.ToLower(p.info.Name)) // a mob's name may be a player's too
 		// The connection stays open through Change character and a restart: the client must
 		// not keep these, nor be shown them twice on coming back.
-		p.send(w.groundInView(p, true)...)
+		p.send(l.groundInView(p, true)...)
 	}
-	toViewers(p, protocol.EncodeCharacterDelete(vid))
+	l.toViewers(p, protocol.EncodeCharacterDelete(vid))
 	for _, other := range p.sees {
-		unlink(p, other)
+		l.unlink(p, other)
 	}
 }
 
 // sendOff takes the monster out of the world, unless it has died there. It reports whether
 // it was taken.
-func (w *presence) sendOff(p *present) bool {
-	w.mu.Lock()
-	defer w.mu.Unlock()
+func (w *record) sendOff(p *present) bool {
+	l, unlock := w.lock()
+	defer unlock()
 	if p.dead() {
 		return false
 	}
-	w.leaveLocked(p)
+	l.remove(p)
 	return true
 }
 
 // tellMap shows a notice to every player on the map p stands on.
-func (w *presence) tellMap(p *present, line string) {
+func (w *record) tellMap(p *present, line string) {
 	packet := notice(line) // outside the lock, to keep it short
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	for _, other := range w.byName {
+	l, unlock := w.lock()
+	defer unlock()
+	for _, other := range l.byName {
 		if other.world == p.world {
 			other.send(packet)
 		}
@@ -257,11 +272,11 @@ func (w *presence) tellMap(p *present, line string) {
 }
 
 // players returns everyone playing in the world now.
-func (w *presence) players() []*present {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	all := make([]*present, 0, len(w.byName))
-	for _, p := range w.byName {
+func (w *record) players() []*present {
+	l, unlock := w.lock()
+	defer unlock()
+	all := make([]*present, 0, len(l.byName))
+	for _, p := range l.byName {
 		all = append(all, p)
 	}
 	return all
@@ -271,10 +286,10 @@ func (w *presence) players() []*present {
 // their progress and hit points, which change only under the lock, and where the world
 // record has them. The rest of their character is their connection's, so it is not read
 // here.
-func (w *presence) snapshot(p *present) (account.Character, bool) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	if w.all[p.add.VID] != p || p.dead() {
+func (w *record) snapshot(p *present) (account.Character, bool) {
+	l, unlock := w.lock()
+	defer unlock()
+	if l.all[p.add.VID] != p || p.dead() {
 		return account.Character{}, false
 	}
 	c := p.char
@@ -293,10 +308,10 @@ const (
 
 // whisper sends the player named a packet, wherever they are in the world, unless they
 // block whispers, and returns their character's id with what became of it.
-func (w *presence) whisper(name string, packet []byte) (uint32, whisperOutcome) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	p, ok := w.byName[strings.ToLower(name)]
+func (w *record) whisper(name string, packet []byte) (uint32, whisperOutcome) {
+	l, unlock := w.lock()
+	defer unlock()
+	p, ok := l.byName[strings.ToLower(name)]
 	switch {
 	case !ok:
 		return 0, whisperNotFound
@@ -308,21 +323,21 @@ func (w *presence) whisper(name string, packet []byte) (uint32, whisperOutcome) 
 }
 
 // setBlocks records what the player now refuses, for whispers sent to them.
-func (w *presence) setBlocks(vid uint32, blocks account.Blocks) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	w.all[vid].blocks = blocks
+func (w *record) setBlocks(vid uint32, blocks account.Blocks) {
+	l, unlock := w.lock()
+	defer unlock()
+	l.all[vid].blocks = blocks
 }
 
-func toViewers(p *present, packet []byte) {
+func (l locked) toViewers(p *present, packet []byte) {
 	for _, other := range p.sees {
 		other.send(packet)
 	}
 }
 
 // showMob shows those who see the monster its effects now.
-func showMob(v *present) {
-	toViewers(v, protocol.EncodeCharacterUpdate(v.info, v.add, mobAffects(v)))
+func (l locked) showMob(v *present) {
+	l.toViewers(v, protocol.EncodeCharacterUpdate(v.info, v.add, mobAffects(v)))
 }
 
 // A tether is where the server reckons a player's character can be, and since when: it
@@ -344,37 +359,37 @@ const (
 // others; one further is not taken: the character is put where the tether has gone to, for
 // the others and, with SYNC_POSITION, for the player's own client. It returns where the
 // character is now. The dead stay where they fell.
-func (w *presence) walk(vid uint32, m protocol.Move, now time.Time) (int32, int32) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	p := w.all[vid]
+func (w *record) walk(vid uint32, m protocol.Move, now time.Time) (int32, int32) {
+	l, unlock := w.lock()
+	defer unlock()
+	p := l.all[vid]
 	if p.dead() {
 		return p.add.X, p.add.Y
 	}
 	p.tether = p.tether.towards(m.X, m.Y, 1.5*4.5*float64(p.add.MoveSpeed), now)
-	l := p.tether
-	if apart(m.X, m.Y, l.x, l.y) <= tetherLength*tetherLength {
-		w.moveLocked(p, m)
+	t := p.tether
+	if apart(m.X, m.Y, t.x, t.y) <= tetherLength*tetherLength {
+		l.shift(p, m)
 		return m.X, m.Y
 	}
-	w.moveLocked(p, protocol.Move{Type: protocol.MoveWait, Rotation: m.Rotation, X: l.x, Y: l.y, Time: m.Time})
-	p.send(protocol.EncodeSyncPosition(vid, l.x, l.y))
-	return l.x, l.y
+	l.shift(p, protocol.Move{Type: protocol.MoveWait, Rotation: m.Rotation, X: t.x, Y: t.y, Time: m.Time})
+	p.send(protocol.EncodeSyncPosition(vid, t.x, t.y))
+	return t.x, t.y
 }
 
 // towards is the tether followed towards x, y at rate units a second for the time it has
 // banked since it last moved, up to tetherCredit. Reaching the point spends only the time
 // that took, so the moves of a burst after a stall share it.
-func (l tether) towards(x, y int32, rate float64, now time.Time) tether {
-	if l.at.IsZero() {
-		return tether{x: l.x, y: l.y, at: now}
+func (t tether) towards(x, y int32, rate float64, now time.Time) tether {
+	if t.at.IsZero() {
+		return tether{x: t.x, y: t.y, at: now}
 	}
-	banked := min(now.Sub(l.at), tetherCredit)
-	dx, dy := float64(x)-float64(l.x), float64(y)-float64(l.y)
+	banked := min(now.Sub(t.at), tetherCredit)
+	dx, dy := float64(x)-float64(t.x), float64(y)-float64(t.y)
 	far := math.Hypot(dx, dy)
 	if needed := time.Duration(far / rate * float64(time.Second)); needed <= banked {
 		return tether{x: x, y: y, at: now.Add(needed - banked)}
 	}
 	k := rate * banked.Seconds() / far
-	return tether{x: l.x + int32(dx*k), y: l.y + int32(dy*k), at: now}
+	return tether{x: t.x + int32(dx*k), y: t.y + int32(dy*k), at: now}
 }

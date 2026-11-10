@@ -71,7 +71,7 @@ func TestABookRaisesAMasterALevel(t *testing.T) {
 	}
 	if kept.learnt[skill.DragonSwirl] != 21 || !kept.reads[skill.DragonSwirl].Equal(noon.Add(4*time.Hour)) ||
 		!slices.Equal(kept.used, []int64{5}) || len(s.inventory) != 0 ||
-		s.svc.presence.all[1000].char.Skills[skill.DragonSwirl] != 21 {
+		s.svc.record.state.all[1000].char.Skills[skill.DragonSwirl] != 21 {
 		t.Fatalf("kept %v, %v, used %+v; holds %+v", kept.learnt, kept.reads, kept.used, s.inventory)
 	}
 }
@@ -185,7 +185,7 @@ func TestASoulStoneMakesAnM10AGrandMaster(t *testing.T) {
 	}
 
 	got := packets(t, drain(t, client))
-	shown := skillLevels(s.svc.presence.all[1000].char.Skills)
+	shown := skillLevels(s.svc.record.state.all[1000].char.Skills)
 	if !holds(got, protocol.EncodeSkillLevels(shown), infoLine("Udało się! Umiejętność osiągnęła poziom G1.")) ||
 		kept.learnt[skill.DragonSwirl] != skill.GrandMaster || shown[62] != (protocol.SkillLevel{Grade: skill.GrandMasterGrade, Level: 30}) {
 		t.Fatalf("told %x, kept %v, shown %+v", got, kept.learnt, shown[62])
@@ -217,7 +217,7 @@ func TestAReadThatCannotBeKeptKeepsTheBook(t *testing.T) {
 
 	usedFirst(t, s)
 
-	if got := drain(t, client); len(got) != 0 || len(s.inventory) != 1 || s.svc.presence.all[1000].char.Skills[skill.DragonSwirl] != skill.Master {
+	if got := drain(t, client); len(got) != 0 || len(s.inventory) != 1 || s.svc.record.state.all[1000].char.Skills[skill.DragonSwirl] != skill.Master {
 		t.Fatalf("told %x, holds %+v", got, s.inventory)
 	}
 }

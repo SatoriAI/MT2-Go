@@ -111,8 +111,8 @@ func TestASuraTakesUpTheTeachersGroup(t *testing.T) {
 	if got := read(t, client, len(want)); string(got) != want {
 		t.Fatalf("got  %x\nwant %x", got, want)
 	}
-	if kept.group != "weaponry" || s.svc.presence.all[1000].char.SkillGroup != "weaponry" || s.talking != nil {
-		t.Fatalf("kept %q, in play %q", kept.group, s.svc.presence.all[1000].char.SkillGroup)
+	if kept.group != "weaponry" || s.svc.record.state.all[1000].char.SkillGroup != "weaponry" || s.talking != nil {
+		t.Fatalf("kept %q, in play %q", kept.group, s.svc.record.state.all[1000].char.SkillGroup)
 	}
 }
 
@@ -144,7 +144,7 @@ func TestATeachersOfferDeclinedTakesNothingUp(t *testing.T) {
 		}
 
 		expectNothing(t, client)
-		if kept.group != "" || s.svc.presence.all[1000].char.SkillGroup != "" || s.talking != nil {
+		if kept.group != "" || s.svc.record.state.all[1000].char.SkillGroup != "" || s.talking != nil {
 			t.Errorf("%s: took up %q", name, kept.group)
 		}
 	}
@@ -199,7 +199,7 @@ func TestASuraBelowTwentyChangesPathAndGetsHerPointsBack(t *testing.T) {
 		got[1] != 2 {
 		t.Fatalf("told group %d, points %x", got[1], got[2+1531:])
 	}
-	if c := s.svc.presence.all[1000].char; kept.group != "black_magic" || len(c.Skills) != 0 || len(kept.learnt) != 0 {
+	if c := s.svc.record.state.all[1000].char; kept.group != "black_magic" || len(c.Skills) != 0 || len(kept.learnt) != 0 {
 		t.Fatalf("kept %q %v, in play %v", kept.group, kept.learnt, c.Skills)
 	}
 }
@@ -222,7 +222,7 @@ func TestAGroupThatCannotBeKeptIsNotTakenUp(t *testing.T) {
 	}
 
 	expectNothing(t, client)
-	if s.svc.presence.all[1000].char.SkillGroup != "" {
+	if s.svc.record.state.all[1000].char.SkillGroup != "" {
 		t.Fatal("taken up in play")
 	}
 }
@@ -240,7 +240,7 @@ func TestASkillIsRaisedWithAPoint(t *testing.T) {
 	levels[62] = protocol.SkillLevel{Level: 2}
 	want := string(protocol.EncodeSkillLevels(levels)) + string(protocol.EncodePointChange(1000, protocol.PointSkillPoints, -1, 0))
 	if got := read(t, client, len(want)); string(got) != want || kept.learnt[skill.DragonSwirl] != 2 ||
-		s.svc.presence.all[1000].char.Skills[skill.DragonSwirl] != 2 {
+		s.svc.record.state.all[1000].char.Skills[skill.DragonSwirl] != 2 {
 		t.Fatalf("got %x, kept %v", got[len(got)-pointChangeSize:], kept.learnt)
 	}
 }
@@ -267,14 +267,14 @@ func TestASkillThatCannotBeRaisedIsNot(t *testing.T) {
 		if c.fail {
 			kept.fail = errors.New("the database is gone")
 		}
-		before := s.svc.presence.all[1000].char.Skills[skill.DragonSwirl]
+		before := s.svc.record.state.all[1000].char.Skills[skill.DragonSwirl]
 
 		if err := s.onCommand(context.Background(), "skillup 62"); err != nil {
 			t.Fatal(err)
 		}
 
 		expectNothing(t, client)
-		if s.svc.presence.all[1000].char.Skills[skill.DragonSwirl] != before {
+		if s.svc.record.state.all[1000].char.Skills[skill.DragonSwirl] != before {
 			t.Errorf("%s: raised", c.name)
 		}
 	}
@@ -292,11 +292,12 @@ func TestASkillThatCannotBeRaisedIsNot(t *testing.T) {
 // A level up past 5 with a group tells her her new skill points; without one, it does not.
 func TestALevelUpTellsTheSkillPointsOfOneWithAGroup(t *testing.T) {
 	s, _, client, _, _ := training(t, account.Sura, 6, "weaponry", nil)
-	p := s.svc.presence.all[1000]
-	s.svc.presence.mu.Lock()
-	s.svc.presence.gainExp(p, 1_000_000)
-	level := p.char.Level
-	s.svc.presence.mu.Unlock()
+	p := s.svc.record.state.all[1000]
+	var level uint8
+	s.svc.record.held(func(l locked) {
+		l.gainExp(p, 1_000_000)
+		level = p.char.Level
+	})
 
 	got := read(t, client, 10*pointChangeSize) // the experience, eight points of the level, then the skill points
 	want := protocol.EncodePointChange(1000, protocol.PointSkillPoints, 0, int32(level)-skill.FirstLevel+1)
@@ -308,10 +309,10 @@ func TestALevelUpTellsTheSkillPointsOfOneWithAGroup(t *testing.T) {
 // Without a group, a level up says nothing of skill points.
 func TestALevelUpWithoutAGroupSaysNothingOfSkillPoints(t *testing.T) {
 	s, _, client, _, _ := training(t, account.Sura, 6, "", nil)
-	p := s.svc.presence.all[1000]
-	s.svc.presence.mu.Lock()
-	s.svc.presence.gainExp(p, 1_000_000)
-	s.svc.presence.mu.Unlock()
+	p := s.svc.record.state.all[1000]
+	s.svc.record.held(func(l locked) {
+		l.gainExp(p, 1_000_000)
+	})
 
 	read(t, client, 9*pointChangeSize)
 	expectNothing(t, client)
@@ -353,9 +354,9 @@ func TestAnOfferKeptOpenPastTwentyIsNotTaken(t *testing.T) {
 		t.Fatal(err)
 	}
 	read(t, client, len(script("Chcesz porzucić swoją drogę i uczyć się drogi Czarnej Magii? Zapomnisz to, czego się nauczyłeś, ale odzyskasz wszystkie punkty.[ENTER][QUESTION 1;Tak|2;Nie]")))
-	s.svc.presence.mu.Lock()
-	s.svc.presence.all[1000].char.Level = 20
-	s.svc.presence.mu.Unlock()
+	s.svc.record.held(func(l locked) {
+		s.svc.record.state.all[1000].char.Level = 20
+	})
 
 	if err := s.onScriptAnswer(context.Background(), answered(0)); err != nil {
 		t.Fatal(err)
@@ -374,9 +375,9 @@ func TestAYesFromOutOfReachTakesNothingUp(t *testing.T) {
 		t.Fatal(err)
 	}
 	read(t, client, len(script("Mogę nauczyć cię drogi Mocy Broni. Czy chcesz nią podążać?[ENTER][QUESTION 1;Tak|2;Nie]")))
-	s.svc.presence.mu.Lock()
-	s.svc.presence.all[1000].add.X += 2 * npcReach
-	s.svc.presence.mu.Unlock()
+	s.svc.record.held(func(l locked) {
+		s.svc.record.state.all[1000].add.X += 2 * npcReach
+	})
 
 	if err := s.onScriptAnswer(context.Background(), answered(0)); err != nil {
 		t.Fatal(err)
@@ -404,7 +405,7 @@ func TestTheClientIsToldTheCastingSpeedCooldownsAreCountedAt(t *testing.T) {
 // first level, then the levels and points.
 func TestTheArmourRaisedWhileItRunsTellsHerDefence(t *testing.T) {
 	s, _, client, _, _ := training(t, account.Sura, 10, "weaponry", map[account.Skill]uint8{skill.EnchantedArmour: 1})
-	c := s.svc.presence.all[1000].char
+	c := s.svc.record.state.all[1000].char
 	c.Intelligence = 5
 	c.Buffs = map[account.Skill]time.Time{skill.EnchantedArmour: noon.Add(time.Minute)}
 	before := defence(c)
@@ -424,7 +425,7 @@ func TestTheArmourRaisedWhileItRunsTellsHerDefence(t *testing.T) {
 // runs is only shown again.
 func TestASkillRaisedTellsNoDefenceWithoutTheArmour(t *testing.T) {
 	s, _, client, _, _ := training(t, account.Sura, 10, "weaponry", nil)
-	s.svc.presence.all[1000].char.Buffs = map[account.Skill]time.Time{skill.EnchantedBlade: noon.Add(time.Minute)}
+	s.svc.record.state.all[1000].char.Buffs = map[account.Skill]time.Time{skill.EnchantedBlade: noon.Add(time.Minute)}
 
 	if err := s.onCommand(context.Background(), "skillup 63"); err != nil {
 		t.Fatal(err)

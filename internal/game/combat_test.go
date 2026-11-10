@@ -33,13 +33,13 @@ var (
 // hit lands a blow of player 1000 on the victim, as a character with a's level, class and
 // stats and all its hit points, which the player keeps from their first blow on.
 func (svc *Service) hit(victim uint32, a combat.Attacker, gap time.Duration, now time.Time) blow {
-	if p := svc.presence.all[1000]; p.char == nil {
+	if p := svc.record.state.all[1000]; p.char == nil {
 		c := &account.Character{Level: a.Level, Class: a.Class, Stats: a.Stats}
 		points, _ := c.Points()
 		c.HP, c.SP = points.MaxHP, points.MaxSP // whole, so nothing heals
 		p.char = c
 	}
-	return svc.presence.attack(1000, victim, gap, someRand, now)
+	return svc.record.attack(1000, victim, gap, someRand, now)
 }
 
 func dogDefender(t *testing.T) combat.Defender {
@@ -66,7 +66,7 @@ func aDog(t *testing.T, playerX int32) (*Service, *monster, net.Conn) {
 func TestTargetingAMonsterShowsItsHitPoints(t *testing.T) {
 	s, dog, client := aDog(t, homeX+100)
 
-	s.presence.target(1000, dog.p.add.VID)
+	s.record.target(1000, dog.p.add.VID)
 
 	if got, want := read(t, client, targetSize), protocol.EncodeTarget(dog.p.add.VID, 100); string(got) != string(want) {
 		t.Fatalf("got %x, want %x", got, want)
@@ -78,7 +78,7 @@ func TestTargetingAMonsterShowsItsHitPoints(t *testing.T) {
 func TestABlowTakesHitPointsAndTellsTheAttacker(t *testing.T) {
 	s, dog, client := aDog(t, homeX+100)
 	vid := dog.p.add.VID
-	s.presence.target(1000, vid)
+	s.record.target(1000, vid)
 	read(t, client, targetSize)
 	mean := combat.Mean(brawler, dogDefender(t))
 
@@ -123,13 +123,13 @@ func TestAnNPCCannotBeFoughtOrTargeted(t *testing.T) {
 	s := worldWith(t, world.Spawn{VNum: 9001, X: homeX, Y: homeY, Count: 1})
 	client := s.playerAt(t, homeX+100, addSize+54)
 	var npc uint32
-	for vid, p := range s.presence.all {
+	for vid, p := range s.record.state.all {
 		if p.out == nil {
 			npc = vid
 		}
 	}
 
-	s.presence.target(1000, npc)
+	s.record.target(1000, npc)
 	if got := s.hit(npc, slayer, 0, noon); got != blowRefused {
 		t.Fatalf("got %v", got)
 	}
@@ -142,9 +142,9 @@ func TestAKillTellsEveryoneWhoSeesItAndEndsTheirTargets(t *testing.T) {
 	s, dog, attacker := aDog(t, homeX+100)
 	vid := dog.p.add.VID
 	conn, onlooker := watcher(t)
-	s.presence.enter(&present{out: conn, add: protocol.CharacterAdd{VID: 2000, X: homeX - 100, Y: homeY}})
+	s.record.enter(&present{out: conn, add: protocol.CharacterAdd{VID: 2000, X: homeX - 100, Y: homeY}})
 	read(t, onlooker, addSize+addSize) // the dog and the attacker
-	s.presence.target(1000, vid)
+	s.record.target(1000, vid)
 	read(t, attacker, addSize+targetSize) // the onlooker arriving, then the dog's hit points
 
 	if got := s.hit(vid, slayer, 0, noon); got != blowKilled {
@@ -159,7 +159,7 @@ func TestAKillTellsEveryoneWhoSeesItAndEndsTheirTargets(t *testing.T) {
 	if got := read(t, onlooker, deadSize); string(got) != string(protocol.EncodeDead(vid)) {
 		t.Fatalf("the onlooker got %x", got)
 	}
-	if s.presence.all[1000].target != nil || len(dog.p.fight.targetedBy) != 0 {
+	if s.record.state.all[1000].target != nil || len(dog.p.fight.targetedBy) != 0 {
 		t.Fatal("the attacker still targets the body")
 	}
 }
@@ -174,9 +174,9 @@ func TestADeadMonsterCannotBeHitTargetedOrMoved(t *testing.T) {
 	if got := s.hit(vid, slayer, 0, noon); got != blowRefused {
 		t.Fatalf("hit a body: %v", got)
 	}
-	s.presence.target(1000, vid)
+	s.record.target(1000, vid)
 	s.tick(noon.Add(time.Second)) // the dog was due a stroll, and is dead
-	s.presence.move(vid, protocol.Move{X: homeX + 500, Y: homeY})
+	s.record.move(vid, protocol.Move{X: homeX + 500, Y: homeY})
 
 	expectNothing(t, client)
 }
@@ -212,12 +212,12 @@ func TestABodyIsTakenAwayAndAMonsterReturns(t *testing.T) {
 // no business of theirs.
 func TestWalkingOutOfViewEndsTheTarget(t *testing.T) {
 	s, dog, client := aDog(t, homeX+100)
-	s.presence.target(1000, dog.p.add.VID)
+	s.record.target(1000, dog.p.add.VID)
 	read(t, client, targetSize)
 
-	s.presence.move(1000, protocol.Move{X: homeX + 9000, Y: homeY})
+	s.record.move(1000, protocol.Move{X: homeX + 9000, Y: homeY})
 
-	if s.presence.all[1000].target != nil || len(dog.p.fight.targetedBy) != 0 {
+	if s.record.state.all[1000].target != nil || len(dog.p.fight.targetedBy) != 0 {
 		t.Fatal("still targeting what they no longer see")
 	}
 }
@@ -227,14 +227,14 @@ func TestWalkingOutOfViewEndsTheTarget(t *testing.T) {
 func TestTakingAwayAMobKeepsAPlayerOfTheSameName(t *testing.T) {
 	s := worldWith(t, world.Spawn{VNum: 108, X: homeX, Y: homeY, Count: 1})
 	conn, _ := watcher(t)
-	s.presence.enter(&present{out: conn, info: protocol.CharacterInfo{Name: "dzik"},
+	s.record.enter(&present{out: conn, info: protocol.CharacterInfo{Name: "dzik"},
 		add: protocol.CharacterAdd{VID: 1000, X: homeX + 100, Y: homeY}})
 	boar := s.monsters[0].p.add.VID
 	s.hit(boar, slayer, 0, noon)
 
-	s.presence.leave(boar)
+	s.record.leave(boar)
 
-	if _, ok := s.presence.byName[strings.ToLower(textToClient("Dzik"))]; !ok {
+	if _, ok := s.record.state.byName[strings.ToLower(textToClient("Dzik"))]; !ok {
 		t.Fatal("the player named dzik is gone from the names")
 	}
 }
@@ -255,11 +255,11 @@ func TestPickingAnotherMonsterEndsTheFirstPick(t *testing.T) {
 	s := worldWith(t, world.Spawn{VNum: 101, X: homeX, Y: homeY, Count: 2})
 	client := s.playerAt(t, homeX+100, 2*addSize)
 	first, second := s.monsters[0].p, s.monsters[1].p
-	s.presence.target(1000, first.add.VID)
-	s.presence.target(1000, second.add.VID)
+	s.record.target(1000, first.add.VID)
+	s.record.target(1000, second.add.VID)
 	read(t, client, 2*targetSize)
 
-	if _, still := first.fight.targetedBy[s.presence.all[1000]]; still {
+	if _, still := first.fight.targetedBy[s.record.state.all[1000]]; still {
 		t.Fatal("the first monster still counts the player among its pickers")
 	}
 }
@@ -289,7 +289,7 @@ func TestABodyIsShownLyingToSomeoneArriving(t *testing.T) {
 	s.hit(dog.p.add.VID, slayer, 0, noon)
 	conn, newcomer := watcher(t)
 
-	s.presence.enter(&present{out: conn, add: protocol.CharacterAdd{VID: 2000, X: homeX - 100, Y: homeY}})
+	s.record.enter(&present{out: conn, add: protocol.CharacterAdd{VID: 2000, X: homeX - 100, Y: homeY}})
 
 	shown := read(t, newcomer, addSize+addSize) // the dog and the attacker, in either order
 	lying := shown[:addSize]
@@ -311,14 +311,14 @@ func TestTheBlowGapFollowsTheGamesClock(t *testing.T) {
 	if err := s.onAttack(blow); err != nil {
 		t.Fatal(err)
 	}
-	first := dog.fight.damageBy[s.svc.presence.all[1000]]
-	s.svc.now = func() time.Time { return noon.Add(blowGap(s.svc.presence.attackSpeedOf(1000))) }
+	first := dog.fight.damageBy[s.svc.record.state.all[1000]]
+	s.svc.now = func() time.Time { return noon.Add(blowGap(s.svc.record.attackSpeedOf(1000))) }
 
 	if err := s.onAttack(blow); err != nil {
 		t.Fatal(err)
 	}
 
-	if dog.fight.damageBy[s.svc.presence.all[1000]] == first {
+	if dog.fight.damageBy[s.svc.record.state.all[1000]] == first {
 		t.Fatal("the second blow was dropped")
 	}
 }

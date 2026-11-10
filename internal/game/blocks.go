@@ -33,7 +33,7 @@ func (s *session) onSetBlockMode(arg string) error {
 		return s.conn.Send(s.blockMode())
 	}
 	p.Blocks = blocks
-	s.svc.presence.setBlocks(p.vid, blocks)
+	s.svc.record.setBlocks(p.vid, blocks)
 	return s.conn.Send(s.blockMode())
 }
 
