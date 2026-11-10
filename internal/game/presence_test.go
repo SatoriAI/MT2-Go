@@ -4,7 +4,6 @@ import (
 	"context"
 	"log/slog"
 	"net"
-	"net/netip"
 	"testing"
 
 	"github.com/SatoriAI/MT2-Go/internal/handshake"
@@ -58,7 +57,7 @@ func conns(t *testing.T, n int) []*network.Conn {
 // it must not touch the others.
 func TestAPlayerWhoseEntryFailedLeavesWithoutDisturbingTheOthers(t *testing.T) {
 	c := conns(t, 2)
-	svc := NewService(nil, nil, nil, nil, nil, nil, handshake.NewClock(), netip.AddrPort{}, nil)
+	svc := NewService(Deps{Clock: handshake.NewClock()})
 	svc.presence.enter(&present{out: c[0], add: protocol.CharacterAdd{VID: 1}})
 	c[1].Close()
 	s := &session{svc: svc, conn: c[1], phase: protocol.PhaseLoading,
@@ -89,5 +88,19 @@ func TestEnteringABusyMapDoesNotOverflowTheNewcomersQueue(t *testing.T) {
 
 	if err := c[1].Send([]byte{0}); err != nil {
 		t.Fatalf("the newcomer's connection: %v", err)
+	}
+}
+
+// Two players see each other out to viewRange, and no further.
+func TestPlayersSeeEachOtherOutToTheViewRange(t *testing.T) {
+	c := conns(t, 1)
+	at := func(x, y int32) *present { return &present{out: c[0], add: protocol.CharacterAdd{X: x, Y: y}} }
+	for _, tc := range []struct {
+		x, y int32
+		sees bool
+	}{{viewRange, 0, true}, {0, -viewRange, true}, {4800, 6400, true}, {viewRange + 1, 0, false}, {4800, 6401, false}} {
+		if got := at(0, 0).inView(at(tc.x, tc.y)); got != tc.sees {
+			t.Errorf("at %d, %d: sees %v, want %v", tc.x, tc.y, got, tc.sees)
+		}
 	}
 }

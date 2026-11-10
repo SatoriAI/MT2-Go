@@ -73,8 +73,8 @@ func TestDragonSwirlStrikesEveryMonsterInItsReach(t *testing.T) {
 			}
 		}
 	}
-	if struck != 2 || len(s.svc.presence.provoked) != 2 {
-		t.Fatalf("struck %d, provoked %d", struck, len(s.svc.presence.provoked))
+	if struck != 2 || len(s.svc.presence.news.provoked) != 2 {
+		t.Fatalf("struck %d, provoked %d", struck, len(s.svc.presence.news.provoked))
 	}
 }
 
@@ -107,8 +107,8 @@ func TestDragonSwirlKillsWhatItStrikesToDeath(t *testing.T) {
 	}
 
 	read(t, client, pointChangeSize)
-	if len(s.svc.presence.fallen) != 2 || s.svc.presence.all[1000].char.Exp == 0 {
-		t.Fatalf("%d fell, exp %d", len(s.svc.presence.fallen), s.svc.presence.all[1000].char.Exp)
+	if len(s.svc.presence.news.fallen) != 2 || s.svc.presence.all[1000].char.Exp == 0 {
+		t.Fatalf("%d fell, exp %d", len(s.svc.presence.news.fallen), s.svc.presence.all[1000].char.Exp)
 	}
 }
 
@@ -136,8 +136,8 @@ func TestDragonSwirlWaitsForItsCooldownAndSparesTheDead(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if s.svc.presence.all[1000].char.SP == sp || len(s.svc.presence.fallen) != 2 {
-		t.Fatalf("SP %d, %d fell", s.svc.presence.all[1000].char.SP, len(s.svc.presence.fallen))
+	if s.svc.presence.all[1000].char.SP == sp || len(s.svc.presence.news.fallen) != 2 {
+		t.Fatalf("SP %d, %d fell", s.svc.presence.all[1000].char.SP, len(s.svc.presence.news.fallen))
 	}
 }
 
@@ -174,7 +174,7 @@ func TestASkillThatCannotBeUsedIsNot(t *testing.T) {
 		}
 
 		expectNothing(t, client)
-		if s.svc.presence.all[1000].char.SP != sp || len(s.svc.presence.provoked) != 0 {
+		if s.svc.presence.all[1000].char.SP != sp || len(s.svc.presence.news.provoked) != 0 {
 			t.Errorf("%s: used", name)
 		}
 	}
@@ -428,7 +428,7 @@ func TestFingerStrikeNeedsAMonsterInReach(t *testing.T) {
 		}
 
 		expectNothing(t, client)
-		if s.svc.presence.all[1000].char.SP != 500 || len(s.svc.presence.provoked) != 0 {
+		if s.svc.presence.all[1000].char.SP != 500 || len(s.svc.presence.news.provoked) != 0 {
 			t.Errorf("%s: used", name)
 		}
 	}

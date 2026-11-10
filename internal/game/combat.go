@@ -200,7 +200,7 @@ func (w *presence) strikeAs(p, v *present, damage int, flag uint8, now time.Time
 		t.send(protocol.EncodeTarget(vid, f.hpPercent()))
 	}
 	if f.hp > 0 {
-		w.provoked = append(w.provoked, provocation{v, p})
+		w.news.provoked = append(w.news.provoked, provocation{v, p})
 		if f.stone {
 			w.wear(v, p)
 		}
@@ -217,9 +217,9 @@ func (w *presence) kill(p, v *present, now time.Time) {
 	f, vid := v.fight, v.add.VID
 	f.diedAt, f.stunned, f.poisoned, f.slowed, f.burning = now, false, false, false, false // a body is none of these
 	winner := w.topDamager(f, p)
-	w.fallen = append(w.fallen, death{v, now, owner{id: winner.char.ID, name: winner.info.Name}})
+	w.news.fallen = append(w.news.fallen, death{v, now, owner{id: winner.char.ID, name: winner.info.Name}})
 	if f.stone {
-		winner.send(protocol.EncodeChat(protocol.ChatInfo, 0, 0, textToClient("Zniszczyłeś kamień Metin.")))
+		inform(winner, "Zniszczyłeś kamień Metin.")
 	}
 	for t := range f.targetedBy {
 		untarget(t, v)
@@ -247,7 +247,7 @@ func (w *presence) wear(v *present, by *present) {
 	f := v.fight
 	for int(f.calls) < min(stoneWaves, (f.maxHP-f.hp)*(stoneWaves+1)/f.maxHP) {
 		f.calls++
-		w.calls = append(w.calls, call{v, by})
+		w.news.calls = append(w.news.calls, call{v, by})
 	}
 	w.showSmoke(v)
 }
@@ -269,32 +269,25 @@ type death struct {
 	owner owner
 }
 
-// news is what happened since the world loop last asked: the monsters that died, the
-// blows that landed on living ones, the items players dropped, each with when it is to be
-// cleared away, and the buffs they started, with when each ends.
+// news is what happened since the world loop last asked, kept on the world record for it.
 type news struct {
-	fallen   []death
-	provoked []provocation
-	laid     []timed
-	buffs    []buffEnd
-	calls    []call
-	poisoned []*present
-	drains   []buffEnd
-	burned   []*present
+	fallen   []death       // monsters killed
+	provoked []provocation // blows on living monsters
+	laid     []timed       // items players dropped, each with when it is to be cleared away
+	buffs    []buffEnd     // buffs players started, each with when it ends
+	calls    []call        // waves stones called
+	poisoned []*present    // monsters newly poisoned, to tick
+	drains   []buffEnd     // toggles started that drain mana
+	burned   []*present    // monsters newly set alight, to tick
 }
 
 // takeNews hands the world loop the news, with one lock a tick.
 func (w *presence) takeNews() news {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	n := news{w.fallen, w.provoked, w.laid, w.buffs, w.calls, w.poisoned, w.drains, w.burned}
-	w.fallen, w.provoked, w.laid, w.buffs, w.calls, w.poisoned, w.drains, w.burned = nil, nil, nil, nil, nil, nil, nil, nil
+	n := w.news
+	w.news = news{}
 	return n
-}
-
-func within(p, o *present, reach int64) bool {
-	dx, dy := int64(p.add.X)-int64(o.add.X), int64(p.add.Y)-int64(o.add.Y)
-	return dx*dx+dy*dy <= reach*reach
 }
 
 // blowGap is the least time between a player's blows on one victim at their attack speed.

@@ -21,7 +21,7 @@ func (w *presence) burn(v, by *present, each int) {
 	f.burnTurns, f.burner, f.burnEach = burnTurns, by, each
 	if !f.burning {
 		f.burning = true
-		w.burned = append(w.burned, v)
+		w.news.burned = append(w.news.burned, v)
 		showMob(v)
 	}
 }
@@ -42,15 +42,7 @@ func (w *presence) burnTick(v *present, now time.Time) bool {
 		w.putOut(v)
 		return false
 	}
-	damage := min(f.burnEach, f.hp)
-	f.hp -= damage
-	f.damageBy[by] += damage
-	by.send(protocol.EncodeDamage(v.add.VID, protocol.DamageNormal, int32(damage))) //nolint:gosec // at most the hit points
-	for t := range f.targetedBy {
-		t.send(protocol.EncodeTarget(v.add.VID, f.hpPercent()))
-	}
-	if f.hp == 0 {
-		w.kill(by, v, now)
+	if !w.turnDamage(v, by, f.burnEach, protocol.DamageNormal, now) {
 		return false
 	}
 	if f.burnTurns--; f.burnTurns == 0 {
@@ -66,25 +58,21 @@ func (w *presence) putOut(v *present) {
 	showMob(v)
 }
 
-// burning is a monster alight the world loop ticks, and when it ticks next.
-type burning struct {
-	p    *present
-	next time.Time
-}
-
-// tickBurns takes the turn of each fire whose time has come, and drops those that went
-// out. Only the burning are walked.
-func (svc *Service) tickBurns(now time.Time) {
-	kept := svc.burnings[:0]
-	for _, b := range svc.burnings {
-		if now.Before(b.next) {
-			kept = append(kept, b)
-			continue
-		}
-		if svc.presence.burnTick(b.p, now) {
-			kept = append(kept, burning{b.p, now.Add(burnEvery)})
-		}
+// turnDamage takes a turn's damage of a poison or fire off the monster for whoever set it, who
+// is told it with the flag, as is whoever picked the monster; one it kills dies at their
+// hand. It reports whether the monster lives on. Called under the lock.
+func (w *presence) turnDamage(v, by *present, each int, flag uint8, now time.Time) bool {
+	f := v.fight
+	damage := min(each, f.hp)
+	f.hp -= damage
+	f.damageBy[by] += damage
+	by.send(protocol.EncodeDamage(v.add.VID, flag, int32(damage))) //nolint:gosec // at most the hit points
+	for t := range f.targetedBy {
+		t.send(protocol.EncodeTarget(v.add.VID, f.hpPercent()))
 	}
-	clear(svc.burnings[len(kept):])
-	svc.burnings = kept
+	if f.hp == 0 {
+		w.kill(by, v, now)
+		return false
+	}
+	return true
 }

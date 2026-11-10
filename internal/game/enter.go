@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/SatoriAI/MT2-Go/internal/account"
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
@@ -24,7 +25,7 @@ func (s *session) onSelectCharacter(ctx context.Context, body []byte) error {
 	if err != nil {
 		return err
 	}
-	c, err := s.svc.store.Character(ctx, s.accountID, int(slot))
+	c, err := s.svc.accounts.Character(ctx, s.accountID, int(slot))
 	if errors.Is(err, account.ErrNotFound) {
 		return fmt.Errorf("game: no character in slot %d", slot)
 	}
@@ -40,7 +41,7 @@ func (s *session) onSelectCharacter(ctx context.Context, body []byte) error {
 	if displaced {
 		s.conn.Log().Info("took the character over from another connection", "character", c.Name)
 		// The displaced connection has just saved where the character stood.
-		if c, err = s.svc.store.Character(ctx, s.accountID, int(slot)); err != nil {
+		if c, err = s.svc.accounts.Character(ctx, s.accountID, int(slot)); err != nil {
 			return err
 		}
 	}
@@ -131,11 +132,10 @@ func (s *session) onEnterGame() error {
 			Level:      uint32(p.Level),
 		},
 	}
-	err := s.conn.Send(append([][]byte{
-		protocol.EncodePhase(protocol.PhaseGame),
-		protocol.EncodeTime(s.svc.clock.Now()),
-		protocol.EncodeChannel(1),
-	}, append(append(append(me.appearance(), s.blockMode()), s.inventoryShown()...), s.taskbarShown()...)...)...)
+	err := s.conn.Send(slices.Concat(
+		[][]byte{protocol.EncodePhase(protocol.PhaseGame), protocol.EncodeTime(s.svc.clock.Now()), protocol.EncodeChannel(1)},
+		me.appearance(), [][]byte{s.blockMode()}, s.inventoryShown(), s.taskbarShown(),
+	)...)
 	if err != nil {
 		return err
 	}

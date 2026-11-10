@@ -183,7 +183,11 @@ func TestSwiftnessShortensCooldowns(t *testing.T) {
 		t.Fatal(err)
 	}
 	drain(t, client)
-	for at, cast := range map[time.Duration]bool{6710 * time.Millisecond: false, 6720 * time.Millisecond: true} {
+	for _, try := range []struct {
+		at   time.Duration
+		cast bool
+	}{{6710 * time.Millisecond, false}, {6720 * time.Millisecond, true}} { // in order: a cast starts the cooldown again
+		at, cast := try.at, try.cast
 		s.svc.now = func() time.Time { return noon.Add(at) }
 		sp := c.SP
 		if err := s.onUseSkill(usedOn(skill.FlyingTalisman, dog)); err != nil {

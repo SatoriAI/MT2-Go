@@ -2,7 +2,6 @@ package game
 
 import (
 	"context"
-	"net/netip"
 	"testing"
 	"time"
 
@@ -33,7 +32,7 @@ func (w *savedAt) Save(_ context.Context, _, _ uint32, _ string, sentAt time.Tim
 // from before it arrived reads before its reply, whichever of the two is saved first.
 func TestAWhisperIsKeptWithATimeFromBeforeItReachedItsRecipient(t *testing.T) {
 	saved := &savedAt{}
-	s := NewService(nil, saved, nil, nil, nil, nil, handshake.NewClock(), netip.AddrPort{}, nil)
+	s := NewService(Deps{Whispers: saved, Clock: handshake.NewClock()})
 	kira := &slowDelivery{}
 	s.presence.enter(&present{out: kira, add: protocol.CharacterAdd{VID: 2},
 		info: protocol.CharacterInfo{Name: "Kira"}, char: &account.Character{ID: 2, Name: "Kira"}})

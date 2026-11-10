@@ -50,7 +50,7 @@ func refined(cell, typ uint8) []byte { return []byte{cell, typ} }
 
 func expectChatInfo(t *testing.T, c net.Conn, line string) {
 	t.Helper()
-	want := chatInfo(line)
+	want := infoLine(line)
 	if got := read(t, c, len(want)); string(got) != string(want) {
 		t.Fatalf("got %q, want %q", got, want)
 	}

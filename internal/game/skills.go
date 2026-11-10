@@ -143,7 +143,7 @@ func (s *session) raiseSkill(ctx context.Context, arg string) error {
 	vnum, err := strconv.Atoi(arg)
 	sk, known := skillByVNum(vnum)
 	if err != nil || !known {
-		return s.conn.Send(protocol.EncodeChat(protocol.ChatInfo, 0, 0, textToClient("Tej umiejętności nie można jeszcze rozwijać.")))
+		return s.conn.Send(infoLine("Tej umiejętności nie można jeszcze rozwijać."))
 	}
 	level, before, ok := s.svc.presence.mayRaise(s.playing.vid, sk)
 	if !ok {

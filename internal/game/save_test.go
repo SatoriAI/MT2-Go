@@ -65,7 +65,7 @@ func playing(t *testing.T) (*Service, *saves, *character, *present) {
 	t.Helper()
 	store := newSaves()
 	s := worldWith(t)
-	s.store = store
+	s.accounts = store
 	c := &character{vid: 1000, Character: account.Character{HP: 900, SP: 400, ID: 7, Name: "Hendra", Class: account.Sura,
 		Level: 3, Exp: 40, StatPoints: 2, Stats: account.Stats{Strength: 8}, X: homeX, Y: homeY}}
 	conn, _ := watcher(t)

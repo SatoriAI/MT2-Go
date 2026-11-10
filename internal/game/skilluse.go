@@ -165,14 +165,9 @@ func aimed(pl *present, target uint32, proto skill.Proto) *present {
 	if proto.Target {
 		return nil
 	}
-	var nearest *present
-	for _, v := range pl.sees {
-		if v.fight != nil && !v.dead() && within(pl, v, reach) && ahead(pl, v) &&
-			(nearest == nil || distance(pl, v) < distance(pl, nearest)) {
-			nearest = v
-		}
-	}
-	return nearest
+	return nearest(pl, pl.sees, func(v *present) bool {
+		return v.fight != nil && !v.dead() && within(pl, v, reach) && ahead(pl, v)
+	})
 }
 
 // ahead is whether o stands in the half of the world in front of p, by the way p last
@@ -287,13 +282,9 @@ func victimsOf(pl, at *present, proto skill.Proto) []*present {
 	}
 	if proto.Chain > 0 {
 		for last := at; len(victims) < limit; {
-			var next *present
-			for _, v := range pl.sees {
-				if v.fight != nil && !v.dead() && !slices.Contains(victims, v) && within(last, v, proto.Chain) &&
-					(next == nil || distance(last, v) < distance(last, next)) {
-					next = v
-				}
-			}
+			next := nearest(last, pl.sees, func(v *present) bool {
+				return v.fight != nil && !v.dead() && !slices.Contains(victims, v) && within(last, v, proto.Chain)
+			})
 			if next == nil {
 				break
 			}
@@ -407,7 +398,7 @@ func (w *presence) poison(v, by *present, now time.Time) {
 	f.poison = max(1, min(f.maxHP*poisonShare/10000, int(combat.Mean(attackerOf(by.char), f.defender))))
 	if !f.poisoned {
 		f.poisoned = true
-		w.poisoned = append(w.poisoned, v)
+		w.news.poisoned = append(w.news.poisoned, v)
 		showMob(v)
 	}
 }
@@ -429,53 +420,13 @@ func (w *presence) poisonTick(v *present, now time.Time) bool {
 		showMob(v)
 		return false
 	}
-	damage := min(f.poison, f.hp)
-	f.hp -= damage
-	f.damageBy[by] += damage
-	by.send(protocol.EncodeDamage(v.add.VID, protocol.DamagePoison, int32(damage))) //nolint:gosec // at most the hit points
-	for t := range f.targetedBy {
-		t.send(protocol.EncodeTarget(v.add.VID, f.hpPercent()))
-	}
-	if f.hp == 0 {
-		w.kill(by, v, now)
-		return false
-	}
-	return true
-}
-
-// poisoning is a poisoned monster the world loop ticks, and when it ticks next.
-type poisoning struct {
-	p    *present
-	next time.Time
-}
-
-// tickPoisons takes the turn of each poison whose time has come, and drops those that
-// ended. Only the poisoned are walked, so an idle tick costs nothing more.
-func (svc *Service) tickPoisons(now time.Time) {
-	kept := svc.poisons[:0]
-	for _, ps := range svc.poisons {
-		if now.Before(ps.next) {
-			kept = append(kept, ps)
-			continue
-		}
-		if svc.presence.poisonTick(ps.p, now) {
-			kept = append(kept, poisoning{ps.p, now.Add(poisonEvery)})
-		}
-	}
-	clear(svc.poisons[len(kept):])
-	svc.poisons = kept
+	return w.turnDamage(v, by, f.poison, protocol.DamagePoison, now)
 }
 
 // wake ends the monster's stun for everyone who sees it. Called under the lock.
 func (w *presence) wake(v *present) {
 	v.fight.stunned = false
 	showMob(v)
-}
-
-// distance is how far apart two characters stand, squared.
-func distance(p, o *present) int64 {
-	dx, dy := int64(p.add.X)-int64(o.add.X), int64(p.add.Y)-int64(o.add.Y)
-	return dx*dx + dy*dy
 }
 
 // allyOf is who a skill for an ally lands on: the player picked, if they live within its
@@ -528,9 +479,9 @@ func (w *presence) startBuff(pl *present, sk account.Skill, until time.Time) {
 	}
 	c.Buffs[sk] = until
 	w.showAffects(pl, sk)
-	w.buffs = append(w.buffs, buffEnd{pl.add.VID, sk, until})
+	w.news.buffs = append(w.news.buffs, buffEnd{pl.add.VID, sk, until})
 	if p, _ := skill.Lookup(sk); p.Drain != (skill.Scaled{}) {
-		w.drains = append(w.drains, buffEnd{pl.add.VID, sk, until})
+		w.news.drains = append(w.news.drains, buffEnd{pl.add.VID, sk, until})
 	}
 }
 
@@ -557,29 +508,6 @@ func (w *presence) drain(b buffEnd) bool {
 	c.SP -= cost
 	pl.send(pointTold(b.vid, protocol.PointSP, -int(cost), c.SP))
 	return true
-}
-
-// draining is a toggle the world loop takes mana for, and when it takes it next.
-type draining struct {
-	buff buffEnd
-	next time.Time
-}
-
-// keepDrains takes the mana of each draining toggle whose time has come, and drops those
-// that ended. Only the draining are walked.
-func (svc *Service) keepDrains(now time.Time) {
-	kept := svc.drainings[:0]
-	for _, d := range svc.drainings {
-		if now.Before(d.next) {
-			kept = append(kept, d)
-			continue
-		}
-		if svc.presence.drain(d.buff) {
-			kept = append(kept, draining{d.buff, now.Add(drainEvery)})
-		}
-	}
-	clear(svc.drainings[len(kept):])
-	svc.drainings = kept
 }
 
 // endBuff ends the player's buff that was due at a time, if it is still that run: one

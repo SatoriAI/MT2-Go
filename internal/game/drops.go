@@ -159,7 +159,7 @@ func (w *presence) layDown(playerVID uint32, it *groundItem, dx, dy int32) {
 	it.world, it.x, it.y = p.world, p.add.X+dx, p.add.Y+dy
 	w.lay(it)
 	w.toNear(it, shown(it)...)
-	w.laid = append(w.laid, timed{it.vid, it.dropped.Add(lieFor)})
+	w.news.laid = append(w.news.laid, timed{it.vid, it.dropped.Add(lieFor)})
 }
 
 // free lets anyone pick the item up, if it still lies there.
@@ -203,8 +203,7 @@ func (w *presence) toNear(it *groundItem, packets ...[]byte) {
 
 // seesAt is whether a player on world at (x, y) sees the item.
 func seesAt(world string, x, y int32, it *groundItem) bool {
-	dx, dy := int64(x)-int64(it.x), int64(y)-int64(it.y)
-	return world == it.world && dx*dx+dy*dy <= viewRange*viewRange
+	return world == it.world && apart(x, y, it.x, it.y) <= viewRange*viewRange
 }
 
 // groundSeen is how the items on the ground come into or go out of view of a player who
@@ -314,7 +313,7 @@ func (s *session) onItemPickup(body []byte) error {
 			s.conn.Log().Debug("yang past what a character may hold left lying", "vid", vid)
 			return nil
 		}
-		return s.conn.Send(protocol.EncodeChat(protocol.ChatInfo, 0, 0, textToClient("Nie masz miejsca w ekwipunku.")))
+		return s.conn.Send(infoLine("Nie masz miejsca w ekwipunku."))
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), saveTimeout)
 	defer cancel()

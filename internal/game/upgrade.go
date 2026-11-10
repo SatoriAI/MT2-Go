@@ -80,9 +80,9 @@ func (s *session) onRefine(ctx context.Context, body []byte) error {
 	spent, enough := materialsFor(s.inventory, step)
 	switch {
 	case s.gold < step.Yang:
-		return s.conn.Send(chatInfo(upgradeNoYang))
+		return s.conn.Send(infoLine(upgradeNoYang))
 	case !enough:
-		return s.conn.Send(chatInfo(upgradeNoMaterial))
+		return s.conn.Send(infoLine(upgradeNoMaterial))
 	}
 	upgraded, said := it, upgradeSucceeded
 	upgraded.VNum = step.Into
@@ -108,7 +108,7 @@ func (s *session) onRefine(ctx context.Context, body []byte) error {
 			told = append(told, itemSet(m))
 		}
 	}
-	told = append(told, s.yangChanged(-int64(step.Yang)), chatInfo(said))
+	told = append(told, s.yangChanged(-int64(step.Yang)), infoLine(said))
 	return s.conn.Send(append(told, s.followTaskbar()...)...)
 }
 
@@ -127,8 +127,4 @@ func materialsFor(inv item.Inventory, step upgrade.Step) ([]item.Item, bool) {
 		spent = append(spent, it)
 	}
 	return spent, need == 0
-}
-
-func chatInfo(line string) []byte {
-	return protocol.EncodeChat(protocol.ChatInfo, 0, 0, textToClient(line))
 }

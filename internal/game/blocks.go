@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"time"
 
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
 )
@@ -20,7 +19,7 @@ func (s *session) onSetBlockMode(arg string) error {
 	}
 	// Unlike leaving, this writes to the database, so it counts against the flood limit;
 	// a change dropped leaves the buttons as they were.
-	if !s.flood.allow(time.Now()) {
+	if !s.flood.allow(s.svc.now()) {
 		s.conn.Log().Debug("block mode dropped: too fast", "character", s.playing.Name)
 		return nil
 	}
@@ -28,7 +27,7 @@ func (s *session) onSetBlockMode(arg string) error {
 	blocks := blocksFromMask(uint32(mask))
 	ctx, cancel := context.WithTimeout(context.Background(), saveTimeout)
 	defer cancel()
-	if err := s.svc.store.SaveBlocks(ctx, p.ID, blocks); err != nil {
+	if err := s.svc.accounts.SaveBlocks(ctx, p.ID, blocks); err != nil {
 		// The buttons go back to what is kept.
 		s.conn.Log().Error("blocks not saved", "character", p.Name, "err", err)
 		return s.conn.Send(s.blockMode())
