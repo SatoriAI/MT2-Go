@@ -80,7 +80,7 @@ func TestABurnTakesItsShareThenGoesOut(t *testing.T) {
 			t.Fatalf("out at turn %d", turn)
 		}
 	}
-	if s.record.burnTick(dog.p, noon.Add(burnTurns*burnEvery)) || dog.p.fight.burning {
+	if s.record.burnTick(dog.p, noon.Add(burnTurns*burnEvery)) || dog.p.fight.has(fire) {
 		t.Fatal("burns on past its fifth turn")
 	}
 }
@@ -132,12 +132,12 @@ func TestShootingDragonSetsSomeAlightButNeverAStone(t *testing.T) {
 	}
 	alight := 0
 	for _, m := range s.monsters[1:] {
-		if m.p.fight.burning {
+		if m.p.fight.has(fire) {
 			alight++
 		}
 	}
-	if alight == 0 || stone.p.fight.burning {
-		t.Fatalf("%d of the dogs and wave alight, the stone %v", alight, stone.p.fight.burning)
+	if alight == 0 || stone.p.fight.has(fire) {
+		t.Fatalf("%d of the dogs and wave alight, the stone %v", alight, stone.p.fight.has(fire))
 	}
 }
 
@@ -205,7 +205,7 @@ func TestAnAttackThatDoesNotStunNeverStuns(t *testing.T) {
 	for range 200 {
 		s.svc.record.useSkill(1000, skill.SwordSpin, 0, noon, 0, s.rand, func() bool { return true })
 	}
-	if s.svc.monsters[0].p.fight.stunned {
+	if s.svc.monsters[0].p.fight.has(stun) {
 		t.Fatal("stunned by a spin")
 	}
 }

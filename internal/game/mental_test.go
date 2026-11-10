@@ -100,7 +100,7 @@ func TestAStunAgainHoldsItTwoSecondsFromThen(t *testing.T) {
 	read(t, client, updateSize)
 	expectNothing(t, client) // shown once
 
-	if got := dog.p.fight.stunnedUntil; !got.Equal(noon.Add(time.Second + stunFor)) {
+	if got := dog.p.fight.stunUntil; !got.Equal(noon.Add(time.Second + stunFor)) {
 		t.Fatalf("stunned until %v", got)
 	}
 }
@@ -116,7 +116,7 @@ func TestAStunnedMonsterGoesHomeAwake(t *testing.T) {
 
 	s.tick(noon)
 
-	if dog.p.fight.stunned || mobAffects(dog.p) != 0 {
+	if dog.p.fight.has(stun) || mobAffects(dog.p) != 0 {
 		t.Fatal("it went home stunned")
 	}
 }
@@ -130,7 +130,7 @@ func TestStumpStunsSomeAroundHerButNeverAStone(t *testing.T) {
 	}
 	stunned := 0
 	for _, m := range s.svc.monsters {
-		if m.p.fight.stunned {
+		if m.p.fight.has(stun) {
 			stunned++
 		}
 	}
@@ -145,7 +145,7 @@ func TestStumpStunsSomeAroundHerButNeverAStone(t *testing.T) {
 	for range 50 {
 		stones.record.useSkill(1000, skill.Stump, 0, noon, 0, stones.rand, func() bool { return true })
 	}
-	if stone.p.fight.stunned {
+	if stone.p.fight.has(stun) {
 		t.Fatal("the stone was stunned")
 	}
 }

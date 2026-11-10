@@ -179,24 +179,24 @@ func (w *record) fightStep(m *monster, now time.Time, clock uint32, r *rand.Rand
 	t := c.target
 	if me.dead() || l.all[t.add.VID] != t || t.dead() || now.Sub(c.lastExchange) >= giveUpAfter ||
 		!near(me.add.X, me.add.Y, c.fromX, c.fromY, leash) {
-		if me.fight.stunned && !me.dead() {
-			l.wake(me) // it goes home awake
+		if me.fight.has(stun) && !me.dead() {
+			l.cure(me, stun) // it goes home awake
 		}
-		if me.fight.slowed && !me.dead() {
+		if me.fight.has(slow) && !me.dead() {
 			l.quicken(me, m.proto.MoveSpeed) // and at its own pace
 		}
 		return false
 	}
-	if me.fight.slowed && !now.Before(me.fight.slowedUntil) {
+	if me.fight.has(slow) && !now.Before(me.fight.slowUntil) {
 		l.quicken(me, m.proto.MoveSpeed)
 	}
 	c.nextStep = now.Add(chaseStep)
-	if me.fight.stunned {
-		if now.Before(me.fight.stunnedUntil) {
-			c.nextStep = minTime(c.nextStep, me.fight.stunnedUntil) // it comes to on time
-			return true                                             // it stands, and bites nothing, until then
+	if me.fight.has(stun) {
+		if now.Before(me.fight.stunUntil) {
+			c.nextStep = minTime(c.nextStep, me.fight.stunUntil) // it comes to on time
+			return true                                          // it stands, and bites nothing, until then
 		}
-		l.wake(me)
+		l.cure(me, stun)
 	}
 	if within(me, t, int64(m.proto.AttackRange)*115/100) {
 		if !now.Before(c.nextBite) {
