@@ -233,7 +233,7 @@ func TestOnlyABurningSkillBurns(t *testing.T) {
 	s, _ := shamanising(t, 4)
 	c := s.svc.presence.all[1000].char
 	c.Intelligence, c.SP = 250, 100000
-	c.Skills[skill.FlyingTalisman] = skill.MaxLevel
+	c.Skills[skill.FlyingTalisman] = skill.Master
 	dog := s.svc.monsters[0].p
 
 	for i := range 20 {

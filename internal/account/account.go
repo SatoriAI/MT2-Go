@@ -143,6 +143,9 @@ type Character struct {
 	// Skills is each skill learnt, at its level from 1; read on Start, as they are kept
 	// apart from the character's row.
 	Skills map[Skill]uint8
+	// SkillReads is when each skill trained by a book or a soul stone may next be, read
+	// with the skills.
+	SkillReads map[Skill]time.Time
 	// Buffs are in play only: each buff skill running, until when. BuffBy is who cast
 	// those another cast, as the caster's skill level and INT they run at.
 	Buffs  map[Skill]time.Time

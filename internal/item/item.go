@@ -56,6 +56,8 @@ type Proto struct {
 
 	// What a potion restores when it is drunk; a kind restoring neither is not drunk.
 	HP, SP uint16
+	// Teaches is the skill a book trains; "" for anything else.
+	Teaches account.Skill
 
 	// What a shop asks for one, and pays for one: the client's item_proto sell price
 	// divided by 5, as its tooltip works it out, so what it shows is what is paid.
@@ -109,7 +111,7 @@ func VNums() []uint32 { return slices.Sorted(maps.Keys(protos)) }
 // VALUE1 for the rest, and its prices, but 100 for each first weapon, which it gives none.
 // Only the first gear and its grades are listed, none needing a level. The names are the
 // Polish client's own, from its locale item_proto (docs/mechanics/items.md), in UTF-8.
-var protos = withGrades(map[uint32]Proto{
+var protos = withBooks(withGrades(map[uint32]Proto{
 	10: {VNum: 10, Name: "Miecz+0", Size: 2, Stack: 1, Wear: Weapon,
 		Classes: []account.Class{account.Warrior, account.Ninja, account.Sura}, AttackMin: 13, AttackMax: 15, MagicMin: 15, MagicMax: 19, Sword: true,
 		Price: 100, SellPrice: 0},
@@ -153,7 +155,7 @@ var protos = withGrades(map[uint32]Proto{
 	27004: {VNum: 27004, Name: "Niebieska Mikstura(M)", Size: 1, Stack: MaxStack, SP: 100, Price: 96, SellPrice: 24},
 	30004: {VNum: 30004, Name: "Ząb Dzika", Size: 1, Stack: MaxStack, SellPrice: 100},
 	30028: {VNum: 30028, Name: "Szpon Wilka", Size: 1, Stack: MaxStack, SellPrice: 100},
-})
+}))
 
 // gradeSteps are what each grade of the first gear adds over its +0: the client's
 // item_proto VALUE5 per grade, which its tooltip adds to both ends of a weapon's attack

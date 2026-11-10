@@ -151,7 +151,7 @@ func TestATaskbarSlotIsNotToldAgainWhenItsPotionsStay(t *testing.T) {
 	s, _, client, _ := thirsty(t, 1, 50, 1)
 	onTheTaskbar(t, s, 10)
 
-	if err := s.onItemUse(doubleClicked(10)); err != nil {
+	if err := s.onItemUse(context.Background(), doubleClicked(10)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -168,7 +168,7 @@ func TestATaskbarSlotIsNotToldAgainWhenItsPotionsStay(t *testing.T) {
 func TestATaskbarSlotIsEmptiedWhenItsPotionsAreGone(t *testing.T) {
 	drinker, _, drinkerClient, _ := thirsty(t, 1, 1, 1)
 	onTheTaskbar(t, drinker, 10)
-	if err := drinker.onItemUse(doubleClicked(10)); err != nil {
+	if err := drinker.onItemUse(context.Background(), doubleClicked(10)); err != nil {
 		t.Fatal(err)
 	}
 	read(t, drinkerClient, itemSetSize)

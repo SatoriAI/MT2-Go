@@ -30,6 +30,7 @@
 - **The potions** are all red or all blue.
 - **The materials** are all Szpon Wilka or all Ząb Dzika, the upgrade materials ([upgrading.md](upgrading.md)).
 - **The gear** is one of each class's first weapons and armours.
+- **A skill book,** 3 times in 100 from every stone, is the book of one skill of any class; Metin Bitwy also leaves a soul stone once in 100 ([skills.md](skills.md)).
 
 ## What the client does
 

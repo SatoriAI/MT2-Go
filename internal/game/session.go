@@ -226,7 +226,7 @@ func (s *session) Handle(ctx context.Context, f protocol.Frame) error {
 	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientItemMove:
 		return s.onItemMove(f.Body)
 	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientItemUse:
-		return s.onItemUse(f.Body)
+		return s.onItemUse(ctx, f.Body)
 	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientItemPickup:
 		return s.onItemPickup(f.Body)
 	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientItemDrop2:

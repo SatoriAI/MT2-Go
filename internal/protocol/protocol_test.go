@@ -224,16 +224,18 @@ func TestPointsAreSentWholeWithEachValueAtItsIndex(t *testing.T) {
 	}
 }
 
-// SKILL_LEVEL_NEW is 255 skills of 6 bytes, each at the client's number for it: master
-// type 0, the level, a reading time of 0. Dragon Swirl (62) at 3 is the only one learnt.
+// SKILL_LEVEL_NEW is 255 skills of 6 bytes, each at the client's number for it: grade,
+// level, a reading time of 0. Dragon Swirl (62) at 3 and Enchanted Blade (63) as a Master
+// at 24 are the only ones learnt.
 func TestSkillLevelsAreSentAtEachSkillsNumber(t *testing.T) {
 	var levels SkillLevels
-	levels[62] = 3
+	levels[62] = SkillLevel{Level: 3}
+	levels[63] = SkillLevel{Grade: 1, Level: 24}
 
 	skills := EncodeSkillLevels(levels)
 
 	want := make([]byte, 1531)
-	want[0], want[1+62*6+1] = 0x4C, 3
+	want[0], want[1+62*6+1], want[1+63*6], want[1+63*6+1] = 0x4C, 3, 1, 24
 	if !bytes.Equal(skills, want) {
 		t.Fatalf("got %d bytes, 62 at %x", len(skills), skills[1+62*6:1+63*6])
 	}

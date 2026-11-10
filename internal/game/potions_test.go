@@ -1,6 +1,7 @@
 package game
 
 import (
+	"context"
 	"errors"
 	"net"
 	"testing"
@@ -32,7 +33,7 @@ func most(s *session) (uint32, uint32) {
 func TestARedPotionHealsAndIsUsedUp(t *testing.T) {
 	s, kept, client, viewer := thirsty(t, 1, 50, 1)
 
-	if err := s.onItemUse(doubleClicked(10)); err != nil {
+	if err := s.onItemUse(context.Background(), doubleClicked(10)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -56,7 +57,7 @@ func TestAPotionHealsNoFurtherThanTheMaximum(t *testing.T) {
 	maxHP, _ := most(s)
 	s.playing.HP = maxHP - 100
 
-	if err := s.onItemUse(doubleClicked(10)); err != nil {
+	if err := s.onItemUse(context.Background(), doubleClicked(10)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -73,7 +74,7 @@ func TestABluePotionRestoresMana(t *testing.T) {
 	_, maxSP := most(s)
 	gained := min(100, maxSP)
 
-	if err := s.onItemUse(doubleClicked(11)); err != nil {
+	if err := s.onItemUse(context.Background(), doubleClicked(11)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -92,7 +93,7 @@ func TestABluePotionRestoresMana(t *testing.T) {
 func TestTheLastPotionEmptiesItsCell(t *testing.T) {
 	s, kept, client, _ := thirsty(t, 1, 1, 1)
 
-	if err := s.onItemUse(doubleClicked(10)); err != nil {
+	if err := s.onItemUse(context.Background(), doubleClicked(10)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -125,7 +126,7 @@ func TestAPotionThatWouldDoNothingIsNotUsedUp(t *testing.T) {
 			s.playing.SP = maxSP
 		}
 
-		if err := s.onItemUse(doubleClicked(c.cell)); err != nil {
+		if err := s.onItemUse(context.Background(), doubleClicked(c.cell)); err != nil {
 			t.Fatal(err)
 		}
 
@@ -141,7 +142,7 @@ func TestAPotionNotKeptUsedUpHealsNothing(t *testing.T) {
 	s, kept, client, _ := thirsty(t, 1, 50, 1)
 	kept.fail = errors.New("the database is gone")
 
-	if err := s.onItemUse(doubleClicked(10)); err != nil {
+	if err := s.onItemUse(context.Background(), doubleClicked(10)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -159,7 +160,7 @@ func TestAPotionWorksInAFight(t *testing.T) {
 	s, _, _, _ := thirsty(t, 1, 50, 1)
 	s.playing.LastFought = time.Now()
 
-	if err := s.onItemUse(doubleClicked(10)); err != nil {
+	if err := s.onItemUse(context.Background(), doubleClicked(10)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -201,7 +202,7 @@ func TestAPotionDrunkOnAClosedConnectionEndsItAndHealsNothing(t *testing.T) {
 	s, kept, _, _ := thirsty(t, 1, 50, 1)
 	s.conn.Close()
 
-	if err := s.onItemUse(doubleClicked(10)); !errors.Is(err, net.ErrClosed) {
+	if err := s.onItemUse(context.Background(), doubleClicked(10)); !errors.Is(err, net.ErrClosed) {
 		t.Fatalf("got %v", err)
 	}
 

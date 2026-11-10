@@ -18,8 +18,9 @@ func TestEverySkillIsOfAGroupOfItsClass(t *testing.T) {
 	}
 }
 
-// A character earns a point at level 5 and one more each level, less the levels learnt;
-// below 5 it has none, and it never has fewer than none.
+// A character earns a point at level 5 and one more each level, less those its skills
+// took: a point a level up to 17, and one more to become a Master, however far books and
+// stones then raise it; below 5 it has none, and it never has fewer than none.
 func TestSkillPointsAreEarnedFromLevelFiveLessThoseSpent(t *testing.T) {
 	cases := []struct {
 		level  uint8
@@ -31,6 +32,10 @@ func TestSkillPointsAreEarnedFromLevelFiveLessThoseSpent(t *testing.T) {
 		{10, nil, 6},
 		{10, map[account.Skill]uint8{DragonSwirl: 2, EnchantedBlade: 1}, 3},
 		{6, map[account.Skill]uint8{DragonSwirl: 5}, 0},
+		{30, map[account.Skill]uint8{DragonSwirl: 17}, 9},
+		{30, map[account.Skill]uint8{DragonSwirl: 19}, 7},
+		{30, map[account.Skill]uint8{DragonSwirl: 20}, 8},
+		{30, map[account.Skill]uint8{DragonSwirl: 34}, 8},
 	}
 	for _, c := range cases {
 		if got := Points(c.level, c.learnt); got != c.want {
@@ -39,9 +44,11 @@ func TestSkillPointsAreEarnedFromLevelFiveLessThoseSpent(t *testing.T) {
 	}
 }
 
-// A skill's power is the client's table: 0.05 at the first level, 0.40 at 19, 0.50 at 20.
+// A skill's power is the client's table: 0.05 at the first level, 0.40 at 19, 0.50 at M1,
+// 0.72 at M9, 0.82 at G1 and 1.15 at G10, the top until Perfect.
 func TestASkillsPowerIsTheClientsTable(t *testing.T) {
-	for level, want := range map[uint8]uint32{0: 0, 1: 5, 2: 6, 3: 8, 10: 22, 19: 40, 20: 50} {
+	for level, want := range map[uint8]uint32{0: 0, 1: 5, 2: 6, 3: 8, 10: 22, 19: 40, 20: 50, 21: 52, 25: 60, 26: 63,
+		28: 69, 29: 72, 30: 82, 31: 85, 35: 98, 36: 102, 38: 110, 39: 115, 40: 115} {
 		if got := Power(level); got != want {
 			t.Errorf("level %d: %d, want %d", level, got, want)
 		}
@@ -49,8 +56,9 @@ func TestASkillsPowerIsTheClientsTable(t *testing.T) {
 }
 
 // What a skill costs, how long it cools down and how long it runs are the client's
-// formulas at its power, rounded down, so the client's own checks agree: its skilltable
-// for all but the Blade's run, three minutes as the veteran argued.
+// formulas at its power, at every level to G10, worked out as the client does, so its own
+// checks agree: its skilltable for all but the Blade's run, three minutes as the veteran
+// argued.
 func TestASkillCostsAndWaitsWhatTheClientWorksOut(t *testing.T) {
 	cases := []struct {
 		skill          account.Skill
@@ -93,15 +101,15 @@ func TestASkillCostsAndWaitsWhatTheClientWorksOut(t *testing.T) {
 	}
 	for _, c := range cases {
 		p, _ := Lookup(c.skill)
-		for level := uint8(1); level <= MaxLevel; level++ {
-			k := float64(Power(level)) / 100
-			if got, want := p.Mana.At(Power(level)), uint32(c.mana(k)); got != want {
+		for level := uint8(1); level <= TopLevel; level++ {
+			k := float64(float32(Power(level)) / 100) // as the client takes it, in single precision
+			if got, want := p.Mana.At(Power(level)), uint32(float32(c.mana(k))); got != want {
 				t.Errorf("%s at %d: mana %d, want %d", c.skill, level, got, want)
 			}
-			if got, want := p.CooldownAt(level), time.Duration(c.cooldown(k))*time.Second; got != want {
+			if got, want := p.CooldownAt(level), time.Duration(float32(c.cooldown(k)))*time.Second; got != want {
 				t.Errorf("%s at %d: cooldown %v, want %v", c.skill, level, got, want)
 			}
-			if got, want := p.LastsAt(level), time.Duration(c.lasts(k))*time.Second; got != want {
+			if got, want := p.LastsAt(level), time.Duration(float32(c.lasts(k)))*time.Second; got != want {
 				t.Errorf("%s at %d: lasts %v, want %v", c.skill, level, got, want)
 			}
 		}
@@ -111,7 +119,7 @@ func TestASkillCostsAndWaitsWhatTheClientWorksOut(t *testing.T) {
 // Enchanted Armour never runs as long as it cools down, so it cannot be cast over itself.
 func TestEnchantedArmourEndsBeforeItCanBeCastAgain(t *testing.T) {
 	p, _ := Lookup(EnchantedArmour)
-	for level := uint8(1); level <= MaxLevel; level++ {
+	for level := uint8(1); level <= TopLevel; level++ {
 		if p.LastsAt(level) >= p.CooldownAt(level) {
 			t.Errorf("at %d: lasts %v, cools %v", level, p.LastsAt(level), p.CooldownAt(level))
 		}
@@ -322,5 +330,45 @@ func TestTheLightningsRollMultiplesOfIntelligence(t *testing.T) {
 	claw, _ := Lookup(LightningClaw)
 	if throw.DiceOf(20) != [2]int32{100, 300} || summon.DiceOf(20) != [2]int32{100, 320} || claw.DiceOf(20) != [2]int32{1, 800} {
 		t.Fatalf("%v %v %v", throw.DiceOf(20), summon.DiceOf(20), claw.DiceOf(20))
+	}
+}
+
+// A point raises a skill one level up to 17, and the next makes it a Master, M1, at 20, as
+// it does a skill at 18 or 19 raised before Master came.
+func TestAPointPastSeventeenMakesAMaster(t *testing.T) {
+	for level, want := range map[uint8]uint8{0: 1, 16: 17, 17: 20, 18: 20, 19: 20} {
+		if got := NextByPoint(level); got != want {
+			t.Errorf("from %d to %d, want %d", level, got, want)
+		}
+	}
+}
+
+// The grade the client labels a skill by: none below 20, a Master from 20, M1, to 29,
+// M10, and a Grand Master from 30, G1.
+func TestASkillsGradeFollowsItsLevel(t *testing.T) {
+	for level, want := range map[uint8]uint8{1: Normal, 19: Normal, 20: MasterGrade, 29: MasterGrade, 30: GrandMasterGrade, 39: GrandMasterGrade} {
+		if got := Grade(level); got != want {
+			t.Errorf("level %d: grade %d, want %d", level, got, want)
+		}
+	}
+}
+
+// A book raises a Master from M1 to M10, 70 in a hundred at M1 down to 20 at M9; not a
+// skill below Master or at M10.
+func TestABooksChanceFallsAsTheMasterRises(t *testing.T) {
+	for level, want := range map[uint8]uint16{19: 0, 20: 70, 21: 64, 24: 45, 28: 20, 29: 0} {
+		if got, ok := BookChance(level); got != want || ok != (want > 0) {
+			t.Errorf("level %d: %d, %v, want %d", level, got, ok, want)
+		}
+	}
+}
+
+// A soul stone raises an M10 to G1 and a Grand Master on to G10, 40 in a hundred up to G3,
+// 30 to G6 and 20 to G9; not a skill below M10 or at G10.
+func TestASoulStonesChanceFallsAsTheGrandMasterRises(t *testing.T) {
+	for level, want := range map[uint8]uint16{28: 0, 29: 40, 32: 40, 33: 30, 35: 30, 36: 20, 38: 20, 39: 0} {
+		if got, ok := SoulChance(level); got != want || ok != (want > 0) {
+			t.Errorf("level %d: %d, %v, want %d", level, got, ok, want)
+		}
 	}
 }

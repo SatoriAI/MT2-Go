@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/SatoriAI/MT2-Go/internal/account"
+	"github.com/SatoriAI/MT2-Go/internal/item"
 	"github.com/SatoriAI/MT2-Go/internal/network"
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
 	"github.com/SatoriAI/MT2-Go/internal/skill"
@@ -19,11 +20,28 @@ import (
 type keptSkills struct {
 	group  account.SkillGroup
 	learnt map[account.Skill]uint8
+	reads  map[account.Skill]time.Time
+	used   []item.Item // what each training kept as used, its count left
 	fail   error
 }
 
-func (k *keptSkills) Learnt(context.Context, uint32) (map[account.Skill]uint8, error) {
-	return k.learnt, k.fail
+func (k *keptSkills) Learnt(context.Context, uint32) (map[account.Skill]uint8, map[account.Skill]time.Time, error) {
+	return k.learnt, k.reads, k.fail
+}
+
+func (k *keptSkills) Train(_ context.Context, _ uint32, s account.Skill, from, to uint8, next time.Time, used item.Item) error {
+	if k.fail != nil {
+		return k.fail
+	}
+	if k.learnt[s] != from {
+		return errors.New("trained from another level")
+	}
+	if k.reads == nil {
+		k.reads = map[account.Skill]time.Time{}
+	}
+	k.learnt[s], k.reads[s] = to, next
+	k.used = append(k.used, used)
+	return nil
 }
 
 func (k *keptSkills) Choose(_ context.Context, _ uint32, group account.SkillGroup) error {
@@ -33,12 +51,11 @@ func (k *keptSkills) Choose(_ context.Context, _ uint32, group account.SkillGrou
 	return k.fail
 }
 
-func (k *keptSkills) Raise(_ context.Context, _ uint32, s account.Skill) (uint8, error) {
-	if k.fail != nil {
-		return 0, k.fail
+func (k *keptSkills) Raise(_ context.Context, _ uint32, s account.Skill, level uint8) error {
+	if k.fail == nil {
+		k.learnt[s] = level
 	}
-	k.learnt[s]++
-	return k.learnt[s], nil
+	return k.fail
 }
 
 // training is Hendra, a sura of level and skill group, learnt as given, beside the
@@ -221,7 +238,7 @@ func TestASkillIsRaisedWithAPoint(t *testing.T) {
 	}
 
 	var levels protocol.SkillLevels
-	levels[62] = 2
+	levels[62] = protocol.SkillLevel{Level: 2}
 	want := string(protocol.EncodeSkillLevels(levels)) + string(protocol.EncodePointChange(1000, protocol.PointSkillPoints, -1, 0))
 	if got := read(t, client, len(want)); string(got) != want || kept.learnt[skill.DragonSwirl] != 2 ||
 		s.svc.presence.all[1000].char.Skills[skill.DragonSwirl] != 2 {
@@ -241,7 +258,7 @@ func TestASkillThatCannotBeRaisedIsNot(t *testing.T) {
 		fail   bool
 	}{
 		{"no point free", 6, "weaponry", map[account.Skill]uint8{skill.DragonSwirl: 2}, false},
-		{"at its last level", 30, "weaponry", map[account.Skill]uint8{skill.DragonSwirl: skill.MaxLevel}, false},
+		{"at its last level", 30, "weaponry", map[account.Skill]uint8{skill.DragonSwirl: skill.Master}, false},
 		{"of the other group", 10, "black_magic", nil, false},
 		{"with no group", 10, "", nil, false},
 		{"not kept", 10, "weaponry", nil, true},

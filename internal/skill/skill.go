@@ -57,8 +57,85 @@ const (
 	PoisonArrow     account.Skill = "poison_arrow"
 )
 
-// MaxLevel is the most a skill rises to with points; the client hides its + there.
-const MaxLevel = 20
+// The levels a skill passes, as the client numbers and shows them: points raise it to
+// PointsCap and the next point makes it a Master, M1, where the client hides its +; books
+// raise it to M10, and soul stones make it a Grand Master and raise it to G10, TopLevel.
+// Perfect, at 40, is not reached yet.
+const (
+	PointsCap   = 17
+	Master      = 20
+	GrandMaster = 30
+	TopLevel    = 39
+)
+
+// The client's grades, by which it labels a skill's level: m1 to m10 for a Master, g1 to
+// g10 for a Grand Master.
+const (
+	Normal uint8 = iota
+	MasterGrade
+	GrandMasterGrade
+)
+
+// Grade is the grade a skill at level has.
+func Grade(level uint8) uint8 {
+	switch {
+	case level >= GrandMaster:
+		return GrandMasterGrade
+	case level >= Master:
+		return MasterGrade
+	}
+	return Normal
+}
+
+// NextByPoint is the level a point raises a skill at level to: one more up to PointsCap,
+// then Master. A skill at 18 or 19, raised a point at a time before Master came, becomes
+// one at the next point too.
+func NextByPoint(level uint8) uint8 {
+	if level >= PointsCap {
+		return Master
+	}
+	return level + 1
+}
+
+// spent is the points a skill at level took: one a level up to PointsCap, and one more to
+// become a Master. A skill at 18 or 19 took a point for each.
+func spent(level uint8) int {
+	if level >= Master {
+		return PointsCap + 1
+	}
+	return int(level)
+}
+
+// ReadWait is how long after reading a book of a skill, or using a soul stone on it, the
+// next may be read: the original's day, shortened for a small server by the debaters.
+const ReadWait = 4 * time.Hour
+
+// bookChances is the chance, in hundredths, a book raises a Master at M1 to M9 one level.
+var bookChances = [9]uint16{70, 64, 58, 52, 45, 39, 33, 26, 20}
+
+// BookChance is the chance, in hundredths, that a book raises a skill at level, and false
+// for a level a book does not raise: below M1, or at M10, which only a soul stone takes on.
+func BookChance(level uint8) (uint16, bool) {
+	if level < Master || level >= Master+9 {
+		return 0, false
+	}
+	return bookChances[level-Master], true
+}
+
+// SoulChance is the chance, in hundredths, that a soul stone raises a skill at level: an
+// M10 to G1, and a Grand Master on to G10, the chance falling every three grades; false
+// for a level it does not raise.
+func SoulChance(level uint8) (uint16, bool) {
+	switch {
+	case level < GrandMaster-1 || level >= TopLevel:
+		return 0, false
+	case level < GrandMaster+3:
+		return 40, true
+	case level < GrandMaster+6:
+		return 30, true
+	}
+	return 20, true
+}
 
 // FirstLevel is the level a character earns its first skill point at, and from which a
 // teacher takes it on; each level after brings one more.
@@ -214,8 +291,14 @@ type Scaled struct {
 	Base, PerPower uint32
 }
 
-// At is the value at a power, rounded down as the client rounds it.
-func (v Scaled) At(power uint32) uint32 { return v.Base + v.PerPower*power/100 }
+// At is the value at a power as the client works it out (PythonSkill.cpp, ProcessFormula;
+// Poly.cpp): k is the power over 100 in single precision, the formula is evaluated in
+// double, its result is rounded to single precision, then down to a whole number. So a k
+// a hair short, as 1.15 is, still gives the whole number it falls just under.
+func (v Scaled) At(power uint32) uint32 {
+	k := float64(float32(power) / 100)
+	return uint32(float32(float64(v.Base) + float64(v.PerPower)*k))
+}
 
 // CooldownAt is how long the skill waits at level before it may be used again.
 func (p Proto) CooldownAt(level uint8) time.Duration {
@@ -499,10 +582,11 @@ const ShootReach = 2800
 
 // powers is a skill's power at each level, in hundredths: the client's own table, which
 // its formulas for mana and cooldowns read too.
-var powers = [MaxLevel + 1]uint32{0, 5, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 50}
+var powers = [TopLevel + 1]uint32{0, 5, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 50,
+	52, 54, 56, 58, 60, 63, 66, 69, 72, 82, 85, 88, 91, 94, 98, 102, 106, 110, 115}
 
 // Power is a skill's power at level, in hundredths; 0 for an unlearnt one.
-func Power(level uint8) uint32 { return powers[min(level, MaxLevel)] }
+func Power(level uint8) uint32 { return powers[min(level, TopLevel)] }
 
 // Lookup returns the skill, or false if the game has none of it.
 func Lookup(s account.Skill) (Proto, bool) {
@@ -511,14 +595,14 @@ func Lookup(s account.Skill) (Proto, bool) {
 }
 
 // Points is how many skill points a character of level has left once it has learnt what
-// it has: one for every level from FirstLevel, less a point for every skill level.
+// it has: one for every level from FirstLevel, less the points each skill took.
 func Points(level uint8, learnt map[account.Skill]uint8) uint32 {
 	if level < FirstLevel {
 		return 0
 	}
 	earned := int(level) - FirstLevel + 1
 	for _, l := range learnt {
-		earned -= int(l)
+		earned -= spent(l)
 	}
 	return uint32(max(0, earned)) //nolint:gosec // never more than a level
 }

@@ -95,7 +95,7 @@ func (s *session) onItemMove(body []byte) error {
 // onItemUse answers a double-click: an item that is worn is put on, one worn is taken
 // off into the first cells it fits, and a potion is drunk. Using anything else is not
 // done yet.
-func (s *session) onItemUse(body []byte) error {
+func (s *session) onItemUse(ctx context.Context, body []byte) error {
 	at, err := protocol.DecodeItemUse(body)
 	if err != nil {
 		return err
@@ -115,6 +115,10 @@ func (s *session) onItemUse(body []byte) error {
 		return s.putOn(it)
 	case p.HP > 0 || p.SP > 0:
 		return s.drink(it)
+	case p.Teaches != "":
+		return s.readBook(ctx, it, p.Teaches)
+	case it.VNum == item.SoulStone:
+		return s.offerSoulStone(it)
 	}
 	s.conn.Log().Debug("item use not handled yet", "item", it.ID, "vnum", it.VNum)
 	return nil
