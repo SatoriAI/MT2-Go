@@ -82,11 +82,11 @@ The weapon and armour traders sell those below level 21 ([shops.md](shops.md)). 
   | Fans (shaman) | Wachlarz Czarn. Tygr. (7020) | Pawi Wachlarz (7040) | Wodny Wachlarz (7050) | Wachlarz Jes. Wiatru (7160) | Oceaniczny Wachlarz (7070) |
   | Bells (shaman) | Miedziany Dzwon (5000) | Złoty Dzwon (5020) | Jadeitowy Dzwon (5030), level 32 | Antyczny Dzwon (5110) | Dzwon Fontanny (5040) |
 
-  The level-30 weapons, like every weapon in item_proto, carry a fixed attack speed bonus (+15% for these, +25% for the Ostrze Z Czerw. Stali) that the server does not apply yet, as no item bonus is: that waits for the bonus system.
+- **A weapon's attack speed:** every weapon adds the attack speed item_proto gives it (its ADDON APPLY_ATT_SPEED), the same at every grade: from 15, the level-30 weapons and some others, to 37, the Kosa Bojowa; the first sword 22. Held, it joins everyone's 150 and what buffs add, never past 255, and so shortens the gap between blows the server allows and quickens the client's swing. Putting a weapon on or taking it off tells the player their new attack speed, POINT_CHANGE point 17, and everyone near sees it in CHARACTER_UPDATE. The veteran and the designer both asked for it before the bonus system, as the tooltip shows it.
 
   The armour of levels 9, 18 and 34 for each class: 11210, 11410, 11610 and 11810, defence 21; 11220 to 11820, 29; 11240 to 11840, 47. The helmets of level 21 (12220, 12360, 12500, 12640), defence 9; the Pięciokątna Tarcza (13020), 4 and 6 slower; and the shoes Drewniane Buty (15040, level 17) and Złote Buty (15100, level 34).
 - **Level limits:** an item is put on only from its level, read under the world's lock, as kills raise it. Gear already worn stays on.
-- **Left out of these kinds,** as the debaters chose: the attack speed every weapon's tooltip shows, armour's slowness (2 to 7), and the shoes' resists.
+- **Left out of these kinds,** as the debaters chose: armour's slowness (2 to 7), and the shoes' resists.
 - **An item is in a cell or worn, never both,** and one item is worn in each place; the database keeps both rules. A swap moves two items in one transaction, the new one in before the old one out, so one to a place is checked at its end.
 - **Putting on:**
   - A double-click on a wearable item in the bag, or a drag onto its own empty place.
@@ -118,8 +118,8 @@ The weapon and armour traders sell those below level 21 ([shops.md](shops.md)). 
 
 ## What proves it
 
-- `internal/item/item_test.go`: a worn item in no cell; who may wear what, by class; gear worn only from its level; every worn kind with its classes and stats; the 49 kinds past the first, from levels 9 to 36, with their grades, levels, sell prices, speeds and weapon kinds as item_proto has them, at +5 and +9, the Miecz Pełni Księżyca and the Kozik Czar. Liś. among them.
-- `internal/game/equipment_test.go`: also gear above the character's level refused with a line and kept in its cell, then put on at its level.
+- `internal/item/item_test.go`: a worn item in no cell; who may wear what, by class; gear worn only from its level; every worn kind with its classes and stats; the 49 kinds past the first, from levels 9 to 36, with their grades, levels, sell prices, speeds and weapon kinds as item_proto has them, at +5 and +9, the Miecz Pełni Księżyca and the Kozik Czar. Liś. among them. Every weapon adding its attack speed, the same at every grade, and nothing else worn adding any.
+- `internal/game/equipment_test.go`: also a weapon put on telling its attack speed, 150 and its 22, and taken off telling 150 again, both in CHARACTER_UPDATE too; gear above the character's level refused with a line and kept in its cell, then put on at its level.
 - `internal/combat/combat_test.go`: a sword adding twice a roll of its attack, 31 to 42 on a wild dog; armour taking bites down to 24 to 28.
 - `internal/protocol/protocol_test.go`: CHARACTER_UPDATE and CHARACTER_INFO with armour and weapon, byte for byte; DEF at point 20.
 - `internal/store/items_test.go`: a helmet, shoes and a shield kept worn; a swap kept whole; one item to a place, and an item in a cell or worn; the armour read with the character.

@@ -35,7 +35,7 @@ func warring(t *testing.T, dogs int) (*session, net.Conn) {
 	c.Strength = 30
 	c.Skills = map[account.Skill]uint8{skill.ThreeWayCut: 1, skill.SwordSpin: 1, skill.Berserk: 1, skill.SwordAura: 1}
 	points, _ := c.Points()
-	rugor.add.MoveSpeed, rugor.add.AttackSpeed = points.MoveSpeed, points.AttackSpeed
+	rugor.add.MoveSpeed, rugor.add.AttackSpeed = points.MoveSpeed, attackSpeed(c) // as he enters, his sword counted
 	read(t, client, (dogs+1)*addSize)
 	sess := &session{svc: s, conn: rugor.out.(*network.Conn), phase: protocol.PhaseGame, rand: rand.New(rand.NewPCG(5, 6)), //nolint:gosec // a fixed seed
 		playing: playingAs(rugor)}

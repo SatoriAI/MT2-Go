@@ -385,3 +385,19 @@ func TestGearIsWornOnlyFromItsLevel(t *testing.T) {
 		t.Errorf("at 10: %v", err)
 	}
 }
+
+// Every weapon adds its item_proto attack speed, the same at every grade, and nothing else
+// worn adds any: the Miecz 22, the Kosa Bojowa 37, the Miecz Pełni Księżyca 15.
+func TestEveryWeaponAddsItsAttackSpeed(t *testing.T) {
+	for vnum, want := range map[uint32]uint8{10: 22, 19: 22, 3050: 37, 290: 15, 299: 15, 7000: 26, 2070: 22} {
+		if p, _ := Lookup(vnum); p.AttackSpeed != want {
+			t.Errorf("%d: %d, want %d", vnum, p.AttackSpeed, want)
+		}
+	}
+	for _, vnum := range VNums() {
+		p, _ := Lookup(vnum)
+		if (p.Wear == Weapon) != (p.AttackSpeed > 0) {
+			t.Errorf("%d %s: attack speed %d", vnum, p.Name, p.AttackSpeed)
+		}
+	}
+}

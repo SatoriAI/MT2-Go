@@ -44,15 +44,16 @@ func doubleClicked(cell uint16) []byte { return binary.LittleEndian.AppendUint16
 // expectDressed reads a CHARACTER_UPDATE for Hendra in the armour and weapon given.
 func expectDressed(t *testing.T, c net.Conn, body, weapon uint16) {
 	t.Helper()
+	held, _ := item.Lookup(uint32(weapon))
 	want := protocol.EncodeCharacterUpdate(protocol.CharacterInfo{VID: 1000, Name: "Hendra", BodyPart: body,
-		WeaponPart: weapon}, protocol.CharacterAdd{MoveSpeed: 150, AttackSpeed: 150}, 0)
+		WeaponPart: weapon}, protocol.CharacterAdd{MoveSpeed: 150, AttackSpeed: 150 + held.AttackSpeed}, 0)
 	if got := read(t, c, updateSize); string(got) != string(want) {
 		t.Fatalf("got  %x\nwant %x", got, want)
 	}
 }
 
 // A double-click on the sword puts it on: its cells empty, it is shown worn, and she and
-// Kira see it in her hand; her blows use it from then on.
+// Kira see it in her hand; her blows use it from then on, at its 22 more attack speed.
 func TestADoubleClickPutsAWeaponOn(t *testing.T) {
 	s, kept, client, viewer := dressing(t)
 
@@ -67,8 +68,11 @@ func TestADoubleClickPutsAWeaponOn(t *testing.T) {
 	}
 	expectDressed(t, client, 0, 10)
 	expectDressed(t, viewer, 0, 10)
-	if kept.worn[1] != item.Weapon || s.playing.Weapon != 10 {
-		t.Fatalf("kept %q, holding %d", kept.worn[1], s.playing.Weapon)
+	if point, _, value := pointChange(t, client, 1000); point != protocol.PointAttackSpeed || value != 150+22 {
+		t.Fatalf("told point %d at %d, want attack speed 172", point, value)
+	}
+	if kept.worn[1] != item.Weapon || s.playing.Weapon != 10 || s.svc.record.attackSpeedOf(1000) != 172 {
+		t.Fatalf("kept %q, holding %d, striking at %d", kept.worn[1], s.playing.Weapon, s.svc.record.attackSpeedOf(1000))
 	}
 }
 
@@ -99,7 +103,7 @@ func TestPuttingOnWhereAnotherIsWornSwapsThem(t *testing.T) {
 	if err := s.onItemUse(context.Background(), doubleClicked(0)); err != nil {
 		t.Fatal(err)
 	}
-	read(t, client, 2*itemSetSize+updateSize)
+	read(t, client, 2*itemSetSize+updateSize+pointChangeSize) // and the sword's attack speed
 
 	if err := s.onItemUse(context.Background(), doubleClicked(2)); err != nil {
 		t.Fatal(err)
@@ -138,7 +142,7 @@ func TestAWornItemComesOffByDoubleClickOrDrag(t *testing.T) {
 		if err := s.onItemUse(context.Background(), doubleClicked(0)); err != nil {
 			t.Fatal(err)
 		}
-		read(t, client, 2*itemSetSize+updateSize)
+		read(t, client, 2*itemSetSize+updateSize+pointChangeSize) // and the sword's attack speed
 		read(t, viewer, updateSize)
 
 		if err := c.take(s); err != nil {
@@ -148,6 +152,9 @@ func TestAWornItemComesOffByDoubleClickOrDrag(t *testing.T) {
 		read(t, client, 2*itemSetSize)
 		expectDressed(t, client, 0, 0)
 		expectDressed(t, viewer, 0, 0)
+		if point, _, value := pointChange(t, client, 1000); point != protocol.PointAttackSpeed || value != 150 {
+			t.Errorf("%s: told point %d at %d, want attack speed 150", c.name, point, value)
+		}
 		if kept.worn[1] != "" || kept.moved[1] != c.cell || s.playing.Weapon != 0 {
 			t.Errorf("%s: kept %q at %d, holding %d", c.name, kept.worn[1], kept.moved[1], s.playing.Weapon)
 		}
@@ -205,7 +212,7 @@ func TestWhatIsPutOnCountsInTheFight(t *testing.T) {
 		Stats: account.Stats{Strength: 5, Vitality: 3, Dexterity: 3, Intelligence: 5}}
 	s.record.state.all[1000].char = c
 	s.record.dress(1000, outfit{weapon: 10, body: 11600})
-	read(t, client, updateSize+2*pointChangeSize) // her new look, DEF, and speed: this one had none
+	read(t, client, updateSize+3*pointChangeSize) // her new look, DEF, speed, as this one had none, and the sword's attack speed
 
 	s.record.attack(1000, dog.p.add.VID, 0, someRand, noon)
 

@@ -2,6 +2,7 @@ package game
 
 import (
 	"context"
+	"math"
 
 	"github.com/SatoriAI/MT2-Go/internal/account"
 	"github.com/SatoriAI/MT2-Go/internal/item"
@@ -247,7 +248,7 @@ var itemPackets = map[protocol.ClientHeader]bool{
 
 // dress puts the outfit on the player's character: their blows and the bites on them use
 // it from then on, and they and everyone who sees them see the change, at the speed their
-// shoes and shield give. A buff that needs a weapon, as Enchanted Blade and Sword Aura
+// shoes and shield give, and the weapon's attack speed. A buff that needs a weapon, as Enchanted Blade and Sword Aura
 // do, ends with it taken out of hand. The player is told their new DEF when what they
 // wear against bites changed, and their speed when it did.
 func (w *record) dress(vid uint32, o outfit) {
@@ -256,7 +257,7 @@ func (w *record) dress(vid uint32, o outfit) {
 	p := l.all[vid]
 	c := p.char
 	armourChanged := c.Body != o.body || c.Head != o.head || c.Feet != o.feet || c.Shield != o.shield
-	speed := p.add.MoveSpeed
+	speed, strikes := p.add.MoveSpeed, p.add.AttackSpeed
 	c.Weapon, c.Body, c.Head, c.Feet, c.Shield, c.Arrow = o.weapon, o.body, o.head, o.feet, o.shield, o.arrow
 	held, _ := item.Lookup(o.weapon)
 	for sk := range c.Buffs {
@@ -273,6 +274,9 @@ func (w *record) dress(vid uint32, o outfit) {
 	}
 	if p.add.MoveSpeed != speed {
 		p.send(pointTold(vid, protocol.PointMoveSpeed, 0, p.add.MoveSpeed))
+	}
+	if p.add.AttackSpeed != strikes {
+		p.send(pointTold(vid, protocol.PointAttackSpeed, 0, p.add.AttackSpeed))
 	}
 	l.toViewers(p, update)
 }
@@ -303,10 +307,12 @@ func moveSpeed(c *account.Character) uint8 {
 	return uint8(int(points.MoveSpeed) + int(shoes.MoveSpeed) + int(shield.MoveSpeed) + buffBonus(c, skill.MoveSpeed)) //nolint:gosec // 150 give or take 25
 }
 
-// attackSpeed is the speed the character strikes at: everyone's, and what their buffs add.
+// attackSpeed is the speed the character strikes at: everyone's, what the weapon in hand
+// adds, and what their buffs add, never past what the client's point holds.
 func attackSpeed(c *account.Character) uint8 {
 	points, _ := c.Points()
-	return uint8(int(points.AttackSpeed) + buffBonus(c, skill.AttackSpeed)) //nolint:gosec // at most 25 more
+	weapon, _ := item.Lookup(c.Weapon)
+	return uint8(min(math.MaxUint8, int(points.AttackSpeed)+int(weapon.AttackSpeed)+buffBonus(c, skill.AttackSpeed))) //nolint:gosec // capped above
 }
 
 // attackSpeedOf is the speed the player strikes at now, for the time their blows must
