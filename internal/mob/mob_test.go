@@ -305,3 +305,13 @@ func TestOnlyTheCursedAndTheStonesLeaveTheRareGear(t *testing.T) {
 		}
 	}
 }
+
+// Every monster the world has is of the animals' race, as mob_proto's RACE_FLAG has them,
+// so strength against animals counts on all of them; stones and NPCs are of none.
+func TestTheMonstersAreAnimals(t *testing.T) {
+	for vnum, p := range protos {
+		if p.Animal != (p.Kind == Monster) {
+			t.Errorf("%d %s: animal %v", vnum, p.Name, p.Animal)
+		}
+	}
+}

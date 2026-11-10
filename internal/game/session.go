@@ -4,9 +4,11 @@
 package game
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math/rand/v2"
 	"net/netip"
 	"sync"
@@ -58,6 +60,8 @@ type Deps struct {
 	// to be reachable from the client, so it is never 0.0.0.0.
 	Public netip.AddrPort
 	Spawns []world.Spawn
+	// Log is where the world loop writes what it rolls; nothing is written without one.
+	Log *slog.Logger
 }
 
 // Service is what every game connection shares.
@@ -88,6 +92,7 @@ type Service struct {
 // lock. What it shares with the connections goes through the world record.
 type loop struct {
 	spawns    []world.Spawn
+	log       *slog.Logger
 	rand      *rand.Rand
 	monsters  []*monster
 	byPresent map[*present]*monster // the same monsters, by what the world record holds of them
@@ -119,7 +124,7 @@ func NewService(d Deps) *Service {
 		claims: map[uint32]*claim{},
 		record: newRecord(),
 		now:    time.Now,
-		loop: loop{spawns: d.Spawns, rand: newRand(), byPresent: map[*present]*monster{}, kinds: map[uint16]*mob.Proto{},
+		loop: loop{spawns: d.Spawns, log: cmp.Or(d.Log, slog.New(slog.DiscardHandler)), rand: newRand(), byPresent: map[*present]*monster{}, kinds: map[uint16]*mob.Proto{},
 			called: map[*monster][]*monster{}},
 	}
 }

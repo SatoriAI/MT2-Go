@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"net"
+	"reflect"
 	"testing"
 	"time"
 
@@ -253,7 +254,7 @@ func TestAPotionWithItsStackFullTakesANewCell(t *testing.T) {
 	expectGone(t, client)
 	want := item.Item{ID: 101, VNum: 27001, Count: 1, Cell: 1}
 	if got := read(t, client, itemSetSize); string(got) != string(itemSet(want)) || len(kept.added) != 1 ||
-		len(s.inventory) != 2 || s.inventory[1] != want {
+		len(s.inventory) != 2 || !reflect.DeepEqual(s.inventory[1], want) {
 		t.Fatalf("told %x, kept %+v, carries %+v", got, kept.added, s.inventory)
 	}
 }

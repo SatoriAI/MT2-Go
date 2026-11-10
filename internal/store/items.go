@@ -146,11 +146,23 @@ func (s Items) Place(ctx context.Context, characterID uint32, items ...item.Item
 	})
 }
 
-// Add keeps a new item the character now owns, and returns its id.
+// Add keeps a new item the character now owns, with the bonuses it carries, and returns
+// its id.
 func (s Items) Add(ctx context.Context, characterID uint32, it item.Item) (int64, error) {
 	var id int64
-	err := s.Pool.QueryRow(ctx, `INSERT INTO items (character_id, vnum, count, cell) VALUES ($1, $2, $3, $4)
-		RETURNING id`, characterID, it.VNum, it.Count, it.Cell).Scan(&id)
+	err := pgx.BeginFunc(ctx, s.Pool, func(tx pgx.Tx) error {
+		if err := tx.QueryRow(ctx, `INSERT INTO items (character_id, vnum, count, cell) VALUES ($1, $2, $3, $4)
+			RETURNING id`, characterID, it.VNum, it.Count, it.Cell).Scan(&id); err != nil {
+			return err
+		}
+		for slot, b := range it.Bonuses {
+			if _, err := tx.Exec(ctx, `INSERT INTO item_bonuses (item_id, slot, kind, value) VALUES ($1, $2, $3, $4)`,
+				id, slot, b.Kind, b.Value); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 	return id, err
 }
 
@@ -202,14 +214,21 @@ func (s Items) UnknownKinds(ctx context.Context, known []uint32) ([]uint32, erro
 }
 
 func inventory(ctx context.Context, tx pgx.Tx, characterID uint32) (item.Inventory, error) {
-	rows, err := tx.Query(ctx, `SELECT id, vnum, count, coalesce(cell, 0), coalesce(worn, '') FROM items
-		WHERE character_id = $1 ORDER BY worn NULLS FIRST, cell`, characterID)
+	rows, err := tx.Query(ctx, `SELECT id, vnum, count, coalesce(cell, 0), coalesce(worn, ''),
+		coalesce((SELECT array_agg(kind ORDER BY slot) FROM item_bonuses WHERE item_id = items.id), '{}'),
+		coalesce((SELECT array_agg(value ORDER BY slot) FROM item_bonuses WHERE item_id = items.id), '{}')
+		FROM items WHERE character_id = $1 ORDER BY worn NULLS FIRST, cell`, characterID)
 	if err != nil {
 		return nil, err
 	}
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (item.Item, error) {
 		var it item.Item
-		err := row.Scan(&it.ID, &it.VNum, &it.Count, &it.Cell, &it.Worn)
+		var kinds []account.Bonus
+		var values []int16
+		err := row.Scan(&it.ID, &it.VNum, &it.Count, &it.Cell, &it.Worn, &kinds, &values)
+		for i, kind := range kinds {
+			it.Bonuses = append(it.Bonuses, item.Rolled{Kind: kind, Value: values[i]})
+		}
 		return it, err
 	})
 }

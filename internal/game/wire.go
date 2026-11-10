@@ -462,10 +462,30 @@ func itemPos(it item.Item) protocol.ItemPos {
 	return protocol.ItemPos{Window: inventoryWindow, Cell: it.Cell}
 }
 
-func itemSet(it item.Item) []byte { return protocol.EncodeItemSet(itemPos(it), it.VNum, it.Count) }
+func itemSet(it item.Item) []byte {
+	return protocol.EncodeItemSet(itemPos(it), it.VNum, it.Count, bonusSlots(it.Bonuses))
+}
+
+// bonusTypes are the client's numbers for the bonuses, its APPLY_ types (open-mt2's
+// ApplyTypeEnum), which pick the tooltip line each is drawn with.
+var bonusTypes = map[account.Bonus]uint8{
+	account.BonusMaxHP: 1, account.BonusAttackSpeed: 7, account.BonusCritical: 15, account.BonusPierce: 16,
+	account.BonusAnimals: 18, account.BonusSkill: 71, account.BonusAverage: 72, account.BonusResist: 74,
+}
+
+// bonusSlots are an item's bonuses as the client's seven slots.
+func bonusSlots(b item.Bonuses) protocol.Bonuses {
+	var slots protocol.Bonuses
+	for i, r := range b[:min(len(b), len(slots))] {
+		slots[i] = protocol.Bonus{Type: bonusTypes[r.Kind], Value: r.Value}
+	}
+	return slots
+}
 
 // itemCleared empties the place the item stood in.
-func itemCleared(it item.Item) []byte { return protocol.EncodeItemSet(itemPos(it), 0, 0) }
+func itemCleared(it item.Item) []byte {
+	return protocol.EncodeItemSet(itemPos(it), 0, 0, protocol.Bonuses{})
+}
 
 // bodyPart is how the client is told to dress a character: in its armour, by the
 // armour's vnum, which the client turns into a model through the item's own data, or

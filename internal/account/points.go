@@ -37,7 +37,7 @@ func (c Character) Points() (Points, bool) {
 	}
 	level := uint32(c.Level)
 	return Points{
-		MaxHP:       g.hp + uint32(c.Vitality)*g.hpPerVitality + level*g.hpPerLevel,
+		MaxHP:       g.hp + uint32(c.Vitality)*g.hpPerVitality + level*g.hpPerLevel + uint32(max(0, c.Totals.MaxHP)), //nolint:gosec // never below 0
 		MaxSP:       g.sp + uint32(c.Intelligence)*g.spPerIntelligence + level*g.spPerLevel,
 		MaxStamina:  1000,
 		AttackSpeed: 150,

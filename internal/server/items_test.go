@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/SatoriAI/MT2-Go/internal/account"
 	"github.com/SatoriAI/MT2-Go/internal/config"
 	"github.com/SatoriAI/MT2-Go/internal/item"
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
@@ -39,7 +40,7 @@ func (c *client) startAgain() {
 }
 
 func inInventory(cell uint16, vnum uint32, count uint8) []byte {
-	return protocol.EncodeItemSet(protocol.ItemPos{Window: 1, Cell: cell}, vnum, count)
+	return protocol.EncodeItemSet(protocol.ItemPos{Window: 1, Cell: cell}, vnum, count, protocol.Bonuses{})
 }
 
 // A sword and 50 potions given on the command line are hers the next time she is selected,
@@ -150,5 +151,30 @@ func (c *client) expectPastDrops(want []byte) {
 			c.t.Fatalf("got %x, want %x", got, want)
 		}
 		return
+	}
+}
+
+// Armour with a bonus, kept for Hendra, is shown with it in its slot as she enters, and
+// worn raises her hit points' maximum, which she is told.
+func TestArmourWithABonusIsShownAndWorn(t *testing.T) {
+	h := start(t)
+	hendra, _ := h.hendraInWorld()
+	hendra.changeCharacter()
+	ctx := context.Background()
+	var cid uint32
+	if err := h.accounts.Pool.QueryRow(ctx, `SELECT id FROM characters WHERE name = 'Hendra'`).Scan(&cid); err != nil {
+		t.Fatal(err)
+	}
+	bonuses := item.Bonuses{{Kind: account.BonusMaxHP, Value: 400}}
+	if _, err := (store.Items{Pool: h.accounts.Pool}).Add(ctx, cid, item.Item{VNum: 11600, Count: 1, Cell: 0, Bonuses: bonuses}); err != nil {
+		t.Fatal(err)
+	}
+	hendra.startAgain()
+	hendra.expect(protocol.EncodeItemSet(protocol.ItemPos{Window: 1, Cell: 0}, 11600, 1, protocol.Bonuses{{Type: 1, Value: 400}}))
+
+	hendra.send([]byte{byte(protocol.ClientItemMove), 1, 0, 0, 1, 90, 0, 1, sequenceByte})
+	hendra.read(2*42 + 35 + 17) // its cells emptied, it worn, her model and her DEF
+	if told := hendra.read(17); told[0] != byte(protocol.ServerPointChange) || protocol.Point(told[8]) != protocol.PointMaxHP {
+		t.Fatalf("got %x, want her max HP", told)
 	}
 }

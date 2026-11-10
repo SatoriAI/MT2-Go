@@ -540,7 +540,7 @@ func TestDecodeItemMoveRefusesAShortBody(t *testing.T) {
 func TestAnItemIsSetInACell(t *testing.T) {
 	want := mustHex(t, "14"+"01"+"1100"+"79690000"+"32"+strings.Repeat("00", 12+21))
 
-	if got := EncodeItemSet(ItemPos{Window: 1, Cell: 17}, 27001, 50); !bytes.Equal(got, want) {
+	if got := EncodeItemSet(ItemPos{Window: 1, Cell: 17}, 27001, 50, Bonuses{}); !bytes.Equal(got, want) {
 		t.Errorf("got  %x\nwant %x", got, want)
 	}
 }
@@ -856,5 +856,21 @@ func TestAnAffectIsAddedAndRemovedInTheClientsLayout(t *testing.T) {
 	}
 	if got, want := EncodeAffectRemove(513, 0), mustHex(t, "7f"+"01020000"+"00"); !bytes.Equal(got, want) {
 		t.Fatalf("removed %x, want %x", got, want)
+	}
+}
+
+// An item's bonuses fill ITEM_SET's seven slots after its sockets, each a type and a
+// value read back signed, the rest left empty; EXCHANGE carries them the same way.
+func TestAnItemsBonusesAreLaidOutAsTheClientReadsThem(t *testing.T) {
+	bonuses := Bonuses{{Type: 72, Value: 20}, {Type: 71, Value: -10}}
+	empty := "000000" + "000000" + "000000" + "000000" + "000000"
+	slots := "481400" + "47f6ff" + empty
+	if got, want := EncodeItemSet(ItemPos{Window: 1, Cell: 4}, 290, 1, bonuses), mustHex(t, "14"+"01"+"0400"+"22010000"+"01"+
+		"000000000000000000000000"+slots); !bytes.Equal(got, want) {
+		t.Fatalf("ITEM_SET %x\nwant     %x", got, want)
+	}
+	got := EncodeExchange(ExchangeNews{Sub: ExchangeAdded, Arg: 290, Shown: 3, Count: 1, Bonuses: bonuses})
+	if want := mustHex(t, "2a"+"01"+"00"+"22010000"+"00"+"0300"+"01000000"+"000000000000000000000000"+slots); !bytes.Equal(got, want) {
+		t.Fatalf("EXCHANGE %x\nwant     %x", got, want)
 	}
 }

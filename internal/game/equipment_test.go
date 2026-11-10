@@ -239,7 +239,7 @@ func TestAHelmetIsPutOnAndAddsItsDefence(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if got := read(t, client, 2*itemSetSize); string(got[itemSetSize:]) != string(protocol.EncodeItemSet(protocol.ItemPos{Window: 1, Cell: 91}, 12480, 1)) {
+	if got := read(t, client, 2*itemSetSize); string(got[itemSetSize:]) != string(protocol.EncodeItemSet(protocol.ItemPos{Window: 1, Cell: 91}, 12480, 1, protocol.Bonuses{})) {
 		t.Fatalf("told %x", got)
 	}
 	expectDressed(t, client, 0, 0)
@@ -264,7 +264,7 @@ func TestShoesAreFasterByTheirGrade(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if got := read(t, client, 2*itemSetSize); string(got[itemSetSize:]) != string(protocol.EncodeItemSet(protocol.ItemPos{Window: 1, Cell: 92}, 15006, 1)) {
+	if got := read(t, client, 2*itemSetSize); string(got[itemSetSize:]) != string(protocol.EncodeItemSet(protocol.ItemPos{Window: 1, Cell: 92}, 15006, 1, protocol.Bonuses{})) {
 		t.Fatalf("told %x", got)
 	}
 	if got := read(t, client, updateSize); string(got) != string(faster) {
@@ -313,7 +313,7 @@ func TestAShieldIsPutOnAndSlowsHer(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if got := read(t, client, 2*itemSetSize); string(got[itemSetSize:]) != string(protocol.EncodeItemSet(protocol.ItemPos{Window: 1, Cell: 100}, 13000, 1)) {
+	if got := read(t, client, 2*itemSetSize); string(got[itemSetSize:]) != string(protocol.EncodeItemSet(protocol.ItemPos{Window: 1, Cell: 100}, 13000, 1, protocol.Bonuses{})) {
 		t.Fatalf("told %x", got)
 	}
 	if got := read(t, client, updateSize); string(got) != string(slower) {

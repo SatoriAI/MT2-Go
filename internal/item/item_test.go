@@ -190,7 +190,7 @@ func TestAnItemPickedUpJoinsItsStackOrTakesAFreeCell(t *testing.T) {
 	inv := Inventory{{ID: 1, VNum: 27001, Count: 199, Cell: 0}, {ID: 2, VNum: 27001, Count: 5, Cell: 1},
 		{ID: 3, VNum: 10, Count: 1, Cell: 2}}
 
-	if got, ok := inv.RoomFor(potion, 3); !ok || got != (Item{ID: 2, VNum: 27001, Count: 8, Cell: 1}) {
+	if got, ok := inv.RoomFor(potion, 3); !ok || !reflect.DeepEqual(got, Item{ID: 2, VNum: 27001, Count: 8, Cell: 1}) {
 		t.Errorf("3 potions: %+v (%v), want the stack of 5 at 8", got, ok)
 	}
 	if got, ok := inv.RoomFor(potion, 196); !ok || got.ID != 0 || got.Cell != 3 || got.Count != 196 {

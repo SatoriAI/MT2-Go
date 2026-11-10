@@ -19,7 +19,7 @@ A potion that would do nothing isn't used up: a red one at full hit points, a bl
 | ITEM_USE `0B`, client | 4 | position: window u8, cell u16 |
 | ITEM_SET `14` | 42 | as on [items.md](items.md): the stack's new count, or vnum 0 for an emptied cell |
 | POINT_CHANGE `11` | 17 | HP is point 5, mana point 7: the amount gained and the new value |
-| SPECIAL_EFFECT `72` | 6 | effect u8 (1 red potion, 2 blue potion), vid u32 |
+| SPECIAL_EFFECT `72` | 6 | effect u8 (1 red potion, 2 blue potion; 5 and 6 a blow's, [bonuses.md](bonuses.md)), vid u32 |
 
 ## What the server does
 

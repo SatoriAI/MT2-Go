@@ -155,7 +155,7 @@ func (w *record) offerItem(vid uint32, it item.Item, shown uint8, now time.Time)
 	}
 	me.offer = append(me.offer, offered{it, shown})
 	t.changedAt(now)
-	t.tell(me, protocol.ExchangeNews{Sub: protocol.ExchangeAdded, Arg: it.VNum, Shown: shown, Count: it.Count})
+	t.tell(me, protocol.ExchangeNews{Sub: protocol.ExchangeAdded, Arg: it.VNum, Shown: shown, Count: it.Count, Bonuses: bonusSlots(it.Bonuses)})
 }
 
 // fits reports whether an item of kind p shown from cell down stays in the trade window
