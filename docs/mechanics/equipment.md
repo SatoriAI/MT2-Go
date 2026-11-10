@@ -9,7 +9,7 @@ Putting on a second weapon swaps them: the one held goes where the new one was. 
 A weapon makes every blow stronger. Armour, a helmet, shoes and a shield each take more off every bite, and the character window's DEF rises by their defence; its attack follows the weapon. Shoes also make the character faster, more with each grade, for themselves and as everyone near sees them run. A shield makes them slower at every grade: the first 2, the Pięciokątna Tarcza 6. It is not drawn on the character, as in the original.
 
 Only a weapon, body armour, a helmet, shoes, a shield and arrows can be worn so far, arrows a whole stack at a time, for the bow to shoot ([bow.md](bow.md)). The kinds are each class's first ones, the first shoes and shield for all, and a curated few beyond them up to level 36, with their grades ([upgrading.md](upgrading.md)):
-- **Weapons:** each line at levels 10, 20, 25 and 36, the bells at 32 in place of 25, which has none.
+- **Weapons:** each line at levels 10, 20, 25, 30 and 36, the bells at 32 in place of 25, which has none. Level 30 is the client's own tier of its best-known weapons, the Miecz Pełni Księżyca among them, added at Dawid's call as the ones players chase most.
 - **Armour:** each class's at levels 9, 18 and 34.
 - **Others:** the helmets and a shield of level 21, and shoes of levels 17 and 34.
 
@@ -73,14 +73,16 @@ The weapon and armour traders sell those below level 21 ([shops.md](shops.md)). 
   - its prices and sell prices by grade;
   - the speed its shoes or shield give by grade.
 
-  | Line | Level 10 | 20 | 25 | 36 |
-  |---|---|---|---|---|
-  | Swords (warrior, ninja, sura) | Sejmitar (30) | Szeroki Miecz (50) | Srebrny Miecz (60) | Miecz Półtoraręczny (80) |
-  | Two-handed (warrior) | Gilotynowe Ostrze (3020) | Gizarma (3040) | Kosa Bojowa (3050) | Halabarda (3070) |
-  | Daggers (ninja) | Sztylet Kobry (1010) | Sztylet Nożycowy (1020) | Krótki Nóż (4020) | Ukąszenie Kota (1040) |
-  | Bows (ninja) | Kompozytowy Łuk (2020) | Długi Łuk Jeźdźcy (2040) | Bojowy Łuk Jeźdźcy (2050) | Łuk Czarnych Ruin (2070) |
-  | Fans (shaman) | Wachlarz Czarn. Tygr. (7020) | Pawi Wachlarz (7040) | Wodny Wachlarz (7050) | Oceaniczny Wachlarz (7070) |
-  | Bells (shaman) | Miedziany Dzwon (5000) | Złoty Dzwon (5020) | Jadeitowy Dzwon (5030), level 32 | Dzwon Fontanny (5040) |
+  | Line | Level 10 | 20 | 25 | 30 | 36 |
+  |---|---|---|---|---|---|
+  | Swords (warrior, ninja, sura) | Sejmitar (30) | Szeroki Miecz (50) | Srebrny Miecz (60) | Miecz Pełni Księżyca (290) | Miecz Półtoraręczny (80) |
+  | Two-handed (warrior) | Gilotynowe Ostrze (3020) | Gizarma (3040) | Kosa Bojowa (3050) | Ostrze Z Czerw. Stali (3210) | Halabarda (3070) |
+  | Daggers (ninja) | Sztylet Kobry (1010) | Sztylet Nożycowy (1020) | Krótki Nóż (4020) | Kozik Czar. Liś. (1170) | Ukąszenie Kota (1040) |
+  | Bows (ninja) | Kompozytowy Łuk (2020) | Długi Łuk Jeźdźcy (2040) | Bojowy Łuk Jeźdźcy (2050) | Łuk Z Rogu Jelenia (2150) | Łuk Czarnych Ruin (2070) |
+  | Fans (shaman) | Wachlarz Czarn. Tygr. (7020) | Pawi Wachlarz (7040) | Wodny Wachlarz (7050) | Wachlarz Jes. Wiatru (7160) | Oceaniczny Wachlarz (7070) |
+  | Bells (shaman) | Miedziany Dzwon (5000) | Złoty Dzwon (5020) | Jadeitowy Dzwon (5030), level 32 | Antyczny Dzwon (5110) | Dzwon Fontanny (5040) |
+
+  The level-30 weapons, like every weapon in item_proto, carry a fixed attack speed bonus (+15% for these, +25% for the Ostrze Z Czerw. Stali) that the server does not apply yet, as no item bonus is: that waits for the bonus system.
 
   The armour of levels 9, 18 and 34 for each class: 11210, 11410, 11610 and 11810, defence 21; 11220 to 11820, 29; 11240 to 11840, 47. The helmets of level 21 (12220, 12360, 12500, 12640), defence 9; the Pięciokątna Tarcza (13020), 4 and 6 slower; and the shoes Drewniane Buty (15040, level 17) and Złote Buty (15100, level 34).
 - **Level limits:** an item is put on only from its level, read under the world's lock, as kills raise it. Gear already worn stays on.
@@ -111,12 +113,12 @@ The weapon and armour traders sell those below level 21 ([shops.md](shops.md)). 
 - **The client's side:** its source and scripts named above. Every packet and cell was read there, and the swap and refusal rules are this server's own.
 - **The kinds:** the client's `--dump_proto--/item_proto.txt`, as on [items.md](items.md).
 - **Seen from a bot** against the running server: Szepta, a sura in her armour, put on the Krwawy Hełm, shown at 91, her DEF rising from 23 to 28, and shoes +6, shown at 92, her DEF then 29, and her speed told as 159. The armour trader showed the helmets and shoes on the third row, and shoes bought for 500 went into her bag. Later she bought the Bojowa Tarcza for 400 from the fourth row. Put on, it was shown at 100, her DEF went from 29 to 32 and her speed from 159 to 157, and taking it off put both back. Given to the blacksmith, it was offered +1 for 200 at 100 in a hundred. Later Iskra, a level-20 shaman, opened Jinno's weapon trader: the window held the first weapons, the arrows and each line's weapons of levels 10 and 20 at their cells, for 600 and 3,000. Her Wodny Wachlarz, of level 25, was refused with «Masz za niski poziom, aby to założyć.» and stayed in its cell; her Pawi Wachlarz, of level 20, was put on, the first fan going to its cell.
-- **Which kinds:** settled by the veteran and the designer, the veteran deciding: each line at levels 10, 20, 25 and 36, armour at 9, 18 and 34, sold below 21 and dropped above, upgrades costing more by tier, jewellery later.
+- **Which kinds:** settled by the veteran and the designer, the veteran deciding: each line at levels 10, 20, 25 and 36, armour at 9, 18 and 34, sold below 21 and dropped above, the level-30 weapons added later in the same way, upgrades costing more by tier, jewellery later.
 - **The blow's weapon term:** this server's formula, which [combat.md](combat.md) explains; the original adds the weapon's attack too, scaled differently.
 
 ## What proves it
 
-- `internal/item/item_test.go`: a worn item in no cell; who may wear what, by class; gear worn only from its level; every worn kind with its classes and stats; the 43 kinds past the first, from levels 9 to 36, with their grades, levels, sell prices, speeds and weapon kinds as item_proto has them, at +5 and +9.
+- `internal/item/item_test.go`: a worn item in no cell; who may wear what, by class; gear worn only from its level; every worn kind with its classes and stats; the 49 kinds past the first, from levels 9 to 36, with their grades, levels, sell prices, speeds and weapon kinds as item_proto has them, at +5 and +9, the Miecz Pełni Księżyca and the Kozik Czar. Liś. among them.
 - `internal/game/equipment_test.go`: also gear above the character's level refused with a line and kept in its cell, then put on at its level.
 - `internal/combat/combat_test.go`: a sword adding twice a roll of its attack, 31 to 42 on a wild dog; armour taking bites down to 24 to 28.
 - `internal/protocol/protocol_test.go`: CHARACTER_UPDATE and CHARACTER_INFO with armour and weapon, byte for byte; DEF at point 20.

@@ -323,13 +323,13 @@ func TestAKindSoldByTheGoldCostsItsCountOverIt(t *testing.T) {
 	}
 }
 
-// The gear past the first is 43 kinds, each from level 9 to 36 and worn by its classes,
+// The gear past the first is 49 kinds, each from level 9 to 36 and worn by its classes,
 // with grades as the client's item_proto has them: Srebrny Miecz, of level 25, adds 32 at
-// +5 and 74 at +9, not a step a grade; the armour of level 34 twice its 27 to its defence; the helmet
+// +5 and 74 at +9, not a step a grade; Miecz Pełni Księżyca, of level 30, 70 at +9; the armour of level 34 twice its 27 to its defence; the helmet
 // of level 21 twice its 28; the shield its 35, slowing by 6; and the shoes of level 34
 // quicken from 3 to 20.
 func TestTheGearPastTheFirstIsTheClients(t *testing.T) {
-	if len(gear) != 43 {
+	if len(gear) != 49 {
 		t.Errorf("%d kinds of gear", len(gear))
 	}
 	for vnum := range gear {
@@ -345,6 +345,8 @@ func TestTheGearPastTheFirstIsTheClients(t *testing.T) {
 		13029: {Defence: 4 + 2*35, MoveSpeed: -6, Level: 21, SellPrice: 150000 / 5},
 		15100: {Defence: 4, MoveSpeed: 3, Level: 34, SellPrice: 1000 / 5},
 		15109: {Defence: 4, MoveSpeed: 20, Level: 34, SellPrice: 240000 / 5},
+		299:   {AttackMin: 57 + 70, AttackMax: 73 + 70, MagicMin: 62 + 70, MagicMax: 88 + 70, Level: 30, SellPrice: 231000 / 5},
+		1179:  {AttackMin: 40 + 43, AttackMax: 44 + 43, Level: 30, SellPrice: 231000 / 5},
 		5039:  {AttackMin: 29 + 74, AttackMax: 39 + 74, MagicMin: 30 + 74, MagicMax: 38 + 74, Level: 32, SellPrice: 61500 / 5},
 	} {
 		p, _ := Lookup(vnum)
@@ -359,6 +361,12 @@ func TestTheGearPastTheFirstIsTheClients(t *testing.T) {
 		4020: func(p Proto) bool { return p.Dagger },
 		2050: func(p Proto) bool { return p.Bow },
 		80:   func(p Proto) bool { return p.Sword && len(p.Classes) == 3 },
+		290:  func(p Proto) bool { return p.Sword && len(p.Classes) == 3 },
+		3210: func(p Proto) bool { return p.TwoHanded && slices.Equal(p.Classes, []account.Class{account.Warrior}) },
+		1170: func(p Proto) bool { return p.Dagger && slices.Equal(p.Classes, []account.Class{account.Ninja}) },
+		2150: func(p Proto) bool { return p.Bow && slices.Equal(p.Classes, []account.Class{account.Ninja}) },
+		5110: func(p Proto) bool { return slices.Equal(p.Classes, []account.Class{account.Shaman}) },
+		7160: func(p Proto) bool { return slices.Equal(p.Classes, []account.Class{account.Shaman}) },
 		7050: func(p Proto) bool { return slices.Equal(p.Classes, []account.Class{account.Shaman}) },
 	} {
 		if p, _ := Lookup(vnum); !kind(p) {

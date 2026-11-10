@@ -152,12 +152,13 @@ func stonePicks(potions, materialCount uint8, gear uint16) []Pick {
 }
 
 // rareGear is the gear no trader sells: the helmets and the shield of level 21, each
-// class's weapons from level 25 and armour of level 34, and the shoes of level 34. Only
+// class's weapons from level 25, the level-30 ones among them, and armour of level 34,
+// and the shoes of level 34. Only
 // the cursed monsters leave it, once in 200, and the stones, 4 times in 100, one piece
 // picked evenly, as the debaters settled.
 var (
-	rareGear = []uint32{12220, 12360, 12500, 12640, 13020, 60, 80, 3050, 3070, 4020, 1040, 2050, 2070, 7050, 7070, 5030, 5040,
-		11240, 11440, 11640, 11840, 15100}
+	rareGear = []uint32{12220, 12360, 12500, 12640, 13020, 60, 80, 290, 3050, 3070, 3210, 4020, 1040, 1170, 2050, 2070, 2150,
+		7050, 7070, 7160, 5030, 5040, 5110, 11240, 11440, 11640, 11840, 15100}
 	cursedGear      = []Pick{{From: rareGear, Count: 1, Chance: 50}}
 	cursedWithBooks = append(slices.Clone(fieldBooks), cursedGear...)
 )
