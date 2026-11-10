@@ -2,6 +2,7 @@ package game
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"math/rand/v2"
 	"net"
@@ -262,7 +263,7 @@ func TestArrowsArePutOnInTheirPlace(t *testing.T) {
 	s.inventory = append(s.inventory, item.Item{ID: 3, VNum: 8000, Count: 50, Cell: 4})
 	s.svc.presence.all[1000].char.Arrow = 0
 
-	if err := s.onItemUse(doubleClicked(4)); err != nil {
+	if err := s.onItemUse(context.Background(), doubleClicked(4)); err != nil {
 		t.Fatal(err)
 	}
 

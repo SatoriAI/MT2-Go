@@ -169,12 +169,12 @@ func TestEveryStoneCallsWavesOfMonstersNoStrongerThanItself(t *testing.T) {
 }
 
 // A stone always leaves potions and materials, each of one kind, and may leave a piece of
-// the first gear; the last also, rarely, one at +3.
+// the first gear and, 3 times in 100, a skill book; the last also, rarely, gear at +3.
 func TestAStoneLeavesPotionsMaterialsAndMaybeGear(t *testing.T) {
 	cases := map[uint16][]Pick{
-		8001: {{potionKinds, 3, 10000}, {materials, 2, 10000}, {firstGear, 1, 1500}},
-		8002: {{potionKinds, 4, 10000}, {materials, 3, 10000}, {firstGear, 1, 2500}},
-		8003: {{potionKinds, 5, 10000}, {materials, 4, 10000}, {firstGear, 1, 3500}, {firstGearP3, 1, 500}},
+		8001: {{potionKinds, 3, 10000}, {materials, 2, 10000}, {firstGear, 1, 1500}, {books, 1, 300}},
+		8002: {{potionKinds, 4, 10000}, {materials, 3, 10000}, {firstGear, 1, 2500}, {books, 1, 300}},
+		8003: {{potionKinds, 5, 10000}, {materials, 4, 10000}, {firstGear, 1, 3500}, {books, 1, 300}, {firstGearP3, 1, 500}},
 	}
 	for vnum, want := range cases {
 		p, _ := Lookup(vnum)
@@ -210,6 +210,33 @@ func TestEveryTeacherTeachesAGroupThereIs(t *testing.T) {
 		20306: "dragon", 20307: "healing", 20326: "dragon", 20327: "healing", 20346: "dragon", 20347: "healing"} {
 		if p, _ := Lookup(vnum); p.Teaches != want {
 			t.Errorf("%d teaches %q, want %q", vnum, p.Teaches, want)
+		}
+	}
+}
+
+// Skill books come from monsters of level 15 or more, 3 times in 1,000, each the book of
+// one of every skill the game has; and soul stones only from Metin Bitwy, once in 100.
+func TestBooksAndSoulStonesComeFromTheStrongest(t *testing.T) {
+	for vnum, p := range protos {
+		hasBooks := slices.ContainsFunc(p.Picks, func(pk Pick) bool { return slices.Equal(pk.From, books) })
+		if p.Kind == Monster && hasBooks != (p.Level >= 15) {
+			t.Errorf("%d, level %d: books %v", vnum, p.Level, hasBooks)
+		}
+		soul := slices.ContainsFunc(p.Drops, func(d Drop) bool { return d.VNum == item.SoulStone })
+		if soul != (vnum == 8003) {
+			t.Errorf("%d leaves a soul stone: %v", vnum, soul)
+		}
+	}
+	if p, _ := Lookup(114); !slices.EqualFunc(p.Picks, fieldBooks, func(a, b Pick) bool { return a.Chance == b.Chance && a.Count == b.Count }) ||
+		fieldBooks[0].Chance != 30 {
+		t.Errorf("a tiger leaves %+v", p.Picks)
+	}
+	if len(books) != 38 {
+		t.Errorf("%d books", len(books))
+	}
+	for _, b := range books {
+		if p, ok := item.Lookup(b); !ok || p.Teaches == "" {
+			t.Errorf("%d teaches nothing", b)
 		}
 	}
 }

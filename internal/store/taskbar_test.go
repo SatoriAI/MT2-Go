@@ -119,7 +119,7 @@ func learnDragonSwirl(t *testing.T, s Taskbar, cid uint32) {
 	if err := skills.Choose(context.Background(), cid, "weaponry"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := skills.Raise(context.Background(), cid, "dragon_swirl"); err != nil {
+	if err := skills.Raise(context.Background(), cid, "dragon_swirl", 1); err != nil {
 		t.Fatal(err)
 	}
 }

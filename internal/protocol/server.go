@@ -210,16 +210,22 @@ func EncodePointChange(vid uint32, point Point, amount, value int32) []byte {
 // skillCount is how many skills the client's skill-level packet covers.
 const skillCount = 255
 
-// SkillLevels is each skill's level, at the client's number for it; 0 is unlearnt.
-type SkillLevels [skillCount]uint8
+// SkillLevel is a skill's grade, by which the client labels it (0 normal, 1 Master, 2
+// Grand Master), and its level, 0 for unlearnt.
+type SkillLevel struct {
+	Grade, Level uint8
+}
 
-// EncodeSkillLevels sends every skill's level, 6 bytes each: its master type, which stays
-// 0, its level, and a next reading time this server has no use for.
+// SkillLevels is each skill's level, at the client's number for it.
+type SkillLevels [skillCount]SkillLevel
+
+// EncodeSkillLevels sends every skill's level, 6 bytes each: its grade, its level, and a
+// next reading time the client has no use for.
 func EncodeSkillLevels(levels SkillLevels) []byte {
 	w := NewWriter(byte(ServerSkillLevels), 1+6*skillCount)
-	for _, level := range levels {
-		w.U8(0)
-		w.U8(level)
+	for _, l := range levels {
+		w.U8(l.Grade)
+		w.U8(l.Level)
 		w.U32(0)
 	}
 	return w.Bytes()

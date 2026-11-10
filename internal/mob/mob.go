@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/SatoriAI/MT2-Go/internal/account"
+	"github.com/SatoriAI/MT2-Go/internal/item"
 )
 
 // Kind is what a mob is to the player.
@@ -136,11 +137,21 @@ var (
 )
 
 // stonePicks is what a stone always leaves, potions and materials, each count of one
-// kind, and with a chance in 10,000 one piece of the first gear.
+// kind, and with a chance in 10,000 one piece of the first gear, and 3 times in 100 a
+// skill book.
 func stonePicks(potions, materialCount uint8, gear uint16) []Pick {
 	return []Pick{{From: potionKinds, Count: potions, Chance: 10000}, {From: materials, Count: materialCount, Chance: 10000},
-		{From: firstGear, Count: 1, Chance: gear}}
+		{From: firstGear, Count: 1, Chance: gear}, {From: books, Count: 1, Chance: 300}}
 }
+
+// Skill books, each the book of one skill of any class, picked evenly, so a player finds
+// others' and trades them: a stone leaves one 3 times in 100 and a field monster of level
+// 15 or more 3 times in 1,000, as the debaters settled. The strongest stone also leaves a
+// soul stone once in 100.
+var (
+	books      = item.Books()
+	fieldBooks = []Pick{{From: books, Count: 1, Chance: 30}}
+)
 
 // Fightable reports whether a player can attack the mob.
 func (p Proto) Fightable() bool { return p.Kind != NPC }
@@ -194,11 +205,11 @@ var protos = map[uint16]Proto{
 	111: {VNum: 111, Name: "Niedźw. Grizzly", Kind: Monster, MoveSpeed: 100, AttackSpeed: 100,
 		Level: 15, MaxHP: 572, Vitality: 34, Armour: 19, Exp: 220,
 		Strength: 14, DamageMin: 44, DamageMax: 53, AttackRange: 175,
-		RegenCycle: 6, RegenPercent: 7, Drops: gear, Yang: Yang{Chance: 6000, Min: 40, Max: 70}},
+		RegenCycle: 6, RegenPercent: 7, Drops: gear, Picks: fieldBooks, Yang: Yang{Chance: 6000, Min: 40, Max: 70}},
 	114: {VNum: 114, Name: "Tygrys", Kind: Monster, MoveSpeed: 100, AttackSpeed: 100,
 		Level: 18, MaxHP: 585, Vitality: 27, Armour: 22, Exp: 365,
 		Strength: 18, DamageMin: 49, DamageMax: 60, AttackRange: 175,
-		RegenCycle: 6, RegenPercent: 12, Drops: gear, Yang: Yang{Chance: 6000, Min: 35, Max: 60}},
+		RegenCycle: 6, RegenPercent: 12, Drops: gear, Picks: fieldBooks, Yang: Yang{Chance: 6000, Min: 35, Max: 60}},
 	// The cursed kinds, the client's AGGR, which attack players they see, each with the stats
 	// of the client's mob_proto dump and yang a little above its passive kin of its level.
 	131: {VNum: 131, Name: "Przeklęty Wilk", Kind: Monster, MoveSpeed: 120, AttackSpeed: 100, Aggressive: true,
@@ -220,11 +231,11 @@ var protos = map[uint16]Proto{
 	135: {VNum: 135, Name: "Przeklęty Szary Wilk", Kind: Monster, MoveSpeed: 120, AttackSpeed: 100, Aggressive: true,
 		Level: 18, MaxHP: 936, Vitality: 25, Armour: 22, Exp: 438,
 		Strength: 17, DamageMin: 49, DamageMax: 60, AttackRange: 175,
-		RegenCycle: 6, RegenPercent: 7, Drops: wolfDrops, Yang: Yang{Chance: 6000, Min: 45, Max: 80}},
+		RegenCycle: 6, RegenPercent: 7, Drops: wolfDrops, Picks: fieldBooks, Yang: Yang{Chance: 6000, Min: 45, Max: 80}},
 	136: {VNum: 136, Name: "Przekl. Szary Alfa Wilk", Kind: Monster, MoveSpeed: 120, AttackSpeed: 100, Aggressive: true,
 		Level: 21, MaxHP: 1761, Vitality: 17, Armour: 26, Exp: 1020,
 		Strength: 33, DamageMin: 42, DamageMax: 78, AttackRange: 175,
-		RegenCycle: 6, RegenPercent: 12, Drops: alphaWolfDrops, Yang: Yang{Chance: 6000, Min: 55, Max: 90}},
+		RegenCycle: 6, RegenPercent: 12, Drops: alphaWolfDrops, Picks: fieldBooks, Yang: Yang{Chance: 6000, Min: 55, Max: 90}},
 	137: {VNum: 137, Name: "Przeklęty Dzik", Kind: Monster, MoveSpeed: 120, AttackSpeed: 100, Aggressive: true,
 		Level: 12, MaxHP: 610, Vitality: 26, Armour: 16, Exp: 294,
 		Strength: 35, DamageMin: 30, DamageMax: 56, AttackRange: 175,
@@ -232,11 +243,11 @@ var protos = map[uint16]Proto{
 	138: {VNum: 138, Name: "Przeklęty Czerw. Dzik", Kind: Monster, MoveSpeed: 120, AttackSpeed: 100, Aggressive: true,
 		Level: 15, MaxHP: 1192, Vitality: 26, Armour: 19, Exp: 732,
 		Strength: 35, DamageMin: 44, DamageMax: 53, AttackRange: 175,
-		RegenCycle: 6, RegenPercent: 7, Drops: boarDrops, Yang: Yang{Chance: 6000, Min: 40, Max: 70}},
+		RegenCycle: 6, RegenPercent: 7, Drops: boarDrops, Picks: fieldBooks, Yang: Yang{Chance: 6000, Min: 40, Max: 70}},
 	139: {VNum: 139, Name: "Przeklęty Niedźw.", Kind: Monster, MoveSpeed: 120, AttackSpeed: 100, Aggressive: true,
 		Level: 17, MaxHP: 875, Vitality: 27, Armour: 21, Exp: 414,
 		Strength: 36, DamageMin: 37, DamageMax: 68, AttackRange: 175,
-		RegenCycle: 6, RegenPercent: 7, Drops: gear, Yang: Yang{Chance: 6000, Min: 45, Max: 75}},
+		RegenCycle: 6, RegenPercent: 7, Drops: gear, Picks: fieldBooks, Yang: Yang{Chance: 6000, Min: 45, Max: 75}},
 
 	8001: {VNum: 8001, Name: "Metin Cierpienia", Kind: Stone, MoveSpeed: 109, AttackSpeed: 104,
 		Level: 5, MaxHP: 7000, Vitality: 6, Armour: 8, Exp: 900, RegenCycle: 5, RegenPercent: 1,
@@ -248,6 +259,7 @@ var protos = map[uint16]Proto{
 		Wave: []uint16{104, 104, 104, 105, 105}, Respawn: 10 * time.Minute, HealsAfter: 10 * time.Second},
 	8003: {VNum: 8003, Name: "Metin Bitwy", Kind: Stone, MoveSpeed: 121, AttackSpeed: 115,
 		Level: 15, MaxHP: 17000, Vitality: 18, Armour: 19, Exp: 3300, RegenCycle: 5, RegenPercent: 1,
+		Drops: []Drop{{VNum: item.SoulStone, Count: 1, Chance: 100}},
 		Picks: append(stonePicks(5, 4, 3500), Pick{From: firstGearP3, Count: 1, Chance: 500}), Yang: Yang{Chance: 10000, Min: 1500, Max: 2200},
 		Wave: []uint16{109, 109, 110, 110, 111}, Respawn: 10 * time.Minute, HealsAfter: 10 * time.Second},
 

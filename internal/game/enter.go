@@ -50,7 +50,7 @@ func (s *session) onSelectCharacter(ctx context.Context, body []byte) error {
 	if err := s.loadTaskbar(ctx, c.ID); err != nil {
 		return err
 	}
-	if c.Skills, err = s.svc.skills.Learnt(ctx, c.ID); err != nil {
+	if c.Skills, c.SkillReads, err = s.svc.skills.Learnt(ctx, c.ID); err != nil {
 		return err
 	}
 	wear(&c, s.inventory)

@@ -344,7 +344,7 @@ func skillByVNum(vnum int) (account.Skill, bool) {
 func skillLevels(learnt map[account.Skill]uint8) protocol.SkillLevels {
 	var levels protocol.SkillLevels
 	for s, level := range learnt {
-		levels[skillVNums[s]] = level
+		levels[skillVNums[s]] = protocol.SkillLevel{Grade: skill.Grade(level), Level: level}
 	}
 	return levels
 }

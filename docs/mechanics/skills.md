@@ -10,7 +10,15 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
 - **Changing path.** Below level 20, the other teacher offers a change of path. The character forgets what it learnt and gets every point back. From level 20 the path is kept.
 - **Who is turned away.** A teacher tells anyone of another class, anyone below level 5, and anyone already on their path, why not.
 
-**Raising a skill.** The + beside a skill raises it a level for a point, up to 20, where the + goes. Each level from 5 brings one more point.
+**Raising a skill.** The + beside a skill raises it a level for a point, up to 17. The next point makes it a Master, M1, and the + goes. Each level from 5 brings one more point.
+
+**Masters and Grand Masters.** Past M1, points no longer raise a skill:
+- **A skill book** of the skill, read with a double-click, may raise a Master from M1 to M10 one level at a time: 70 times in a hundred at M1, fewer each level, 20 at M9. The book is used up whether or not it works: «Udało się! Umiejętność osiągnęła poziom M2.» or «Nie udało się. Księga przepadła.»
+- **A soul stone,** Kamień Duchowy, makes an M10 a Grand Master, G1, and raises a Grand Master to G10: 40 times in a hundred up to G3, 30 to G6, 20 to G9. Using one asks which skill to train, listing those it may raise now, with Anuluj last.
+- **The wait:** after a book or a stone, the skill can't be trained again for 4 hours: «Kolejną naukę możesz podjąć za 3 godz. 20 min.», the minutes rounded up.
+- **Refused,** with the book kept: a skill below M1 («Ta umiejętność musi najpierw zostać Mistrzem.»), one at M10 («Tej umiejętności nie rozwiniesz już księgą.»), and one not the player's («Nie znasz tej umiejętności.»). A stone with nothing ready says a skill must be at least M10.
+- **Where they come from:** Metin stones leave a skill book 3 times in 100, and monsters of level 15 or more 3 times in 1,000, each the book of one skill of any class, so players trade the others. Only Metin Bitwy leaves a soul stone, once in 100.
+- **What it is worth:** a skill's power grows with it, to 0.72 at M10 and 1.15 at G10, and with it its damage, its buff and its mana cost.
 - **What can be raised:** Weaponry's Finger Strike, Dragon Swirl, Enchanted Blade and Enchanted Armour, Body's Three-Way Cut (Trzystronne Cięcie), Sword Spin (Wir Miecza), Berserk and Sword Aura (Aura Miecza), and Mental's Spirit Strike (Duchowe Uderzenie), Bash (Walnięcie), Stump (Tąpnięcie), Strong Body (Silne Ciało) and Sword Strike (Uderzenie Miecza), Dagger's Ambush (Zasadzka), Fast Attack (Szybki Atak) and Rolling Dagger (Wirujący Sztylet), Archery's Repetitive Shot (Powtarzalny Strzał), Arrow Shower (Deszcz Strzał), Fire Arrow (Ognista Strzała), Feather Walk (Bezszelestny Chód) and Poison Arrow (Trująca Strzała), and Black Magic's Dark Strike (Mroczne Uderzenie), Flame Strike (Ogniste Uderzenie), Dark Protection (Mroczna Ochrona), Ghost Strike (Duchowy Cios) and Dark Orb (Mroczna Sfera), and the shaman's attacks: Dragon's Flying Talisman (Latający Talizman), Shooting Dragon (Strzelający Smok) and Dragon Roar (Smoczy Skowyt), and Healing's Lightning Throw (Rzut Piorunem), Summon Lightning (Przywołanie Błyskawicy) and Lightning Claw (Burzowy Szpon), and her buffs and heal: Blessing (Błogosławieństwo), Reflection (Odbicie) and Dragon's Help (Pomoc Smoka) of Dragon, Heal (Leczenie), Swiftness (Zwinność) and Attack Up (Zwiększenie Ataku) of Healing. The others show in the window, but raising one says «Tej umiejętności nie można jeszcze rozwijać.»
 **Using a skill.** They are used from the skill window or the taskbar, as the client uses any skill.
 - **Finger Strike:** on the monster she has picked, within a blow's reach, one strike of two and a half blows and more at the first level, four and a quarter at 20. It can't be used again for 10 seconds.
@@ -68,7 +76,9 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
   - 0 is unlearnt: the window shows it, but the skill can't be used.
   - The client works out a skill's mana, cooldown and power from its own skill table at that level.
 - **The + button:**
-  - It shows while POINT_SKILL (28) is above 0, a group is chosen, and the skill is below 20 (`uicharacter.py`). This server sends every skill's master type as 0, so a skill at 20 shows as 20; the client would show M1 only for master type 1.
+  - It shows while POINT_SKILL (28) is above 0, a group is chosen, and the skill's grade is 0 and its level below 20 (`uicharacter.py`).
+- **Grades:** SKILL_LEVEL_NEW gives each skill a grade as well as its level, and the client labels it by the grade: the level for grade 0, m1 to m10 for a Master (levels 20 to 29), g1 to g10 for a Grand Master (30 to 39), p for Perfect (40) (`PythonPlayer.cpp`, `SetSkillLevel_`; `PythonSlotWindow.cpp`). It works a skill's power from the level, by its table to 40 (`Locale.cpp`).
+- **Books and stones:** reading a book or using a soul stone is a plain ITEM_USE. A per-skill book, 50400 and the skill's number, names its skill in its VALUE0. The soul stone, 50513, is a quest item, which the original's quest script asked about (`item_proto.txt`).
   - It sends the chat command `/skillup <skill number>`.
 - **A dialog:**
   - SCRIPT opens a window of its text, written in the client's markup: `[ENTER]` for a new line, `[QUESTION 1;Tak|2;Nie]` for buttons, `[DONE]` for an OK (`PythonEventManager.cpp`, `uiquest.py`).
@@ -98,7 +108,7 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
 | SCRIPT `2D` | 6 + text | size u16 (all of it), skin u8 (1, a window), the text's length u16 (ignored), then the text in cp1250 |
 | SCRIPT_ANSWER `1D`, client | 2, then the sequence byte | the button's index u8 |
 | CHANGE_SKILL_GROUP `70` | 2 | group u8: 1 or 2, 0 for none |
-| SKILL_LEVEL_NEW `4C` | 1531 | 255 skills × 6: master type u8 (0), level u8, a reading time u32 (0), each at the client's number for the skill |
+| SKILL_LEVEL_NEW `4C` | 1531 | 255 skills × 6: grade u8 (0 normal, 1 Master, 2 Grand Master), level u8, a reading time u32 (0, which the client ignores), each at the client's number for the skill |
 | POINT_CHANGE `11` | 17 | skill points are point 28 |
 | USE_SKILL `34`, client | 9, then the sequence byte | the skill's number u32, its target's vid u32 (ignored; a toggle turned off may carry other numbers there) |
 | POINTS `10` | 1021 | casting speed at point 21: 100 |
@@ -119,11 +129,17 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
   - Each yes is taken only while the teacher is still in reach and the player still may, by the same rules as the click: an offer kept open while they levelled to 20 is told «Twoja droga jest już wybrana.», and one answered from afar is dropped.
   - Taking up a group is written first: the group is set and every skill forgotten, in one transaction. Then the client is told, in this order: the group, the levels (all 0), the points, and the teacher's last word.
   - A write that fails takes nothing up.
-- **Points** are not stored. They are one for every level from 5, less a point for every skill level learnt, so nothing can drift. The skill window is shown them once a group is chosen. A level up then tells the player their new points.
+- **Points** are not stored. They are one for every level from 5, less those each skill took: a point a level to 17, and one more for a Master, however far books and stones raise it. So nothing can drift. The skill window is shown them once a group is chosen. A level up then tells the player their new points.
 - **Raising,** on `/skillup <number>`:
-  - The skill is checked under the world's lock: of the player's class and group, below 20, and a point free.
-  - It is then written one level higher, and the player is shown the levels and the points left.
+  - The skill is checked under the world's lock: of the player's class and group, not yet a Master, and a point free.
+  - It is then written a level higher, or at 20 from 17, and the player is shown the levels and the change in their points. A skill raised to 18 before Masters came takes 20 at its next point for nothing, and one at 19 gives a point back, as a Master took 18; neither step needs a point free, though the client shows the + only with one. A skill already at 20 gives 2 back.
   - A number the game has no skill for is told «Tej umiejętności nie można jeszcze rozwijać.»
+- **Books and soul stones** (`internal/game/books.go`; the rules in `internal/skill`):
+  - The books are the client's per-skill books of the 38 skills the game has, each named and priced as the client's, not stacking; the soul stone is 50513 (`internal/item/books.go`).
+  - A book is checked under the world's lock: the skill the player's group's and learnt, at M1 to M9, and its wait over. A soul stone lists the player's skills at M10 to G9 whose wait is over, in the skill window's order. The answer is checked again: the stone still in the bag, the skill still ready. The last answer cancels.
+  - The roll is the connection's own. The read is written in one transaction: the skill at its level, the same on a failure, its next read 4 hours on (`skills.next_read`), and the book or stone used up, as neither stacks, all or none of it. Then the player is shown the item gone, their skills on a rise, and a line.
+  - The original waited a day between reads; the debaters shortened it for a small server. The waits are the character's, kept by skill, so logging in again does not end them.
+- **Power and costs past 20:** a skill's power follows the client's table to G10. The client works a cost out with k in single precision, the formula in double, the result rounded to single precision and then down (`PythonSkill.cpp`, `ProcessFormula`; `Poly.cpp`). The server does the same, so at G10, where k is 1.15, Lightning Claw costs 247, as the client says.
 - **On the taskbar,** a skill learnt is kept by name, and its key sends USE_SKILL like the skill window ([taskbar.md](taskbar.md)).
 - **Using a skill,** on USE_SKILL:
   - **Checks:** the skill's cooldown is the character's, kept by the server rather than the connection, so changing character or logging in again does not end it. The rest is checked under the world's lock: the player alive, the skill learnt, the sword Enchanted Blade needs in hand, the monster Finger Strike strikes, and its mana. The cooldown is only noted once the skill is used. A refusal is dropped without a word, since the client checked the same first.
@@ -210,12 +226,12 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
 
 - **The client's side:** its source and scripts named above.
 - **The teachers' names:** the Polish client's `mob_proto`.
-- **Seen from a bot** against the running server: Szepta, a level-6 sura, clicked the Jinno Weaponry teacher, said yes twice, and was told group 1, the levels and 2 points, in that order; she raised Dragon Swirl and Enchanted Blade to 1 each, was told the group's other skills cannot be raised yet, and entered again on Weaponry with no points left. Later, with Dragon Swirl and Enchanted Blade at 1, she swirled the dog beside her: 57 mana spent, the dog struck for 96 where her blows take about 40, and it turned on her and bit. A second swirl within its 15 seconds was refused. The blade cost 32 mana and put bit 19 (0x80000) in her CHARACTER_UPDATE; using it again cleared it for nothing. Later Wojak, a level-10 warrior, took up Body at the Jinno teacher, told group 1 and 6 points, and raised the four skills to 1 each. With a sword in hand by the wild dogs: Sword Aura cost 110 mana and showed bit 15; Berserk cost 57 and showed bit 14, with his attack speed told as 152 and move speed 151, up from 150; Sword Spin cost 56 and killed a dog for its 126 hit points; Three-Way Cut cost 45 and cut its target for 107, then 19 as it died. The dialog window, the skill window and its + buttons have not been seen in the real client.
+- **Seen from a bot** against the running server: Szepta, a level-6 sura, clicked the Jinno Weaponry teacher, said yes twice, and was told group 1, the levels and 2 points, in that order; she raised Dragon Swirl and Enchanted Blade to 1 each, was told the group's other skills cannot be raised yet, and entered again on Weaponry with no points left. Later, with Dragon Swirl and Enchanted Blade at 1, she swirled the dog beside her: 57 mana spent, the dog struck for 96 where her blows take about 40, and it turned on her and bit. A second swirl within its 15 seconds was refused. The blade cost 32 mana and put bit 19 (0x80000) in her CHARACTER_UPDATE; using it again cleared it for nothing. Later Wojak, a level-10 warrior, took up Body at the Jinno teacher, told group 1 and 6 points, and raised the four skills to 1 each. With a sword in hand by the wild dogs: Sword Aura cost 110 mana and showed bit 15; Berserk cost 57 and showed bit 14, with his attack speed told as 152 and move speed 151, up from 150; Sword Spin cost 56 and killed a dog for its 126 hit points; Three-Way Cut cost 45 and cut its target for 107, then 19 as it died. The dialog window, the skill window and its + buttons have not been seen in the real client. Later Iskra, a Dragon shaman with Shooting Dragon at M1 and Blessing at M10, read Shooting Dragon's book: the book left its cell, SKILL_LEVEL_NEW showed it at grade 1, level 21, and the chat said «Udało się! Umiejętność osiągnęła poziom M2.» Her soul stone asked «Którą umiejętność chcesz ćwiczyć z Kamieniem Duchowym?» with Błogosławieństwo (M10) and Anuluj; picked, Blessing became grade 2, level 30, G1. The database then held both levels and their next reads 4 hours on, and neither item.
 - **The rules:**
   - The rules are this server's own, settled in a debate between a Metin2 veteran and a genre designer:
     - points from level 5;
     - a free change of path below 20;
-    - no skill books, and no rank past 20 yet.
+    - Masters by the point after 17, books from M1 to M10 and soul stones from M10 to G10, at the chances above, a 4-hour wait, books and stones only from monsters and stones; Perfect and the helper items later. Where the two differed, the veteran's memory of the original decided, as for the soul stone's question rather than training the first skill ready.
   - open-mt2 gives points the same way, and the original sells the change of path.
 
 ## What proves it
@@ -230,7 +246,18 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
   - SCRIPT_ANSWER framed and read;
   - USE_SKILL framed and read;
   - the effects in CHARACTER_ADD and CHARACTER_UPDATE.
-- `internal/store/skills_test.go`: a skill raised and kept, and choosing a group forgetting the skills; the database refusing an unknown skill, a level past 20 and another class's group; every Weaponry and Archery skill kept.
+- `internal/store/skills_test.go`: a skill raised and kept, and choosing a group forgetting the skills; the database refusing an unknown skill, a level past 39 and another class's group; every Weaponry and Archery skill kept; a read kept whole, the skill, its wait and the book; a read of a skill at another level, or with a book not the character's, changing nothing.
+- `internal/skill/skill_test.go`: also a point past 17 making a Master; the grade by level; the books' and soul stones' chances; points spent by a Master; the power table to G10; costs worked out as the client does.
+- `internal/game/books_test.go`:
+  - a book raising M1 to M2, kept with its wait, the book used up, the player shown it all;
+  - a failed read using the book up;
+  - a book refused below M1, at M10, for a skill not learnt or of another group, and while waiting, the book kept;
+  - the point after 17 making a Master, and one at 19 giving a point back;
+  - a soul stone asking which skill, listing those ready in order, and training the one picked; making an M10 a Grand Master, shown as grade 2;
+  - a cancelled stone, or one gone from the bag, kept;
+  - a stone with nothing ready saying why, or how long to wait.
+- `internal/mob/mob_test.go`: books from every stone and from monsters of level 15 or more, every book teaching a skill; soul stones from Metin Bitwy only.
+- `internal/server/books_test.go` (real sockets and database): a book read, gone from the bag and the database, the skill kept at M1 or M2 with its wait.
 - `internal/game/skills_test.go`:
   - a sura taking up a teacher's group, in the client's order;
   - the offer declined, closed or answered stale; offered from level 5 exactly, and a change up to 19; kept open past 20 and refused then; answered out of reach and dropped;
@@ -315,6 +342,6 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
 - Body's Charge, Sword Strike's and Poison Arrow's knockback, which push monsters the server owns.
 - Damage at the motion's hit, and no blows during a skill's motion.
 - The mana Enchanted Blade drains while it runs in the original, and keeping it over a relog.
-- Ranks past 20: Grand and Perfect.
+- Perfect Master, at 40; the original's helpers, Rada Pustelnika and Zwój Egzorcyzmu; the generic book 50300; the soul stone's cost in alignment, which this server does not have.
 - Support and horse skills.
 - A reset item.

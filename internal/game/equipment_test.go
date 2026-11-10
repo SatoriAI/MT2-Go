@@ -1,6 +1,7 @@
 package game
 
 import (
+	"context"
 	"encoding/binary"
 	"net"
 	"testing"
@@ -55,7 +56,7 @@ func expectDressed(t *testing.T, c net.Conn, body, weapon uint16) {
 func TestADoubleClickPutsAWeaponOn(t *testing.T) {
 	s, kept, client, viewer := dressing(t)
 
-	if err := s.onItemUse(doubleClicked(0)); err != nil {
+	if err := s.onItemUse(context.Background(), doubleClicked(0)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -95,12 +96,12 @@ func TestArmourDraggedOntoItsPlaceIsPutOn(t *testing.T) {
 // cells the second leaves.
 func TestPuttingOnWhereAnotherIsWornSwapsThem(t *testing.T) {
 	s, kept, client, _ := dressing(t)
-	if err := s.onItemUse(doubleClicked(0)); err != nil {
+	if err := s.onItemUse(context.Background(), doubleClicked(0)); err != nil {
 		t.Fatal(err)
 	}
 	read(t, client, 2*itemSetSize+updateSize)
 
-	if err := s.onItemUse(doubleClicked(2)); err != nil {
+	if err := s.onItemUse(context.Background(), doubleClicked(2)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -129,12 +130,12 @@ func TestAWornItemComesOffByDoubleClickOrDrag(t *testing.T) {
 		take func(*session) error
 		cell uint16
 	}{
-		{"a double-click", func(s *session) error { return s.onItemUse(doubleClicked(94)) }, 0},
+		{"a double-click", func(s *session) error { return s.onItemUse(context.Background(), doubleClicked(94)) }, 0},
 		{"a drag to cell 20", func(s *session) error { return s.onItemMove([]byte{1, 94, 0, 1, 20, 0, 1}) }, 20},
 	}
 	for _, c := range cases {
 		s, kept, client, viewer := dressing(t)
-		if err := s.onItemUse(doubleClicked(0)); err != nil {
+		if err := s.onItemUse(context.Background(), doubleClicked(0)); err != nil {
 			t.Fatal(err)
 		}
 		read(t, client, 2*itemSetSize+updateSize)
@@ -158,7 +159,7 @@ func TestAWornItemComesOffByDoubleClickOrDrag(t *testing.T) {
 func TestAKindForAnotherClassIsNotPutOn(t *testing.T) {
 	s, kept, client, _ := dressing(t)
 
-	if err := s.onItemUse(doubleClicked(3)); err != nil {
+	if err := s.onItemUse(context.Background(), doubleClicked(3)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -188,7 +189,7 @@ func TestAnItemIsNotWornOutOfItsPlaceNorTakenOffWithoutRoom(t *testing.T) {
 	for cell := range uint16(item.Cells) {
 		s.inventory = append(s.inventory, item.Item{ID: int64(cell) + 10, VNum: 27001, Count: 1, Cell: cell})
 	}
-	if err := s.onItemUse(doubleClicked(94)); err != nil {
+	if err := s.onItemUse(context.Background(), doubleClicked(94)); err != nil {
 		t.Fatal(err)
 	}
 	if got := read(t, client, itemSetSize); string(got) != string(itemSet(sword)) || len(kept.worn) != 0 {
@@ -227,7 +228,7 @@ func TestAHelmetIsPutOnAndAddsItsDefence(t *testing.T) {
 	s, kept, client, viewer := dressing(t)
 	s.inventory = append(s.inventory, item.Item{ID: 5, VNum: 12480, Count: 1, Cell: 4})
 
-	if err := s.onItemUse(doubleClicked(4)); err != nil {
+	if err := s.onItemUse(context.Background(), doubleClicked(4)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -252,7 +253,7 @@ func TestShoesAreFasterByTheirGrade(t *testing.T) {
 	faster := protocol.EncodeCharacterUpdate(protocol.CharacterInfo{VID: 1000, Name: "Hendra"},
 		protocol.CharacterAdd{MoveSpeed: 159, AttackSpeed: 150}, 0)
 
-	if err := s.onItemUse(doubleClicked(4)); err != nil {
+	if err := s.onItemUse(context.Background(), doubleClicked(4)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -275,7 +276,7 @@ func TestShoesAreFasterByTheirGrade(t *testing.T) {
 		t.Fatalf("shown at %d", shown)
 	}
 
-	if err := s.onItemUse(doubleClicked(92)); err != nil {
+	if err := s.onItemUse(context.Background(), doubleClicked(92)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -301,7 +302,7 @@ func TestAShieldIsPutOnAndSlowsHer(t *testing.T) {
 	slower := protocol.EncodeCharacterUpdate(protocol.CharacterInfo{VID: 1000, Name: "Hendra"},
 		protocol.CharacterAdd{MoveSpeed: 148, AttackSpeed: 150}, 0)
 
-	if err := s.onItemUse(doubleClicked(4)); err != nil {
+	if err := s.onItemUse(context.Background(), doubleClicked(4)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -324,7 +325,7 @@ func TestAShieldIsPutOnAndSlowsHer(t *testing.T) {
 		t.Fatalf("kept %q, wearing %d", kept.worn[5], s.playing.Shield)
 	}
 
-	if err := s.onItemUse(doubleClicked(100)); err != nil {
+	if err := s.onItemUse(context.Background(), doubleClicked(100)); err != nil {
 		t.Fatal(err)
 	}
 

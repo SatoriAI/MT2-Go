@@ -2,7 +2,7 @@
 
 ## What the player sees
 
-A monster may leave something when it dies: yang more often than not, a potion now and then, and from the stronger ones, rarely, a first weapon or armour. Each item lies on the grass beside the body with the name of whoever it's kept for over it in yellow, «Szepta's». That's the player who took the most of the monster's hit points, not whoever landed the last blow. For 20 seconds only they can pick it up; then the name goes and anyone may; after a minute it's gone.
+A monster may leave something when it dies: yang more often than not, a potion now and then, and from the stronger ones, rarely, a first weapon or armour, or from those of level 15 or more, more rarely still, a skill book ([skills.md](skills.md)). Each item lies on the grass beside the body with the name of whoever it's kept for over it in yellow, «Szepta's». That's the player who took the most of the monster's hit points, not whoever landed the last blow. For 20 seconds only they can pick it up; then the name goes and anyone may; after a minute it's gone.
 
 Clicking an item walks the character to it and picks it up, and the pick-up key takes the nearest one. A potion joins the stack of its kind in the bag when the whole of it fits there; anything else takes the first free cells. With no room, the chat says «Nie masz miejsca w ekwipunku.» and the item stays where it lies. A potion picked up is drunk with a double-click ([potions.md](potions.md)).
 
@@ -54,7 +54,7 @@ Seen from the real client: a red potion laid at (977491, 272599) is `1a 53ea0e00
 
   The claw and the tooth are the materials of the later upgrades ([upgrading.md](upgrading.md)).
 
-  Metin stones leave more, each a set count of one kind picked from a list ([stones.md](stones.md)).
+  Metin stones leave more, each a set count of one kind picked from a list ([stones.md](stones.md)), and 3 times in 100 a skill book; Metin Bitwy also a soul stone once in 100. Monsters of level 15 or more leave a skill book 3 times in 1,000, picked evenly from every skill's.
 
 - **Yang:** each monster kind has a chance in 10,000 of leaving an amount from its least to its most, rolled once as it dies, after its items, and multiplied by a running event, rounded down ([events.md](events.md)).
 
