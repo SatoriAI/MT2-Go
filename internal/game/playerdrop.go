@@ -34,9 +34,9 @@ func (s *session) onItemDrop(body []byte) error {
 	ctx, cancel := context.WithTimeout(context.Background(), saveTimeout)
 	defer cancel()
 	if left.Count == 0 {
-		err = s.svc.items.Remove(ctx, it.ID)
+		err = s.svc.items.Remove(ctx, s.playing.ID, it.ID)
 	} else {
-		err = s.svc.items.SetCount(ctx, it.ID, left.Count)
+		err = s.svc.items.SetCount(ctx, s.playing.ID, it.ID, left.Count)
 	}
 	if err != nil {
 		s.conn.Log().Error("drop not kept", "item", it.ID, "err", err)

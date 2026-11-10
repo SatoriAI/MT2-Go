@@ -7,6 +7,7 @@ import (
 	"net"
 	"testing"
 
+	"github.com/SatoriAI/MT2-Go/internal/account"
 	"github.com/SatoriAI/MT2-Go/internal/item"
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
 )
@@ -21,6 +22,7 @@ type keptItems struct {
 	count map[int64]uint8
 	gone  []int64
 	gold  uint32
+	owner uint32 // whose items the last placing named
 	fail  error
 	// what the last upgrade kept: the item and the stacks of material spent
 	upgraded item.Item
@@ -81,7 +83,7 @@ func (k *keptItems) AddGold(_ context.Context, _, amount uint32) (uint32, error)
 	return k.gold, nil
 }
 
-func (k *keptItems) Remove(_ context.Context, id int64) error {
+func (k *keptItems) Remove(_ context.Context, _ uint32, id int64) error {
 	if k.fail != nil {
 		return k.fail
 	}
@@ -97,7 +99,7 @@ func (k *keptItems) Add(_ context.Context, _ uint32, it item.Item) (int64, error
 	return int64(100 + len(k.added)), nil
 }
 
-func (k *keptItems) SetCount(_ context.Context, id int64, count uint8) error {
+func (k *keptItems) SetCount(_ context.Context, _ uint32, id int64, count uint8) error {
 	if k.fail != nil {
 		return k.fail
 	}
@@ -105,10 +107,11 @@ func (k *keptItems) SetCount(_ context.Context, id int64, count uint8) error {
 	return nil
 }
 
-func (k *keptItems) Place(_ context.Context, items ...item.Item) error {
+func (k *keptItems) Place(_ context.Context, owner uint32, items ...item.Item) error {
 	if k.fail != nil {
 		return k.fail
 	}
+	k.owner = owner
 	for _, it := range items {
 		k.moved[it.ID], k.worn[it.ID] = it.Cell, it.Worn
 	}
@@ -123,8 +126,9 @@ func carrying(t *testing.T) (*session, *keptItems, net.Conn) {
 	t.Helper()
 	conn, client := watcher(t)
 	kept := &keptItems{moved: map[int64]uint16{}, worn: map[int64]item.Wear{}, count: map[int64]uint8{}}
-	s := &session{svc: &Service{items: kept}, conn: conn, phase: protocol.PhaseGame, inventory: item.Inventory{
-		{ID: 1, VNum: 10, Count: 1, Cell: 0}, {ID: 2, VNum: 27001, Count: 50, Cell: 1}}}
+	s := &session{svc: &Service{items: kept}, conn: conn, phase: protocol.PhaseGame,
+		playing: &character{vid: 1000, Character: account.Character{ID: 7, Name: "Hendra"}}, inventory: item.Inventory{
+			{ID: 1, VNum: 10, Count: 1, Cell: 0}, {ID: 2, VNum: 27001, Count: 50, Cell: 1}}}
 	return s, kept, client
 }
 
@@ -147,8 +151,8 @@ func TestAnItemDraggedWhereItFitsIsMovedAndKept(t *testing.T) {
 		itemSet(item.Item{ID: 1, VNum: 10, Count: 1, Cell: 17})) {
 		t.Fatalf("told %x", got)
 	}
-	if kept.moved[1] != 17 || s.inventory[0].Cell != 17 {
-		t.Fatalf("kept at %d, carried at %d", kept.moved[1], s.inventory[0].Cell)
+	if kept.moved[1] != 17 || s.inventory[0].Cell != 17 || kept.owner != 7 {
+		t.Fatalf("kept at %d for %d, carried at %d", kept.moved[1], kept.owner, s.inventory[0].Cell)
 	}
 }
 

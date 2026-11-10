@@ -321,7 +321,7 @@ func (s *session) onItemPickup(body []byte) error {
 		return s.pickGold(ctx, it)
 	}
 	if into.ID != 0 {
-		err = s.svc.items.SetCount(ctx, into.ID, into.Count)
+		err = s.svc.items.SetCount(ctx, s.playing.ID, into.ID, into.Count)
 	} else {
 		into.ID, err = s.svc.items.Add(ctx, s.playing.ID, into)
 	}

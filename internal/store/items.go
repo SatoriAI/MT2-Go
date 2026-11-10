@@ -6,6 +6,7 @@ import (
 	"slices"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/SatoriAI/MT2-Go/internal/account"
@@ -19,6 +20,15 @@ type Items struct {
 
 // ErrNotOwned means the character owns no item with that id.
 var ErrNotOwned = errors.New("store: the character owns no such item")
+
+// owned is err, or ErrNotOwned when the write it reports matched not exactly one row:
+// every write to an item names its owner, so one that misses wrote to nobody's.
+func owned(tag pgconn.CommandTag, err error) error {
+	if err == nil && tag.RowsAffected() != 1 {
+		return ErrNotOwned
+	}
+	return err
+}
 
 // characterID finds a character by name, in any case, or returns account.ErrNotFound.
 func characterID(ctx context.Context, tx pgx.Tx, name string) (uint32, error) {
@@ -40,12 +50,12 @@ func (s Items) Order(ctx context.Context, character string, o item.Order) (int64
 			return err
 		}
 		if o.Kind == item.Take {
-			var owned bool
+			var mine bool
 			if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM items WHERE id = $1 AND character_id = $2)`,
-				o.ItemID, cid).Scan(&owned); err != nil {
+				o.ItemID, cid).Scan(&mine); err != nil {
 				return err
 			}
-			if !owned {
+			if !mine {
 				return ErrNotOwned
 			}
 		}
@@ -121,13 +131,14 @@ func (s Items) ApplyOrders(ctx context.Context, characterID uint32) (item.Invent
 	return inv, done, err
 }
 
-// Place keeps where each item now is, its cell or where it is worn, all in one
-// transaction: an item put on where another was worn moves both, the new one first.
-func (s Items) Place(ctx context.Context, items ...item.Item) error {
+// Place keeps where each of the character's items now is, its cell or where it is worn,
+// all in one transaction: an item put on where another was worn moves both, the new one
+// first.
+func (s Items) Place(ctx context.Context, characterID uint32, items ...item.Item) error {
 	return pgx.BeginFunc(ctx, s.Pool, func(tx pgx.Tx) error {
 		for _, it := range items {
-			if _, err := tx.Exec(ctx, `UPDATE items SET cell = CASE WHEN $3 = '' THEN $2::smallint END,
-				worn = nullif($3, '') WHERE id = $1`, it.ID, it.Cell, string(it.Worn)); err != nil {
+			if err := owned(tx.Exec(ctx, `UPDATE items SET cell = CASE WHEN $3 = '' THEN $2::smallint END,
+				worn = nullif($3, '') WHERE id = $1 AND character_id = $4`, it.ID, it.Cell, string(it.Worn), characterID)); err != nil {
 				return err
 			}
 		}
@@ -143,16 +154,14 @@ func (s Items) Add(ctx context.Context, characterID uint32, it item.Item) (int64
 	return id, err
 }
 
-// SetCount keeps how many of its kind a stack now holds.
-func (s Items) SetCount(ctx context.Context, id int64, count uint8) error {
-	_, err := s.Pool.Exec(ctx, `UPDATE items SET count = $2 WHERE id = $1`, id, count)
-	return err
+// SetCount keeps how many of its kind the character's stack now holds.
+func (s Items) SetCount(ctx context.Context, characterID uint32, id int64, count uint8) error {
+	return setCount(ctx, s.Pool, characterID, id, count)
 }
 
 // Remove forgets an item the character no longer has, such as the last potion of a stack.
-func (s Items) Remove(ctx context.Context, id int64) error {
-	_, err := s.Pool.Exec(ctx, `DELETE FROM items WHERE id = $1`, id)
-	return err
+func (s Items) Remove(ctx context.Context, characterID uint32, id int64) error {
+	return remove(ctx, s.Pool, characterID, id)
 }
 
 // Gold returns how much yang the character has.
@@ -217,4 +226,28 @@ func pending(ctx context.Context, tx pgx.Tx, characterID uint32) ([]item.Order, 
 		err := row.Scan(&o.ID, &o.Kind, &o.VNum, &o.Count, &o.ItemID)
 		return o, err
 	})
+}
+
+// keepLeft keeps what is left of the character's stack: at its lower count, or forgotten
+// with none left.
+func keepLeft(ctx context.Context, db execer, characterID uint32, left item.Item) error {
+	if left.Count == 0 {
+		return remove(ctx, db, characterID, left.ID)
+	}
+	return setCount(ctx, db, characterID, left.ID, left.Count)
+}
+
+// execer is the pool or a transaction, for the writes run alone or within one.
+type execer interface {
+	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
+}
+
+// setCount keeps how many the character's stack holds.
+func setCount(ctx context.Context, db execer, characterID uint32, id int64, count uint8) error {
+	return owned(db.Exec(ctx, `UPDATE items SET count = $2 WHERE id = $1 AND character_id = $3`, id, count, characterID))
+}
+
+// remove forgets the character's item.
+func remove(ctx context.Context, db execer, characterID uint32, id int64) error {
+	return owned(db.Exec(ctx, `DELETE FROM items WHERE id = $1 AND character_id = $2`, id, characterID))
 }

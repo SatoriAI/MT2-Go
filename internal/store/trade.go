@@ -23,13 +23,9 @@ func (s Items) Trade(ctx context.Context, t item.Trade) ([2]uint32, error) {
 		for i, side := range t {
 			to := t[1-i].Character
 			for _, it := range side.Items {
-				tag, err := tx.Exec(ctx, `UPDATE items SET character_id = $3, cell = $4
-					WHERE id = $1 AND character_id = $2 AND worn IS NULL`, it.ID, side.Character, to, it.Cell)
-				if err != nil {
+				if err := owned(tx.Exec(ctx, `UPDATE items SET character_id = $3, cell = $4
+					WHERE id = $1 AND character_id = $2 AND worn IS NULL`, it.ID, side.Character, to, it.Cell)); err != nil {
 					return err
-				}
-				if tag.RowsAffected() != 1 {
-					return ErrNotOwned
 				}
 				if _, err := tx.Exec(ctx, `DELETE FROM taskbar WHERE item_id = $1`, it.ID); err != nil {
 					return err

@@ -15,13 +15,13 @@ type Items interface {
 	// ApplyOrders carries out the orders waiting for the character, and returns what it
 	// then owns and the orders carried out.
 	ApplyOrders(ctx context.Context, characterID uint32) (item.Inventory, []item.Order, error)
-	// Place keeps where each item now is, all or none of them.
-	Place(ctx context.Context, items ...item.Item) error
+	// Place keeps where each of the character's items now is, all or none of them.
+	Place(ctx context.Context, characterID uint32, items ...item.Item) error
 	// Add keeps a new item the character owns and returns its id; SetCount keeps a stack's.
 	Add(ctx context.Context, characterID uint32, it item.Item) (int64, error)
-	SetCount(ctx context.Context, id int64, count uint8) error
+	SetCount(ctx context.Context, characterID uint32, id int64, count uint8) error
 	// Remove forgets an item the character no longer has.
-	Remove(ctx context.Context, id int64) error
+	Remove(ctx context.Context, characterID uint32, id int64) error
 	// Gold returns the character's yang; AddGold keeps more of it and returns the balance.
 	Gold(ctx context.Context, characterID uint32) (uint32, error)
 	AddGold(ctx context.Context, characterID, amount uint32) (uint32, error)
@@ -174,7 +174,7 @@ func (s *session) place(changed ...item.Item) error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), saveTimeout)
 	defer cancel()
-	if err := s.svc.items.Place(ctx, changed...); err != nil {
+	if err := s.svc.items.Place(ctx, s.playing.ID, changed...); err != nil {
 		s.conn.Log().Error("items not placed", "err", err)
 		packets := make([][]byte, 0, len(before))
 		for _, it := range before {

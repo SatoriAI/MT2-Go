@@ -83,7 +83,7 @@ func TestATaskbarSlotGoesWithItsItem(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := Items(s).Remove(ctx, red); err != nil {
+	if err := Items(s).Remove(ctx, cid, red); err != nil {
 		t.Fatal(err)
 	}
 

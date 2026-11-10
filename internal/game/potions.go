@@ -33,9 +33,9 @@ func (s *session) useOne(it item.Item) (bool, error) {
 	left.Count--
 	var err error
 	if left.Count == 0 {
-		err = s.svc.items.Remove(ctx, it.ID)
+		err = s.svc.items.Remove(ctx, s.playing.ID, it.ID)
 	} else {
-		err = s.svc.items.SetCount(ctx, it.ID, left.Count)
+		err = s.svc.items.SetCount(ctx, s.playing.ID, it.ID, left.Count)
 	}
 	if err != nil {
 		s.conn.Log().Error("item not used up", "item", it.ID, "err", err)
