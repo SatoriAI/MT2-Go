@@ -76,7 +76,7 @@ type Service struct {
 	mu     sync.Mutex
 	claims map[uint32]*claim // the characters in play, by id
 
-	presence  presence
+	record    record
 	cooldowns cooldowns
 	// now is the time, which tests set.
 	now func() time.Time
@@ -116,9 +116,9 @@ func NewService(d Deps) *Service {
 	return &Service{
 		accounts: d.Accounts, whispers: d.Whispers, items: d.Items, taskbar: d.Taskbar, skills: d.Skills,
 		keys: d.Keys, clock: d.Clock, public: d.Public,
-		claims:   map[uint32]*claim{},
-		presence: newPresence(),
-		now:      time.Now,
+		claims: map[uint32]*claim{},
+		record: newRecord(),
+		now:    time.Now,
 		loop: loop{spawns: d.Spawns, rand: newRand(), byPresent: map[*present]*monster{}, kinds: map[uint16]*mob.Proto{},
 			called: map[*monster][]*monster{}},
 	}

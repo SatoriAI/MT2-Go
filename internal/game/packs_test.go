@@ -91,9 +91,9 @@ func TestAPackComesBackTogether(t *testing.T) {
 	s, _ := packed(t, world.Spawn{VNum: 101, X: homeX, Y: homeY, Count: 3, Respawn: 30 * time.Second})
 	dogs := of(s, 101)
 	kill := func(d *monster, at time.Time) {
-		s.presence.mu.Lock()
-		s.presence.kill(s.presence.all[1000], d.p, at)
-		s.presence.mu.Unlock()
+		s.record.held(func(l locked) {
+			l.kill(s.record.state.all[1000], d.p, at)
+		})
 		s.tick(at)
 	}
 	kill(dogs[0], noon)
@@ -209,7 +209,7 @@ func TestAnAggressiveMonsterAttacksTheNearer(t *testing.T) {
 func TestEnteringOrRisingLeavesAPlayerUnseenAWhile(t *testing.T) {
 	s, hendra := packed(t, world.Spawn{VNum: 101, X: homeX, Y: homeY, Count: 1})
 	hendra.char.HP = 0
-	if !s.presence.revive(1000, false, 0, 0, noon) || !hendra.char.UnseenUntil.Equal(noon.Add(5*time.Second)) {
+	if !s.record.revive(1000, false, 0, 0, noon) || !hendra.char.UnseenUntil.Equal(noon.Add(5*time.Second)) {
 		t.Fatalf("risen, unseen until %v", hendra.char.UnseenUntil)
 	}
 
@@ -220,7 +220,7 @@ func TestEnteringOrRisingLeavesAPlayerUnseenAWhile(t *testing.T) {
 	if err := entering.onEnterGame(); err != nil {
 		t.Fatal(err)
 	}
-	if got := s.presence.all[2000].char.UnseenUntil; !got.Equal(noon.Add(5 * time.Second)) {
+	if got := s.record.state.all[2000].char.UnseenUntil; !got.Equal(noon.Add(5 * time.Second)) {
 		t.Fatalf("entered, unseen until %v", got)
 	}
 }

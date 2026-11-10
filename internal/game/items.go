@@ -131,7 +131,7 @@ func (s *session) onItemUse(ctx context.Context, body []byte) error {
 // no room for it, nothing changes.
 func (s *session) putOn(it item.Item) error {
 	p, _ := item.Lookup(it.VNum)
-	level, _ := s.svc.presence.trainee(s.playing.vid)
+	level, _ := s.svc.record.trainee(s.playing.vid)
 	if err := p.CanWear(s.playing.Class, level); err != nil {
 		return s.conn.Send(infoLine(cannotWear[err]), itemSet(it))
 	}
@@ -204,7 +204,7 @@ func (s *session) place(changed ...item.Item) error {
 // dress puts what the inventory has worn on the character, for the fights and for
 // everyone who sees them.
 func (s *session) dress() {
-	s.svc.presence.dress(s.playing.vid, outfitOf(s.inventory))
+	s.svc.record.dress(s.playing.vid, outfitOf(s.inventory))
 }
 
 // outfit is what a character wears, each by vnum, 0 for nothing.
@@ -248,10 +248,10 @@ var itemPackets = map[protocol.ClientHeader]bool{
 // shoes and shield give. A buff that needs a weapon, as Enchanted Blade and Sword Aura
 // do, ends with it taken out of hand. The player is told their new DEF when what they
 // wear against bites changed, and their speed when it did.
-func (w *presence) dress(vid uint32, o outfit) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	p := w.all[vid]
+func (w *record) dress(vid uint32, o outfit) {
+	l, unlock := w.lock()
+	defer unlock()
+	p := l.all[vid]
 	c := p.char
 	armourChanged := c.Body != o.body || c.Head != o.head || c.Feet != o.feet || c.Shield != o.shield
 	speed := p.add.MoveSpeed
@@ -272,7 +272,7 @@ func (w *presence) dress(vid uint32, o outfit) {
 	if p.add.MoveSpeed != speed {
 		p.send(pointTold(vid, protocol.PointMoveSpeed, 0, p.add.MoveSpeed))
 	}
-	toViewers(p, update)
+	l.toViewers(p, update)
 }
 
 // defence is what a character sets against a bite, as the character window's DEF shows
@@ -309,10 +309,10 @@ func attackSpeed(c *account.Character) uint8 {
 
 // attackSpeedOf is the speed the player strikes at now, for the time their blows must
 // leave between them.
-func (w *presence) attackSpeedOf(vid uint32) uint8 {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	return w.all[vid].add.AttackSpeed
+func (w *record) attackSpeedOf(vid uint32) uint8 {
+	l, unlock := w.lock()
+	defer unlock()
+	return l.all[vid].add.AttackSpeed
 }
 
 // wear puts on the character what the inventory has worn, as it enters the world.

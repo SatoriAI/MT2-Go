@@ -36,10 +36,10 @@ func TestADeathLeavesYangShownAsYang(t *testing.T) {
 
 	s.dropFrom(m, death{owner: owner{7, "Hendra"}}, noon)
 
-	if len(s.presence.ground) != 1 {
-		t.Fatalf("%d fell", len(s.presence.ground))
+	if len(s.record.state.ground) != 1 {
+		t.Fatalf("%d fell", len(s.record.state.ground))
 	}
-	for vid, it := range s.presence.ground {
+	for vid, it := range s.record.state.ground {
 		if it.gold != 7 || it.vnum != 0 || !near(it.x, it.y, m.x, m.y, 2*dropSpread) {
 			t.Fatalf("fell %+v", it)
 		}
@@ -58,7 +58,7 @@ func TestYangIsRolledWithinItsRange(t *testing.T) {
 	for range 200 {
 		s.dropFrom(m, death{owner: owner{7, "Hendra"}}, noon)
 	}
-	for _, it := range s.presence.ground {
+	for _, it := range s.record.state.ground {
 		seen[it.gold] = true
 	}
 	if len(seen) != 3 || !seen[5] || !seen[6] || !seen[7] {
@@ -67,22 +67,22 @@ func TestYangIsRolledWithinItsRange(t *testing.T) {
 
 	none, dog, _ := aDogLeaving(t, mob.Yang{})
 	none.dropFrom(dog, death{owner: owner{7, "Hendra"}}, noon)
-	if len(none.presence.ground) != 0 {
-		t.Fatalf("%d fell", len(none.presence.ground))
+	if len(none.record.state.ground) != 0 {
+		t.Fatalf("%d fell", len(none.record.state.ground))
 	}
 }
 
 // A running event multiplies the yang that falls, rounded down.
 func TestAnEventMultipliesTheYangThatFalls(t *testing.T) {
 	s, m, _ := aDogLeaving(t, mob.Yang{Chance: 10000, Min: 7, Max: 7})
-	s.presence.event = &event.Event{ExpPercent: 100, YangPercent: 150}
+	s.record.state.event = &event.Event{ExpPercent: 100, YangPercent: 150}
 
 	s.dropFrom(m, death{owner: owner{7, "Hendra"}}, noon)
 
-	if len(s.presence.ground) != 1 {
-		t.Fatalf("%d fell", len(s.presence.ground))
+	if len(s.record.state.ground) != 1 {
+		t.Fatalf("%d fell", len(s.record.state.ground))
 	}
-	for _, it := range s.presence.ground {
+	for _, it := range s.record.state.ground {
 		if it.gold != 10 {
 			t.Fatalf("fell %d, want 10", it.gold)
 		}
@@ -96,7 +96,7 @@ func pickingUpYang(t *testing.T) (*session, *keptItems, net.Conn) {
 	kept := &keptItems{gold: 100}
 	s.items = kept
 	client, hendra := aPlayer(t, s, 1000, 7, "Hendra", 100)
-	s.presence.drop(hendra, []*groundItem{{vid: 5000, x: homeX, y: homeY, gold: 25, owner: owner{7, "Hendra"}, dropped: noon}})
+	s.record.drop(hendra, []*groundItem{{vid: 5000, x: homeX, y: homeY, gold: 25, owner: owner{7, "Hendra"}, dropped: noon}})
 	read(t, client, groundAddSize+ownerSize)
 	s.now = func() time.Time { return noon.Add(time.Second) }
 	var full item.Inventory
@@ -140,7 +140,7 @@ func TestYangThatCannotBeKeptGoesBack(t *testing.T) {
 
 	read(t, client, groundDelSize)
 	want := string(protocol.EncodeGroundAdd(5000, homeX, homeY, 1)) + string(protocol.EncodeItemOwner(5000, "Hendra"))
-	if got := read(t, client, len(want)); string(got) != want || s.gold != 100 || s.svc.presence.ground[5000] == nil {
+	if got := read(t, client, len(want)); string(got) != want || s.gold != 100 || s.svc.record.state.ground[5000] == nil {
 		t.Fatalf("got %x, has %d", got, s.gold)
 	}
 }
@@ -156,7 +156,7 @@ func TestYangPastWhatACharacterMayHoldIsLeftLying(t *testing.T) {
 	}
 
 	expectNothing(t, client)
-	if s.gold != maxGold-24 || kept.gold != 100 || s.svc.presence.ground[5000] == nil {
+	if s.gold != maxGold-24 || kept.gold != 100 || s.svc.record.state.ground[5000] == nil {
 		t.Fatalf("has %d, kept %d", s.gold, kept.gold)
 	}
 }

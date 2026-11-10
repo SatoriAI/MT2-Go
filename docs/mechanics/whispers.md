@@ -37,7 +37,7 @@ The original client keeps its whisper windows only until logout. The server keep
 
 `internal/game/whisper.go`, in the game phase only; whispers in flight after Change character are dropped, as chat is.
 
-- **Finding the recipient:** players in the world are kept by name, ignoring case as names are unique regardless of it (`internal/game/presence.go`). The lookup and the send happen under the world's lock, so a player leaving is either sent the line or not found.
+- **Finding the recipient:** players in the world are kept by name, ignoring case as names are unique regardless of it (`internal/game/record.go`). The lookup and the send happen under the world's lock, so a player leaving is either sent the line or not found.
 - **A line delivered** goes to the recipient as type line with the sender's name, the bytes as the client sent them. Nothing goes back to the sender.
 - **Nobody of that name in the game:** the sender gets type not-online with the name as they typed it, and nothing is kept.
 - **An empty line** is ignored, and so is **a line to oneself**: the client has already shown it, and sending it back would show it twice. **A line over 254 bytes** is not the client's, and ends the connection.

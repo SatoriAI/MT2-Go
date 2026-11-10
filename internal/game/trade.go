@@ -16,7 +16,7 @@ func (s *session) onExchange(ctx context.Context, body []byte) error {
 	if err != nil {
 		return err
 	}
-	w, vid, now := &s.svc.presence, s.playing.vid, s.svc.now()
+	w, vid, now := &s.svc.record, s.playing.vid, s.svc.now()
 	switch e.Sub {
 	case protocol.ExchangeStart:
 		if s.shop != 0 || s.upgrading != nil {
@@ -86,7 +86,7 @@ func (s *session) keepTrade(ctx context.Context, t *trade) error {
 	} else {
 		s.conn.Log().Info("trade kept", "first", t.sides[0].p.info.Name, "second", t.sides[1].p.info.Name, "trade", t.given())
 	}
-	return s.settle(ctx, s.svc.presence.tradeKept(t, s.playing.vid, gold, err != nil))
+	return s.settle(ctx, s.svc.record.tradeKept(t, s.playing.vid, gold, err != nil))
 }
 
 // settle applies to what the player holds what a trade changed for them, or reads it all
@@ -112,7 +112,7 @@ func (s *session) settle(ctx context.Context, st settlement) error {
 // catchUp applies what a trade the other side kept changed for the player, and reports
 // whether they are trading.
 func (s *session) catchUp(ctx context.Context) (bool, error) {
-	st, kept, trading := s.svc.presence.catchUp(s.playing.vid)
+	st, kept, trading := s.svc.record.catchUp(s.playing.vid)
 	if kept {
 		return trading, s.settle(ctx, st)
 	}
@@ -123,10 +123,10 @@ func (s *session) catchUp(ctx context.Context) (bool, error) {
 // kept, so a new login reads what they hold after it. What it changed for them is not
 // applied: the next login reads it all.
 func (s *session) leaveTrade() {
-	if done := s.svc.presence.leaveTrade(s.playing.vid); done != nil {
+	if done := s.svc.record.leaveTrade(s.playing.vid); done != nil {
 		<-done
 	}
-	s.svc.presence.catchUp(s.playing.vid)
+	s.svc.record.catchUp(s.playing.vid)
 }
 
 // touchesWhatIsHeld are the packets that read or change what the player carries, their

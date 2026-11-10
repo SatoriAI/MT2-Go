@@ -8,19 +8,19 @@ import (
 
 // die lays the player down at no hit points: they lose the death penalty from their
 // experience, and they and everyone who sees them see them fall; the client then opens its
-// restart dialog. Monsters chasing them give up at their next step. Called under the lock.
-func (w *presence) die(p *present) {
+// restart dialog. Monsters chasing them give up at their next step.
+func (l locked) die(p *present) {
 	vid := p.add.VID
 	if p.target != nil {
-		untarget(p, p.target)
+		l.untarget(p, p.target)
 	}
-	w.endBuffs(p)
-	w.breakTrade(p)
+	l.stopBuffs(p)
+	l.breakTrade(p)
 	if lost := p.char.LoseExpOnDeath(); lost > 0 {
 		p.send(pointTold(vid, protocol.PointExp, -int(lost), p.char.Exp))
 	}
 	p.send(protocol.EncodeDead(vid))
-	toViewers(p, protocol.EncodeDead(vid))
+	l.toViewers(p, protocol.EncodeDead(vid))
 }
 
 // revive brings a dead player back, where they fell or in town at (x, y): with half their
@@ -28,10 +28,10 @@ func (w *presence) die(p *present) {
 // player is taken out of the world and put back: those who see them get them afresh, and
 // they get their own character, alive, then everyone in view. It reports whether the
 // player was dead; a restart while alive changes nothing.
-func (w *presence) revive(vid uint32, town bool, x, y int32, now time.Time) bool {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	p := w.all[vid]
+func (w *record) revive(vid uint32, town bool, x, y int32, now time.Time) bool {
+	l, unlock := w.lock()
+	defer unlock()
+	p := l.all[vid]
 	if !p.dead() {
 		return false
 	}
@@ -42,7 +42,7 @@ func (w *presence) revive(vid uint32, town bool, x, y int32, now time.Time) bool
 	if town {
 		c.HP, c.SP = points.MaxHP, points.MaxSP
 	}
-	w.leaveLocked(p)
+	l.remove(p)
 	if town {
 		p.add.X, p.add.Y = x, y
 	}
@@ -52,6 +52,6 @@ func (w *presence) revive(vid uint32, town bool, x, y int32, now time.Time) bool
 	p.send(p.appearance()...)
 	p.send(pointTold(vid, protocol.PointHP, 0, c.HP),
 		pointTold(vid, protocol.PointSP, 0, c.SP))
-	w.enterLocked(p)
+	l.admit(p)
 	return true
 }

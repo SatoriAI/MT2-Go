@@ -86,9 +86,9 @@ func (s *session) shortcutFor(q protocol.QuickslotAdd) (shownSlot, bool) {
 		kind, _ := item.Lookup(it.VNum)
 		return shownSlot{account.Shortcut{Item: it.ID}, it.Cell}, kind.HP > 0 || kind.SP > 0
 	case taskbarSkill:
-		_, group := s.svc.presence.trainee(s.playing.vid)
+		_, group := s.svc.record.trainee(s.playing.vid)
 		sk, known := skillByWindowSlot(group, q.Position)
-		return shownSlot{held: account.Shortcut{Skill: sk}}, known && s.svc.presence.learnt(s.playing.vid, sk)
+		return shownSlot{held: account.Shortcut{Skill: sk}}, known && s.svc.record.learnt(s.playing.vid, sk)
 	}
 	return shownSlot{}, false
 }
@@ -176,8 +176,8 @@ func (s *session) forgetSkillSlots() [][]byte {
 }
 
 // learnt is whether the player has learnt the skill.
-func (w *presence) learnt(vid uint32, sk account.Skill) bool {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	return w.all[vid].char.Skills[sk] > 0
+func (w *record) learnt(vid uint32, sk account.Skill) bool {
+	l, unlock := w.lock()
+	defer unlock()
+	return l.all[vid].char.Skills[sk] > 0
 }

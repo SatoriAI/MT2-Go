@@ -148,7 +148,7 @@ func (svc *Service) kind(vnum uint16) (*mob.Proto, bool) {
 func (svc *Service) spawnOne(proto *mob.Proto, sp *world.Spawn, now time.Time) *monster {
 	// Whatever can be killed is the loop's to take away and bring back, wandering or not.
 	if !proto.Fightable() {
-		svc.presence.enter(svc.newMob(*proto, sp.X+svc.spread(sp.Spread), sp.Y+svc.spread(sp.Spread), 0))
+		svc.record.enter(svc.newMob(*proto, sp.X+svc.spread(sp.Spread), sp.Y+svc.spread(sp.Spread), 0))
 		return nil
 	}
 	m := &monster{proto: proto, spawn: sp, wanders: proto.Wanders()}
@@ -173,7 +173,7 @@ func (svc *Service) place(m *monster, now time.Time) {
 	svc.placeAt(m, x, y, now)
 	if m.proto.Kind == mob.Stone {
 		svc.dismiss(m)
-		svc.presence.tellMap(m.p, "Pojawił się "+m.proto.Name+".")
+		svc.record.tellMap(m.p, "Pojawił się "+m.proto.Name+".")
 		svc.callWave(m, nil, now)
 	}
 }
@@ -186,7 +186,7 @@ func (svc *Service) placeAt(m *monster, x, y int32, now time.Time) {
 	m.p = svc.newMob(*m.proto, m.x, m.y, float32(svc.rand.IntN(8)*45))
 	m.nextStroll, m.diedAt, m.gone, m.healing = now.Add(svc.strollWait()), time.Time{}, false, false
 	svc.byPresent[m.p] = m
-	svc.presence.enter(m.p)
+	svc.record.enter(m.p)
 }
 
 // callWave calls the stone's wave out around it, as many of it as keep the stone's
@@ -217,7 +217,7 @@ func (svc *Service) callWave(stone *monster, by *present, now time.Time) {
 // took the news is left to die as any monster does, so its drops and body are not lost.
 func (svc *Service) dismiss(stone *monster) {
 	for _, m := range svc.called[stone] {
-		if m.diedAt.IsZero() && !m.gone && svc.presence.sendOff(m.p) {
+		if m.diedAt.IsZero() && !m.gone && svc.record.sendOff(m.p) {
 			m.gone, m.chase = true, nil
 			svc.forget = true
 		}
@@ -245,7 +245,7 @@ func (svc *Service) newMob(proto mob.Proto, x, y int32, facing float32) *present
 // walks every living monster whose stroll is due, has those that were hit fight back, and
 // heals the hurt.
 func (svc *Service) tick(now time.Time) {
-	n := svc.presence.takeNews()
+	n := svc.record.takeNews()
 	for _, t := range n.laid {
 		svc.vanishing = inOrder(svc.vanishing, t)
 	}
@@ -283,7 +283,7 @@ func (svc *Service) tick(now time.Time) {
 			}
 		case !m.diedAt.IsZero():
 			if !now.Before(m.diedAt.Add(corpseTime)) {
-				svc.presence.leave(m.p.add.VID)
+				svc.record.leave(m.p.add.VID)
 				m.gone = true
 				svc.forget = svc.forget || m.summoned
 			}
@@ -302,15 +302,15 @@ func (svc *Service) tick(now time.Time) {
 		svc.forget = false
 	}
 	svc.fightOn(now)
-	svc.poisons.run(now, poisonEvery, func(p *present) bool { return svc.presence.poisonTick(p, now) })
-	svc.burnings.run(now, burnEvery, func(p *present) bool { return svc.presence.burnTick(p, now) })
-	svc.drainings.run(now, drainEvery, svc.presence.drain)
+	svc.poisons.run(now, poisonEvery, func(p *present) bool { return svc.record.poisonTick(p, now) })
+	svc.burnings.run(now, burnEvery, func(p *present) bool { return svc.record.burnTick(p, now) })
+	svc.drainings.run(now, drainEvery, svc.record.drain)
 	svc.healMonsters(now)
 	switch {
 	case svc.nextPlayerRegen.IsZero():
 		svc.nextPlayerRegen = now.Add(playerRegenEvery)
 	case !now.Before(svc.nextPlayerRegen):
-		svc.presence.regenPlayers(now)
+		svc.record.regenPlayers(now)
 		svc.nextPlayerRegen = now.Add(playerRegenEvery)
 	}
 }
@@ -347,7 +347,7 @@ func (m *monster) respawnAfter() time.Duration {
 func (svc *Service) stroll(m *monster, now time.Time) {
 	x, y := m.homeX+svc.spread(wanderRange), m.homeY+svc.spread(wanderRange)
 	move := protocol.Move{Type: protocol.MoveWait, Rotation: rotationTowards(x-m.x, y-m.y), X: x, Y: y, Time: svc.clock.Now()}
-	svc.presence.move(m.p.add.VID, move)
+	svc.record.move(m.p.add.VID, move)
 	m.x, m.y = x, y
 	m.nextStroll = now.Add(svc.strollWait())
 }

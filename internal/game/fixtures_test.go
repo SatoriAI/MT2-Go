@@ -92,7 +92,7 @@ func aPlayer(t *testing.T, s *Service, vid, id uint32, name string, x int32) (ne
 		info:   protocol.CharacterInfo{VID: vid, Name: name},
 		add:    protocol.CharacterAdd{VID: vid, X: homeX + x, Y: homeY, Type: protocol.EntityPlayer, MoveSpeed: 150},
 		tether: tether{x: homeX + x, y: homeY}}
-	s.presence.enter(p)
+	s.record.enter(p)
 	return client, p
 }
 
@@ -185,4 +185,11 @@ func packets(t *testing.T, b []byte) [][]byte {
 func sent(t *testing.T, b []byte, h protocol.ServerHeader) bool {
 	t.Helper()
 	return slices.ContainsFunc(packets(t, b), func(p []byte) bool { return protocol.ServerHeader(p[0]) == h })
+}
+
+// held runs f with the world record held, as the code a test stands in for would hold it.
+func (w *record) held(f func(l locked)) {
+	l, unlock := w.lock()
+	defer unlock()
+	f(l)
 }

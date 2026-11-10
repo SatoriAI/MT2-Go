@@ -254,7 +254,7 @@ func TestAnUpgradeIsOnlyOfTheItemGivenWhileTheBlacksmithIsNear(t *testing.T) {
 		"another cell": func(*session) []byte { return refined(4, protocol.RefineNoQuestion) },
 		"another item": func(s *session) []byte { s.upgrading.item = 2; return refined(3, protocol.RefineNoQuestion) },
 		"walked off": func(s *session) []byte {
-			s.svc.presence.all[1000].add.X += npcReach + 100
+			s.svc.record.state.all[1000].add.X += npcReach + 100
 			return refined(3, protocol.RefineNoQuestion)
 		},
 	}

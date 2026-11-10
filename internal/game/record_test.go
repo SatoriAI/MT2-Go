@@ -58,7 +58,7 @@ func conns(t *testing.T, n int) []*network.Conn {
 func TestAPlayerWhoseEntryFailedLeavesWithoutDisturbingTheOthers(t *testing.T) {
 	c := conns(t, 2)
 	svc := NewService(Deps{Clock: handshake.NewClock()})
-	svc.presence.enter(&present{out: c[0], add: protocol.CharacterAdd{VID: 1}})
+	svc.record.enter(&present{out: c[0], add: protocol.CharacterAdd{VID: 1}})
 	c[1].Close()
 	s := &session{svc: svc, conn: c[1], phase: protocol.PhaseLoading,
 		playing: &character{vid: 2}, claim: &claim{character: 2, done: make(chan struct{})}}
@@ -68,8 +68,8 @@ func TestAPlayerWhoseEntryFailedLeavesWithoutDisturbingTheOthers(t *testing.T) {
 	}
 	s.leaveWorld()
 
-	if len(svc.presence.all) != 1 {
-		t.Fatalf("%d players in the world, want the other one only", len(svc.presence.all))
+	if len(svc.record.state.all) != 1 {
+		t.Fatalf("%d players in the world, want the other one only", len(svc.record.state.all))
 	}
 }
 
@@ -77,11 +77,11 @@ func TestAPlayerWhoseEntryFailedLeavesWithoutDisturbingTheOthers(t *testing.T) {
 // queue of a client that is reading normally, which the server takes for one that stopped.
 func TestEnteringABusyMapDoesNotOverflowTheNewcomersQueue(t *testing.T) {
 	c := conns(t, 2)
-	var w presence
-	w.all, w.byName = map[uint32]*present{}, map[string]*present{}
-	w.onMap = map[string]map[uint32]*present{"": w.all} // all at 0, 0, on no known map
+	var w record
+	w.state.all, w.state.byName = map[uint32]*present{}, map[string]*present{}
+	w.state.onMap = map[string]map[uint32]*present{"": w.state.all} // all at 0, 0, on no known map
 	for vid := range uint32(20000) {
-		w.all[vid+1] = &present{out: c[0], add: protocol.CharacterAdd{VID: vid + 1}, sees: map[uint32]*present{}}
+		w.state.all[vid+1] = &present{out: c[0], add: protocol.CharacterAdd{VID: vid + 1}, sees: map[uint32]*present{}}
 	}
 
 	w.enter(&present{out: c[1], add: protocol.CharacterAdd{VID: 30000}})

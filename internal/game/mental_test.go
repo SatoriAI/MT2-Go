@@ -18,11 +18,11 @@ import (
 func thinking(t *testing.T, dogs int, level uint8) (*session, net.Conn) {
 	t.Helper()
 	s, client := warring(t, dogs)
-	c := s.svc.presence.all[1000].char
+	c := s.svc.record.state.all[1000].char
 	c.SkillGroup, c.Vitality = "mental", 10
 	c.Skills = map[account.Skill]uint8{skill.SpiritStrike: level, skill.Bash: level, skill.Stump: level,
 		skill.StrongBody: level, skill.SwordStrike: level}
-	s.svc.presence.all[1000].add.Rotation = 270
+	s.svc.record.state.all[1000].add.Rotation = 270
 	return s, client
 }
 
@@ -57,7 +57,7 @@ func TestBashStrikesOnlyInFrontOfHer(t *testing.T) {
 	}
 
 	away, awayClient := thinking(t, 10, 1)
-	away.svc.presence.all[1000].add.Rotation = 90
+	away.svc.record.state.all[1000].add.Rotation = 90
 	if err := away.onUseSkill(used(skill.Bash)); err != nil {
 		t.Fatal(err)
 	}
@@ -71,9 +71,9 @@ func TestBashStrikesOnlyInFrontOfHer(t *testing.T) {
 // bites again, its stun gone for everyone.
 func TestAStunnedMonsterNeitherMovesNorBitesForTwoSeconds(t *testing.T) {
 	s, dog, client, c := suraHits(t, 100)
-	s.presence.mu.Lock()
-	s.presence.stun(dog.p, noon)
-	s.presence.mu.Unlock()
+	s.record.held(func(l locked) {
+		l.stun(dog.p, noon)
+	})
 	stunned := dog.p.add
 	if got := read(t, client, updateSize); string(got) != string(protocol.EncodeCharacterUpdate(dog.p.info, stunned, 1<<5)) {
 		t.Fatalf("got %x, want the stun shown", got)
@@ -93,10 +93,10 @@ func TestAStunnedMonsterNeitherMovesNorBitesForTwoSeconds(t *testing.T) {
 // A second stun holds it two seconds from then, not two more on top.
 func TestAStunAgainHoldsItTwoSecondsFromThen(t *testing.T) {
 	s, dog, client, _ := suraHits(t, 100)
-	s.presence.mu.Lock()
-	s.presence.stun(dog.p, noon)
-	s.presence.stun(dog.p, noon.Add(time.Second))
-	s.presence.mu.Unlock()
+	s.record.held(func(l locked) {
+		l.stun(dog.p, noon)
+		l.stun(dog.p, noon.Add(time.Second))
+	})
 	read(t, client, updateSize)
 	expectNothing(t, client) // shown once
 
@@ -108,11 +108,11 @@ func TestAStunAgainHoldsItTwoSecondsFromThen(t *testing.T) {
 // A stunned monster whose fight ends goes home awake, its stun gone for everyone.
 func TestAStunnedMonsterGoesHomeAwake(t *testing.T) {
 	s, dog, client, _ := suraHits(t, 100)
-	s.presence.mu.Lock()
-	s.presence.stun(dog.p, noon)
-	s.presence.mu.Unlock()
+	s.record.held(func(l locked) {
+		l.stun(dog.p, noon)
+	})
 	read(t, client, updateSize)
-	s.presence.all[1000].char.HP = 0 // she lies dead, so it gives up
+	s.record.state.all[1000].char.HP = 0 // she lies dead, so it gives up
 
 	s.tick(noon)
 
@@ -143,7 +143,7 @@ func TestStumpStunsSomeAroundHerButNeverAStone(t *testing.T) {
 	rugor.char.Class, rugor.char.SP, rugor.char.Skills = account.Warrior, 100000, map[account.Skill]uint8{skill.Stump: 20}
 	stone := stones.monsters[0]
 	for range 50 {
-		stones.presence.useSkill(1000, skill.Stump, 0, noon, 0, stones.rand, func() bool { return true })
+		stones.record.useSkill(1000, skill.Stump, 0, noon, 0, stones.rand, func() bool { return true })
 	}
 	if stone.p.fight.stunned {
 		t.Fatal("the stone was stunned")
@@ -154,7 +154,7 @@ func TestStumpStunsSomeAroundHerButNeverAStone(t *testing.T) {
 // STR 30 and CON 10, and slows her by 1 + 9k, 5, showing its effect.
 func TestStrongBodyRaisesHerDefenceAndSlowsHer(t *testing.T) {
 	s, client := thinking(t, 1, 20)
-	pl := s.svc.presence.all[1000]
+	pl := s.svc.record.state.all[1000]
 	before, walk := defence(pl.char), pl.add.MoveSpeed
 
 	if err := s.onUseSkill(used(skill.StrongBody)); err != nil {
@@ -177,16 +177,16 @@ func TestStrongBodyRaisesHerDefenceAndSlowsHer(t *testing.T) {
 func TestSwordStrikeLandsOnThePickedFarOff(t *testing.T) {
 	s, client := thinking(t, 2, 1)
 	far := s.svc.monsters[2]
-	s.svc.presence.mu.Lock()
-	s.svc.presence.moveLocked(far.p, protocol.Move{X: homeX + 1200, Y: homeY})
-	s.svc.presence.mu.Unlock()
+	s.svc.record.held(func(l locked) {
+		l.shift(far.p, protocol.Move{X: homeX + 1200, Y: homeY})
+	})
 
 	if err := s.onUseSkill(usedOn(skill.SwordStrike, far.p.add.VID)); err != nil {
 		t.Fatal(err)
 	}
 
 	read(t, client, pointChangeSize)
-	if hurt, _ := struck(t, s, client); hurt != 1 || far.p.fight.damageBy[s.svc.presence.all[1000]] == 0 {
+	if hurt, _ := struck(t, s, client); hurt != 1 || far.p.fight.damageBy[s.svc.record.state.all[1000]] == 0 {
 		t.Fatalf("hurt %d, the far dog spared", hurt)
 	}
 }
@@ -204,16 +204,16 @@ func TestSwordStrikeFindsTheNearestInFront(t *testing.T) {
 	}
 
 	away, awayClient := thinking(t, 2, 1)
-	away.svc.presence.all[1000].add.Rotation = 90
+	away.svc.record.state.all[1000].add.Rotation = 90
 	far := away.svc.monsters[2] // 250 east, in front of her now
-	away.svc.presence.mu.Lock()
-	away.svc.presence.moveLocked(far.p, protocol.Move{X: homeX - 2000, Y: homeY})
-	away.svc.presence.mu.Unlock()
+	away.svc.record.held(func(l locked) {
+		l.shift(far.p, protocol.Move{X: homeX - 2000, Y: homeY})
+	})
 	drain(t, awayClient)
 	if err := away.onUseSkill(used(skill.SwordStrike)); err != nil {
 		t.Fatal(err)
 	}
-	if got := drain(t, awayClient); len(got) != 0 || away.svc.presence.all[1000].char.SP != 500 {
+	if got := drain(t, awayClient); len(got) != 0 || away.svc.record.state.all[1000].char.SP != 500 {
 		t.Fatalf("used facing nothing: %x", got)
 	}
 }
@@ -247,11 +247,11 @@ func TestBerserkMakesHerTakeMoreOfEveryBite(t *testing.T) {
 // A dog killed while stunned lies dead, not stunned, for anyone who comes to see it.
 func TestAMonsterKilledStunnedIsNotStunnedDead(t *testing.T) {
 	s, dog, client, _ := suraHits(t, 100)
-	pl := s.presence.all[1000]
-	s.presence.mu.Lock()
-	s.presence.stun(dog.p, noon)
-	s.presence.strike(pl, dog.p, dog.p.fight.hp, noon)
-	s.presence.mu.Unlock()
+	pl := s.record.state.all[1000]
+	s.record.held(func(l locked) {
+		l.stun(dog.p, noon)
+		l.strike(pl, dog.p, dog.p.fight.hp, noon)
+	})
 	drain(t, client)
 
 	if mobAffects(dog.p) != 0 {
@@ -265,9 +265,9 @@ func TestAStunEndsOnTime(t *testing.T) {
 	s, dog, client, c := suraHits(t, 100)
 	s.tick(noon)
 	expectBite(t, client, dog, c)
-	s.presence.mu.Lock()
-	s.presence.stun(dog.p, noon.Add(250*time.Millisecond))
-	s.presence.mu.Unlock()
+	s.record.held(func(l locked) {
+		l.stun(dog.p, noon.Add(250*time.Millisecond))
+	})
 	read(t, client, updateSize)
 
 	for at := 500 * time.Millisecond; at < 2250*time.Millisecond; at += tick {
@@ -284,7 +284,7 @@ func TestAStunEndsOnTime(t *testing.T) {
 // 39 to 40 at level 20 with CON 10, its 32 becomes 33.
 func TestStrengthRaisedUnderStrongBodyTellsHerDefence(t *testing.T) {
 	s, client := thinking(t, 1, 20)
-	c := s.svc.presence.all[1000].char
+	c := s.svc.record.state.all[1000].char
 	c.Strength, c.StatPoints = 39, 1
 	if err := s.onUseSkill(used(skill.StrongBody)); err != nil {
 		t.Fatal(err)
@@ -292,7 +292,7 @@ func TestStrengthRaisedUnderStrongBodyTellsHerDefence(t *testing.T) {
 	drain(t, client)
 	before := defence(c)
 
-	s.svc.presence.spendStatPoint(1000, "st")
+	s.svc.record.spendStatPoint(1000, "st")
 
 	read(t, client, 2*pointChangeSize) // the stat, the points left
 	if got := read(t, client, pointChangeSize); string(got) != string(defenceTold(before+1)) {

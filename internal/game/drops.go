@@ -50,11 +50,11 @@ func (t timed) due() time.Time { return t.at }
 
 // topDamager is who a dead monster's drops are kept for: the player who took the most of
 // its hit points among those still in the world and alive, the killer on a tie, so a last
-// blow does not take a drop from whoever fought it. Called under the lock.
-func (w *presence) topDamager(f *fight, killer *present) *present {
+// blow does not take a drop from whoever fought it.
+func (l locked) topDamager(f *fight, killer *present) *present {
 	best, most := killer, f.damageBy[killer]
 	for p, damage := range f.damageBy {
-		if damage > most && w.all[p.add.VID] == p && !p.dead() {
+		if damage > most && l.all[p.add.VID] == p && !p.dead() {
 			best, most = p, damage
 		}
 	}
@@ -86,7 +86,7 @@ func (svc *Service) dropFrom(m *monster, d death, now time.Time) {
 	if len(fallen) == 0 {
 		return
 	}
-	svc.presence.drop(m.p, fallen)
+	svc.record.drop(m.p, fallen)
 	for _, it := range fallen {
 		svc.freeing = append(svc.freeing, timed{it.vid, now.Add(ownedFor)})
 		svc.vanishing = inOrder(svc.vanishing, timed{it.vid, now.Add(lieFor)})
@@ -110,75 +110,75 @@ func inOrder[T interface{ due() time.Time }](queue []T, t T) []T {
 // is looked at; with nothing on the ground the loop does nothing.
 func (svc *Service) keepGround(now time.Time) {
 	for len(svc.freeing) > 0 && !now.Before(svc.freeing[0].at) {
-		svc.presence.free(svc.freeing[0].vid)
+		svc.record.free(svc.freeing[0].vid)
 		svc.freeing = svc.freeing[1:]
 	}
 	for len(svc.vanishing) > 0 && !now.Before(svc.vanishing[0].at) {
-		svc.presence.vanish(svc.vanishing[0].vid)
+		svc.record.vanish(svc.vanishing[0].vid)
 		svc.vanishing = svc.vanishing[1:]
 	}
 }
 
 // drop lays the items on the ground where the body is, yang multiplied by the event that
 // runs, and shows each, with its owner, to the players who see it.
-func (w *presence) drop(body *present, items []*groundItem) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
+func (w *record) drop(body *present, items []*groundItem) {
+	l, unlock := w.lock()
+	defer unlock()
 	for _, it := range items {
 		it.world = body.world
-		if it.gold > 0 && w.event != nil {
-			it.gold = w.event.Yang(it.gold)
+		if it.gold > 0 && l.event != nil {
+			it.gold = l.event.Yang(it.gold)
 		}
-		w.lay(it)
-		w.toNear(it, shown(it)...)
+		l.lay(it)
+		l.toNear(it, shown(it)...)
 	}
 }
 
-// lay puts the item on the ground, by its vid and on its map. Called under the lock.
-func (w *presence) lay(it *groundItem) {
-	w.ground[it.vid] = it
-	if w.groundOn[it.world] == nil {
-		w.groundOn[it.world] = map[uint32]*groundItem{}
+// lay puts the item on the ground, by its vid and on its map.
+func (l locked) lay(it *groundItem) {
+	l.ground[it.vid] = it
+	if l.groundOn[it.world] == nil {
+		l.groundOn[it.world] = map[uint32]*groundItem{}
 	}
-	w.groundOn[it.world][it.vid] = it
+	l.groundOn[it.world][it.vid] = it
 }
 
-// lift takes the item off the ground. Called under the lock.
-func (w *presence) lift(it *groundItem) {
-	delete(w.ground, it.vid)
-	delete(w.groundOn[it.world], it.vid)
+// lift takes the item off the ground.
+func (l locked) lift(it *groundItem) {
+	delete(l.ground, it.vid)
+	delete(l.groundOn[it.world], it.vid)
 }
 
 // layDown puts an item the player dropped on the ground, dx and dy from where they stand,
 // shows it to everyone who sees it, and leaves it for the world loop to clear away in its
 // time. It has no owner, so anyone may pick it up at once.
-func (w *presence) layDown(playerVID uint32, it *groundItem, dx, dy int32) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	p := w.all[playerVID]
+func (w *record) layDown(playerVID uint32, it *groundItem, dx, dy int32) {
+	l, unlock := w.lock()
+	defer unlock()
+	p := l.all[playerVID]
 	it.world, it.x, it.y = p.world, p.add.X+dx, p.add.Y+dy
-	w.lay(it)
-	w.toNear(it, shown(it)...)
-	w.news.laid = append(w.news.laid, timed{it.vid, it.dropped.Add(lieFor)})
+	l.lay(it)
+	l.toNear(it, shown(it)...)
+	l.news.laid = append(l.news.laid, timed{it.vid, it.dropped.Add(lieFor)})
 }
 
 // free lets anyone pick the item up, if it still lies there.
-func (w *presence) free(vid uint32) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	if it := w.ground[vid]; it != nil {
+func (w *record) free(vid uint32) {
+	l, unlock := w.lock()
+	defer unlock()
+	if it := l.ground[vid]; it != nil {
 		it.owner = owner{}
-		w.toNear(it, protocol.EncodeItemOwner(vid, ""))
+		l.toNear(it, protocol.EncodeItemOwner(vid, ""))
 	}
 }
 
 // vanish clears the item away, if it still lies there.
-func (w *presence) vanish(vid uint32) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	if it := w.ground[vid]; it != nil {
-		w.lift(it)
-		w.toNear(it, protocol.EncodeGroundDel(vid))
+func (w *record) vanish(vid uint32) {
+	l, unlock := w.lock()
+	defer unlock()
+	if it := l.ground[vid]; it != nil {
+		l.lift(it)
+		l.toNear(it, protocol.EncodeGroundDel(vid))
 	}
 }
 
@@ -192,9 +192,9 @@ func shown(it *groundItem) [][]byte {
 	return [][]byte{add, protocol.EncodeItemOwner(it.vid, it.owner.name)}
 }
 
-// toNear sends packets to every player who sees the item. Called under the lock.
-func (w *presence) toNear(it *groundItem, packets ...[]byte) {
-	for _, p := range w.byName {
+// toNear sends packets to every player who sees the item.
+func (l locked) toNear(it *groundItem, packets ...[]byte) {
+	for _, p := range l.byName {
 		if seesAt(p.world, p.add.X, p.add.Y, it) {
 			p.send(packets...)
 		}
@@ -207,10 +207,10 @@ func seesAt(world string, x, y int32, it *groundItem) bool {
 }
 
 // groundSeen is how the items on the ground come into or go out of view of a player who
-// moved from (fromX, fromY) to where they stand. Called under the lock.
-func (w *presence) groundSeen(p *present, fromX, fromY int32) [][]byte {
+// moved from (fromX, fromY) to where they stand.
+func (l locked) groundSeen(p *present, fromX, fromY int32) [][]byte {
 	var packets [][]byte
-	for _, it := range w.groundOn[p.world] {
+	for _, it := range l.groundOn[p.world] {
 		was, is := seesAt(p.world, fromX, fromY, it), seesAt(p.world, p.add.X, p.add.Y, it)
 		switch {
 		case is && !was:
@@ -223,10 +223,10 @@ func (w *presence) groundSeen(p *present, fromX, fromY int32) [][]byte {
 }
 
 // groundInView is every item on the ground the player sees, as entering shows them, or,
-// with gone, as leaving takes them away. Called under the lock.
-func (w *presence) groundInView(p *present, gone bool) [][]byte {
+// with gone, as leaving takes them away.
+func (l locked) groundInView(p *present, gone bool) [][]byte {
 	var packets [][]byte
-	for _, it := range w.groundOn[p.world] {
+	for _, it := range l.groundOn[p.world] {
 		switch {
 		case !seesAt(p.world, p.add.X, p.add.Y, it):
 		case gone:
@@ -251,10 +251,10 @@ const (
 // they have room for it, and shows everyone near it that it is gone. room runs under the
 // lock, so it must only look at what the player's own connection keeps. The first of two
 // players to reach for an item has it; the second finds nothing.
-func (w *presence) pickUp(playerVID, vid uint32, room func(*groundItem) bool) (groundItem, pickResult) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	p, it := w.all[playerVID], w.ground[vid]
+func (w *record) pickUp(playerVID, vid uint32, room func(*groundItem) bool) (groundItem, pickResult) {
+	l, unlock := w.lock()
+	defer unlock()
+	p, it := l.all[playerVID], l.ground[vid]
 	switch {
 	case it == nil || p.dead() || p.world != it.world || !near(p.add.X, p.add.Y, it.x, it.y, pickupReach+1) ||
 		(it.owner.id != 0 && it.owner.id != p.char.ID):
@@ -262,24 +262,24 @@ func (w *presence) pickUp(playerVID, vid uint32, room func(*groundItem) bool) (g
 	case !room(it):
 		return groundItem{}, pickNoRoom
 	}
-	w.lift(it)
-	w.toNear(it, protocol.EncodeGroundDel(vid))
+	l.lift(it)
+	l.toNear(it, protocol.EncodeGroundDel(vid))
 	return *it, picked
 }
 
 // putBack lays an item that could not be kept down again where it was, if it would still
 // lie there, with the owner it had, free if its owner's time is up.
-func (w *presence) putBack(it groundItem, now time.Time) {
+func (w *record) putBack(it groundItem, now time.Time) {
 	if !now.Before(it.dropped.Add(lieFor)) {
 		return
 	}
 	if !now.Before(it.dropped.Add(ownedFor)) {
 		it.owner = owner{}
 	}
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	w.lay(&it)
-	w.toNear(&it, shown(&it)...)
+	l, unlock := w.lock()
+	defer unlock()
+	l.lay(&it)
+	l.toNear(&it, shown(&it)...)
 }
 
 // onItemPickup takes an item off the ground into the player's bag: onto a stack of its kind
@@ -295,7 +295,7 @@ func (s *session) onItemPickup(body []byte) error {
 	}
 	var into item.Item
 	var yang bool
-	it, result := s.svc.presence.pickUp(s.playing.vid, vid, func(it *groundItem) bool {
+	it, result := s.svc.record.pickUp(s.playing.vid, vid, func(it *groundItem) bool {
 		if yang = it.gold > 0; yang {
 			return uint64(s.gold)+uint64(it.gold) <= maxGold
 		}
@@ -327,7 +327,7 @@ func (s *session) onItemPickup(body []byte) error {
 	}
 	if err != nil {
 		s.conn.Log().Error("item picked up not kept", "vnum", it.vnum, "err", err)
-		s.svc.presence.putBack(it, s.svc.now()) // after the write gave up, which may be seconds on
+		s.svc.record.putBack(it, s.svc.now()) // after the write gave up, which may be seconds on
 		return nil
 	}
 	if _, held := s.inventory.ByID(into.ID); held {
@@ -348,7 +348,7 @@ func (s *session) pickGold(ctx context.Context, it groundItem) error {
 	gold, err := s.svc.items.AddGold(ctx, s.playing.ID, it.gold)
 	if err != nil {
 		s.conn.Log().Error("yang picked up not kept", "amount", it.gold, "err", err)
-		s.svc.presence.putBack(it, s.svc.now())
+		s.svc.record.putBack(it, s.svc.now())
 		return nil
 	}
 	s.gold = gold

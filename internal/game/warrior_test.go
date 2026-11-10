@@ -46,7 +46,7 @@ func warring(t *testing.T, dogs int) (*session, net.Conn) {
 // client was told of, read.
 func struck(t *testing.T, s *session, client net.Conn) (int, int) {
 	t.Helper()
-	pl := s.svc.presence.all[1000]
+	pl := s.svc.record.state.all[1000]
 	hurt := 0
 	for _, m := range s.svc.monsters {
 		if m.p.fight.damageBy[pl] > 0 {
@@ -73,7 +73,7 @@ func TestThreeWayCutCutsFiveAroundItsTargetThriceEach(t *testing.T) {
 	if hurt, blows := struck(t, s, client); hurt != 5 || blows != 15 {
 		t.Fatalf("hurt %d with %d blows, want 5 with 15", hurt, blows)
 	}
-	if s.svc.monsters[0].p.fight.damageBy[s.svc.presence.all[1000]] == 0 {
+	if s.svc.monsters[0].p.fight.damageBy[s.svc.record.state.all[1000]] == 0 {
 		t.Fatal("the target was spared")
 	}
 }
@@ -85,13 +85,13 @@ func TestThreeWayCutNeedsATargetAndABlade(t *testing.T) {
 	if err := s.onUseSkill(usedOn(skill.ThreeWayCut, 0)); err != nil {
 		t.Fatal(err)
 	}
-	s.svc.presence.all[1000].char.Weapon = 7000
+	s.svc.record.state.all[1000].char.Weapon = 7000
 	if err := s.onUseSkill(usedOn(skill.ThreeWayCut, s.svc.monsters[0].p.add.VID)); err != nil {
 		t.Fatal(err)
 	}
 
 	expectNothing(t, client)
-	if c := s.svc.presence.all[1000].char; c.SP != 500 {
+	if c := s.svc.record.state.all[1000].char; c.SP != 500 {
 		t.Fatalf("mana %d", c.SP)
 	}
 }
@@ -99,7 +99,7 @@ func TestThreeWayCutNeedsATargetAndABlade(t *testing.T) {
 // A glaive, two-handed, does for Three-Way Cut as a sword does.
 func TestThreeWayCutCutsWithAGlaive(t *testing.T) {
 	s, client := warring(t, 1)
-	s.svc.presence.all[1000].char.Weapon = 3000
+	s.svc.record.state.all[1000].char.Weapon = 3000
 
 	if err := s.onUseSkill(usedOn(skill.ThreeWayCut, s.svc.monsters[0].p.add.VID)); err != nil {
 		t.Fatal(err)
@@ -146,7 +146,7 @@ func TestSwordSpinStrikesTwelveAtMost(t *testing.T) {
 // that much sooner; when it ends, both are back.
 func TestBerserkSpeedsHerUpUntilItEnds(t *testing.T) {
 	s, client := warring(t, 1)
-	pl := s.svc.presence.all[1000]
+	pl := s.svc.record.state.all[1000]
 	walk, strike := pl.add.MoveSpeed, pl.add.AttackSpeed
 
 	if err := s.onUseSkill(used(skill.Berserk)); err != nil {
@@ -162,7 +162,7 @@ func TestBerserkSpeedsHerUpUntilItEnds(t *testing.T) {
 	if got := read(t, client, len(want)); string(got) != want {
 		t.Fatalf("got  %x\nwant %x", got, want)
 	}
-	if got := s.svc.presence.attackSpeedOf(1000); got != strike+2 {
+	if got := s.svc.record.attackSpeedOf(1000); got != strike+2 {
 		t.Fatalf("blows timed at %d", got)
 	}
 
@@ -178,7 +178,7 @@ func TestBerserkSpeedsHerUpUntilItEnds(t *testing.T) {
 // its effect; with the sword taken out of hand, it ends.
 func TestSwordAuraRaisesHerAttackWhileSheHoldsABlade(t *testing.T) {
 	s, client := warring(t, 1)
-	pl := s.svc.presence.all[1000]
+	pl := s.svc.record.state.all[1000]
 
 	if err := s.onUseSkill(used(skill.SwordAura)); err != nil {
 		t.Fatal(err)
@@ -192,7 +192,7 @@ func TestSwordAuraRaisesHerAttackWhileSheHoldsABlade(t *testing.T) {
 		t.Fatalf("attack bonus %d, want 6", got)
 	}
 
-	s.svc.presence.dress(1000, outfit{})
+	s.svc.record.dress(1000, outfit{})
 
 	if _, running := pl.char.Buffs[skill.SwordAura]; running || attackerOf(pl.char).Bonus != 0 {
 		t.Fatal("the aura runs on without a blade")
@@ -249,7 +249,7 @@ func TestSwordSpinStrikesTheNearestFirst(t *testing.T) {
 	s, client := warring(t, 14)
 	spared := map[*present]bool{s.svc.monsters[14].p: true}
 	for _, m := range s.svc.monsters[:2] {
-		s.svc.presence.moveLocked(m.p, protocol.Move{X: homeX - 90, Y: homeY})
+		s.svc.record.held(func(l locked) { l.shift(m.p, protocol.Move{X: homeX - 90, Y: homeY}) })
 		spared[m.p] = true
 	}
 
@@ -260,7 +260,7 @@ func TestSwordSpinStrikesTheNearestFirst(t *testing.T) {
 	read(t, client, pointChangeSize)
 	drain(t, client)
 	for _, m := range s.svc.monsters {
-		if hurt := m.p.fight.damageBy[s.svc.presence.all[1000]] > 0; hurt == spared[m.p] {
+		if hurt := m.p.fight.damageBy[s.svc.record.state.all[1000]] > 0; hurt == spared[m.p] {
 			t.Errorf("the dog at %d: hurt %v", m.p.add.X, hurt)
 		}
 	}
@@ -270,8 +270,8 @@ func TestSwordSpinStrikesTheNearestFirst(t *testing.T) {
 // attack speed, where it added 2, and she is told so.
 func TestBerserkRaisedAsItRunsSpeedsHerUpAtOnce(t *testing.T) {
 	s, client := warring(t, 1)
-	s.svc.skills = &keptSkills{group: "body", learnt: s.svc.presence.all[1000].char.Skills}
-	pl := s.svc.presence.all[1000]
+	s.svc.skills = &keptSkills{group: "body", learnt: s.svc.record.state.all[1000].char.Skills}
+	pl := s.svc.record.state.all[1000]
 	strike := pl.add.AttackSpeed
 	if err := s.onUseSkill(used(skill.Berserk)); err != nil {
 		t.Fatal(err)
@@ -287,7 +287,7 @@ func TestBerserkRaisedAsItRunsSpeedsHerUpAtOnce(t *testing.T) {
 	if point, _, value := pointChange(t, client, 1000); point != protocol.PointAttackSpeed || value != int32(strike+3) {
 		t.Fatalf("told point %d at %d, want attack speed %d", point, value, strike+3)
 	}
-	if got := s.svc.presence.attackSpeedOf(1000); got != strike+3 {
+	if got := s.svc.record.attackSpeedOf(1000); got != strike+3 {
 		t.Fatalf("blows timed at %d", got)
 	}
 }
@@ -295,14 +295,14 @@ func TestBerserkRaisedAsItRunsSpeedsHerUpAtOnce(t *testing.T) {
 // Taking up another group ends the buffs running: Berserk's speeds are gone with it.
 func TestTakingUpAGroupEndsTheBuffsRunning(t *testing.T) {
 	s, client := warring(t, 1)
-	pl := s.svc.presence.all[1000]
+	pl := s.svc.record.state.all[1000]
 	strike := pl.add.AttackSpeed
 	if err := s.onUseSkill(used(skill.Berserk)); err != nil {
 		t.Fatal(err)
 	}
 	drain(t, client)
 
-	s.svc.presence.chooseGroup(1000, "mental")
+	s.svc.record.chooseGroup(1000, "mental")
 
 	if len(pl.char.Buffs) != 0 || pl.add.AttackSpeed != strike || affectsOf(pl.char) != 0 {
 		t.Fatalf("buffs %v, attack speed %d", pl.char.Buffs, pl.add.AttackSpeed)

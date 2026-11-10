@@ -104,7 +104,7 @@ func TestMovesCannotBeChainedPastTheTether(t *testing.T) {
 func TestTheTetherFollowsWhereTheServerPutsHer(t *testing.T) {
 	s, hendra, _ := walking(t)
 	hendra.char.HP = 0
-	if !s.svc.presence.revive(1000, true, homeX+50000, homeY, noon) {
+	if !s.svc.record.revive(1000, true, homeX+50000, homeY, noon) {
 		t.Fatal("not revived")
 	}
 
@@ -120,9 +120,9 @@ func TestTheTetherFollowsWhereTheServerPutsHer(t *testing.T) {
 func TestTheTetherFollowsADash(t *testing.T) {
 	s, hendra, _ := walking(t)
 	dog := &present{add: protocol.CharacterAdd{VID: 5, X: homeX + 5270, Y: homeY, Type: protocol.EntityMonster}}
-	s.svc.presence.mu.Lock()
-	s.svc.presence.dash(hendra, dog, 0)
-	s.svc.presence.mu.Unlock()
+	s.svc.record.held(func(l locked) {
+		l.dash(hendra, dog, 0)
+	})
 
 	walkTo(t, s, 5100, 0)
 
@@ -201,7 +201,7 @@ func TestRisingHereStartsTheTetherAfresh(t *testing.T) {
 	s, hendra, _ := walking(t)
 	walkTo(t, s, 0, 0)
 	hendra.char.HP = 0
-	if !s.svc.presence.revive(1000, false, 0, 0, noon) {
+	if !s.svc.record.revive(1000, false, 0, 0, noon) {
 		t.Fatal("not revived")
 	}
 

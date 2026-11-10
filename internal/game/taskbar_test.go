@@ -97,7 +97,7 @@ func TestOnlyPotionsFillATaskbarSlot(t *testing.T) {
 	} {
 		s, _, client := carrying(t)
 		bar := onTheTaskbar(t, s, 2)
-		s.svc.presence.all = map[uint32]*present{1000: {char: &s.playing.Character}}
+		s.svc.record.state.all = map[uint32]*present{1000: {char: &s.playing.Character}}
 
 		if err := s.onQuickslotAdd(body); err != nil {
 			t.Fatal(err)
@@ -241,7 +241,7 @@ func TestASkillLearntFillsATaskbarSlot(t *testing.T) {
 func TestASkillNotLearntFillsNoTaskbarSlot(t *testing.T) {
 	s, client, _ := swirling(t)
 	bar := onTheTaskbarWithSkills(s)
-	delete(s.svc.presence.all[1000].char.Skills, skill.EnchantedBlade)
+	delete(s.svc.record.state.all[1000].char.Skills, skill.EnchantedBlade)
 
 	if err := s.onQuickslotAdd(slotAdded(4, 2, 3)); err != nil {
 		t.Fatal(err)

@@ -17,7 +17,7 @@ func (s *session) onItemDrop(body []byte) error {
 	if err != nil {
 		return err
 	}
-	if !s.svc.presence.alive(s.playing.vid) {
+	if !s.svc.record.alive(s.playing.vid) {
 		return nil
 	}
 	if d.Gold > 0 && d.Pos == (protocol.ItemPos{}) {
@@ -75,13 +75,13 @@ func (s *session) dropGold(amount uint32) error {
 // layDown lays a dropped item on the ground near the player, now.
 func (s *session) layDown(it *groundItem) {
 	it.vid, it.dropped = s.svc.lastVID.Add(1), s.svc.now()
-	s.svc.presence.layDown(s.playing.vid, it, s.rand.Int32N(2*dropSpread+1)-dropSpread,
+	s.svc.record.layDown(s.playing.vid, it, s.rand.Int32N(2*dropSpread+1)-dropSpread,
 		s.rand.Int32N(2*dropSpread+1)-dropSpread)
 }
 
 // alive is whether the player stands in the world alive.
-func (w *presence) alive(vid uint32) bool {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	return !w.all[vid].dead()
+func (w *record) alive(vid uint32) bool {
+	l, unlock := w.lock()
+	defer unlock()
+	return !l.all[vid].dead()
 }

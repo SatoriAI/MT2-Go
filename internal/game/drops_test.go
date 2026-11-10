@@ -20,7 +20,7 @@ const groundAddSize, ownerSize, groundDelSize = 21, 30, 5
 // world loop would, so it is freed at noon and 20 s and cleared at noon and 60 s.
 func hendrasPotion(s *Service, at *present) {
 	potion := &groundItem{vid: 5000, x: homeX, y: homeY, vnum: 27001, count: 1, owner: owner{7, "Hendra"}, dropped: noon}
-	s.presence.drop(at, []*groundItem{potion})
+	s.record.drop(at, []*groundItem{potion})
 	s.freeing = append(s.freeing, timed{5000, noon.Add(ownedFor)})
 	s.vanishing = append(s.vanishing, timed{5000, noon.Add(lieFor)})
 }
@@ -57,12 +57,14 @@ func TestTheTopDamageDealerOwnsADrop(t *testing.T) {
 		{"Hendra took more", 50, func() {}, 7},
 		{"a tie", 30, func() {}, 8},
 		{"Hendra lies dead", 50, func() { hendra.char.HP = 0 }, 8},
-		{"Hendra left", 50, func() { hendra.char.HP = 1; s.presence.leave(1000) }, 8},
+		{"Hendra left", 50, func() { hendra.char.HP = 1; s.record.leave(1000) }, 8},
 	}
 	for _, c := range cases {
 		c.setup()
 		f := &fight{damageBy: map[*present]int{hendra: c.hendras, kira: 30}}
-		if got := s.presence.topDamager(f, kira); got.char.ID != c.want {
+		var got *present
+		s.record.held(func(l locked) { got = l.topDamager(f, kira) })
+		if got.char.ID != c.want {
 			t.Errorf("%s: kept for %d, want %d", c.name, got.char.ID, c.want)
 		}
 	}
@@ -84,10 +86,10 @@ func TestADeathLeavesWhatItsDropsRoll(t *testing.T) {
 
 	s.dropFrom(m, death{owner: owner{7, "Hendra"}}, noon)
 
-	if len(s.presence.ground) != 1 {
-		t.Fatalf("%d items fell, want the potion alone", len(s.presence.ground))
+	if len(s.record.state.ground) != 1 {
+		t.Fatalf("%d items fell, want the potion alone", len(s.record.state.ground))
 	}
-	for vid, it := range s.presence.ground {
+	for vid, it := range s.record.state.ground {
 		if it.vnum != 27001 || !near(it.x, it.y, m.x, m.y, 2*dropSpread) || s.freeing[0].at != noon.Add(ownedFor) ||
 			s.vanishing[0].at != noon.Add(lieFor) {
 			t.Fatalf("fell %+v, freed %v, cleared %v", it, s.freeing, s.vanishing)
@@ -107,11 +109,11 @@ func TestAnItemOnTheGroundComesAndGoesWithTheView(t *testing.T) {
 	client, p := aPlayer(t, s, 1000, 8, "Kira", 20000)
 	hendrasPotion(s, p)
 
-	s.presence.move(1000, protocol.Move{X: homeX + 100, Y: homeY})
+	s.record.move(1000, protocol.Move{X: homeX + 100, Y: homeY})
 	expectShown(t, client)
-	s.presence.move(1000, protocol.Move{X: homeX + 200, Y: homeY})
+	s.record.move(1000, protocol.Move{X: homeX + 200, Y: homeY})
 	expectNothing(t, client)
-	s.presence.move(1000, protocol.Move{X: homeX + 20000, Y: homeY})
+	s.record.move(1000, protocol.Move{X: homeX + 20000, Y: homeY})
 	expectGone(t, client)
 }
 
@@ -124,7 +126,7 @@ func TestEnteringShowsTheGroundAndLeavingTakesItAway(t *testing.T) {
 	client, _ := aPlayer(t, s, 1000, 8, "Kira", 100)
 	expectShown(t, client)
 
-	s.presence.leave(1000)
+	s.record.leave(1000)
 
 	expectGone(t, client)
 }
@@ -147,11 +149,11 @@ func TestADropIsFreedThenClearedAway(t *testing.T) {
 	expectGone(t, client)
 	hendrasPotion(s, p) // laid again, then picked up before its time
 	expectShown(t, client)
-	s.presence.lift(s.presence.ground[5000])
+	s.record.held(func(l locked) { l.lift(l.ground[5000]) })
 	s.keepGround(noon.Add(lieFor))
 	expectNothing(t, client)
-	if len(s.presence.ground) != 0 || len(s.freeing)+len(s.vanishing) != 0 {
-		t.Fatalf("left %d on the ground, %d timers", len(s.presence.ground), len(s.freeing)+len(s.vanishing))
+	if len(s.record.state.ground) != 0 || len(s.freeing)+len(s.vanishing) != 0 {
+		t.Fatalf("left %d on the ground, %d timers", len(s.record.state.ground), len(s.freeing)+len(s.vanishing))
 	}
 }
 
@@ -163,31 +165,31 @@ func TestOnlyTheOwnerPicksADropUpUntilItIsFreed(t *testing.T) {
 	_, hendra := aPlayer(t, s, 1000, 7, "Hendra", 30000)
 	aPlayer(t, s, 1001, 8, "Kira", 30100)
 	hendrasPotion(s, hendra)
-	s.presence.move(1001, protocol.Move{X: homeX + 250, Y: homeY})
+	s.record.move(1001, protocol.Move{X: homeX + 250, Y: homeY})
 
-	if _, got := s.presence.pickUp(1001, 5000, everywhere); got != pickRefused {
+	if _, got := s.record.pickUp(1001, 5000, everywhere); got != pickRefused {
 		t.Fatalf("Kira picked Hendra's potion up before it was freed: %v", got)
 	}
-	s.presence.move(1000, protocol.Move{X: homeX + 400, Y: homeY})
-	if _, got := s.presence.pickUp(1000, 5000, everywhere); got != pickRefused {
+	s.record.move(1000, protocol.Move{X: homeX + 400, Y: homeY})
+	if _, got := s.record.pickUp(1000, 5000, everywhere); got != pickRefused {
 		t.Fatalf("Hendra picked it up from 400 away: %v", got)
 	}
-	s.presence.move(1000, protocol.Move{X: homeX + 300, Y: homeY})
+	s.record.move(1000, protocol.Move{X: homeX + 300, Y: homeY})
 	hendra.char.HP = 0
-	if _, got := s.presence.pickUp(1000, 5000, everywhere); got != pickRefused {
+	if _, got := s.record.pickUp(1000, 5000, everywhere); got != pickRefused {
 		t.Fatalf("Hendra picked it up dead: %v", got)
 	}
 	hendra.char.HP = 1
-	if it, got := s.presence.pickUp(1000, 5000, everywhere); got != picked || it.vnum != 27001 {
+	if it, got := s.record.pickUp(1000, 5000, everywhere); got != picked || it.vnum != 27001 {
 		t.Fatalf("Hendra, beside it, got %v", got)
 	}
-	if _, got := s.presence.pickUp(1000, 5000, everywhere); got != pickRefused {
+	if _, got := s.record.pickUp(1000, 5000, everywhere); got != pickRefused {
 		t.Fatalf("picked up twice: %v", got)
 	}
 
 	hendrasPotion(s, hendra)
 	s.keepGround(noon.Add(ownedFor))
-	if _, got := s.presence.pickUp(1001, 5000, everywhere); got != picked {
+	if _, got := s.record.pickUp(1001, 5000, everywhere); got != picked {
 		t.Fatalf("Kira could not pick the freed potion up: %v", got)
 	}
 }
@@ -198,10 +200,10 @@ func TestAnItemWithNoRoomStaysOnTheGround(t *testing.T) {
 	_, hendra := aPlayer(t, s, 1000, 7, "Hendra", 100)
 	hendrasPotion(s, hendra)
 
-	if _, got := s.presence.pickUp(1000, 5000, func(*groundItem) bool { return false }); got != pickNoRoom {
+	if _, got := s.record.pickUp(1000, 5000, func(*groundItem) bool { return false }); got != pickNoRoom {
 		t.Fatalf("got %v", got)
 	}
-	if s.presence.ground[5000] == nil {
+	if s.record.state.ground[5000] == nil {
 		t.Fatal("the potion left the ground")
 	}
 }
@@ -269,7 +271,7 @@ func TestAPotionWithNoRoomIsLeftAndSheIsTold(t *testing.T) {
 
 	line := textToClient("Nie masz miejsca w ekwipunku.")
 	if got := read(t, client, chatHeaderSize+len(line)+1); string(got) != string(protocol.EncodeChat(protocol.ChatInfo, 0, 0, line)) ||
-		s.svc.presence.ground[5000] == nil {
+		s.svc.record.state.ground[5000] == nil {
 		t.Fatalf("told %x", got)
 	}
 }
@@ -285,8 +287,8 @@ func TestAPotionThatCannotBeKeptGoesBack(t *testing.T) {
 
 	expectGone(t, client)
 	expectShown(t, client)
-	if s.svc.presence.ground[5000] == nil || s.inventory[0].Count != 5 {
-		t.Fatalf("on the ground: %v; carries %+v", s.svc.presence.ground[5000] != nil, s.inventory)
+	if s.svc.record.state.ground[5000] == nil || s.inventory[0].Count != 5 {
+		t.Fatalf("on the ground: %v; carries %+v", s.svc.record.state.ground[5000] != nil, s.inventory)
 	}
 }
 
@@ -304,7 +306,7 @@ func TestAPotionPutBackAfterItsTimeIsGoneOrFree(t *testing.T) {
 
 	expectGone(t, client)
 	expectNothing(t, client)
-	if s.svc.presence.ground[5000] != nil {
+	if s.svc.record.state.ground[5000] != nil {
 		t.Fatal("put back after its minute")
 	}
 
@@ -316,8 +318,8 @@ func TestAPotionPutBackAfterItsTimeIsGoneOrFree(t *testing.T) {
 	}
 	expectGone(t, client)
 	want := string(protocol.EncodeGroundAdd(5000, homeX, homeY, 27001))
-	if got := read(t, client, len(want)); string(got) != want || s.svc.presence.ground[5000].owner != (owner{}) {
-		t.Fatalf("got %x, put back owned by %+v", got, s.svc.presence.ground[5000].owner)
+	if got := read(t, client, len(want)); string(got) != want || s.svc.record.state.ground[5000].owner != (owner{}) {
+		t.Fatalf("got %x, put back owned by %+v", got, s.svc.record.state.ground[5000].owner)
 	}
 }
 
@@ -327,7 +329,7 @@ func TestAnItemClearedAwayIsShownToNobodyArriving(t *testing.T) {
 	s := worldWith(t)
 	_, hendra := aPlayer(t, s, 1000, 7, "Hendra", 100)
 	hendrasPotion(s, hendra)
-	s.presence.vanish(5000)
+	s.record.vanish(5000)
 
 	kira, _ := aPlayer(t, s, 1001, 8, "Kira", 200)
 

@@ -34,7 +34,7 @@ var (
 func (svc *Service) namedPlayer(t *testing.T, vid uint32, name string, x int32) net.Conn {
 	t.Helper()
 	conn, client := watcher(t)
-	svc.presence.enter(&present{out: conn, add: protocol.CharacterAdd{VID: vid, X: x}, info: protocol.CharacterInfo{Name: name}})
+	svc.record.enter(&present{out: conn, add: protocol.CharacterAdd{VID: vid, X: x}, info: protocol.CharacterInfo{Name: name}})
 	return client
 }
 
@@ -51,18 +51,18 @@ func TestAnEventStartingAndEndingIsAnnouncedToEveryPlayer(t *testing.T) {
 	s := worldWith(t)
 	hendra, botka := s.namedPlayer(t, 1000, "Hendra", 0), s.namedPlayer(t, 1001, "Botka", 2*viewRange)
 
-	s.presence.switchEvent(christmas, true)
+	s.record.switchEvent(christmas, true)
 	expectBytes(t, hendra, christmasRuns)
 	expectBytes(t, botka, christmasRuns)
 
-	s.presence.switchEvent(christmas, true)
+	s.record.switchEvent(christmas, true)
 	expectNothing(t, hendra)
 
-	s.presence.switchEvent(event.Event{}, false)
+	s.record.switchEvent(event.Event{}, false)
 	expectBytes(t, hendra, christmasEnded)
 	expectBytes(t, botka, christmasEnded)
 
-	s.presence.switchEvent(event.Event{}, false)
+	s.record.switchEvent(event.Event{}, false)
 	expectNothing(t, hendra)
 }
 
@@ -70,17 +70,17 @@ func TestAnEventStartingAndEndingIsAnnouncedToEveryPlayer(t *testing.T) {
 func TestAnEventFollowingAnotherEndsItFirst(t *testing.T) {
 	s := worldWith(t)
 	hendra := s.namedPlayer(t, 1000, "Hendra", 0)
-	s.presence.switchEvent(christmas, true)
+	s.record.switchEvent(christmas, true)
 	expectBytes(t, hendra, christmasRuns)
 
-	s.presence.switchEvent(newYear, true)
+	s.record.switchEvent(newYear, true)
 
 	expectBytes(t, hendra, christmasEnded, newYearRuns)
 }
 
 func TestAPlayerEnteringWhileAnEventRunsIsTold(t *testing.T) {
 	s := worldWith(t)
-	s.presence.switchEvent(christmas, true)
+	s.record.switchEvent(christmas, true)
 
 	hendra := s.namedPlayer(t, 1000, "Hendra", 0)
 
@@ -91,12 +91,12 @@ func TestAPlayerEnteringWhileAnEventRunsIsTold(t *testing.T) {
 // A dog's 15, doubled.
 func TestAnEventMultipliesWhatAKillGives(t *testing.T) {
 	s, dog, client := aDog(t, homeX+100)
-	s.presence.switchEvent(christmas, true)
+	s.record.switchEvent(christmas, true)
 	expectBytes(t, client, christmasRuns)
 	c := &account.Character{HP: 1000, SP: 1000, Level: 1, Class: account.Warrior, Stats: account.Stats{Strength: 90}}
-	s.presence.all[1000].char = c
+	s.record.state.all[1000].char = c
 
-	s.presence.attack(1000, dog.p.add.VID, 0, someRand, noon)
+	s.record.attack(1000, dog.p.add.VID, 0, someRand, noon)
 	read(t, client, damageSize+deadSize)
 
 	if point, amount, value := pointChange(t, client, 1000); point != protocol.PointExp || amount != 30 || value != 30 {

@@ -74,7 +74,7 @@ func shot(t *testing.T, s *session, at time.Duration) {
 	}
 }
 
-func hurt(s *session) int { return s.svc.monsters[0].p.fight.damageBy[s.svc.presence.all[1000]] }
+func hurt(s *session) int { return s.svc.monsters[0].p.fight.damageBy[s.svc.record.state.all[1000]] }
 
 // A shot at a dog 2700 away lands as her blow: she is told its damage, and one of her
 // arrows is used up and shown so.
@@ -112,11 +112,11 @@ func TestAShotThatCannotLandIsDroppedAndUsesNoArrow(t *testing.T) {
 		}},
 		"no arrows": {100, func(t *testing.T, s *session) {
 			s.inventory = s.inventory[:1]
-			s.svc.presence.all[1000].char.Arrow = 0
+			s.svc.record.state.all[1000].char.Arrow = 0
 			shot(t, s, 0)
 		}},
 		"a dagger in hand": {100, func(t *testing.T, s *session) {
-			s.svc.presence.all[1000].char.Weapon = 1000
+			s.svc.record.state.all[1000].char.Weapon = 1000
 			shot(t, s, 0)
 		}},
 		"by a skill": {100, func(t *testing.T, s *session) {
@@ -129,7 +129,7 @@ func TestAShotThatCannotLandIsDroppedAndUsesNoArrow(t *testing.T) {
 			}
 		}},
 		"dead": {100, func(t *testing.T, s *session) {
-			s.svc.presence.all[1000].char.HP = 0
+			s.svc.record.state.all[1000].char.HP = 0
 			shot(t, s, 0)
 		}},
 	}
@@ -165,7 +165,7 @@ func TestATargetIsShotOnce(t *testing.T) {
 func TestShotsFollowTheAttackSpeed(t *testing.T) {
 	for speed, gap := range map[uint8]time.Duration{100: 1250 * time.Millisecond, 125: time.Second} {
 		s, kept, _, _ := archer(t, 100, 100)
-		s.svc.presence.all[1000].add.AttackSpeed = speed
+		s.svc.record.state.all[1000].add.AttackSpeed = speed
 		shot(t, s, 0)
 		shot(t, s, gap-time.Millisecond)
 		if kept.count[2] != 99 {
@@ -186,9 +186,9 @@ func TestTheLastArrowEmptiesItsPlace(t *testing.T) {
 	shot(t, s, 0)
 
 	if got := drain(t, client); !bytes.Contains(got, itemCleared(item.Item{ID: 2, VNum: 8000, Count: 1, Worn: item.Arrow})) ||
-		len(kept.gone) != 1 || len(s.inventory) != 1 || s.svc.presence.all[1000].char.Arrow != 0 {
+		len(kept.gone) != 1 || len(s.inventory) != 1 || s.svc.record.state.all[1000].char.Arrow != 0 {
 		t.Fatalf("gone %v, carrying %+v, holding arrows %d, told %x", kept.gone, s.inventory,
-			s.svc.presence.all[1000].char.Arrow, got)
+			s.svc.record.state.all[1000].char.Arrow, got)
 	}
 	took := hurt(s)
 	shot(t, s, 2*time.Second)
@@ -223,7 +223,7 @@ func TestTheAimOfTheDeadOrBowlessIsNotShown(t *testing.T) {
 		"no bow": func(c *account.Character) { c.Weapon = 1000 },
 	} {
 		s, _, _, viewer := archer(t, 100, 100)
-		change(s.svc.presence.all[1000].char)
+		change(s.svc.record.state.all[1000].char)
 		if err := s.onFlyTarget(flyAt(7, -5, 9)); err != nil {
 			t.Fatal(err)
 		}
@@ -237,7 +237,7 @@ func TestTheAimOfTheDeadOrBowlessIsNotShown(t *testing.T) {
 func TestABowDoesNotStrikeInMelee(t *testing.T) {
 	s, _, _, _ := archer(t, 100, 100)
 
-	if got := s.svc.presence.attack(1000, s.svc.monsters[0].p.add.VID, 0, someRand, noon); got != blowRefused || hurt(s) != 0 {
+	if got := s.svc.record.attack(1000, s.svc.monsters[0].p.add.VID, 0, someRand, noon); got != blowRefused || hurt(s) != 0 {
 		t.Fatalf("blow %d, the dog took %d", got, hurt(s))
 	}
 }
@@ -261,15 +261,15 @@ func TestArrowsArePutOnInTheirPlace(t *testing.T) {
 	s, kept, client, _ := archer(t, 100, 100)
 	s.inventory = s.inventory[:1]
 	s.inventory = append(s.inventory, item.Item{ID: 3, VNum: 8000, Count: 50, Cell: 4})
-	s.svc.presence.all[1000].char.Arrow = 0
+	s.svc.record.state.all[1000].char.Arrow = 0
 
 	if err := s.onItemUse(context.Background(), doubleClicked(4)); err != nil {
 		t.Fatal(err)
 	}
 
-	if got := drain(t, client); kept.worn[3] != item.Arrow || s.svc.presence.all[1000].char.Arrow != 8000 ||
+	if got := drain(t, client); kept.worn[3] != item.Arrow || s.svc.record.state.all[1000].char.Arrow != 8000 ||
 		!bytes.Contains(got, protocol.EncodeItemSet(protocol.ItemPos{Window: 1, Cell: 99}, 8000, 50)) {
-		t.Fatalf("worn %q, holding %d, told %x", kept.worn[3], s.svc.presence.all[1000].char.Arrow, got)
+		t.Fatalf("worn %q, holding %d, told %x", kept.worn[3], s.svc.record.state.all[1000].char.Arrow, got)
 	}
 	shot(t, s, 0)
 	if kept.count[3] != 49 {

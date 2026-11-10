@@ -24,9 +24,7 @@ func aStone(t *testing.T, x int32) (*Service, *monster, *present, net.Conn) {
 
 // strikeStone takes damage off the stone for the player, as a blow or skill would.
 func strikeStone(s *Service, p *present, stone *monster, damage int, now time.Time) {
-	s.presence.mu.Lock()
-	defer s.presence.mu.Unlock()
-	s.presence.strike(p, stone.p, damage, now)
+	s.record.held(func(l locked) { l.strike(p, stone.p, damage, now) })
 }
 
 // alive is the monsters the stone called that are alive.
@@ -176,7 +174,7 @@ func TestADestroyedStoneTellsItsWinnerAndLeavesThemItsDrops(t *testing.T) {
 
 	kinds := map[uint32]uint8{}
 	var yang uint32
-	for _, it := range s.presence.ground {
+	for _, it := range s.record.state.ground {
 		if it.owner.id != 7 {
 			t.Errorf("%+v is not kept for the winner", it)
 		}
@@ -282,9 +280,9 @@ func TestAMonsterSentAwayAsItsStoneComesBackNeverStrolls(t *testing.T) {
 func TestAMonsterKilledAsItsStoneComesBackStillDies(t *testing.T) {
 	s, stone, p, client := aStone(t, 100)
 	wolf := alive(s, stone)[0]
-	s.presence.mu.Lock()
-	s.presence.strike(p, wolf.p, wolf.p.fight.hp, noon)
-	s.presence.mu.Unlock()
+	s.record.held(func(l locked) {
+		l.strike(p, wolf.p, wolf.p.fight.hp, noon)
+	})
 
 	s.dismiss(stone)
 	s.tick(noon)

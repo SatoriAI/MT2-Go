@@ -77,7 +77,7 @@ func (f *fight) hpPercent() uint8 {
 }
 
 // untarget stops player p targeting t, if it did.
-func untarget(p, t *present) {
+func (l locked) untarget(p, t *present) {
 	if p.target == t {
 		p.target = nil
 		delete(t.fight.targetedBy, p)
@@ -87,12 +87,12 @@ func untarget(p, t *present) {
 // target makes the monster vid the player's target and tells them its hit points; a vid
 // that is not a living monster they see, 0 included, leaves them with none, as does being
 // dead.
-func (w *presence) target(playerVID, vid uint32) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	p := w.all[playerVID]
+func (w *record) target(playerVID, vid uint32) {
+	l, unlock := w.lock()
+	defer unlock()
+	p := l.all[playerVID]
 	if p.target != nil {
-		untarget(p, p.target)
+		l.untarget(p, p.target)
 	}
 	t, seen := p.sees[vid]
 	if p.dead() || !seen || t.fight == nil || t.dead() {
@@ -116,10 +116,10 @@ const (
 // attack lands a blow of the player on the monster vid: the attacker is told the damage,
 // whoever targets it its hit points, and, if it dies, everyone who sees it its death. A
 // blow sooner than gap after the player's last on the same victim is dropped.
-func (w *presence) attack(playerVID, vid uint32, gap time.Duration, r *rand.Rand, now time.Time) blow {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	p := w.all[playerVID]
+func (w *record) attack(playerVID, vid uint32, gap time.Duration, r *rand.Rand, now time.Time) blow {
+	l, unlock := w.lock()
+	defer unlock()
+	p := l.all[playerVID]
 	v, seen := p.sees[vid]
 	if p.dead() || !seen || v.fight == nil || v.dead() || !within(p, v, attackReach) || bowInHand(p.char) {
 		return blowRefused
@@ -129,17 +129,17 @@ func (w *presence) attack(playerVID, vid uint32, gap time.Duration, r *rand.Rand
 		return blowTooSoon
 	}
 	f.lastAttacker, f.lastBlowAt = p, now
-	return w.land(p, v, r, now)
+	return l.land(p, v, r, now)
 }
 
 // land strikes the monster with one of the player's blows, a swing's or an arrow's, at its
-// rolled damage, twice that when a critical chance comes up. Called under the lock.
-func (w *presence) land(p, v *present, r *rand.Rand, now time.Time) blow {
+// rolled damage, twice that when a critical chance comes up.
+func (l locked) land(p, v *present, r *rand.Rand, now time.Time) blow {
 	damage, flag := combat.Damage(attackerOf(p.char), v.fight.defender, r), protocol.DamageNormal
 	if crit := buffBonus(p.char, skill.Critical); crit > 0 && r.IntN(100) < crit {
 		damage, flag = 2*damage, protocol.DamageCritical
 	}
-	return w.strikeAs(p, v, damage, flag, now)
+	return l.strikeAs(p, v, damage, flag, now)
 }
 
 // bowInHand is whether the character holds a bow, which only shoots.
@@ -149,8 +149,8 @@ func bowInHand(c *account.Character) bool {
 }
 
 // attackerOf is what the player's blows are made of: their character, the weapon they
-// hold with the arrows a bow shoots, and what their running buffs add to the attack.
-// Called under the lock.
+// hold with the arrows a bow shoots, and what their running buffs add to the attack. Its
+// caller holds the record's lock, under which the character's gear and buffs change.
 func attackerOf(c *account.Character) combat.Attacker {
 	weapon, _ := item.Lookup(c.Weapon)
 	least, most := weapon.AttackMin, weapon.AttackMax
@@ -162,7 +162,7 @@ func attackerOf(c *account.Character) combat.Attacker {
 }
 
 // buffBonus is what the character's running buffs add to a stat. A buff runs until the
-// world loop ends it. Called under the lock.
+// world loop ends it, under the record's lock, which the caller holds.
 func buffBonus(c *account.Character, stat skill.Stat) int {
 	var bonus int
 	for sk := range c.Buffs {
@@ -179,15 +179,13 @@ func buffBonus(c *account.Character, stat skill.Stat) int {
 // strike takes damage, up to what it has left, from the living monster v for the player p,
 // a blow's or a skill's: p is told the damage, whoever targets v its hit points, and the
 // damage counts towards its drops and experience. A monster left alive turns on p; one
-// killed dies for everyone who sees it, its drops and experience given. Called under the
-// lock.
-func (w *presence) strike(p, v *present, damage int, now time.Time) blow {
-	return w.strikeAs(p, v, damage, protocol.DamageNormal, now)
+// killed dies for everyone who sees it, its drops and experience given.
+func (l locked) strike(p, v *present, damage int, now time.Time) blow {
+	return l.strikeAs(p, v, damage, protocol.DamageNormal, now)
 }
 
 // strikeAs strikes as strike does, the damage drawn as flag: a critical blow's own.
-// Called under the lock.
-func (w *presence) strikeAs(p, v *present, damage int, flag uint8, now time.Time) blow {
+func (l locked) strikeAs(p, v *present, damage int, flag uint8, now time.Time) blow {
 	f := v.fight
 	vid := v.add.VID
 	p.char.LastFought = now
@@ -200,32 +198,31 @@ func (w *presence) strikeAs(p, v *present, damage int, flag uint8, now time.Time
 		t.send(protocol.EncodeTarget(vid, f.hpPercent()))
 	}
 	if f.hp > 0 {
-		w.news.provoked = append(w.news.provoked, provocation{v, p})
+		l.news.provoked = append(l.news.provoked, provocation{v, p})
 		if f.stone {
-			w.wear(v, p)
+			l.wear(v, p)
 		}
 		return blowLanded
 	}
-	w.kill(p, v, now)
+	l.kill(p, v, now)
 	return blowKilled
 }
 
 // kill lays the monster dead at the player's hand: everyone who sees it sees it die, its
-// drops are kept for whoever hurt it most and its experience shared. Called under the
-// lock.
-func (w *presence) kill(p, v *present, now time.Time) {
+// drops are kept for whoever hurt it most and its experience shared.
+func (l locked) kill(p, v *present, now time.Time) {
 	f, vid := v.fight, v.add.VID
 	f.diedAt, f.stunned, f.poisoned, f.slowed, f.burning = now, false, false, false, false // a body is none of these
-	winner := w.topDamager(f, p)
-	w.news.fallen = append(w.news.fallen, death{v, now, owner{id: winner.char.ID, name: winner.info.Name}})
+	winner := l.topDamager(f, p)
+	l.news.fallen = append(l.news.fallen, death{v, now, owner{id: winner.char.ID, name: winner.info.Name}})
 	if f.stone {
 		inform(winner, "Zniszczyłeś kamień Metin.")
 	}
 	for t := range f.targetedBy {
-		untarget(t, v)
+		l.untarget(t, v)
 	}
-	toViewers(v, protocol.EncodeDead(vid))
-	w.shareExp(f, p)
+	l.toViewers(v, protocol.EncodeDead(vid))
+	l.shareExp(f, p)
 }
 
 // stoneWaves is how many waves a stone calls as it is worn down, one each time it loses
@@ -241,23 +238,21 @@ type call struct {
 }
 
 // wear calls the waves the stone owes for the hit points it has lost, at 80, 60, 40 and
-// 20 in a hundred, each once however it heals, and shows its smoke. Called under the
-// lock.
-func (w *presence) wear(v *present, by *present) {
+// 20 in a hundred, each once however it heals, and shows its smoke.
+func (l locked) wear(v *present, by *present) {
 	f := v.fight
 	for int(f.calls) < min(stoneWaves, (f.maxHP-f.hp)*(stoneWaves+1)/f.maxHP) {
 		f.calls++
-		w.news.calls = append(w.news.calls, call{v, by})
+		l.news.calls = append(l.news.calls, call{v, by})
 	}
-	w.showSmoke(v)
+	l.showSmoke(v)
 }
 
-// showSmoke tells everyone who sees the stone its smoke, if its wear changed it. Called
-// under the lock.
-func (w *presence) showSmoke(v *present) {
+// showSmoke tells everyone who sees the stone its smoke, if its wear changed it.
+func (l locked) showSmoke(v *present) {
 	if smoke := smokeOf(v.fight); smoke != v.fight.smoke {
 		v.fight.smoke = smoke
-		toViewers(v, protocol.EncodeCharacterUpdate(v.info, v.add, smoke))
+		l.toViewers(v, protocol.EncodeCharacterUpdate(v.info, v.add, smoke))
 	}
 }
 
@@ -282,11 +277,11 @@ type news struct {
 }
 
 // takeNews hands the world loop the news, with one lock a tick.
-func (w *presence) takeNews() news {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	n := w.news
-	w.news = news{}
+func (w *record) takeNews() news {
+	l, unlock := w.lock()
+	defer unlock()
+	n := l.news
+	l.news = news{}
 	return n
 }
 
@@ -301,7 +296,7 @@ func (s *session) onTarget(body []byte) error {
 	if err != nil {
 		return err
 	}
-	s.svc.presence.target(s.playing.vid, vid)
+	s.svc.record.target(s.playing.vid, vid)
 	return nil
 }
 
@@ -317,12 +312,12 @@ func (s *session) onAttack(body []byte) error {
 	}
 	now := s.svc.now()
 	p := s.playing
-	gap := blowGap(s.svc.presence.attackSpeedOf(p.vid))
+	gap := blowGap(s.svc.record.attackSpeedOf(p.vid))
 	if a.Skill != 0 || (a.Victim == s.lastVictim && now.Sub(s.lastBlow) < gap) {
 		return nil
 	}
 	s.lastVictim, s.lastBlow = a.Victim, now
-	if s.svc.presence.attack(p.vid, a.Victim, gap, s.rand, now) == blowKilled {
+	if s.svc.record.attack(p.vid, a.Victim, gap, s.rand, now) == blowKilled {
 		s.conn.Log().Debug("killed", "character", p.Name, "victim", a.Victim)
 	}
 	return nil

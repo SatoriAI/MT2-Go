@@ -61,7 +61,7 @@ func (s *session) teach(vid uint32, teacher mob.Proto) error {
 		return s.tell(why)
 	}
 	s.talking = &talk{teacher: vid}
-	if _, group := s.svc.presence.trainee(s.playing.vid); group != "" {
+	if _, group := s.svc.record.trainee(s.playing.vid); group != "" {
 		return s.ask("Chcesz porzucić swoją drogę i uczyć się drogi " + paths[g] + "? Zapomnisz to, czego się nauczyłeś, ale odzyskasz wszystkie punkty.")
 	}
 	return s.ask("Mogę nauczyć cię drogi " + paths[g] + ". Czy chcesz nią podążać?")
@@ -71,7 +71,7 @@ func (s *session) teach(vid uint32, teacher mob.Proto) error {
 // take it up now: of another class, below level 5, on that path already, or on the other
 // from level 20.
 func (s *session) whyNot(g account.SkillGroup) (string, bool) {
-	level, group := s.svc.presence.trainee(s.playing.vid)
+	level, group := s.svc.record.trainee(s.playing.vid)
 	groups := s.playing.Class.SkillGroups() // the class never changes in play
 	switch {
 	case !slices.Contains(groups[:], g):
@@ -104,7 +104,7 @@ func (s *session) onScriptAnswer(ctx context.Context, body []byte) error {
 	if t == nil || answer != 0 {
 		return nil
 	}
-	teacher, near := s.svc.presence.npcInReach(s.playing.vid, t.teacher)
+	teacher, near := s.svc.record.npcInReach(s.playing.vid, t.teacher)
 	if !near {
 		return nil
 	}
@@ -126,7 +126,7 @@ func (s *session) choose(ctx context.Context, group account.SkillGroup) error {
 		s.conn.Log().Error("skill group not kept", "group", group, "err", err)
 		return nil
 	}
-	points := s.svc.presence.chooseGroup(s.playing.vid, group)
+	points := s.svc.record.chooseGroup(s.playing.vid, group)
 	s.conn.Log().Info("skill group chosen", "character", s.playing.Name, "group", group)
 	return s.conn.Send(append([][]byte{
 		protocol.EncodeChangeSkillGroup(skillGroupNumber(s.playing.Class, group)),
@@ -145,7 +145,7 @@ func (s *session) raiseSkill(ctx context.Context, arg string) error {
 	if err != nil || !known {
 		return s.conn.Send(infoLine("Tej umiejętności nie można jeszcze rozwijać."))
 	}
-	level, before, ok := s.svc.presence.mayRaise(s.playing.vid, sk)
+	level, before, ok := s.svc.record.mayRaise(s.playing.vid, sk)
 	if !ok {
 		s.conn.Log().Debug("skill not raised", "skill", sk)
 		return nil
@@ -154,7 +154,7 @@ func (s *session) raiseSkill(ctx context.Context, arg string) error {
 		s.conn.Log().Error("skill raised not kept", "skill", sk, "err", err)
 		return nil
 	}
-	levels, points := s.svc.presence.raised(s.playing.vid, sk, level)
+	levels, points := s.svc.record.raised(s.playing.vid, sk, level)
 	return s.conn.Send(protocol.EncodeSkillLevels(levels),
 		pointTold(s.playing.vid, protocol.PointSkillPoints, int64(points)-int64(before), points))
 }
@@ -176,20 +176,20 @@ func script(text string) []byte {
 }
 
 // trainee is what a teacher needs to know of the player: their level and skill group.
-func (w *presence) trainee(vid uint32) (uint8, account.SkillGroup) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	c := w.all[vid].char
+func (w *record) trainee(vid uint32) (uint8, account.SkillGroup) {
+	l, unlock := w.lock()
+	defer unlock()
+	c := l.all[vid].char
 	return c.Level, c.SkillGroup
 }
 
 // chooseGroup puts the player on the skill group with nothing learnt, ending the buffs
 // they had running, and returns the points they now have.
-func (w *presence) chooseGroup(vid uint32, group account.SkillGroup) uint32 {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	pl := w.all[vid]
-	w.endBuffs(pl)
+func (w *record) chooseGroup(vid uint32, group account.SkillGroup) uint32 {
+	l, unlock := w.lock()
+	defer unlock()
+	pl := l.all[vid]
+	l.stopBuffs(pl)
 	c := pl.char
 	c.SkillGroup, c.Skills, c.SkillReads = group, map[account.Skill]uint8{}, map[account.Skill]time.Time{}
 	return skill.Points(c.Level, nil)
@@ -199,10 +199,10 @@ func (w *presence) chooseGroup(vid uint32, group account.SkillGroup) uint32 {
 // they may raise it: it is of their class and the group they chose, not yet a Master, and
 // they have the points the step costs, which a skill raised to 18 or 19 before Masters
 // came takes for nothing.
-func (w *presence) mayRaise(vid uint32, sk account.Skill) (uint8, uint32, bool) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	c := w.all[vid].char
+func (w *record) mayRaise(vid uint32, sk account.Skill) (uint8, uint32, bool) {
+	l, unlock := w.lock()
+	defer unlock()
+	c := l.all[vid].char
 	p, _ := skill.Lookup(sk)
 	points := skill.Points(c.Level, c.Skills)
 	ok := p.Class == c.Class && p.Group == c.SkillGroup && c.Skills[sk] < skill.Master && skill.PointCost(c.Skills[sk]) <= int(points)
@@ -213,14 +213,14 @@ func (w *presence) mayRaise(vid uint32, sk account.Skill) (uint8, uint32, bool) 
 // and the points left. A self-buff of it running adds at its level now, so its effects are
 // shown again, with the defence or speeds it raises; a shaman's buff keeps the level and
 // INT it was cast at, until cast again.
-func (w *presence) raised(vid uint32, sk account.Skill, level uint8) (protocol.SkillLevels, uint32) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	pl := w.all[vid]
+func (w *record) raised(vid uint32, sk account.Skill, level uint8) (protocol.SkillLevels, uint32) {
+	l, unlock := w.lock()
+	defer unlock()
+	pl := l.all[vid]
 	c := pl.char
 	c.Skills[sk] = level
 	if _, running := c.Buffs[sk]; running {
-		w.showAffects(pl, sk)
+		l.showAffects(pl, sk)
 	}
 	return skillLevels(c.Skills), skill.Points(c.Level, c.Skills)
 }

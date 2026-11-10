@@ -58,7 +58,7 @@ func benchWorld(b *testing.B, players, monsters int) (*Service, []*present, *sin
 		x, y := point()
 		p := &present{out: out, add: protocol.CharacterAdd{VID: uint32(100000 + i), X: x, Y: y, MoveSpeed: 150},
 			tether: tether{x: x, y: y}}
-		s.presence.enter(p)
+		s.record.enter(p)
 		everyone = append(everyone, p)
 	}
 	return s, everyone, out
@@ -80,7 +80,7 @@ func BenchmarkPlayerMove(b *testing.B) {
 			for b.Loop() {
 				p := players[i%len(players)]
 				step := int32(300 - 600*(i/len(players)%2))
-				s.presence.walk(p.add.VID, protocol.Move{Type: 1, X: p.add.X + step, Y: p.add.Y}, noon.Add(time.Duration(i)*time.Second))
+				s.record.walk(p.add.VID, protocol.Move{Type: 1, X: p.add.X + step, Y: p.add.Y}, noon.Add(time.Duration(i)*time.Second))
 				i++
 			}
 			b.ReportMetric(float64(out.sends.Load())/float64(b.N), "sends/op")
@@ -101,7 +101,7 @@ func BenchmarkPlayerMoveAmongDrops(b *testing.B) {
 				x, y := m.x+1000+r.Int32N(mapWidth-2000), m.y+1000+r.Int32N(mapHeight-2000)
 				on, _ := world.MapAt(x, y)
 				vid := uint32(900000 + i)
-				s.presence.lay(&groundItem{vid: vid, world: on.Name, x: x, y: y, vnum: 27001, count: 1})
+				s.record.held(func(l locked) { l.lay(&groundItem{vid: vid, world: on.Name, x: x, y: y, vnum: 27001, count: 1}) })
 			}
 			out.sends.Store(0)
 			b.ReportAllocs()
@@ -109,7 +109,7 @@ func BenchmarkPlayerMoveAmongDrops(b *testing.B) {
 			for b.Loop() {
 				p := players[i%len(players)]
 				step := int32(300 - 600*(i/len(players)%2))
-				s.presence.walk(p.add.VID, protocol.Move{Type: 1, X: p.add.X + step, Y: p.add.Y}, noon.Add(time.Duration(i)*time.Second))
+				s.record.walk(p.add.VID, protocol.Move{Type: 1, X: p.add.X + step, Y: p.add.Y}, noon.Add(time.Duration(i)*time.Second))
 				i++
 			}
 			b.ReportMetric(float64(out.sends.Load())/float64(b.N), "sends/op")
@@ -162,8 +162,8 @@ func BenchmarkPlayerEnter(b *testing.B) {
 			for b.Loop() {
 				p := &present{out: out, info: protocol.CharacterInfo{Name: "Newcomer"},
 					add: protocol.CharacterAdd{VID: 1 << 30, X: at.X, Y: at.Y}}
-				s.presence.enter(p)
-				s.presence.leave(p.add.VID)
+				s.record.enter(p)
+				s.record.leave(p.add.VID)
 			}
 		})
 	}
@@ -179,14 +179,14 @@ func BenchmarkPlayerRegeneration(b *testing.B) {
 			for _, p := range everyone {
 				p.char = &account.Character{Level: 1, Class: account.Sura, Stats: account.Stats{Vitality: 3, Intelligence: 5}}
 				p.info.Name = fmt.Sprint(p.add.VID)
-				s.presence.byName[p.info.Name] = p
+				s.record.state.byName[p.info.Name] = p
 			}
 			b.ReportAllocs()
 			for b.Loop() {
 				for _, p := range everyone {
 					p.char.HP, p.char.SP = 1, 0
 				}
-				s.presence.regenPlayers(noon)
+				s.record.regenPlayers(noon)
 			}
 		})
 	}

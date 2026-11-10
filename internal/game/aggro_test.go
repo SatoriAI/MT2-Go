@@ -17,8 +17,8 @@ func suraHits(t *testing.T, x int32) (*Service, *monster, net.Conn, *account.Cha
 	c := &account.Character{Level: 1, Class: account.Sura, Stats: account.Stats{Strength: 5, Vitality: 3, Dexterity: 3, Intelligence: 5}}
 	points, _ := c.Points()
 	c.HP, c.SP = points.MaxHP, points.MaxSP
-	s.presence.all[1000].char = c
-	if got := s.presence.attack(1000, dog.p.add.VID, 0, someRand, noon); got != blowLanded {
+	s.record.state.all[1000].char = c
+	if got := s.record.attack(1000, dog.p.add.VID, 0, someRand, noon); got != blowLanded {
 		t.Fatalf("the blow came to %v", got)
 	}
 	read(t, client, damageSize)
@@ -92,7 +92,7 @@ func TestAMonsterChasesAnAttackerOutOfReach(t *testing.T) {
 // A chasing monster walks no faster than its move speed: 200 each half second at 100.
 func TestAChaseStepIsNoLongerThanTheMonsterWalks(t *testing.T) {
 	s, dog, client, _ := suraHits(t, 100)
-	s.presence.move(1000, protocol.Move{X: homeX + 3000, Y: homeY})
+	s.record.move(1000, protocol.Move{X: homeX + 3000, Y: homeY})
 
 	for i, at := range []time.Duration{0, 500 * time.Millisecond} {
 		s.tick(noon.Add(at))
@@ -110,7 +110,7 @@ func TestAChaseStepIsNoLongerThanTheMonsterWalks(t *testing.T) {
 // again from there.
 func TestAMonsterThatCannotBiteForTenSecondsGivesUp(t *testing.T) {
 	s, dog, _, _ := suraHits(t, 100)
-	s.presence.move(1000, protocol.Move{X: homeX + 7900, Y: homeY})
+	s.record.move(1000, protocol.Move{X: homeX + 7900, Y: homeY})
 	for at := time.Duration(0); at < giveUpAfter; at += chaseStep {
 		s.tick(noon.Add(at))
 	}
@@ -141,7 +141,7 @@ func TestAMonsterLedTooFarGivesUp(t *testing.T) {
 // A monster whose target left the world gives up.
 func TestAMonsterWhoseTargetLeftGivesUp(t *testing.T) {
 	s, dog, _, _ := suraHits(t, 100)
-	s.presence.leave(1000)
+	s.record.leave(1000)
 
 	s.tick(noon)
 
@@ -155,7 +155,7 @@ func TestAMonsterKilledMidFightStopsFighting(t *testing.T) {
 	s, dog, _, c := suraHits(t, 100)
 	s.tick(noon)
 	c.Strength, c.Class = 90, account.Warrior
-	s.presence.attack(1000, dog.p.add.VID, 0, someRand, noon.Add(time.Second))
+	s.record.attack(1000, dog.p.add.VID, 0, someRand, noon.Add(time.Second))
 
 	s.tick(noon.Add(time.Second))
 
@@ -170,7 +170,7 @@ func TestAMonsterKilledMidFightStopsFighting(t *testing.T) {
 func TestABiteThatTakesTheLastHitPointsKills(t *testing.T) {
 	s, dog, client, c := suraHits(t, 100)
 	onlooker, onlookerClient := watcher(t)
-	s.presence.enter(&present{out: onlooker, add: protocol.CharacterAdd{VID: 2000, X: homeX + 200, Y: homeY},
+	s.record.enter(&present{out: onlooker, add: protocol.CharacterAdd{VID: 2000, X: homeX + 200, Y: homeY},
 		char: &account.Character{HP: 1000}})
 	read(t, client, addSize) // the onlooker
 	c.HP, c.Exp = 10, 100
@@ -202,8 +202,8 @@ func TestADeadPlayerCannotHitOrPick(t *testing.T) {
 	s, dog, client, c := suraHits(t, 100)
 	c.HP = 0
 
-	s.presence.target(1000, dog.p.add.VID)
-	if got := s.presence.attack(1000, dog.p.add.VID, 0, someRand, noon.Add(time.Second)); got != blowRefused {
+	s.record.target(1000, dog.p.add.VID)
+	if got := s.record.attack(1000, dog.p.add.VID, 0, someRand, noon.Add(time.Second)); got != blowRefused {
 		t.Fatalf("a dead player's blow came to %v", got)
 	}
 	expectNothing(t, client)
@@ -214,10 +214,10 @@ func TestADeadPlayerCannotHitOrPick(t *testing.T) {
 func TestRestartingHereGivesHalfTheHitPoints(t *testing.T) {
 	s, dog, client, c := suraHits(t, 100)
 	c.HP = 0
-	p := s.presence.all[1000]
+	p := s.record.state.all[1000]
 	points, _ := c.Points()
 
-	if !s.presence.revive(1000, false, 0, 0, noon) {
+	if !s.record.revive(1000, false, 0, 0, noon) {
 		t.Fatal("not revived")
 	}
 
@@ -250,15 +250,15 @@ func expectRevival(t *testing.T, client net.Conn, p *present, hp, sp uint32) {
 func TestRestartingInTownGivesAllTheHitPointsAtTheStart(t *testing.T) {
 	s, _, client, c := suraHits(t, 100)
 	onlooker, onlookerClient := watcher(t)
-	s.presence.enter(&present{out: onlooker, add: protocol.CharacterAdd{VID: 2000, X: homeX + 200, Y: homeY},
+	s.record.enter(&present{out: onlooker, add: protocol.CharacterAdd{VID: 2000, X: homeX + 200, Y: homeY},
 		char: &account.Character{HP: 1000}})
 	read(t, client, addSize)           // the onlooker
 	read(t, onlookerClient, 2*addSize) // the dog and her
 	c.HP = 0
-	p := s.presence.all[1000]
+	p := s.record.state.all[1000]
 	points, _ := c.Points()
 
-	s.presence.revive(1000, true, homeX+20000, homeY, noon)
+	s.record.revive(1000, true, homeX+20000, homeY, noon)
 
 	expectRevival(t, client, p, points.MaxHP, points.MaxSP)
 	if p.add.X != homeX+20000 {
@@ -275,7 +275,7 @@ func TestRestartingWhileAliveChangesNothing(t *testing.T) {
 	s, _, client, c := suraHits(t, 100)
 	hp := c.HP
 
-	if s.presence.revive(1000, true, 0, 0, noon) {
+	if s.record.revive(1000, true, 0, 0, noon) {
 		t.Fatal("revived a living player")
 	}
 	if c.HP != hp {
@@ -303,10 +303,10 @@ func TestADeadPlayerGetsNoShare(t *testing.T) {
 	c.HP = 0
 	killer, _ := watcher(t)
 	strong := &account.Character{HP: 1000, SP: 1000, Level: 1, Class: account.Warrior, Stats: account.Stats{Strength: 90}}
-	s.presence.enter(&present{out: killer, add: protocol.CharacterAdd{VID: 2000, X: homeX + 150, Y: homeY}, char: strong})
+	s.record.enter(&present{out: killer, add: protocol.CharacterAdd{VID: 2000, X: homeX + 150, Y: homeY}, char: strong})
 	read(t, client, addSize) // the killer
 
-	s.presence.attack(2000, dog.p.add.VID, 0, someRand, noon)
+	s.record.attack(2000, dog.p.add.VID, 0, someRand, noon)
 
 	read(t, client, deadSize) // the dog
 	expectNothing(t, client)
@@ -318,9 +318,9 @@ func TestADeadPlayerGetsNoShare(t *testing.T) {
 // A monster killed after the loop last looked for deaths does not bite from its body.
 func TestAMonsterKilledBeforeItsStepDoesNotBite(t *testing.T) {
 	s, dog, _, c := suraHits(t, 100)
-	s.engage([]provocation{{dog.p, s.presence.all[1000]}}, noon)
+	s.engage([]provocation{{dog.p, s.record.state.all[1000]}}, noon)
 	c.Strength, c.Class = 90, account.Warrior
-	s.presence.attack(1000, dog.p.add.VID, 0, someRand, noon)
+	s.record.attack(1000, dog.p.add.VID, 0, someRand, noon)
 	hp := c.HP
 
 	s.fightOn(noon)
@@ -341,7 +341,7 @@ func TestBlowsFromItsTargetKeepAMonsterFighting(t *testing.T) {
 	if !dog.chase.lastExchange.Equal(noon) {
 		t.Fatal("another's blow counted")
 	}
-	s.engage([]provocation{{dog.p, s.presence.all[1000]}}, later)
+	s.engage([]provocation{{dog.p, s.record.state.all[1000]}}, later)
 
 	if !dog.chase.lastExchange.Equal(later) {
 		t.Fatalf("last fought at %v, want her blow at %v", dog.chase.lastExchange, later)

@@ -19,7 +19,7 @@ const homeX, homeY = 963400, 278200
 func (svc *Service) playerAt(t *testing.T, x int32, shown int) net.Conn {
 	t.Helper()
 	conn, client := watcher(t)
-	svc.presence.enter(&present{out: conn, add: protocol.CharacterAdd{VID: 1000, X: x, Y: homeY}})
+	svc.record.enter(&present{out: conn, add: protocol.CharacterAdd{VID: 1000, X: x, Y: homeY}})
 	read(t, client, shown)
 	return client
 }
@@ -86,7 +86,7 @@ func TestAMonsterWalkingIntoViewIsShownBeforeItsMove(t *testing.T) {
 	client := s.playerAt(t, homeX, 0)
 	vid := s.monsters[0].p.add.VID
 
-	s.presence.move(vid, protocol.Move{Type: protocol.MoveWait, X: homeX + 7000, Y: homeY})
+	s.record.move(vid, protocol.Move{Type: protocol.MoveWait, X: homeX + 7000, Y: homeY})
 
 	if got := read(t, client, addSize+moveSize); got[0] != byte(protocol.ServerCharacterAdd) ||
 		got[addSize] != byte(protocol.ServerMove) {
@@ -135,7 +135,7 @@ func TestFacingIsTheClientsAngleInStepsOfFive(t *testing.T) {
 func TestMobsDoNotSeeEachOther(t *testing.T) {
 	s := worldWith(t, world.Spawn{VNum: 101, X: homeX, Y: homeY, Count: 3}, world.Spawn{VNum: 9001, X: homeX, Y: homeY, Count: 1})
 
-	for vid, p := range s.presence.all {
+	for vid, p := range s.record.state.all {
 		if len(p.sees) != 0 {
 			t.Errorf("mob %d sees %d others", vid, len(p.sees))
 		}

@@ -25,10 +25,10 @@ func dressing(t *testing.T) (*session, *keptItems, net.Conn, net.Conn) {
 	conn, client := watcher(t)
 	hendra := &character{vid: 1000, Character: account.Character{Name: "Hendra", Class: account.Sura, Level: 1, HP: 1,
 		Stats: account.Stats{Vitality: 3}}}
-	svc.presence.enter(&present{out: conn, char: &hendra.Character, info: protocol.CharacterInfo{VID: 1000, Name: "Hendra"},
+	svc.record.enter(&present{out: conn, char: &hendra.Character, info: protocol.CharacterInfo{VID: 1000, Name: "Hendra"},
 		add: protocol.CharacterAdd{VID: 1000, X: homeX, Y: homeY, Type: protocol.EntityPlayer, MoveSpeed: 150, AttackSpeed: 150}})
 	viewerConn, viewer := watcher(t)
-	svc.presence.enter(&present{out: viewerConn, char: &account.Character{Name: "Kira", HP: 1},
+	svc.record.enter(&present{out: viewerConn, char: &account.Character{Name: "Kira", HP: 1},
 		info: protocol.CharacterInfo{VID: 1001, Name: "Kira"},
 		add:  protocol.CharacterAdd{VID: 1001, X: homeX + 100, Y: homeY, Type: protocol.EntityPlayer}})
 	read(t, client, addSize+infoSize) // each is shown the other
@@ -203,11 +203,11 @@ func TestWhatIsPutOnCountsInTheFight(t *testing.T) {
 	s, dog, client := aDog(t, homeX+100)
 	c := &account.Character{Level: 1, Class: account.Sura, HP: 1000,
 		Stats: account.Stats{Strength: 5, Vitality: 3, Dexterity: 3, Intelligence: 5}}
-	s.presence.all[1000].char = c
-	s.presence.dress(1000, outfit{weapon: 10, body: 11600})
+	s.record.state.all[1000].char = c
+	s.record.dress(1000, outfit{weapon: 10, body: 11600})
 	read(t, client, updateSize+2*pointChangeSize) // her new look, DEF, and speed: this one had none
 
-	s.presence.attack(1000, dog.p.add.VID, 0, someRand, noon)
+	s.record.attack(1000, dog.p.add.VID, 0, someRand, noon)
 
 	d := protocol.NewReader(read(t, client, damageSize)[1:])
 	if _, _, damage := d.U32(), d.U8(), d.I32(); damage < 31 || damage > 42 {
@@ -272,7 +272,7 @@ func TestShoesAreFasterByTheirGrade(t *testing.T) {
 	if got := read(t, viewer, updateSize); string(got) != string(faster) {
 		t.Fatalf("Kira got %x", got)
 	}
-	if shown := s.svc.presence.all[1000].add.MoveSpeed; shown != 159 { // what anyone arriving is shown
+	if shown := s.svc.record.state.all[1000].add.MoveSpeed; shown != 159 { // what anyone arriving is shown
 		t.Fatalf("shown at %d", shown)
 	}
 
@@ -358,7 +358,7 @@ func TestShoesWornOnEnteringSetHerSpeed(t *testing.T) {
 func TestGearAboveTheCharactersLevelIsNotPutOn(t *testing.T) {
 	s, kept, client, _ := dressing(t)
 	s.inventory = append(s.inventory, item.Item{ID: 5, VNum: 30, Count: 1, Cell: 4})
-	s.svc.presence.all[1000].char.Level = 9
+	s.svc.record.state.all[1000].char.Level = 9
 
 	if err := s.onItemUse(context.Background(), doubleClicked(4)); err != nil {
 		t.Fatal(err)
@@ -368,7 +368,7 @@ func TestGearAboveTheCharactersLevelIsNotPutOn(t *testing.T) {
 		t.Fatalf("told %x, kept %v", got, kept.worn)
 	}
 
-	s.svc.presence.all[1000].char.Level = 10
+	s.svc.record.state.all[1000].char.Level = 10
 	if err := s.onItemUse(context.Background(), doubleClicked(4)); err != nil {
 		t.Fatal(err)
 	}

@@ -71,7 +71,7 @@ func playing(t *testing.T) (*Service, *saves, *character, *present) {
 	conn, _ := watcher(t)
 	p := &present{out: conn, char: &c.Character,
 		add: protocol.CharacterAdd{VID: c.vid, X: homeX, Y: homeY}, info: protocol.CharacterInfo{Name: c.Name}}
-	s.presence.enter(p)
+	s.record.enter(p)
 	return s, store, c, p
 }
 
@@ -79,7 +79,7 @@ func playing(t *testing.T) (*Service, *saves, *character, *present) {
 // record has them.
 func TestAPlayerInTheWorldIsSavedAsTheyAreNow(t *testing.T) {
 	s, store, _, p := playing(t)
-	s.presence.move(1000, protocol.Move{X: homeX + 500, Y: homeY})
+	s.record.move(1000, protocol.Move{X: homeX + 500, Y: homeY})
 
 	s.saveInWorld(p, quiet)
 
@@ -93,7 +93,7 @@ func TestAPlayerInTheWorldIsSavedAsTheyAreNow(t *testing.T) {
 // One who left was saved on leaving, and a save that finds them gone saves nothing.
 func TestAPlayerWhoLeftIsNotSavedAgain(t *testing.T) {
 	s, store, _, p := playing(t)
-	s.presence.leave(1000)
+	s.record.leave(1000)
 
 	s.saveInWorld(p, quiet)
 
@@ -112,9 +112,9 @@ func TestTheSaveOnLeavingLandsAfterOneUnderWay(t *testing.T) {
 	go func() { s.saveInWorld(p, quiet); close(periodic) }()
 	<-store.held // the periodic save has its snapshot, at 40, and is writing
 
-	s.presence.mu.Lock()
-	c.Exp = 55 // a kill, under the lock as in play
-	s.presence.mu.Unlock()
+	s.record.held(func(l locked) {
+		c.Exp = 55 // a kill, under the lock as in play
+	})
 	leaving := make(chan struct{})
 	go func() { s.leaveAndSave(c, account.EmpireNone, quiet); close(leaving) }()
 	select {
@@ -161,7 +161,7 @@ func TestSavingInTheWorldReadsNothingTheConnectionWritesUnlocked(t *testing.T) {
 		defer close(done)
 		for i := range int32(100) {
 			c.X, c.Y = homeX+i, homeY // as onMove does, on the connection's goroutine
-			s.presence.move(1000, protocol.Move{X: homeX + i, Y: homeY})
+			s.record.move(1000, protocol.Move{X: homeX + i, Y: homeY})
 		}
 	}()
 	for range 100 {
@@ -190,7 +190,7 @@ func TestStoppingEndsARoundOfSaves(t *testing.T) {
 	s, store, _, _ := playing(t)
 	conn, _ := watcher(t)
 	kira := account.Character{ID: 8, Name: "Kira", HP: 1000}
-	s.presence.enter(&present{out: conn, char: &kira,
+	s.record.enter(&present{out: conn, char: &kira,
 		add: protocol.CharacterAdd{VID: 1001, X: homeX, Y: homeY}, info: protocol.CharacterInfo{Name: kira.Name}})
 	release := make(chan struct{})
 	store.held, store.hold = make(chan struct{}), release

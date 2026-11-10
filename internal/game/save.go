@@ -23,7 +23,7 @@ func (svc *Service) SavePlayers(ctx context.Context, every time.Duration, log *s
 		case <-ctx.Done():
 			return nil
 		case <-t.C:
-			for _, p := range svc.presence.players() {
+			for _, p := range svc.record.players() {
 				if ctx.Err() != nil {
 					return nil // at shutdown each player is saved on leaving, without waiting on this round
 				}
@@ -40,7 +40,7 @@ func (svc *Service) SavePlayers(ctx context.Context, every time.Duration, log *s
 func (svc *Service) saveInWorld(p *present, log *slog.Logger) {
 	p.saving.Lock()
 	defer p.saving.Unlock()
-	if c, ok := svc.presence.snapshot(p); ok {
+	if c, ok := svc.record.snapshot(p); ok {
 		svc.save(c, log, slog.LevelDebug) // warned once, on leaving, not every minute
 	}
 }
@@ -51,7 +51,7 @@ func (svc *Service) saveInWorld(p *present, log *slog.Logger) {
 // who leaves dead is saved as a restart in town would leave them: at their kingdom's
 // start, with all their hit points and mana.
 func (svc *Service) leaveAndSave(c *character, empire account.Empire, log *slog.Logger) {
-	p := svc.presence.leave(c.vid)
+	p := svc.record.leave(c.vid)
 	p.saving.Lock()
 	defer p.saving.Unlock()
 	saved := c.Character
