@@ -169,7 +169,7 @@ func TestAMovedItemIsKept(t *testing.T) {
 	inv, _ := s.mustApply(t, cid)
 
 	inv[0].Cell = 17
-	if err := s.Place(context.Background(), inv[0]); err != nil {
+	if err := s.Place(context.Background(), cid, inv[0]); err != nil {
 		t.Fatal(err)
 	}
 
@@ -188,13 +188,13 @@ func TestASwapIsKeptWhole(t *testing.T) {
 	inv, _ := s.mustApply(t, cid) // swords at 0 and 1
 	worn, other := inv[0], inv[1]
 	worn.Worn = item.Weapon
-	if err := s.Place(context.Background(), worn); err != nil {
+	if err := s.Place(context.Background(), cid, worn); err != nil {
 		t.Fatal(err)
 	}
 
 	worn.Worn, worn.Cell = "", other.Cell
 	other.Worn = item.Weapon
-	if err := s.Place(context.Background(), other, worn); err != nil {
+	if err := s.Place(context.Background(), cid, other, worn); err != nil {
 		t.Fatal(err)
 	}
 
@@ -213,7 +213,7 @@ func TestTheDatabaseKeepsOneItemToAPlace(t *testing.T) {
 	inv, _ := s.mustApply(t, cid)
 	inv[0].Worn, inv[1].Worn = item.Weapon, item.Weapon
 
-	if err := s.Place(context.Background(), inv[0], inv[1]); err == nil {
+	if err := s.Place(context.Background(), cid, inv[0], inv[1]); err == nil {
 		t.Error("kept two weapons worn at once")
 	}
 	for _, sql := range []string{
@@ -233,7 +233,7 @@ func TestTheArmourWornIsReadWithTheCharacter(t *testing.T) {
 	s.mustOrder(t, item.Order{Kind: item.Give, VNum: 11600, Count: 1})
 	inv, _ := s.mustApply(t, cid)
 	inv[0].Worn = item.Body
-	if err := s.Place(context.Background(), inv[0]); err != nil {
+	if err := s.Place(context.Background(), cid, inv[0]); err != nil {
 		t.Fatal(err)
 	}
 
@@ -256,7 +256,7 @@ func TestAnItemPickedUpIsKept(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := s.SetCount(context.Background(), id, 2); err != nil {
+	if err := s.SetCount(context.Background(), cid, id, 2); err != nil {
 		t.Fatal(err)
 	}
 
@@ -278,7 +278,7 @@ func TestARemovedItemIsForgotten(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := s.Remove(context.Background(), last); err != nil {
+	if err := s.Remove(context.Background(), cid, last); err != nil {
 		t.Fatal(err)
 	}
 
@@ -340,7 +340,7 @@ func TestAHelmetShoesAndAShieldAreKeptWorn(t *testing.T) {
 	inv, _ := s.mustApply(t, cid)
 	inv[0].Worn, inv[1].Worn, inv[2].Worn = item.Head, item.Feet, item.Shield
 
-	if err := s.Place(context.Background(), inv...); err != nil {
+	if err := s.Place(context.Background(), cid, inv...); err != nil {
 		t.Fatal(err)
 	}
 
@@ -350,5 +350,54 @@ func TestAHelmetShoesAndAShieldAreKeptWorn(t *testing.T) {
 	shield, _ := got.WornIn(item.Shield)
 	if len(got) != 3 || helmet.VNum != 12480 || shoes.VNum != 15000 || shield.VNum != 13000 {
 		t.Fatalf("kept %+v", got)
+	}
+}
+
+// Every write to an item names its owner: Hendra writing to Kira's potion is refused,
+// whichever write it is, and neither the potion, Hendra's sword she upgraded with it, nor
+// Hendra's yang changes.
+func TestAWriteToAnotherCharactersItemIsRefused(t *testing.T) {
+	s, hendra, kira, sword, _, potion := traders(t)
+	ctx := context.Background()
+	theirs := item.Item{ID: potion, VNum: 27001, Count: 1, Cell: 7}
+	for name, write := range map[string]func() error{
+		"place":    func() error { return s.Place(ctx, hendra, theirs) },
+		"count":    func() error { return s.SetCount(ctx, hendra, potion, 1) },
+		"remove":   func() error { return s.Remove(ctx, hendra, potion) },
+		"buy into": func() error { _, _, err := s.Buy(ctx, hendra, 10, theirs); return err },
+		"sell":     func() error { _, err := s.Sell(ctx, hendra, 10, theirs); return err },
+		"sell all": func() error { _, err := s.Sell(ctx, hendra, 10, item.Item{ID: potion}); return err },
+		"upgrade": func() error {
+			_, err := s.Upgrade(ctx, hendra, 10, item.Item{ID: potion, VNum: 27002}, nil)
+			return err
+		},
+		"spend": func() error {
+			_, err := s.Upgrade(ctx, hendra, 10, item.Item{ID: sword, VNum: 15}, []item.Item{theirs})
+			return err
+		},
+		"spend all": func() error {
+			_, err := s.Upgrade(ctx, hendra, 10, item.Item{ID: sword, VNum: 15}, []item.Item{{ID: potion}})
+			return err
+		},
+	} {
+		if err := write(); !errors.Is(err, ErrNotOwned) {
+			t.Errorf("%s: %v, want ErrNotOwned", name, err)
+		}
+	}
+
+	var owner uint32
+	var vnum, cell, count int
+	if err := s.Pool.QueryRow(ctx, `SELECT character_id, vnum, cell, count FROM items WHERE id = $1`, potion).
+		Scan(&owner, &vnum, &cell, &count); err != nil {
+		t.Fatal(err)
+	}
+	if owner != kira || vnum != 27001 || cell != 0 || count != 3 {
+		t.Fatalf("Kira's potion now %d's, %d at %d, x%d", owner, vnum, cell, count)
+	}
+	if err := s.Pool.QueryRow(ctx, `SELECT vnum FROM items WHERE id = $1`, sword).Scan(&vnum); err != nil || vnum != 14 {
+		t.Fatalf("Hendra's sword now %d (%v)", vnum, err)
+	}
+	if gold, err := s.Gold(ctx, hendra); err != nil || gold != 1000 {
+		t.Fatalf("Hendra holds %d yang (%v)", gold, err)
 	}
 }

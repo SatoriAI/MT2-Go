@@ -44,7 +44,7 @@ Seen from the real client: a sword dragged from cell 0 to 17 sends `0D 01 00 00 
 `internal/item` holds the kinds and the inventory's rules; `internal/store/items.go` keeps what characters own; `internal/game/items.go` shows and moves it.
 
 - **The kinds** are a table in `internal/item`, only those the game hands out: each class's first weapons, body armour and helmet, the first shoes and shield, and a curated few beyond them up to level 36, with their grades +1 to +9 ([equipment.md](equipment.md), [upgrading.md](upgrading.md)), red and blue potions, the two materials of upgrades, and the skill books of the game's 38 skills and the soul stone ([skills.md](skills.md)). Each has its vnum, the Polish client's name, its height in cells, and how many one item holds, 1 or 200; what is worn says more ([equipment.md](equipment.md)), and so do a shop's prices ([shops.md](shops.md)). A kind is added with a line there. A stack holds up to 200, as open-mt2's shops sell potions.
-- **An item** is a row: its kind, its count, and the cell of its top. The database keeps two items from sharing a top cell, and the game keeps a tall item from covering another's cells. Every change is written as it happens, never in a periodic save, so a crash neither loses nor duplicates an item.
+- **An item** is a row: its kind, its count, and the cell of its top. The database keeps two items from sharing a top cell, and the game keeps a tall item from covering another's cells. Every change is written as it happens, never in a periodic save, so a crash neither loses nor duplicates an item. Every write names the item's owner as well as its id, so one aimed at another character's item changes nothing and is refused.
 - **Where items come from:** monsters' drops ([drops.md](drops.md)), and the command line.
 - **Giving and taking** are orders, left by the command line while there is no website:
 
@@ -94,6 +94,7 @@ Seen from the real client: a sword dragged from cell 0 to 17 sends `0D 01 00 00 
   - takes, including of an item already gone;
   - orders refused for nobody or for an item not theirs;
   - the database refusing a bad count, cell or a shared cell;
+  - a write to another character's item refused, whichever write it is, and nothing changed;
   - unknown kinds found;
   - a move kept.
 - `internal/game/items_test.go`: a move made, kept and told; a split, a drop onto another item, a move off the page and to another window refused with the item shown back; a move the database refuses not made; a drag from an empty cell not answered.

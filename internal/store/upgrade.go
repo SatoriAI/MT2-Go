@@ -19,17 +19,12 @@ func (s Items) Upgrade(ctx context.Context, characterID, cost uint32, upgraded i
 			characterID, cost).Scan(&gold); err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx, `UPDATE items SET vnum = $2 WHERE id = $1`, upgraded.ID, upgraded.VNum); err != nil {
+		if err := owned(tx.Exec(ctx, `UPDATE items SET vnum = $2 WHERE id = $1 AND character_id = $3`,
+			upgraded.ID, upgraded.VNum, characterID)); err != nil {
 			return err
 		}
 		for _, m := range spent {
-			var err error
-			if m.Count == 0 {
-				_, err = tx.Exec(ctx, `DELETE FROM items WHERE id = $1`, m.ID)
-			} else {
-				_, err = tx.Exec(ctx, `UPDATE items SET count = $2 WHERE id = $1`, m.ID, m.Count)
-			}
-			if err != nil {
+			if err := keepLeft(ctx, tx, characterID, m); err != nil {
 				return err
 			}
 		}

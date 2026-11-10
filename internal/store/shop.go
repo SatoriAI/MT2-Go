@@ -20,8 +20,7 @@ func (s Items) Buy(ctx context.Context, characterID, price uint32, into item.Ite
 			return err
 		}
 		if into.ID != 0 {
-			_, err := tx.Exec(ctx, `UPDATE items SET count = $2 WHERE id = $1`, into.ID, into.Count)
-			return err
+			return setCount(ctx, tx, characterID, into.ID, into.Count)
 		}
 		return tx.QueryRow(ctx, `INSERT INTO items (character_id, vnum, count, cell) VALUES ($1, $2, $3, $4)
 			RETURNING id`, characterID, into.VNum, into.Count, into.Cell).Scan(&into.ID)
@@ -39,13 +38,7 @@ func (s Items) Sell(ctx context.Context, characterID, pay uint32, left item.Item
 			characterID, pay).Scan(&gold); err != nil {
 			return err
 		}
-		var err error
-		if left.Count == 0 {
-			_, err = tx.Exec(ctx, `DELETE FROM items WHERE id = $1`, left.ID)
-		} else {
-			_, err = tx.Exec(ctx, `UPDATE items SET count = $2 WHERE id = $1`, left.ID, left.Count)
-		}
-		return err
+		return keepLeft(ctx, tx, characterID, left)
 	})
 	return gold, err
 }

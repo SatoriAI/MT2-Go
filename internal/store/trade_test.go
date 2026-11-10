@@ -96,7 +96,7 @@ func TestATradeThatCannotBeKeptChangesNothing(t *testing.T) {
 		"worn":      {{Character: hendra}, {Character: kira, Items: []item.Item{{ID: potion, Cell: 9}}}},
 	} {
 		if name == "worn" {
-			if err := s.Place(ctx, item.Item{ID: potion, Worn: item.Body}); err != nil {
+			if err := s.Place(ctx, kira, item.Item{ID: potion, Worn: item.Body}); err != nil {
 				t.Fatal(err)
 			}
 		}
