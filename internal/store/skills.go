@@ -9,7 +9,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/SatoriAI/MT2-Go/internal/account"
-	"github.com/SatoriAI/MT2-Go/internal/item"
 )
 
 // Skills keeps each character's skill group and the skills it has learnt.
@@ -62,9 +61,9 @@ func (s Skills) Raise(ctx context.Context, characterID uint32, skill account.Ski
 var ErrNotTrained = errors.New("store: the skill or what trains it changed")
 
 // Train keeps a read of a book or a soul stone, all of it or none: the skill from level
-// from at level to, the same on a failed read, and next read no sooner than next; and
-// what trained it used, the stack at its count left, or forgotten with none left.
-func (s Skills) Train(ctx context.Context, characterID uint32, skill account.Skill, from, to uint8, next time.Time, used item.Item) error {
+// from at level to, the same on a failed read, and next read no sooner than next; and the
+// book or stone used, which never stack, forgotten.
+func (s Skills) Train(ctx context.Context, characterID uint32, skill account.Skill, from, to uint8, next time.Time, used int64) error {
 	return pgx.BeginFunc(ctx, s.Pool, func(tx pgx.Tx) error {
 		tag, err := tx.Exec(ctx, `UPDATE skills SET level = $4, next_read = $5
 			WHERE character_id = $1 AND skill = $2 AND level = $3`, characterID, skill, from, to, next)
@@ -74,12 +73,7 @@ func (s Skills) Train(ctx context.Context, characterID uint32, skill account.Ski
 		if tag.RowsAffected() != 1 {
 			return ErrNotTrained
 		}
-		if used.Count == 0 {
-			tag, err = tx.Exec(ctx, `DELETE FROM items WHERE id = $1 AND character_id = $2 AND worn IS NULL`, used.ID, characterID)
-		} else {
-			tag, err = tx.Exec(ctx, `UPDATE items SET count = $3 WHERE id = $1 AND character_id = $2 AND worn IS NULL`,
-				used.ID, characterID, used.Count)
-		}
+		tag, err = tx.Exec(ctx, `DELETE FROM items WHERE id = $1 AND character_id = $2 AND worn IS NULL`, used, characterID)
 		if err == nil && tag.RowsAffected() != 1 {
 			err = ErrNotTrained
 		}

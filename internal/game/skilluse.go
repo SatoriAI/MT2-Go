@@ -203,7 +203,7 @@ func (w *presence) splash(pl, at *present, proto skill.Proto, percent int, level
 		for range max(proto.Hits, 1) {
 			var damage int
 			if proto.Magic != nil {
-				damage = int(proto.Magic(casterOf(pl.char, proto.DiceOf(pl.char.Intelligence), r), int32(skill.Power(level)))) //nolint:gosec // the power is at most 50
+				damage = int(proto.Magic(casterOf(pl.char, proto.DiceOf(pl.char.Intelligence), r), int32(skill.Power(level)))) //nolint:gosec // the power is at most 115
 				if proto.Chain > 0 {
 					damage = damage * (100 - chainLoss*jump) / 100
 				}
@@ -493,7 +493,7 @@ func allyOf(pl *present, target uint32, proto skill.Proto) *present {
 // differ, renewed if it runs already. Called under the lock.
 func (w *presence) help(pl, to *present, sk account.Skill, proto skill.Proto, level uint8, now time.Time, r *rand.Rand) {
 	if proto.Heal != nil {
-		gain := proto.Heal(casterOf(pl.char, proto.DiceOf(pl.char.Intelligence), r), int32(skill.Power(level))) //nolint:gosec // the power is at most 50
+		gain := proto.Heal(casterOf(pl.char, proto.DiceOf(pl.char.Intelligence), r), int32(skill.Power(level))) //nolint:gosec // the power is at most 115
 		points, _ := to.char.Points()
 		to.send(restore(to, points.MaxHP, points.MaxSP, uint32(gain), 0)...) //nolint:gosec // a positive formula
 		return

@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/SatoriAI/MT2-Go/internal/account"
-	"github.com/SatoriAI/MT2-Go/internal/item"
 	"github.com/SatoriAI/MT2-Go/internal/network"
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
 	"github.com/SatoriAI/MT2-Go/internal/skill"
@@ -21,7 +20,7 @@ type keptSkills struct {
 	group  account.SkillGroup
 	learnt map[account.Skill]uint8
 	reads  map[account.Skill]time.Time
-	used   []item.Item // what each training kept as used, its count left
+	used   []int64 // the book or stone each training used up
 	fail   error
 }
 
@@ -29,7 +28,7 @@ func (k *keptSkills) Learnt(context.Context, uint32) (map[account.Skill]uint8, m
 	return k.learnt, k.reads, k.fail
 }
 
-func (k *keptSkills) Train(_ context.Context, _ uint32, s account.Skill, from, to uint8, next time.Time, used item.Item) error {
+func (k *keptSkills) Train(_ context.Context, _ uint32, s account.Skill, from, to uint8, next time.Time, used int64) error {
 	if k.fail != nil {
 		return k.fail
 	}

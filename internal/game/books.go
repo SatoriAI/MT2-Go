@@ -68,7 +68,7 @@ func (s *session) offerSoulStone(stone item.Item) error {
 // if they still carry it and the skill is still ready; the last answer cancels.
 func (s *session) useSoulStone(ctx context.Context, t *talk, answer uint8) error {
 	stone, held := s.inventory.ByID(t.stone)
-	if int(answer) >= len(t.skills) || !held || stone.Worn != "" {
+	if int(answer) >= len(t.skills) || !held {
 		return nil
 	}
 	sk := t.skills[answer]
@@ -81,8 +81,9 @@ func (s *session) useSoulStone(ctx context.Context, t *talk, answer uint8) error
 }
 
 // train rolls the chance that the book or stone raises the skill from level, keeps the
-// read, the skill's next wait and the book or stone used, then tells the player: their
-// skills on a rise, the item gone or its stack lower, and a line.
+// read, the skill's next wait and the book or stone used up, as neither stacks, then
+// tells the player: the item gone, their skills on a rise, and a line. A write that fails
+// changes nothing, the client having moved nothing itself.
 func (s *session) train(ctx context.Context, used item.Item, sk account.Skill, level uint8, odds chance, lost string) error {
 	now := s.svc.now()
 	percent, _ := odds(level)
@@ -90,22 +91,14 @@ func (s *session) train(ctx context.Context, used item.Item, sk account.Skill, l
 	if s.rand.IntN(100) < int(percent) {
 		to = level + 1
 	}
-	left := used
-	left.Count--
 	next := now.Add(skill.ReadWait)
-	if err := s.svc.skills.Train(ctx, s.playing.ID, sk, level, to, next, left); err != nil {
+	if err := s.svc.skills.Train(ctx, s.playing.ID, sk, level, to, next, used.ID); err != nil {
 		s.conn.Log().Error("training not kept", "skill", sk, "item", used.ID, "err", err)
 		return nil
 	}
-	shown := itemSet(left)
-	if left.Count == 0 {
-		s.inventory = slices.DeleteFunc(s.inventory, func(held item.Item) bool { return held.ID == used.ID })
-		shown = itemCleared(used)
-	} else {
-		s.inventory.Replace(left)
-	}
+	s.inventory = slices.DeleteFunc(s.inventory, func(held item.Item) bool { return held.ID == used.ID })
 	levels := s.svc.presence.trained(s.playing.vid, sk, to, next)
-	packets := append([][]byte{shown}, s.followTaskbar()...)
+	packets := append([][]byte{itemCleared(used)}, s.followTaskbar()...)
 	line := "Nie udało się. " + lost
 	if to > level {
 		packets = append(packets, protocol.EncodeSkillLevels(levels))
@@ -124,9 +117,10 @@ func gradeName(level uint8) string {
 	return fmt.Sprintf("M%d", level-skill.Master+1)
 }
 
-// waitLine tells the player how long before they may train a skill again.
+// waitLine tells the player how long before they may train a skill again, in whole
+// minutes rounded up, so a wait of seconds is never told as none.
 func waitLine(wait time.Duration) string {
-	wait = wait.Round(time.Minute)
+	wait = (wait + time.Minute - 1).Truncate(time.Minute)
 	return fmt.Sprintf("Kolejną naukę możesz podjąć za %d godz. %d min.", int(wait.Hours()), int(wait.Minutes())%60)
 }
 

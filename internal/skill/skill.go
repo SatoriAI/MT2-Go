@@ -97,6 +97,11 @@ func NextByPoint(level uint8) uint8 {
 	return level + 1
 }
 
+// PointCost is the points raising a skill at level by a point costs: one, but none for a
+// skill at 18, and one back for a skill at 19, raised a point at a time before Master
+// came, as a Master takes 18.
+func PointCost(level uint8) int { return spent(NextByPoint(level)) - spent(level) }
+
 // spent is the points a skill at level took: one a level up to PointsCap, and one more to
 // become a Master. A skill at 18 or 19 took a point for each.
 func spent(level uint8) int {
@@ -317,7 +322,7 @@ func (p Proto) Bonus(stat Stat, b Bearer, level uint8) int {
 	if !ok {
 		return 0
 	}
-	return int(f(b, int32(Power(level))) / 100) //nolint:gosec // the power is at most 50
+	return int(f(b, int32(Power(level))) / 100) //nolint:gosec // the power is at most 115
 }
 
 // StunChance is the chance, in thousandths, a stunning attack at level stuns each monster

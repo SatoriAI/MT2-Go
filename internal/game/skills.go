@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/SatoriAI/MT2-Go/internal/account"
-	"github.com/SatoriAI/MT2-Go/internal/item"
 	"github.com/SatoriAI/MT2-Go/internal/mob"
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
 	"github.com/SatoriAI/MT2-Go/internal/skill"
@@ -23,8 +22,8 @@ type Skills interface {
 	// Raise keeps the skill at the level a point raised it to.
 	Raise(ctx context.Context, characterID uint32, s account.Skill, level uint8) error
 	// Train keeps a read of a book or a soul stone: the skill from level from at to, next
-	// read no sooner than next, and what trained it used, all or none of it.
-	Train(ctx context.Context, characterID uint32, s account.Skill, from, to uint8, next time.Time, used item.Item) error
+	// read no sooner than next, and the book or stone used, all or none of it.
+	Train(ctx context.Context, characterID uint32, s account.Skill, from, to uint8, next time.Time, used int64) error
 }
 
 // changeBefore is the level a character may still change its skill group below, giving
@@ -198,14 +197,15 @@ func (w *presence) chooseGroup(vid uint32, group account.SkillGroup) uint32 {
 
 // mayRaise is the level a point raises the skill to and the points the player has, if
 // they may raise it: it is of their class and the group they chose, not yet a Master, and
-// they have a point for it.
+// they have the points the step costs, which a skill raised to 18 or 19 before Masters
+// came takes for nothing.
 func (w *presence) mayRaise(vid uint32, sk account.Skill) (uint8, uint32, bool) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	c := w.all[vid].char
 	p, _ := skill.Lookup(sk)
 	points := skill.Points(c.Level, c.Skills)
-	ok := p.Class == c.Class && p.Group == c.SkillGroup && c.Skills[sk] < skill.Master && points > 0
+	ok := p.Class == c.Class && p.Group == c.SkillGroup && c.Skills[sk] < skill.Master && skill.PointCost(c.Skills[sk]) <= int(points)
 	return skill.NextByPoint(c.Skills[sk]), points, ok
 }
 
