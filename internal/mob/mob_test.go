@@ -138,17 +138,35 @@ func TestOnlyTheBlacksmithUpgrades(t *testing.T) {
 	}
 }
 
-// The armour trader sells the four armours along the top row, on the third row below them
-// the four helmets and the shoes, and the shield under those.
+// The armour trader sells the four first armours along the top row, on the third row below
+// them the four helmets and the shoes, and the shield under those; then each class's
+// armour of level 9 with the shoes of level 17 beside them, and of level 18 under those.
 func TestTheArmourTraderSellsHelmetsShoesAndTheShieldBelowTheArmours(t *testing.T) {
 	trader, _ := Lookup(9002)
 	cells := map[uint32]uint8{}
 	for _, w := range trader.Sells {
 		cells[w.VNum] = w.Cell
 	}
-	want := map[uint32]uint8{11200: 0, 11400: 1, 11600: 2, 11800: 3, 12200: 10, 12340: 11, 12480: 12, 12620: 13, 15000: 14, 13000: 15}
+	want := map[uint32]uint8{11200: 0, 11400: 1, 11600: 2, 11800: 3, 12200: 10, 12340: 11, 12480: 12, 12620: 13, 15000: 14, 13000: 15,
+		11210: 20, 11410: 21, 11610: 22, 11810: 23, 15040: 24, 11220: 30, 11420: 31, 11620: 32, 11820: 33}
 	if !maps.Equal(cells, want) {
 		t.Fatalf("sells %v", cells)
+	}
+}
+
+// The weapon trader sells each class's weapons of levels 10 and 20 besides the first: every
+// one of the gear's weapons below level 25, and none from it.
+func TestTheWeaponTraderSellsTheWeaponsBelowTwentyFive(t *testing.T) {
+	trader, _ := Lookup(9001)
+	var sold []uint32
+	for _, w := range trader.Sells {
+		if p, _ := item.Lookup(w.VNum); p.Wear == item.Weapon && p.Level > 0 {
+			sold = append(sold, w.VNum)
+		}
+	}
+	slices.Sort(sold)
+	if want := []uint32{30, 50, 1010, 1020, 2020, 2040, 3020, 3040, 5000, 5020, 7020, 7040}; !slices.Equal(sold, want) {
+		t.Fatalf("sells %v", sold)
 	}
 }
 
@@ -169,12 +187,13 @@ func TestEveryStoneCallsWavesOfMonstersNoStrongerThanItself(t *testing.T) {
 }
 
 // A stone always leaves potions and materials, each of one kind, and may leave a piece of
-// the first gear and, 3 times in 100, a skill book; the last also, rarely, gear at +3.
+// the first gear, 3 times in 100 a skill book and 4 times in 100 a piece of the rare gear;
+// the last also, rarely, the first gear at +3.
 func TestAStoneLeavesPotionsMaterialsAndMaybeGear(t *testing.T) {
 	cases := map[uint16][]Pick{
-		8001: {{potionKinds, 3, 10000}, {materials, 2, 10000}, {firstGear, 1, 1500}, {books, 1, 300}},
-		8002: {{potionKinds, 4, 10000}, {materials, 3, 10000}, {firstGear, 1, 2500}, {books, 1, 300}},
-		8003: {{potionKinds, 5, 10000}, {materials, 4, 10000}, {firstGear, 1, 3500}, {books, 1, 300}, {firstGearP3, 1, 500}},
+		8001: {{potionKinds, 3, 10000}, {materials, 2, 10000}, {firstGear, 1, 1500}, {books, 1, 300}, {rareGear, 1, 400}},
+		8002: {{potionKinds, 4, 10000}, {materials, 3, 10000}, {firstGear, 1, 2500}, {books, 1, 300}, {rareGear, 1, 400}},
+		8003: {{potionKinds, 5, 10000}, {materials, 4, 10000}, {firstGear, 1, 3500}, {books, 1, 300}, {rareGear, 1, 400}, {firstGearP3, 1, 500}},
 	}
 	for vnum, want := range cases {
 		p, _ := Lookup(vnum)
@@ -237,6 +256,27 @@ func TestBooksAndSoulStonesComeFromTheStrongest(t *testing.T) {
 	for _, b := range books {
 		if p, ok := item.Lookup(b); !ok || p.Teaches == "" {
 			t.Errorf("%d teaches nothing", b)
+		}
+	}
+}
+
+// The rare gear, which no trader sells, is the gear past the first of level 21 and more:
+// every such kind at +0, from the cursed monsters only, once in 200, besides the books of
+// those of level 15 or more.
+func TestOnlyTheCursedAndTheStonesLeaveTheRareGear(t *testing.T) {
+	var want []uint32
+	for _, v := range item.VNums() {
+		if p, _ := item.Lookup(v); p.Wear != "" && p.Level >= 21 && p.Grade == 0 {
+			want = append(want, v)
+		}
+	}
+	if got := slices.Sorted(slices.Values(rareGear)); !slices.Equal(got, want) {
+		t.Errorf("rare gear %v, want %v", got, want)
+	}
+	for vnum, p := range protos {
+		rare := slices.ContainsFunc(p.Picks, func(pk Pick) bool { return slices.Equal(pk.From, rareGear) && pk.Chance == 50 })
+		if p.Kind == Monster && rare != p.Aggressive {
+			t.Errorf("%d leaves the rare gear: %v", vnum, rare)
 		}
 	}
 }

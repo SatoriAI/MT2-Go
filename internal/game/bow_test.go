@@ -277,7 +277,8 @@ func TestArrowsArePutOnInTheirPlace(t *testing.T) {
 	}
 }
 
-// The weapon trader sells a hundred arrows, under the dagger, for 20: five a gold.
+// The weapon trader sells the first weapons for 100 and a hundred arrows, under the
+// dagger, for 20: five a gold.
 func TestTheWeaponTraderSellsArrowsByTheGold(t *testing.T) {
 	svc := worldWith(t, world.Spawn{VNum: 9001, X: homeX, Y: homeY, Count: 1})
 	client, hendra := aPlayer(t, svc, 1000, 7, "Hendra", 100)
@@ -294,7 +295,12 @@ func TestTheWeaponTraderSellsArrowsByTheGold(t *testing.T) {
 		cells[i] = protocol.ShopItem{VNum: vnum, Price: 100, Count: 1}
 	}
 	cells[6] = protocol.ShopItem{VNum: 8000, Price: 20, Count: 100}
-	if got := read(t, client, 1728); string(got) != string(protocol.EncodeShopStart(svc.lastVID.Load(), cells)) {
-		t.Fatalf("got %x", got[:64])
+	got := read(t, client, 1728)
+	want := protocol.EncodeShopStart(svc.lastVID.Load(), cells)
+	const header, entry = 8, 43 // the first two rows' entries, the arrows among them
+	for cell := range 7 {
+		if at := header + cell*entry; string(got[at:at+entry]) != string(want[at:at+entry]) {
+			t.Fatalf("cell %d: got %x", cell, got[at:at+entry])
+		}
 	}
 }

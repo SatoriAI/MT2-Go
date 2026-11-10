@@ -2,7 +2,9 @@ package item
 
 import (
 	"errors"
+	"reflect"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/SatoriAI/MT2-Go/internal/account"
@@ -136,20 +138,24 @@ func TestAWornItemTakesNoCell(t *testing.T) {
 	}
 }
 
-// Who may wear what: the sword is for warriors, ninjas and suras; a potion is not worn at
-// all.
+// Who may wear what: the sword is for warriors, ninjas and suras, and Sejmitar for them
+// from level 10; a potion is not worn at all.
 func TestOnlyTheClassesAKindIsForMayWearIt(t *testing.T) {
+	scimitar, _ := Lookup(30)
 	cases := []struct {
 		p     Proto
 		class account.Class
+		level uint8
 		want  error
 	}{
-		{sword, account.Sura, nil},
-		{sword, account.Shaman, ErrWrongClass},
-		{potion, account.Sura, ErrNotWearable},
+		{sword, account.Sura, 1, nil},
+		{sword, account.Shaman, 1, ErrWrongClass},
+		{potion, account.Sura, 1, ErrNotWearable},
+		{scimitar, account.Sura, 9, ErrTooLow},
+		{scimitar, account.Sura, 10, nil},
 	}
 	for _, c := range cases {
-		if got := c.p.CanWear(c.class); !errors.Is(got, c.want) || (got == nil) != (c.want == nil) {
+		if got := c.p.CanWear(c.class, c.level); !errors.Is(got, c.want) || (got == nil) != (c.want == nil) {
 			t.Errorf("%s wearing %q: got %v, want %v", c.class, c.p.Name, got, c.want)
 		}
 	}
@@ -278,7 +284,7 @@ func TestEachClassHasItsHelmetAndAllWearTheShoes(t *testing.T) {
 	}
 	shoes, _ := Lookup(15000)
 	for _, class := range []account.Class{account.Warrior, account.Ninja, account.Sura, account.Shaman} {
-		if shoes.CanWear(class) != nil {
+		if shoes.CanWear(class, 1) != nil {
 			t.Errorf("a %s cannot wear the shoes", class)
 		}
 	}
@@ -316,6 +322,50 @@ func TestAKindSoldByTheGoldCostsItsCountOverIt(t *testing.T) {
 	}{{arrows, 100, 20}, {arrows, 1, 1}, {arrows, 12, 2}, {sword, 1, 100}, {sword, 2, 200}} {
 		if got := c.p.PriceOf(c.count); got != c.want {
 			t.Errorf("%d of %q: %d, want %d", c.count, c.p.Name, got, c.want)
+		}
+	}
+}
+
+// The gear past the first is 43 kinds, each from level 9 to 36 and worn by its classes,
+// with grades as the client's item_proto has them: Srebrny Miecz, of level 25, adds 32 at
+// +5 and 74 at +9, not a step a grade; the armour of level 34 twice its 27 to its defence; the helmet
+// of level 21 twice its 28; the shield its 35, slowing by 6; and the shoes of level 34
+// quicken from 3 to 20.
+func TestTheGearPastTheFirstIsTheClients(t *testing.T) {
+	if len(gear) != 43 {
+		t.Errorf("%d kinds of gear", len(gear))
+	}
+	for vnum := range gear {
+		if p, _ := Lookup(vnum); p.Level < 9 || p.Level > 36 || len(p.Classes) == 0 || !p.Graded || p.Grade != 0 || !strings.HasSuffix(p.Name, "+0") {
+			t.Errorf("%d: %+v", vnum, p)
+		}
+	}
+	for vnum, want := range map[uint32]Proto{
+		65:    {AttackMin: 36 + 32, AttackMax: 46 + 32, MagicMin: 38 + 32, MagicMax: 52 + 32, Level: 25, SellPrice: 10500 / 5},
+		69:    {AttackMin: 36 + 74, AttackMax: 46 + 74, MagicMin: 38 + 74, MagicMax: 52 + 74, Level: 25, SellPrice: 38500 / 5},
+		11249: {Defence: 47 + 2*27, Level: 34, SellPrice: 65000 / 5},
+		12229: {Defence: 9 + 2*28, Level: 21, SellPrice: 315000 / 5},
+		13029: {Defence: 4 + 2*35, MoveSpeed: -6, Level: 21, SellPrice: 150000 / 5},
+		15100: {Defence: 4, MoveSpeed: 3, Level: 34, SellPrice: 1000 / 5},
+		15109: {Defence: 4, MoveSpeed: 20, Level: 34, SellPrice: 240000 / 5},
+		5039:  {AttackMin: 29 + 74, AttackMax: 39 + 74, MagicMin: 30 + 74, MagicMax: 38 + 74, Level: 32, SellPrice: 61500 / 5},
+	} {
+		p, _ := Lookup(vnum)
+		got := Proto{AttackMin: p.AttackMin, AttackMax: p.AttackMax, MagicMin: p.MagicMin, MagicMax: p.MagicMax,
+			Defence: p.Defence, MoveSpeed: p.MoveSpeed, Level: p.Level, SellPrice: p.SellPrice}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("%d: %+v, want %+v", vnum, got, want)
+		}
+	}
+	for vnum, kind := range map[uint32]func(Proto) bool{
+		3070: func(p Proto) bool { return p.TwoHanded && slices.Equal(p.Classes, []account.Class{account.Warrior}) },
+		4020: func(p Proto) bool { return p.Dagger },
+		2050: func(p Proto) bool { return p.Bow },
+		80:   func(p Proto) bool { return p.Sword && len(p.Classes) == 3 },
+		7050: func(p Proto) bool { return slices.Equal(p.Classes, []account.Class{account.Shaman}) },
+	} {
+		if p, _ := Lookup(vnum); !kind(p) {
+			t.Errorf("%d: %+v", vnum, p)
 		}
 	}
 }

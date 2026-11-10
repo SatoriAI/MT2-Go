@@ -3,6 +3,7 @@
 package mob
 
 import (
+	"slices"
 	"time"
 
 	"github.com/SatoriAI/MT2-Go/internal/account"
@@ -90,17 +91,23 @@ type Pick struct {
 	Chance uint16
 }
 
-// The village shops: the weapon trader's first weapons along the top row and a hundred
-// arrows under the dagger, the armour trader's first armours along the top row, the cells
-// below left to the taller ones, the helmets and shoes on the row under the armours and
-// the shield below them, and the general store's potions, singly on the top row and
-// twenty to a pack on the next.
+// The village shops (docs/mechanics/shops.md): the weapon trader's first weapons along the
+// top row, arrows under the dagger, each column's weapons of levels 10 and 20 below its
+// first, the bells under the arrows and the tall glaive of 20 under the fans; the armour
+// trader's first armours, helmets, shoes and shield, then the armours of level 9 with the
+// shoes of 17 and those of 18 below; and the general store's potions.
 var (
 	weapons = []Ware{{VNum: 10, Count: 1, Cell: 0}, {VNum: 1000, Count: 1, Cell: 1}, {VNum: 2000, Count: 1, Cell: 2}, {VNum: 3000, Count: 1, Cell: 3}, {VNum: 7000, Count: 1, Cell: 4},
-		{VNum: 8000, Count: 100, Cell: 6}}
+		{VNum: 8000, Count: 100, Cell: 6}, {VNum: 7020, Count: 1, Cell: 9},
+		{VNum: 30, Count: 1, Cell: 10}, {VNum: 1010, Count: 1, Cell: 11}, {VNum: 2020, Count: 1, Cell: 12}, {VNum: 7040, Count: 1, Cell: 14},
+		{VNum: 1020, Count: 1, Cell: 16}, {VNum: 3020, Count: 1, Cell: 18}, {VNum: 3040, Count: 1, Cell: 19},
+		{VNum: 50, Count: 1, Cell: 20}, {VNum: 5000, Count: 1, Cell: 21}, {VNum: 2040, Count: 1, Cell: 22}, {VNum: 5020, Count: 1, Cell: 26}}
 	armours = []Ware{{VNum: 11200, Count: 1, Cell: 0}, {VNum: 11400, Count: 1, Cell: 1}, {VNum: 11600, Count: 1, Cell: 2}, {VNum: 11800, Count: 1, Cell: 3},
 		{VNum: 12200, Count: 1, Cell: 10}, {VNum: 12340, Count: 1, Cell: 11}, {VNum: 12480, Count: 1, Cell: 12}, {VNum: 12620, Count: 1, Cell: 13},
-		{VNum: 15000, Count: 1, Cell: 14}, {VNum: 13000, Count: 1, Cell: 15}}
+		{VNum: 15000, Count: 1, Cell: 14}, {VNum: 13000, Count: 1, Cell: 15},
+		{VNum: 11210, Count: 1, Cell: 20}, {VNum: 11410, Count: 1, Cell: 21}, {VNum: 11610, Count: 1, Cell: 22}, {VNum: 11810, Count: 1, Cell: 23},
+		{VNum: 15040, Count: 1, Cell: 24},
+		{VNum: 11220, Count: 1, Cell: 30}, {VNum: 11420, Count: 1, Cell: 31}, {VNum: 11620, Count: 1, Cell: 32}, {VNum: 11820, Count: 1, Cell: 33}}
 	sundries = []Ware{{VNum: 27001, Count: 1, Cell: 0}, {VNum: 27002, Count: 1, Cell: 1}, {VNum: 27004, Count: 1, Cell: 2},
 		{VNum: 27001, Count: 20, Cell: 5}, {VNum: 27002, Count: 20, Cell: 6}, {VNum: 27004, Count: 20, Cell: 7}}
 )
@@ -141,8 +148,19 @@ var (
 // skill book.
 func stonePicks(potions, materialCount uint8, gear uint16) []Pick {
 	return []Pick{{From: potionKinds, Count: potions, Chance: 10000}, {From: materials, Count: materialCount, Chance: 10000},
-		{From: firstGear, Count: 1, Chance: gear}, {From: books, Count: 1, Chance: 300}}
+		{From: firstGear, Count: 1, Chance: gear}, {From: books, Count: 1, Chance: 300}, {From: rareGear, Count: 1, Chance: 400}}
 }
+
+// rareGear is the gear no trader sells: the helmets and the shield of level 21, each
+// class's weapons from level 25 and armour of level 34, and the shoes of level 34. Only
+// the cursed monsters leave it, once in 200, and the stones, 4 times in 100, one piece
+// picked evenly, as the debaters settled.
+var (
+	rareGear = []uint32{12220, 12360, 12500, 12640, 13020, 60, 80, 3050, 3070, 4020, 1040, 2050, 2070, 7050, 7070, 5030, 5040,
+		11240, 11440, 11640, 11840, 15100}
+	cursedGear      = []Pick{{From: rareGear, Count: 1, Chance: 50}}
+	cursedWithBooks = append(slices.Clone(fieldBooks), cursedGear...)
+)
 
 // Skill books, each the book of one skill of any class, picked evenly, so a player finds
 // others' and trades them: a stone leaves one 3 times in 100 and a field monster of level
@@ -215,39 +233,39 @@ var protos = map[uint16]Proto{
 	131: {VNum: 131, Name: "Przeklęty Wilk", Kind: Monster, MoveSpeed: 120, AttackSpeed: 100, Aggressive: true,
 		Level: 8, MaxHP: 435, Vitality: 31, Armour: 12, Exp: 198,
 		Strength: 16, DamageMin: 32, DamageMax: 39, AttackRange: 175,
-		RegenCycle: 6, RegenPercent: 7, Drops: wolfDrops, Yang: Yang{Chance: 6000, Min: 15, Max: 30}},
+		RegenCycle: 6, RegenPercent: 7, Drops: wolfDrops, Picks: cursedGear, Yang: Yang{Chance: 6000, Min: 15, Max: 30}},
 	132: {VNum: 132, Name: "Przeklęty Alfa Wilk", Kind: Monster, MoveSpeed: 120, AttackSpeed: 100, Aggressive: true,
 		Level: 9, MaxHP: 743, Vitality: 31, Armour: 13, Exp: 444,
 		Strength: 23, DamageMin: 33, DamageMax: 41, AttackRange: 175,
-		RegenCycle: 6, RegenPercent: 7, Drops: alphaWolfDrops, Yang: Yang{Chance: 6000, Min: 20, Max: 40}},
+		RegenCycle: 6, RegenPercent: 7, Drops: alphaWolfDrops, Picks: cursedGear, Yang: Yang{Chance: 6000, Min: 20, Max: 40}},
 	133: {VNum: 133, Name: "Przeklęty Nieb. Wilk", Kind: Monster, MoveSpeed: 120, AttackSpeed: 100, Aggressive: true,
 		Level: 11, MaxHP: 564, Vitality: 32, Armour: 15, Exp: 270,
 		Strength: 16, DamageMin: 37, DamageMax: 45, AttackRange: 175,
-		RegenCycle: 6, RegenPercent: 7, Drops: wolfDrops, Yang: Yang{Chance: 6000, Min: 25, Max: 45}},
+		RegenCycle: 6, RegenPercent: 7, Drops: wolfDrops, Picks: cursedGear, Yang: Yang{Chance: 6000, Min: 25, Max: 45}},
 	134: {VNum: 134, Name: "Przekl. Nieb. Alfa Wilk", Kind: Monster, MoveSpeed: 120, AttackSpeed: 100, Aggressive: true,
 		Level: 14, MaxHP: 1110, Vitality: 32, Armour: 18, Exp: 684,
 		Strength: 24, DamageMin: 42, DamageMax: 51, AttackRange: 175,
-		RegenCycle: 6, RegenPercent: 7, Drops: alphaWolfDrops, Yang: Yang{Chance: 6000, Min: 35, Max: 60}},
+		RegenCycle: 6, RegenPercent: 7, Drops: alphaWolfDrops, Picks: cursedGear, Yang: Yang{Chance: 6000, Min: 35, Max: 60}},
 	135: {VNum: 135, Name: "Przeklęty Szary Wilk", Kind: Monster, MoveSpeed: 120, AttackSpeed: 100, Aggressive: true,
 		Level: 18, MaxHP: 936, Vitality: 25, Armour: 22, Exp: 438,
 		Strength: 17, DamageMin: 49, DamageMax: 60, AttackRange: 175,
-		RegenCycle: 6, RegenPercent: 7, Drops: wolfDrops, Picks: fieldBooks, Yang: Yang{Chance: 6000, Min: 45, Max: 80}},
+		RegenCycle: 6, RegenPercent: 7, Drops: wolfDrops, Picks: cursedWithBooks, Yang: Yang{Chance: 6000, Min: 45, Max: 80}},
 	136: {VNum: 136, Name: "Przekl. Szary Alfa Wilk", Kind: Monster, MoveSpeed: 120, AttackSpeed: 100, Aggressive: true,
 		Level: 21, MaxHP: 1761, Vitality: 17, Armour: 26, Exp: 1020,
 		Strength: 33, DamageMin: 42, DamageMax: 78, AttackRange: 175,
-		RegenCycle: 6, RegenPercent: 12, Drops: alphaWolfDrops, Picks: fieldBooks, Yang: Yang{Chance: 6000, Min: 55, Max: 90}},
+		RegenCycle: 6, RegenPercent: 12, Drops: alphaWolfDrops, Picks: cursedWithBooks, Yang: Yang{Chance: 6000, Min: 55, Max: 90}},
 	137: {VNum: 137, Name: "Przeklęty Dzik", Kind: Monster, MoveSpeed: 120, AttackSpeed: 100, Aggressive: true,
 		Level: 12, MaxHP: 610, Vitality: 26, Armour: 16, Exp: 294,
 		Strength: 35, DamageMin: 30, DamageMax: 56, AttackRange: 175,
-		RegenCycle: 6, RegenPercent: 7, Drops: boarDrops, Yang: Yang{Chance: 6000, Min: 30, Max: 55}},
+		RegenCycle: 6, RegenPercent: 7, Drops: boarDrops, Picks: cursedGear, Yang: Yang{Chance: 6000, Min: 30, Max: 55}},
 	138: {VNum: 138, Name: "Przeklęty Czerw. Dzik", Kind: Monster, MoveSpeed: 120, AttackSpeed: 100, Aggressive: true,
 		Level: 15, MaxHP: 1192, Vitality: 26, Armour: 19, Exp: 732,
 		Strength: 35, DamageMin: 44, DamageMax: 53, AttackRange: 175,
-		RegenCycle: 6, RegenPercent: 7, Drops: boarDrops, Picks: fieldBooks, Yang: Yang{Chance: 6000, Min: 40, Max: 70}},
+		RegenCycle: 6, RegenPercent: 7, Drops: boarDrops, Picks: cursedWithBooks, Yang: Yang{Chance: 6000, Min: 40, Max: 70}},
 	139: {VNum: 139, Name: "Przeklęty Niedźw.", Kind: Monster, MoveSpeed: 120, AttackSpeed: 100, Aggressive: true,
 		Level: 17, MaxHP: 875, Vitality: 27, Armour: 21, Exp: 414,
 		Strength: 36, DamageMin: 37, DamageMax: 68, AttackRange: 175,
-		RegenCycle: 6, RegenPercent: 7, Drops: gear, Picks: fieldBooks, Yang: Yang{Chance: 6000, Min: 45, Max: 75}},
+		RegenCycle: 6, RegenPercent: 7, Drops: gear, Picks: cursedWithBooks, Yang: Yang{Chance: 6000, Min: 45, Max: 75}},
 
 	8001: {VNum: 8001, Name: "Metin Cierpienia", Kind: Stone, MoveSpeed: 109, AttackSpeed: 104,
 		Level: 5, MaxHP: 7000, Vitality: 6, Armour: 8, Exp: 900, RegenCycle: 5, RegenPercent: 1,

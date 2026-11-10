@@ -124,12 +124,15 @@ func (s *session) onItemUse(ctx context.Context, body []byte) error {
 	return nil
 }
 
-// putOn puts the item on, if the character's class may wear it, telling them why not
-// otherwise. The class never changes in play, so it is read without the world's lock. What was worn in its place goes into the cells it leaves, or the
-// first others it fits; with no room for it, nothing changes.
+// putOn puts the item on, if the character's class may wear it at their level, telling
+// them why not otherwise. The class never changes in play, so it is read without the
+// world's lock; the level does, as others' kills raise it, so it is read under it. What
+// was worn in its place goes into the cells it leaves, or the first others it fits; with
+// no room for it, nothing changes.
 func (s *session) putOn(it item.Item) error {
 	p, _ := item.Lookup(it.VNum)
-	if err := p.CanWear(s.playing.Class); err != nil {
+	level, _ := s.svc.presence.trainee(s.playing.vid)
+	if err := p.CanWear(s.playing.Class, level); err != nil {
 		return s.conn.Send(protocol.EncodeChat(protocol.ChatInfo, 0, 0, textToClient(cannotWear[err])), itemSet(it))
 	}
 	on := it
@@ -152,6 +155,7 @@ func (s *session) putOn(it item.Item) error {
 // cannotWear is what a player is told when they may not wear an item.
 var cannotWear = map[error]string{
 	item.ErrWrongClass: "Ta postać nie może tego nosić.",
+	item.ErrTooLow:     "Masz za niski poziom, aby to założyć.",
 }
 
 func takenOff(it item.Item, cell uint16) item.Item {
