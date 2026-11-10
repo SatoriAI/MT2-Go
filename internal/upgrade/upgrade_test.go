@@ -59,3 +59,19 @@ func TestOnlyGearBelowNineIsUpgraded(t *testing.T) {
 		}
 	}
 }
+
+// Gear past the first costs more to upgrade the higher its level: the table's yang once
+// below 20, twice from 20, four times from 25 and eight times from 34; the chance and the
+// materials stay the table's.
+func TestHigherGearCostsMoreToUpgrade(t *testing.T) {
+	for vnum, want := range map[uint32]uint32{30: 200, 50: 400, 60: 800, 5030: 800, 80: 1600, 11240: 1600, 11220: 200} {
+		p, _ := item.Lookup(vnum)
+		if s, ok := Of(p); !ok || s.Yang != want || s.Chance != 100 {
+			t.Errorf("%d, level %d: %+v", vnum, p.Level, s)
+		}
+	}
+	top, _ := item.Lookup(88)
+	if s, _ := Of(top); s.Yang != 20000*8 || s.Material != WolfClaw || s.Count != 5 {
+		t.Errorf("+8 to +9 at 36: %+v", s)
+	}
+}

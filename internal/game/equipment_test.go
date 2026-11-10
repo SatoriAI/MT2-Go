@@ -352,3 +352,27 @@ func TestShoesWornOnEnteringSetHerSpeed(t *testing.T) {
 		t.Fatalf("speed %d", got)
 	}
 }
+
+// Sejmitar, a sword for level 10, is not put on at level 9: she is told why, and it stays
+// where it was; at 10 it is put on.
+func TestGearAboveTheCharactersLevelIsNotPutOn(t *testing.T) {
+	s, kept, client, _ := dressing(t)
+	s.inventory = append(s.inventory, item.Item{ID: 5, VNum: 30, Count: 1, Cell: 4})
+	s.svc.presence.all[1000].char.Level = 9
+
+	if err := s.onItemUse(context.Background(), doubleClicked(4)); err != nil {
+		t.Fatal(err)
+	}
+	if got := packets(t, drain(t, client)); !holds(got, infoLine(cannotWear[item.ErrTooLow]), itemSet(item.Item{ID: 5, VNum: 30, Count: 1, Cell: 4})) ||
+		len(kept.worn) != 0 {
+		t.Fatalf("told %x, kept %v", got, kept.worn)
+	}
+
+	s.svc.presence.all[1000].char.Level = 10
+	if err := s.onItemUse(context.Background(), doubleClicked(4)); err != nil {
+		t.Fatal(err)
+	}
+	if kept.worn[5] != item.Weapon {
+		t.Fatalf("kept %v", kept.worn)
+	}
+}

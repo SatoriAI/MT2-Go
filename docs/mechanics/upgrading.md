@@ -23,12 +23,15 @@ Each village has a blacksmith, Kowal, beside the class teachers. Dragging a firs
 | +8 | 12,000 | 4 | 30% | the cost is lost, and a grade |
 | +9 | 20,000 | 5 | 20% | the cost is lost, and a grade |
 
+The yang is the table's for the first gear and gear below level 20. It is twice that from level 20, four times from 25 and eight times from 34, so a Miecz Półtoraręczny's step to +9 costs 160,000. The materials and chances stay the same for every kind.
+
 **The material** is Szpon Wilka (30028) for a weapon, which wolves leave, and Ząb Dzika (30004) for armour, a helmet, shoes or a shield, which boars leave ([drops.md](drops.md)).
 
 **Each grade is stronger,** as its tooltip shows:
 - a weapon adds the same to both ends of its attack: 7 a grade for the sword and the fan, 4 for the dagger, and 8 for the bow and the glaive;
 - armour adds 6 defence a grade, a helmet 4, and the shield 6, while staying 2 slower at every grade;
-- shoes keep their 1 defence and move faster: 2 at +0, then 3, 4, 5, 6, 7, 9, 11, 13 and 15 at +9.
+- shoes keep their 1 defence and move faster: 2 at +0, then 3, 4, 5, 6, 7, 9, 11, 13 and 15 at +9;
+- the gear past the first adds what its item_proto rows say, which grows faster from level 25 ([equipment.md](equipment.md)).
 
 ## What the client does
 
@@ -53,10 +56,11 @@ The cell is one byte, which the bag's 90 cells fit.
 
 `internal/upgrade` holds the table. `internal/item` holds the grades, `internal/mob` the blacksmith and the drops, and `internal/game/upgrade.go` carries out each step.
 
-- **The grades** are generated from each first weapon and armour, +1 to +9, at the next vnums, as the client numbers them. Each takes the client's own values:
+- **The grades** are made, +1 to +9 at the next vnums as the client numbers them, from each graded kind's rows in item_proto, transcribed (`internal/item/gear.go`): the first gear and the gear past it ([equipment.md](equipment.md)). Each takes the client's own values:
   - its name, its +0's with its grade;
-  - its item_proto VALUE5 added to both ends of a weapon's attack and of its magic attack, or twice to armour's defence, as the tooltip shows;
-  - its sell price, divided by 5 as for every kind ([shops.md](shops.md)).
+  - its item_proto VALUE5 added to both ends of a weapon's attack and of its magic attack, or twice to armour's defence, as the tooltip shows. It is a step a grade for the first gear, and grows faster for the gear from level 25: a sword of 25 adds 6, 12, 18, 24, 32, 41, 51, 62 and 74;
+  - its sell price, divided by 5 as for every kind ([shops.md](shops.md));
+  - for shoes and a shield, their speed.
 
   No shop sells them.
 - **Giving:** an item given to an NPC within reach (as a click's, 1000) whose kind upgrades, from a bag cell, of a kind graded below +9, opens the dialog.
@@ -88,7 +92,7 @@ The cell is one byte, which the bag's 90 cells fit.
 
 ## What proves it
 
-- `internal/upgrade/upgrade_test.go`: a sword from +0 to +9 by the table; armour, a helmet, shoes and the shield taking a tooth; a failure costing a grade only from the step to +5; only gear below +9 upgraded.
+- `internal/upgrade/upgrade_test.go`: a sword from +0 to +9 by the table; armour, a helmet, shoes and the shield taking a tooth; a failure costing a grade only from the step to +5; only gear below +9 upgraded; gear past the first costing the table's yang twice from level 20, four times from 25 and eight times from 34, its chance and material the table's.
 - `internal/item/item_test.go`: the grades' names, attack and defence as the client's; their sell prices; every worn kind graded.
 - `internal/mob/mob_test.go`: wolves and boars leaving the materials, 3 in 100; only the blacksmith upgrading.
 - `internal/protocol/protocol_test.go`: GIVE_ITEM and REFINE read and framed; REFINE_INFORMATION_NEW byte for byte.

@@ -54,7 +54,7 @@ Seen from the real client: a red potion laid at (977491, 272599) is `1a 53ea0e00
 
   The claw and the tooth are the materials of the later upgrades ([upgrading.md](upgrading.md)).
 
-  Metin stones leave more, each a set count of one kind picked from a list ([stones.md](stones.md)), and 3 times in 100 a skill book; Metin Bitwy also a soul stone once in 100. Monsters of level 15 or more leave a skill book 3 times in 1,000, picked evenly from every skill's.
+  Metin stones leave more, each a set count of one kind picked from a list ([stones.md](stones.md)), and 3 times in 100 a skill book; Metin Bitwy also a soul stone once in 100. Monsters of level 15 or more leave a skill book 3 times in 1,000, picked evenly from every skill's. The rare gear, the gear past the first from level 21, which no trader sells, comes only from the cursed monsters, once in 200, and the stones, 4 times in 100, one +0 kind picked evenly ([equipment.md](equipment.md)).
 
 - **Yang:** each monster kind has a chance in 10,000 of leaving an amount from its least to its most, rolled once as it dies, after its items, and multiplied by a running event, rounded down ([events.md](events.md)).
 
@@ -109,7 +109,7 @@ Seen from the real client: a red potion laid at (977491, 272599) is `1a 53ea0e00
 
 ## What proves it
 
-- `internal/mob/mob_test.go`: every drop an item the game has, in a count it holds; the wolves and boars, blue and red ones too, leaving the materials of upgrades.
+- `internal/mob/mob_test.go`: every drop an item the game has, in a count it holds; the wolves and boars, blue and red ones too, leaving the materials of upgrades; skill books from monsters of level 15 or more; the rare gear every +0 kind of level 21 or more, from the cursed monsters only, once in 200.
 - `internal/item/item_test.go`: an item picked up joining its stack or taking a free cell.
 - `internal/protocol/protocol_test.go`: GROUND_ADD, GROUND_DEL and OWNERSHIP byte for byte; PICKUP cut and read as the real client sent it.
 - `internal/store/items_test.go`: a new item and a stack's count kept.

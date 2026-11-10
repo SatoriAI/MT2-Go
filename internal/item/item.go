@@ -39,6 +39,7 @@ type Proto struct {
 	// sets against one.
 	Wear      Wear
 	Classes   []account.Class
+	Level     uint8  // the character's level it may be worn from: item_proto's LIMIT LEVEL
 	AttackMin uint16 // a weapon's attack, rolled for each blow
 	AttackMax uint16
 	MagicMin  uint16 // and its magic attack, rolled for each spell
@@ -81,15 +82,19 @@ var (
 	ErrNotWearable = errors.New("item: not worn")
 	// ErrWrongClass means the character's class cannot wear the kind.
 	ErrWrongClass = errors.New("item: not for this class")
+	// ErrTooLow means the character's level is below the kind's.
+	ErrTooLow = errors.New("item: the level is too low")
 )
 
-// CanWear reports why a character of class cannot wear the kind, or nil.
-func (p Proto) CanWear(class account.Class) error {
+// CanWear reports why a character of class at level cannot wear the kind, or nil.
+func (p Proto) CanWear(class account.Class, level uint8) error {
 	switch {
 	case p.Wear == "":
 		return ErrNotWearable
 	case !slices.Contains(p.Classes, class):
 		return ErrWrongClass
+	case level < p.Level:
+		return ErrTooLow
 	}
 	return nil
 }
@@ -109,9 +114,11 @@ func VNums() []uint32 { return slices.Sorted(maps.Keys(protos)) }
 // protos are the client's item_proto values (--dump_proto--/item_proto.txt): size,
 // stacking, ITEM_WEAR, the classes its ANTI_ flags leave, VALUE3 to VALUE4 for a weapon,
 // VALUE1 for the rest, and its prices, but 100 for each first weapon, which it gives none.
-// Only the first gear and its grades are listed, none needing a level. The names are the
-// Polish client's own, from its locale item_proto (docs/mechanics/items.md), in UTF-8.
-var protos = withBooks(withGrades(map[uint32]Proto{
+// The first gear is listed here, with no level needed; the gear past it, and every graded
+// kind's grades, are generated from item_proto into gear.go, and the skill books are in
+// books.go. The names are the Polish client's own, from its locale item_proto
+// (docs/mechanics/items.md), in UTF-8.
+var protos = withBooks(withGrades(withGear(map[uint32]Proto{
 	10: {VNum: 10, Name: "Miecz+0", Size: 2, Stack: 1, Wear: Weapon,
 		Classes: []account.Class{account.Warrior, account.Ninja, account.Sura}, AttackMin: 13, AttackMax: 15, MagicMin: 15, MagicMax: 19, Sword: true,
 		Price: 100, SellPrice: 0},
@@ -155,32 +162,26 @@ var protos = withBooks(withGrades(map[uint32]Proto{
 	27004: {VNum: 27004, Name: "Niebieska Mikstura(M)", Size: 1, Stack: MaxStack, SP: 100, Price: 96, SellPrice: 24},
 	30004: {VNum: 30004, Name: "Ząb Dzika", Size: 1, Stack: MaxStack, SellPrice: 100},
 	30028: {VNum: 30028, Name: "Szpon Wilka", Size: 1, Stack: MaxStack, SellPrice: 100},
-}))
+})))
 
-// gradeSteps are what each grade of the first gear adds over its +0: the client's
-// item_proto VALUE5 per grade, which its tooltip adds to both ends of a weapon's attack
-// and, twice, to the defence of anything else. Shoes add none; their grades are faster.
-var gradeSteps = map[uint32]uint16{10: 7, 1000: 4, 2000: 8, 3000: 8, 7000: 7, 11200: 3, 11400: 3, 11600: 3, 11800: 3,
-	12200: 2, 12340: 2, 12480: 2, 12620: 2, 15000: 0, 13000: 3}
-
-// shoeSpeeds are what each grade of shoes adds to the speed: the client's APPLY_MOV_SPEED.
-var shoeSpeeds = [MaxGrade + 1]int8{2, 3, 4, 5, 6, 7, 9, 11, 13, 15}
-
-// gradeSales are what a shop pays for each grade, before the client's division by 5: its
-// item_proto sell prices, the same for every first weapon, every first armour, and every
-// helmet and pair of shoes.
-var gradeSales = map[Wear][MaxGrade + 1]uint32{
-	Weapon: {0, 100, 100, 150, 150, 200, 250, 350, 500, 750},
-	Body:   {3000, 5000, 5000, 5000, 5000, 10000, 10000, 20000, 40000, 80000},
-	Head:   {500, 800, 1100, 1700, 2500, 4000, 6000, 9000, 13000, 20000},
-	Feet:   {500, 800, 1100, 1700, 2500, 4000, 6000, 9000, 13000, 20000},
-	Shield: {400, 800, 1600, 2400, 5000, 7500, 10000, 13000, 15000, 20000},
+// gradeRows are what a graded kind's +1 to +9 are over its +0 (grades, in gear.go).
+type gradeRows struct {
+	bonus  [MaxGrade]uint16
+	sales  [MaxGrade]uint32
+	speeds [MaxGrade]int8
 }
 
-// withGrades adds the grades +1 to +9 of each piece of the first gear to the kinds: named as
-// the client names them, its +0's name with its grade, and no shop sells them.
+// withGear adds the gear past the first to the kinds.
+func withGear(kinds map[uint32]Proto) map[uint32]Proto {
+	maps.Copy(kinds, gear)
+	return kinds
+}
+
+// withGrades adds the grades +1 to +9 of each graded kind to the kinds, as item_proto has
+// them: named as the client names them, its +0's name with its grade, and no shop sells
+// them.
 func withGrades(kinds map[uint32]Proto) map[uint32]Proto {
-	for vnum, step := range gradeSteps {
+	for vnum, rows := range grades {
 		base := kinds[vnum]
 		base.Graded = true
 		kinds[vnum] = base
@@ -188,8 +189,8 @@ func withGrades(kinds map[uint32]Proto) map[uint32]Proto {
 			p := base
 			p.VNum, p.Grade, p.Price = vnum+uint32(g), g, 0
 			p.Name = strings.TrimSuffix(base.Name, "+0") + "+" + strconv.Itoa(int(g))
-			p.SellPrice = gradeSales[base.Wear][g] / 5
-			bonus := uint16(g) * step
+			p.SellPrice = rows.sales[g-1] / 5
+			bonus := rows.bonus[g-1]
 			switch p.Wear {
 			case Weapon:
 				p.AttackMin, p.AttackMax = base.AttackMin+bonus, base.AttackMax+bonus
@@ -197,7 +198,7 @@ func withGrades(kinds map[uint32]Proto) map[uint32]Proto {
 					p.MagicMin, p.MagicMax = base.MagicMin+bonus, base.MagicMax+bonus
 				}
 			case Feet:
-				p.MoveSpeed = shoeSpeeds[g]
+				p.MoveSpeed = rows.speeds[g-1]
 			default:
 				p.Defence = base.Defence + 2*bonus
 			}

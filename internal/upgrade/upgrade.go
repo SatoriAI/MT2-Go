@@ -43,6 +43,21 @@ var steps = [item.MaxGrade + 1]struct {
 	5: {3000, 60, 1}, 6: {5000, 50, 2}, 7: {8000, 40, 3}, 8: {12000, 30, 4}, 9: {20000, 20, 5},
 }
 
+// tier is how many times the table's yang an upgrade of gear of level costs: the first
+// gear's once, from level 20 twice, from 25 four times and from 34 eight times, as the
+// debaters scaled it.
+func tier(level uint8) uint32 {
+	switch {
+	case level >= 34:
+		return 8
+	case level >= 25:
+		return 4
+	case level >= 20:
+		return 2
+	}
+	return 1
+}
+
 // Of is what upgrading the kind a grade takes, or false for one that is not upgraded or
 // is at its last grade.
 func Of(p item.Proto) (Step, bool) {
@@ -50,7 +65,7 @@ func Of(p item.Proto) (Step, bool) {
 		return Step{}, false
 	}
 	to := steps[p.Grade+1]
-	s := Step{Into: p.VNum + 1, Yang: to.yang, Chance: to.chance, Count: to.count, Downgrade: to.count > 0}
+	s := Step{Into: p.VNum + 1, Yang: to.yang * tier(p.Level), Chance: to.chance, Count: to.count, Downgrade: to.count > 0}
 	if to.count > 0 {
 		s.Material = WildBoarTooth
 		if p.Wear == item.Weapon {

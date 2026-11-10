@@ -30,6 +30,7 @@
 - **The potions** are all red or all blue.
 - **The materials** are all Szpon Wilka or all Ząb Dzika, the upgrade materials ([upgrading.md](upgrading.md)).
 - **The gear** is one of each class's first weapons and armours.
+- **A piece of the rare gear,** 4 times in 100 from every stone: one +0 kind of the gear past the first from level 21 ([equipment.md](equipment.md)).
 - **A skill book,** 3 times in 100 from every stone, is the book of one skill of any class; Metin Bitwy also leaves a soul stone once in 100 ([skills.md](skills.md)).
 
 ## What the client does
@@ -109,7 +110,7 @@ Damage, target, death and drops use the same packets as for monsters ([combat.md
 - `internal/mob/mob_test.go`:
   - each stone's waves are monsters no stronger than it;
   - only stones call waves and come back late;
-  - each stone's drops are as in the table above;
+  - each stone's drops are as in the table above, with a skill book 3 times in 100 and a piece of the rare gear 4 times in 100;
   - the +3 gear is the first gear's +3.
 - `internal/world/spawns_test.go`: three, two and two stones per village, each with three spots; each spot in its band, on its map, and clear of everything else.
 - `internal/game/monsters_test.go`: a stone's waves and their strolls stay on its map.
