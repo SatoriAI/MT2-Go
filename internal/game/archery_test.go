@@ -143,7 +143,7 @@ func TestPoisonArrowPoisonsSome(t *testing.T) {
 
 	poisoned := 0
 	for _, m := range s.svc.monsters {
-		if m.p.fight.poisoned {
+		if m.p.fight.has(poison) {
 			poisoned++
 		}
 	}

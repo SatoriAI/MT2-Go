@@ -18,9 +18,8 @@ const (
 // alight is handed to the world loop to tick.
 func (l locked) burn(v, by *present, each int) {
 	f := v.fight
-	f.burnTurns, f.burner, f.burnEach = burnTurns, by, each
-	if !f.burning {
-		f.burning = true
+	f.fire = dose{by: by, each: each, turns: burnTurns}
+	if f.start(fire) {
 		l.news.burned = append(l.news.burned, v)
 		l.showMob(v)
 	}
@@ -34,28 +33,22 @@ func (w *record) burnTick(v *present, now time.Time) bool {
 	l, unlock := w.lock()
 	defer unlock()
 	f := v.fight
-	if v.dead() || l.all[v.add.VID] != v || !f.burning {
+	if v.dead() || l.all[v.add.VID] != v || !f.has(fire) {
 		return false
 	}
-	by := f.burner
-	if l.all[by.add.VID] != by || by.dead() {
-		l.putOut(v)
+	b := &f.fire
+	if l.all[b.by.add.VID] != b.by || b.by.dead() {
+		l.cure(v, fire)
 		return false
 	}
-	if !l.turnDamage(v, by, f.burnEach, protocol.DamageNormal, now) {
+	if !l.turnDamage(v, b.by, b.each, protocol.DamageNormal, now) {
 		return false
 	}
-	if f.burnTurns--; f.burnTurns == 0 {
-		l.putOut(v)
+	if b.turns--; b.turns == 0 {
+		l.cure(v, fire)
 		return false
 	}
 	return true
-}
-
-// putOut ends the monster's fire for everyone who sees it.
-func (l locked) putOut(v *present) {
-	v.fight.burning = false
-	l.showMob(v)
 }
 
 // turnDamage takes a turn's damage of a poison or fire off the monster for whoever set it, who

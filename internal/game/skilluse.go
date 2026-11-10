@@ -330,9 +330,8 @@ const slowSpeed = 70
 // slow holds the monster to slowSpeed of its pace until a time, however long it had left,
 // and shows everyone who sees it the slow and its pace.
 func (l locked) slow(v *present, until time.Time) {
-	v.fight.slowedUntil = until
-	if !v.fight.slowed {
-		v.fight.slowed = true
+	v.fight.slowUntil = until
+	if v.fight.start(slow) {
 		v.add.MoveSpeed = uint8(int(v.add.MoveSpeed) * slowSpeed / 100) //nolint:gosec // a share of a u8
 		l.showMob(v)
 	}
@@ -340,9 +339,8 @@ func (l locked) slow(v *present, until time.Time) {
 
 // quicken ends the monster's slow, giving back its pace for everyone who sees it.
 func (l locked) quicken(v *present, speed uint8) {
-	v.fight.slowed = false
 	v.add.MoveSpeed = speed
-	l.showMob(v)
+	l.cure(v, slow)
 }
 
 // dashStop is how far from its target a dash lands: the original client's warp
@@ -372,9 +370,8 @@ const stunFor = 2 * time.Second
 // stun holds the monster where it stands for stunFor from now, however long it had left,
 // and shows everyone who sees it the stun.
 func (l locked) stun(v *present, now time.Time) {
-	v.fight.stunnedUntil = now.Add(stunFor)
-	if !v.fight.stunned {
-		v.fight.stunned = true
+	v.fight.stunUntil = now.Add(stunFor)
+	if v.fight.start(stun) {
 		l.showMob(v)
 	}
 }
@@ -392,10 +389,9 @@ const (
 // to the world loop to tick.
 func (l locked) poison(v, by *present, now time.Time) {
 	f := v.fight
-	f.poisonedUntil, f.poisoner = now.Add(poisonFor), by
-	f.poison = max(1, min(f.maxHP*poisonShare/10000, int(combat.Mean(attackerOf(by.char), f.defender))))
-	if !f.poisoned {
-		f.poisoned = true
+	f.poisonUntil = now.Add(poisonFor)
+	f.poison = dose{by: by, each: max(1, min(f.maxHP*poisonShare/10000, int(combat.Mean(attackerOf(by.char), f.defender))))}
+	if f.start(poison) {
 		l.news.poisoned = append(l.news.poisoned, v)
 		l.showMob(v)
 	}
@@ -409,22 +405,15 @@ func (w *record) poisonTick(v *present, now time.Time) bool {
 	l, unlock := w.lock()
 	defer unlock()
 	f := v.fight
-	if v.dead() || l.all[v.add.VID] != v || !f.poisoned {
+	if v.dead() || l.all[v.add.VID] != v || !f.has(poison) {
 		return false
 	}
-	by := f.poisoner
-	if !now.Before(f.poisonedUntil) || l.all[by.add.VID] != by || by.dead() {
-		f.poisoned = false
-		l.showMob(v)
+	b := f.poison
+	if !now.Before(f.poisonUntil) || l.all[b.by.add.VID] != b.by || b.by.dead() {
+		l.cure(v, poison)
 		return false
 	}
-	return l.turnDamage(v, by, f.poison, protocol.DamagePoison, now)
-}
-
-// wake ends the monster's stun for everyone who sees it.
-func (l locked) wake(v *present) {
-	v.fight.stunned = false
-	l.showMob(v)
+	return l.turnDamage(v, b.by, b.each, protocol.DamagePoison, now)
 }
 
 // allyOf is who a skill for an ally lands on: the player picked, if they live within its

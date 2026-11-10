@@ -147,12 +147,12 @@ func TestRollingDaggerPoisonsSomeButNeverAStone(t *testing.T) {
 	}
 	stone, poisoned := s.monsters[0], 0
 	for _, m := range s.monsters[1:] {
-		if m.p.fight.poisoned {
+		if m.p.fight.has(poison) {
 			poisoned++
 		}
 	}
-	if poisoned == 0 || stone.p.fight.poisoned {
-		t.Fatalf("%d of the dogs and wave poisoned, the stone %v", poisoned, stone.p.fight.poisoned)
+	if poisoned == 0 || stone.p.fight.has(poison) {
+		t.Fatalf("%d of the dogs and wave poisoned, the stone %v", poisoned, stone.p.fight.has(poison))
 	}
 }
 
@@ -191,6 +191,20 @@ func TestAPoisonTakesItsShareEveryTwoSeconds(t *testing.T) {
 	}
 }
 
+// A poison takes at least one hit point a turn, even off a monster whose share rounds to
+// none.
+func TestAPoisonTakesOneOffTheWeakest(t *testing.T) {
+	s, dog, _, _ := suraHits(t, 100)
+	dog.p.fight.hp, dog.p.fight.maxHP = 50, 50
+	s.record.held(func(l locked) { l.poison(dog.p, s.record.state.all[1000], noon) })
+
+	s.record.poisonTick(dog.p, noon.Add(poisonEvery))
+
+	if got := dog.p.fight.hp; got != 49 {
+		t.Fatalf("hp %d, want 49", got)
+	}
+}
+
 // A poison ends after thirty seconds, shown to everyone; a second one before then runs
 // thirty seconds from it instead.
 func TestAPoisonEndsAfterThirtySecondsOrIsRenewed(t *testing.T) {
@@ -203,7 +217,7 @@ func TestAPoisonEndsAfterThirtySecondsOrIsRenewed(t *testing.T) {
 		t.Fatal("ended at thirty seconds of the first, though renewed")
 	}
 	drain(t, client)
-	if s.record.poisonTick(dog.p, noon.Add(10*time.Second+poisonFor)) || dog.p.fight.poisoned {
+	if s.record.poisonTick(dog.p, noon.Add(10*time.Second+poisonFor)) || dog.p.fight.has(poison) {
 		t.Fatal("ran on past the second's thirty seconds")
 	}
 	if got := read(t, client, updateSize); string(got) != string(protocol.EncodeCharacterUpdate(dog.p.info, dog.p.add, 0)) {
@@ -223,8 +237,8 @@ func TestAPoisonKillsAtThePoisonersHand(t *testing.T) {
 		t.Fatal("the poison runs on after its death")
 	}
 
-	if !dog.p.dead() || dog.p.fight.poisoned || c.Exp == exp || len(s.record.state.news.fallen) != 1 {
-		t.Fatalf("dead %v, poisoned %v, exp %d from %d", dog.p.dead(), dog.p.fight.poisoned, c.Exp, exp)
+	if !dog.p.dead() || dog.p.fight.has(poison) || c.Exp == exp || len(s.record.state.news.fallen) != 1 {
+		t.Fatalf("dead %v, poisoned %v, exp %d from %d", dog.p.dead(), dog.p.fight.has(poison), c.Exp, exp)
 	}
 }
 
@@ -233,7 +247,7 @@ func TestAPoisonEndsWithItsPoisonerGone(t *testing.T) {
 	s, dog, _ := poisoned(t)
 	s.record.leave(1000)
 
-	if s.record.poisonTick(dog.p, noon.Add(poisonEvery)) || dog.p.fight.poisoned {
+	if s.record.poisonTick(dog.p, noon.Add(poisonEvery)) || dog.p.fight.has(poison) {
 		t.Fatal("it runs on for nobody")
 	}
 }

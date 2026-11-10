@@ -1,8 +1,10 @@
 package game
 
 import (
+	"bytes"
 	"math/rand/v2"
 	"net"
+	"slices"
 	"testing"
 	"time"
 
@@ -91,13 +93,13 @@ func TestGhostStrikeSlowsSome(t *testing.T) {
 	drain(t, client)
 	slowed := 0
 	for _, m := range s.svc.monsters {
-		if m.p.fight.slowed {
+		if m.p.fight.has(slow) {
 			slowed++
 			if int(m.p.add.MoveSpeed) != int(m.proto.MoveSpeed)*70/100 || mobAffects(m.p) != 1<<4 {
 				t.Errorf("slowed to %d, affects %x", m.p.add.MoveSpeed, mobAffects(m.p))
 			}
-			if want := noon.Add(10*time.Second + 500*time.Millisecond); !m.p.fight.slowedUntil.Equal(want) {
-				t.Errorf("slowed until %v, want %v", m.p.fight.slowedUntil, want)
+			if want := noon.Add(10*time.Second + 500*time.Millisecond); !m.p.fight.slowUntil.Equal(want) {
+				t.Errorf("slowed until %v, want %v", m.p.fight.slowUntil, want)
 			}
 		}
 	}
@@ -122,9 +124,14 @@ func TestASlowedMonsterWalksSlowerUntilItEnds(t *testing.T) {
 	if walked := dog.p.add.X - from; walked != int32(walkPerSecond*0.7*chaseStep.Seconds()) {
 		t.Fatalf("walked %d", walked)
 	}
+	drain(t, client)
 	s.tick(noon.Add(time.Second))
-	if dog.p.fight.slowed || dog.p.add.MoveSpeed != dog.proto.MoveSpeed {
+	if dog.p.fight.has(slow) || dog.p.add.MoveSpeed != dog.proto.MoveSpeed {
 		t.Fatalf("still slowed at %d", dog.p.add.MoveSpeed)
+	}
+	shown := protocol.EncodeCharacterUpdate(dog.p.info, dog.p.add, 0)
+	if !slices.ContainsFunc(packets(t, drain(t, client)), func(p []byte) bool { return bytes.Equal(p, shown) }) {
+		t.Fatal("not shown at its own pace")
 	}
 }
 

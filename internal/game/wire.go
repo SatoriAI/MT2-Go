@@ -160,20 +160,19 @@ const (
 	fireBit   = 1 << 28 // AFFECT_FIRE, flames on a burning monster
 )
 
-// mobAffects are the effects the client draws on a monster: its stun, poison, slow and fire.
+// ailmentBits are the client's affect bits for each ailment.
+var ailmentBits = [ailmentKinds]uint64{stun: stunBit, poison: poisonBit, slow: slowBit, fire: fireBit}
+
+// mobAffects are the effects the client draws on a monster: its ailments.
 func mobAffects(p *present) uint64 {
+	if p.fight == nil {
+		return 0
+	}
 	var bits uint64
-	if p.fight != nil && p.fight.stunned {
-		bits |= stunBit
-	}
-	if p.fight != nil && p.fight.poisoned {
-		bits |= poisonBit
-	}
-	if p.fight != nil && p.fight.slowed {
-		bits |= slowBit
-	}
-	if p.fight != nil && p.fight.burning {
-		bits |= fireBit
+	for k := range ailmentKinds {
+		if p.fight.has(k) {
+			bits |= ailmentBits[k]
+		}
 	}
 	return bits
 }

@@ -37,29 +37,58 @@ type fight struct {
 	damageBy map[*present]int
 	exp      uint32
 	hitAt    time.Time // its last blow or skill, from which a stone waits to heal
-	// stunnedUntil is when a stun on it ends, shown while stunned is set.
-	stunnedUntil time.Time
-	stunned      bool
-	// A poison runs while poisoned, until poisonedUntil, taking poison a turn for its
-	// poisoner.
-	poisonedUntil time.Time
-	poisoner      *present
-	poison        int
-	poisoned      bool
-	// slowedUntil is when a slow on it ends, shown while slowed is set.
-	slowedUntil time.Time
-	slowed      bool
-	// A fire burns while burning, for burnTurns more turns, taking burnEach a turn for its
-	// burner.
-	burnTurns int
-	burner    *present
-	burnEach  int
-	burning   bool
+	// The ailments on it; until when a stun, slow or poison holds; and what a poison and a
+	// fire take a turn.
+	ailing                            ailments
+	stunUntil, slowUntil, poisonUntil time.Time
+	poison, fire                      dose
 	// A stone's own: that it is one, the waves it has called as it was worn down, and the
 	// smoke it shows.
 	stone bool
 	calls uint8
 	smoke uint64
+}
+
+// ailment is a status a skill puts on a monster, which the client draws on it.
+type ailment uint8
+
+const (
+	stun ailment = iota
+	poison
+	slow
+	fire
+	ailmentKinds
+)
+
+// ailments is a set of them, a bit each.
+type ailments uint8
+
+// dose is what a poison or fire takes off a monster a turn, for whom, and for a fire the
+// turns it has left.
+type dose struct {
+	by    *present
+	each  int
+	turns int
+}
+
+// has is whether the monster suffers the ailment.
+func (f *fight) has(k ailment) bool { return f.ailing&(1<<k) != 0 }
+
+// start puts the ailment on the monster, and reports whether it is new. It shows nothing,
+// since a slow changes the pace first: the caller shows a new one.
+func (f *fight) start(k ailment) bool {
+	if f.has(k) {
+		return false
+	}
+	f.ailing |= 1 << k
+	return true
+}
+
+// cure ends the ailment on the monster and shows it to everyone who sees it, as start
+// leaves to its caller.
+func (l locked) cure(v *present, k ailment) {
+	v.fight.ailing &^= 1 << k
+	l.showMob(v)
 }
 
 // dead is whether p lies dead: a monster since its death, a player at no hit points.
@@ -212,7 +241,7 @@ func (l locked) strikeAs(p, v *present, damage int, flag uint8, now time.Time) b
 // drops are kept for whoever hurt it most and its experience shared.
 func (l locked) kill(p, v *present, now time.Time) {
 	f, vid := v.fight, v.add.VID
-	f.diedAt, f.stunned, f.poisoned, f.slowed, f.burning = now, false, false, false, false // a body is none of these
+	f.diedAt, f.ailing = now, 0 // a body has no ailments
 	winner := l.topDamager(f, p)
 	l.news.fallen = append(l.news.fallen, death{v, now, owner{id: winner.char.ID, name: winner.info.Name}})
 	if f.stone {
