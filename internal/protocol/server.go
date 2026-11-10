@@ -374,9 +374,11 @@ func EncodeTarget(vid uint32, hpPercent uint8) []byte {
 const DamageNormal uint8 = 1
 
 // DamagePoison is poison's turn, drawn as the client's poison effect over the victim, and
-// DamageCritical a critical blow, drawn as one.
+// DamageCritical a critical blow, drawn as one; a blow both piercing and critical carries
+// both bits.
 const (
 	DamagePoison   uint8 = 2
+	DamagePiercing uint8 = 16 // a blow through the victim's defence, drawn as one
 	DamageCritical uint8 = 32
 )
 
@@ -501,9 +503,9 @@ func EncodeChannelStatus(channels []ChannelStatus) []byte {
 	return w.Bytes()
 }
 
-// EncodeItemSet puts count of item vnum in the cell, or empties it with vnum 0. The
-// sockets and bonuses that follow are not used yet, so they are sent empty.
-func EncodeItemSet(at ItemPos, vnum uint32, count uint8) []byte {
+// EncodeItemSet puts count of item vnum in the cell, with its bonuses, or empties it with
+// vnum 0. The sockets are not used yet, so they are sent empty.
+func EncodeItemSet(at ItemPos, vnum uint32, count uint8, bonuses Bonuses) []byte {
 	w := NewWriter(byte(ServerItemSet), 42)
 	w.U8(at.Window)
 	w.U16(at.Cell)
@@ -512,11 +514,25 @@ func EncodeItemSet(at ItemPos, vnum uint32, count uint8) []byte {
 	for range 3 { // sockets
 		w.I32(0)
 	}
-	for range 7 { // bonuses: a type and a value
-		w.U8(0)
-		w.U16(0)
-	}
+	bonuses.write(w)
 	return w.Bytes()
+}
+
+// Bonus is one of an item's bonus slots as the client reads it: the bonus's type, by the
+// client's number for it, and its value; 0 for an empty slot.
+type Bonus struct {
+	Type  uint8
+	Value int16
+}
+
+// Bonuses are an item's seven slots.
+type Bonuses [7]Bonus
+
+func (b Bonuses) write(w *Writer) {
+	for _, s := range b {
+		w.U8(s.Type)
+		w.U16(uint16(s.Value)) //nolint:gosec // the client reads the value back signed
+	}
 }
 
 // EncodeCharacterUpdate re-dresses a character the client already shows: its armour,
@@ -572,11 +588,13 @@ func EncodeItemOwner(vid uint32, name string) []byte {
 // Effect is one of the effects the client draws on a character.
 type Effect uint8
 
-// The potions' effects; the client plays the potion sound with either on the player's own
-// character.
+// The potions' effects, whose sound the client plays on the player's own character, and
+// the blows' a critical or piercing one is drawn with.
 const (
 	EffectRedPotion  Effect = 1
 	EffectBluePotion Effect = 2
+	EffectCritical   Effect = 5
+	EffectPiercing   Effect = 6
 )
 
 // EncodeSpecialEffect draws the effect on the character vid.
@@ -777,15 +795,16 @@ const (
 // kind of an item offered, the yang offered, or 1 for an accept given and 0 for one taken
 // back; Shown and Count are an item's trade window cell and how many of it.
 type ExchangeNews struct {
-	Sub   byte
-	Mine  bool
-	Arg   uint32
-	Shown uint8
-	Count uint8
+	Sub     byte
+	Mine    bool
+	Arg     uint32
+	Shown   uint8
+	Count   uint8
+	Bonuses Bonuses // an item's, offered
 }
 
 // EncodeExchange tells one side of a trade what changed. The client reads only the cell of
-// the position it carries, and an item's sockets and bonuses follow, empty.
+// the position it carries; an item's sockets follow, empty, then its bonuses.
 func EncodeExchange(n ExchangeNews) []byte {
 	mine := uint8(0)
 	if n.Mine {
@@ -798,6 +817,7 @@ func EncodeExchange(n ExchangeNews) []byte {
 	w.U8(0) // the window
 	w.U16(uint16(n.Shown))
 	w.U32(uint32(n.Count))
-	w.Raw(make([]byte, 3*4+7*3))
+	w.Raw(make([]byte, 3*4)) // the sockets
+	n.Bonuses.write(w)
 	return w.Bytes()
 }

@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"errors"
+	"reflect"
 	"slices"
 	"testing"
 
@@ -51,7 +52,7 @@ func TestAGiveGoesIntoTheFirstCellItFits(t *testing.T) {
 	applied, done := s.mustApply(t, cid)
 
 	inv, orders, err := s.Owned(context.Background(), "Hendra")
-	if err != nil || !slices.Equal(applied, inv) || len(done) != 2 || len(orders) != 0 || len(inv) != 2 ||
+	if err != nil || !reflect.DeepEqual(applied, inv) || len(done) != 2 || len(orders) != 0 || len(inv) != 2 ||
 		inv[0].VNum != 10 || inv[0].Cell != 0 || inv[1].VNum != 27001 || inv[1].Count != 50 || inv[1].Cell != 1 {
 		t.Fatalf("did %d, owns %+v, waiting %+v (%v)", len(done), inv, orders, err)
 	}
@@ -261,7 +262,7 @@ func TestAnItemPickedUpIsKept(t *testing.T) {
 	}
 
 	inv, _, _ := s.Owned(context.Background(), "Hendra")
-	if len(inv) != 1 || inv[0] != (item.Item{ID: id, VNum: 27001, Count: 2, Cell: 4}) {
+	if len(inv) != 1 || !reflect.DeepEqual(inv[0], item.Item{ID: id, VNum: 27001, Count: 2, Cell: 4}) {
 		t.Fatalf("kept %+v", inv)
 	}
 }
@@ -399,5 +400,55 @@ func TestAWriteToAnotherCharactersItemIsRefused(t *testing.T) {
 	}
 	if gold, err := s.Gold(ctx, hendra); err != nil || gold != 1000 {
 		t.Fatalf("Hendra holds %d yang (%v)", gold, err)
+	}
+}
+
+// An item's bonuses are kept with it in slot order and read back with it; they stay through
+// an upgrade and a trade, which keep the row, and go when the item does. An unknown kind is
+// refused, and nothing is kept of the item.
+func TestAnItemsBonusesAreKeptWithIt(t *testing.T) {
+	s, hendra, kira, _, _, _ := traders(t)
+	ctx := context.Background()
+	bonuses := item.Bonuses{{Kind: account.BonusCritical, Value: 5}, {Kind: account.BonusAverage, Value: 20},
+		{Kind: account.BonusSkill, Value: -10}}
+	id, err := s.Add(ctx, hendra, item.Item{VNum: 290, Count: 1, Cell: 10, Bonuses: bonuses})
+	if err != nil {
+		t.Fatal(err)
+	}
+	carried := func(owner string) item.Bonuses {
+		inv, _, err := s.Owned(ctx, owner)
+		if err != nil {
+			t.Fatal(err)
+		}
+		it, _ := inv.ByID(id)
+		return it.Bonuses
+	}
+	if got := carried("Hendra"); !reflect.DeepEqual(got, bonuses) {
+		t.Fatalf("carries %+v", got)
+	}
+
+	if _, err := s.Upgrade(ctx, hendra, 0, item.Item{ID: id, VNum: 291}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Trade(ctx, item.Trade{{Character: hendra, Items: []item.Item{{ID: id, Cell: 20}}}, {Character: kira}}); err != nil {
+		t.Fatal(err)
+	}
+	if got := carried("Kira"); !reflect.DeepEqual(got, bonuses) {
+		t.Fatalf("upgraded and traded, carries %+v", got)
+	}
+
+	if err := s.Remove(ctx, kira, id); err != nil {
+		t.Fatal(err)
+	}
+	var left int
+	if err := s.Pool.QueryRow(ctx, `SELECT count(*) FROM item_bonuses WHERE item_id = $1`, id).Scan(&left); err != nil || left != 0 {
+		t.Fatalf("%d bonuses left (%v)", left, err)
+	}
+
+	if _, err := s.Add(ctx, hendra, item.Item{VNum: 290, Count: 1, Cell: 30, Bonuses: item.Bonuses{{Kind: "luck", Value: 1}}}); err == nil {
+		t.Fatal("an unknown bonus kept")
+	}
+	if inv, _, _ := s.Owned(ctx, "Hendra"); slices.ContainsFunc(inv, func(it item.Item) bool { return it.Cell == 30 }) {
+		t.Fatal("the item with an unknown bonus kept")
 	}
 }

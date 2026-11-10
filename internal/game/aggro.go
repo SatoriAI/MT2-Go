@@ -226,6 +226,7 @@ func (l locked) bite(m *monster, t *present, now time.Time, clock uint32, r *ran
 	bitten := combat.Bite(b, combat.Defender{Level: ch.Level, Vitality: ch.Vitality, Armour: armourOf(ch)}, r)
 	bitten = bitten * (100 + buffBonus(ch, skill.DamageTaken)) / 100
 	bitten = bitten * (100 - min(maxResistance, buffBonus(ch, skill.Resistance))) / 100
+	bitten = bitten * (100 - ch.Totals.Resist) / 100
 	damage := min(l.shield(t, uint32(max(1, bitten))), ch.HP) //nolint:gosec // at least 1
 	ch.HP -= damage
 	ch.LastFought = now

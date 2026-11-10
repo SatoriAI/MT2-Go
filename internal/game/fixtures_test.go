@@ -134,7 +134,7 @@ var fixedSizes = map[protocol.ServerHeader]int{
 	protocol.ServerAffectAdd:        len(protocol.EncodeAffectAdd(protocol.Affect{})),
 	protocol.ServerAffectRemove:     len(protocol.EncodeAffectRemove(0, 0)),
 	protocol.ServerDead:             len(protocol.EncodeDead(0)),
-	protocol.ServerItemSet:          len(protocol.EncodeItemSet(protocol.ItemPos{}, 0, 0)),
+	protocol.ServerItemSet:          len(protocol.EncodeItemSet(protocol.ItemPos{}, 0, 0, protocol.Bonuses{})),
 	protocol.ServerGroundAdd:        len(protocol.EncodeGroundAdd(0, 0, 0, 0)),
 	protocol.ServerGroundDel:        len(protocol.EncodeGroundDel(0)),
 	protocol.ServerItemOwner:        len(protocol.EncodeItemOwner(0, "")),

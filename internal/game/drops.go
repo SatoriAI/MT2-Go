@@ -2,10 +2,13 @@ package game
 
 import (
 	"context"
+	"fmt"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/SatoriAI/MT2-Go/internal/item"
+	"github.com/SatoriAI/MT2-Go/internal/mob"
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
 )
 
@@ -35,6 +38,7 @@ type groundItem struct {
 	x, y    int32
 	vnum    uint32
 	count   uint8
+	bonuses item.Bonuses
 	gold    uint32 // yang, in place of an item
 	owner   owner
 	dropped time.Time
@@ -78,6 +82,9 @@ func (svc *Service) dropFrom(m *monster, d death, now time.Time) {
 				y: m.y + svc.spread(dropSpread), vnum: pick.From[svc.rand.IntN(len(pick.From))], count: pick.Count, owner: d.owner, dropped: now})
 		}
 	}
+	for _, it := range fallen {
+		svc.rollBonuses(m, it)
+	}
 	if y := m.proto.Yang; svc.rand.IntN(10000) < int(y.Chance) {
 		fallen = append(fallen, &groundItem{vid: svc.lastVID.Add(1), x: m.x + svc.spread(dropSpread),
 			y: m.y + svc.spread(dropSpread), gold: y.Min + uint32(svc.rand.IntN(int(y.Max-y.Min+1))), //nolint:gosec // a small range
@@ -88,8 +95,22 @@ func (svc *Service) dropFrom(m *monster, d death, now time.Time) {
 	}
 	svc.record.drop(m.p, fallen)
 	for _, it := range fallen {
+		if it.bonuses.Remarkable() {
+			p, _ := item.Lookup(it.vnum)
+			svc.record.tellMap(m.p, fmt.Sprintf("%s zdobywa %s z niezwykłymi bonusami!", d.owner.name, strings.TrimSuffix(p.Name, "+0")))
+		}
 		svc.freeing = append(svc.freeing, timed{it.vid, now.Add(ownedFor)})
 		svc.vanishing = inOrder(svc.vanishing, timed{it.vid, now.Add(lieFor)})
+	}
+}
+
+// rollBonuses gives a piece of gear that falls its bonuses (docs/mechanics/bonuses.md):
+// from a stone, one to three, and from anything a level-30 or level-36 weapon sometimes its
+// pair. Each roll is logged, so the odds can be weighed against what players found.
+func (svc *Service) rollBonuses(m *monster, it *groundItem) {
+	p, _ := item.Lookup(it.vnum)
+	if it.bonuses = item.Roll(p, m.proto.Kind == mob.Stone, svc.rand); len(it.bonuses) > 0 {
+		svc.log.Info("bonuses rolled", "item", it.vnum, "monster", m.proto.VNum, "bonuses", it.bonuses)
 	}
 }
 
@@ -323,6 +344,7 @@ func (s *session) onItemPickup(body []byte) error {
 	if into.ID != 0 {
 		err = s.svc.items.SetCount(ctx, s.playing.ID, into.ID, into.Count)
 	} else {
+		into.Bonuses = it.bonuses
 		into.ID, err = s.svc.items.Add(ctx, s.playing.ID, into)
 	}
 	if err != nil {

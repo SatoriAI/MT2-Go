@@ -217,11 +217,12 @@ func withGrades(kinds map[uint32]Proto) map[uint32]Proto {
 // Item is one item a character owns: a kind, how many of it, and either the inventory
 // cell its top stands in or where it is worn.
 type Item struct {
-	ID    int64
-	VNum  uint32
-	Count uint8
-	Cell  uint16 // meaningless while it is worn
-	Worn  Wear
+	ID      int64
+	VNum    uint32
+	Count   uint8
+	Cell    uint16 // meaningless while it is worn
+	Worn    Wear
+	Bonuses Bonuses
 }
 
 // The inventory is two pages of 45 cells, five to a row; an item stands in its column

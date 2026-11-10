@@ -205,6 +205,7 @@ func (l locked) splash(pl, at *present, proto skill.Proto, percent int, level ui
 			} else {
 				damage = combat.Damage(a, v.fight.defender, r) * share / 100
 			}
+			damage = raised(damage, pl.char.Totals.Skill, v, pl.char.Totals.Animals)
 			if blow = l.strike(pl, v, damage, now); blow == blowKilled {
 				break
 			}

@@ -213,15 +213,20 @@ func (s *session) dress() {
 // outfit is what a character wears, each by vnum, 0 for nothing.
 type outfit struct {
 	weapon, body, head, feet, shield, arrow uint32
+	totals                                  account.Totals // the bonuses of all of it
 }
 
 func outfitOf(inv item.Inventory) outfit {
+	var sum account.Totals
 	worn := func(place item.Wear) uint32 {
 		it, _ := inv.WornIn(place)
+		it.Bonuses.Sum(&sum)
 		return it.VNum
 	}
-	return outfit{weapon: worn(item.Weapon), body: worn(item.Body), head: worn(item.Head), feet: worn(item.Feet),
+	o := outfit{weapon: worn(item.Weapon), body: worn(item.Body), head: worn(item.Head), feet: worn(item.Feet),
 		shield: worn(item.Shield), arrow: worn(item.Arrow)}
+	o.totals = sum.Capped()
+	return o
 }
 
 // itemAt returns the item at a position the client names, in a cell or worn.
@@ -248,7 +253,8 @@ var itemPackets = map[protocol.ClientHeader]bool{
 
 // dress puts the outfit on the player's character: their blows and the bites on them use
 // it from then on, and they and everyone who sees them see the change, at the speed their
-// shoes and shield give, and the weapon's attack speed. A buff that needs a weapon, as Enchanted Blade and Sword Aura
+// shoes and shield give, the weapon's attack speed, and the bonuses of all of it, which
+// may change their hit points' maximum, the hit points cut to it. A buff that needs a weapon, as Enchanted Blade and Sword Aura
 // do, ends with it taken out of hand. The player is told their new DEF when what they
 // wear against bites changed, and their speed when it did.
 func (w *record) dress(vid uint32, o outfit) {
@@ -258,7 +264,9 @@ func (w *record) dress(vid uint32, o outfit) {
 	c := p.char
 	armourChanged := c.Body != o.body || c.Head != o.head || c.Feet != o.feet || c.Shield != o.shield
 	speed, strikes := p.add.MoveSpeed, p.add.AttackSpeed
+	before, _ := c.Points()
 	c.Weapon, c.Body, c.Head, c.Feet, c.Shield, c.Arrow = o.weapon, o.body, o.head, o.feet, o.shield, o.arrow
+	c.Totals = o.totals
 	held, _ := item.Lookup(o.weapon)
 	for sk := range c.Buffs {
 		if buff, _ := skill.Lookup(sk); !buff.Wieldable(held) {
@@ -277,6 +285,10 @@ func (w *record) dress(vid uint32, o outfit) {
 	}
 	if p.add.AttackSpeed != strikes {
 		p.send(pointTold(vid, protocol.PointAttackSpeed, 0, p.add.AttackSpeed))
+	}
+	if after, _ := c.Points(); after.MaxHP != before.MaxHP {
+		c.HP = min(c.HP, after.MaxHP)
+		p.send(pointTold(vid, protocol.PointMaxHP, 0, after.MaxHP), pointTold(vid, protocol.PointHP, 0, c.HP))
 	}
 	l.toViewers(p, update)
 }
@@ -308,11 +320,12 @@ func moveSpeed(c *account.Character) uint8 {
 }
 
 // attackSpeed is the speed the character strikes at: everyone's, what the weapon in hand
-// adds, and what their buffs add, never past what the client's point holds.
+// adds, what the bonuses of what they wear add, and what their buffs add, never past what
+// the client's point holds.
 func attackSpeed(c *account.Character) uint8 {
 	points, _ := c.Points()
 	weapon, _ := item.Lookup(c.Weapon)
-	return uint8(min(math.MaxUint8, int(points.AttackSpeed)+int(weapon.AttackSpeed)+buffBonus(c, skill.AttackSpeed))) //nolint:gosec // capped above
+	return uint8(min(math.MaxUint8, int(points.AttackSpeed)+int(weapon.AttackSpeed)+c.Totals.AttackSpeed+buffBonus(c, skill.AttackSpeed))) //nolint:gosec // capped above
 }
 
 // attackSpeedOf is the speed the player strikes at now, for the time their blows must
@@ -327,4 +340,5 @@ func (w *record) attackSpeedOf(vid uint32) uint8 {
 func wear(c *account.Character, inv item.Inventory) {
 	o := outfitOf(inv)
 	c.Weapon, c.Body, c.Head, c.Feet, c.Shield, c.Arrow = o.weapon, o.body, o.head, o.feet, o.shield, o.arrow
+	c.Totals = o.totals
 }

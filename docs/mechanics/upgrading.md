@@ -5,7 +5,7 @@
 Each village has a blacksmith, Kowal, beside the class teachers. Dragging a first weapon, armour, helmet, shoes or shield from the bag onto him opens the refine dialog. It shows what the item becomes, its cost in yang, its chance, and, from the step to +5, the material it takes.
 
 - **Yes** upgrades it. The item is shown at its new grade, the yang goes down, and the chat says «Przedmiot został ulepszony.».
-- **A failure** says «Ulepszanie nie powiodło się.». The yang and material are gone. From the step to +5 on, the item also drops a grade. It is never destroyed.
+- **A failure** says «Ulepszanie nie powiodło się.». The yang and material are gone. From the step to +5 on, the item also drops a grade. It is never destroyed, and its bonuses stay with it at every grade ([bonuses.md](bonuses.md)).
 - **Up to the step to +4,** the dialog asks nothing more. From the step to +5, it warns «Przedmiot może zostać zdegradowany w ten sposób.» first.
 - **Refusals:**
   - anything else given to him, a potion, a +9 or nothing, is answered «Ten Przedmiot nie może zostać ulepszony.»;

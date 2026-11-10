@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"net"
+	"reflect"
 	"slices"
 	"testing"
 	"time"
@@ -372,8 +373,8 @@ func TestATradeBothAcceptIsKeptWhole(t *testing.T) {
 	store, _, _ := accepted(t)
 
 	if store.kept[0].Gold != 300 || store.kept[1].Gold != 0 ||
-		!slices.Equal(store.kept[0].Items, []item.Item{{ID: 1, VNum: 10, Count: 1, Cell: 0}}) ||
-		!slices.Equal(store.kept[1].Items, []item.Item{{ID: 2, VNum: 27001, Count: 30, Cell: 0}}) {
+		!reflect.DeepEqual(store.kept[0].Items, []item.Item{{ID: 1, VNum: 10, Count: 1, Cell: 0}}) ||
+		!reflect.DeepEqual(store.kept[1].Items, []item.Item{{ID: 2, VNum: 27001, Count: 30, Cell: 0}}) {
 		t.Fatalf("kept %+v", store.kept)
 	}
 }
@@ -398,7 +399,7 @@ func TestEachSideIsToldWhatATradeKeptChanged(t *testing.T) {
 func TestTheSideKeepingATradeHoldsItsChange(t *testing.T) {
 	_, hendra, _ := accepted(t)
 
-	if !slices.Equal(hendra.s.inventory, item.Inventory{{ID: 2, VNum: 27001, Count: 30, Cell: 0}}) || hendra.s.gold != 700 || len(hendra.s.taskbar) != 0 {
+	if !reflect.DeepEqual(hendra.s.inventory, item.Inventory{{ID: 2, VNum: 27001, Count: 30, Cell: 0}}) || hendra.s.gold != 700 || len(hendra.s.taskbar) != 0 {
 		t.Fatalf("Hendra holds %+v, %d yang, taskbar %v", hendra.s.inventory, hendra.s.gold, hendra.s.taskbar)
 	}
 }
@@ -417,7 +418,7 @@ func TestTheOtherSideHoldsItsChangeFromItsNextPacket(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !slices.Equal(kira.s.inventory, item.Inventory{{ID: 9, VNum: 8000, Count: 40, Worn: item.Arrow}, {ID: 1, VNum: 10, Count: 1, Cell: 0}}) || kira.s.gold != 350 {
+	if !reflect.DeepEqual(kira.s.inventory, item.Inventory{{ID: 9, VNum: 8000, Count: 40, Worn: item.Arrow}, {ID: 1, VNum: 10, Count: 1, Cell: 0}}) || kira.s.gold != 350 {
 		t.Fatalf("Kira holds %+v and %d yang", kira.s.inventory, kira.s.gold)
 	}
 }

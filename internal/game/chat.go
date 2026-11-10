@@ -65,6 +65,8 @@ func (s *session) onCommand(ctx context.Context, command string) error {
 		return nil
 	case "skillup":
 		return s.raiseSkill(ctx, arg)
+	case "bonusy":
+		return s.conn.Send(bonusLines(s.svc.record.totalsOf(s.playing.vid))...)
 	case "restart_here", "restart_town":
 		// The restart dialog's buttons, which the client shows once its character died.
 		town := name == "restart_town"

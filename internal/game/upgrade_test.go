@@ -5,6 +5,7 @@ import (
 	"errors"
 	"math/rand/v2"
 	"net"
+	"reflect"
 	"testing"
 
 	"github.com/SatoriAI/MT2-Go/internal/item"
@@ -137,7 +138,7 @@ func TestAnUpgradeThatSucceedsRaisesTheGrade(t *testing.T) {
 		t.Fatalf("told %x", got)
 	}
 	expectChatInfo(t, client, upgradeSucceeded)
-	if it, _ := s.inventory.ByID(1); kept.upgraded != upgraded || it != upgraded || s.gold != 300 || s.upgrading != nil {
+	if it, _ := s.inventory.ByID(1); !reflect.DeepEqual(kept.upgraded, upgraded) || !reflect.DeepEqual(it, upgraded) || s.gold != 300 || s.upgrading != nil {
 		t.Fatalf("kept %+v, holds %+v, yang %d", kept.upgraded, it, s.gold)
 	}
 }
@@ -211,7 +212,7 @@ func TestMaterialsAreTakenFromTheFirstStacks(t *testing.T) {
 	if got := read(t, client, 2*itemSetSize); string(got) != string(itemCleared(item.Item{ID: 2, VNum: upgrade.WolfClaw, Cell: 9}))+string(itemSet(left)) {
 		t.Fatalf("told %x", got)
 	}
-	if len(kept.spent) != 2 || kept.spent[0].Count != 0 || kept.spent[1] != left || len(s.inventory) != 3 {
+	if len(kept.spent) != 2 || kept.spent[0].Count != 0 || !reflect.DeepEqual(kept.spent[1], left) || len(s.inventory) != 3 {
 		t.Fatalf("spent %+v, holds %+v", kept.spent, s.inventory)
 	}
 }

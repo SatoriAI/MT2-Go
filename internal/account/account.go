@@ -178,4 +178,7 @@ type Character struct {
 	BuffBy map[Skill]BuffCaster
 	Blocks Blocks
 	Aids   Aids
+	// Totals are the bonuses of what the character wears, summed and capped: in play only,
+	// from the items' own.
+	Totals Totals
 }

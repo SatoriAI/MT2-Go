@@ -61,6 +61,7 @@ A level-1 sura without a weapon takes about 10 to 12 off a wild dog a blow, so a
   - **damage:** attack × 100 ÷ (100 + defence), a tenth more or less at random, rounded, never under 1. Defence takes a share of every blow, never all of it.
 
   The attacker gets the damage; everyone who has picked the monster gets its new hit points.
+- **Bonuses:** what a player wears may raise their blows and skills, pierce or double a blow, and take off a bite ([bonuses.md](bonuses.md)).
 - **Speed:** a blow sooner than 15000 ms divided by the player's attack speed (at least 80 ms; 100 ms at a new character's 150) after their last on the same victim is dropped without a word: open-mt2's rule, after the original's, against tools that send blows faster than the client swings. It is checked on both sides: the attacker's last victim, and the victim's last attacker, which catches a player switching between two victims to double up. A weapon in hand adds its own attack speed ([equipment.md](equipment.md)), so the Kosa Bojowa's 37 already reaches the 80 ms floor, and Berserk shortens its gap no further.
 - **Death:** a blow that takes the last hit point sends the attacker its damage, everyone who picked the monster its 0%, and everyone who sees it its death; the picks end. The body cannot be hit, picked or moved.
 - **A body** is shown lying, with the client's dead state in its ADD, to anyone who arrives while it lies there.

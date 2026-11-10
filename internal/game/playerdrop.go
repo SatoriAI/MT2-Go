@@ -50,7 +50,7 @@ func (s *session) onItemDrop(body []byte) error {
 		s.inventory.Replace(left)
 	}
 	err = s.conn.Send(append([][]byte{shown}, s.followTaskbar()...)...)
-	s.layDown(&groundItem{vnum: it.VNum, count: d.Count}) // written, so laid down whatever came of telling them
+	s.layDown(&groundItem{vnum: it.VNum, count: d.Count, bonuses: it.Bonuses}) // written, so laid down whatever came of telling them
 	return err
 }
 

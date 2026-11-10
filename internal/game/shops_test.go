@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"net"
+	"reflect"
 	"testing"
 
 	"github.com/SatoriAI/MT2-Go/internal/item"
@@ -117,7 +118,7 @@ func TestABuyTakesTheYangAndGivesTheWare(t *testing.T) {
 		string(protocol.EncodePointChange(1000, protocol.PointGold, -32, 68)) {
 		t.Fatalf("told %x", got)
 	}
-	if s.gold != 68 || kept.gold != 68 || len(s.inventory) != 2 || s.inventory[1] != want {
+	if s.gold != 68 || kept.gold != 68 || len(s.inventory) != 2 || !reflect.DeepEqual(s.inventory[1], want) {
 		t.Fatalf("has %d, kept %d, carries %+v", s.gold, kept.gold, s.inventory)
 	}
 }
