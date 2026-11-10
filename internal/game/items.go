@@ -119,6 +119,8 @@ func (s *session) onItemUse(ctx context.Context, body []byte) error {
 		return s.readBook(ctx, it, p.Teaches)
 	case it.VNum == item.SoulStone:
 		return s.offerSoulStone(it)
+	case p.Aid != "":
+		return s.takeAid(ctx, it, p.Aid)
 	}
 	s.conn.Log().Debug("item use not handled yet", "item", it.ID, "vnum", it.VNum)
 	return nil

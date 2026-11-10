@@ -41,6 +41,13 @@ func (s *session) useOne(it item.Item) (bool, error) {
 		s.conn.Log().Error("item not used up", "item", it.ID, "err", err)
 		return false, s.conn.Send(itemSet(it))
 	}
+	return true, s.showUsed(it, left)
+}
+
+// showUsed carries the item at what is left of it, forgotten with none left, and shows
+// the client it, followed by told. Arrows worn out of their place undress the character of
+// them.
+func (s *session) showUsed(it, left item.Item, told ...[]byte) error {
 	shown := itemSet(left)
 	if left.Count == 0 {
 		s.inventory = slices.DeleteFunc(s.inventory, func(held item.Item) bool { return held.ID == it.ID })
@@ -48,13 +55,14 @@ func (s *session) useOne(it item.Item) (bool, error) {
 	} else {
 		s.inventory.Replace(left)
 	}
-	if err := s.conn.Send(append([][]byte{shown}, s.followTaskbar()...)...); err != nil {
-		return true, err
+	packets := append(append([][]byte{shown}, s.followTaskbar()...), told...)
+	if err := s.conn.Send(packets...); err != nil {
+		return err
 	}
 	if left.Count == 0 && it.Worn != "" {
 		s.dress()
 	}
-	return true, nil
+	return nil
 }
 
 // wouldDrink reports whether the potion would do the player any good: they are alive and

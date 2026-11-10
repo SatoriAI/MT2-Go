@@ -160,6 +160,17 @@ const (
 	fireBit   = 1 << 28 // AFFECT_FIRE, flames on a burning monster
 )
 
+// aidAffects are the client's affect types for the aids: NEW_AFFECT_SKILL_BOOK_BONUS and
+// NEW_AFFECT_SKILL_BOOK_NO_DELAY, each an icon and its tooltip.
+var aidAffects = map[account.Aid]uint32{account.ReadBonus: 512, account.NoReadWait: 513}
+
+// aidShown and aidGone show and hide the aid's icon; the client keeps no time for either.
+func aidShown(aid account.Aid) []byte {
+	return protocol.EncodeAffectAdd(protocol.Affect{Type: aidAffects[aid], Duration: protocol.AffectForever})
+}
+
+func aidGone(aid account.Aid) []byte { return protocol.EncodeAffectRemove(aidAffects[aid], 0) }
+
 // ailmentBits are the client's affect bits for each ailment.
 var ailmentBits = [ailmentKinds]uint64{stun: stunBit, poison: poisonBit, slow: slowBit, fire: fireBit}
 

@@ -77,6 +77,8 @@ const (
 	ServerSyncPosition     ServerHeader = 0x05 // characters put where the server has them
 	ServerTarget           ServerHeader = 0x3F // the target's hit points, as a percentage
 	ServerDamage           ServerHeader = 0x87 // damage dealt, drawn over the victim
+	ServerAffectAdd        ServerHeader = 0x7E // an affect on the player, shown as an icon
+	ServerAffectRemove     ServerHeader = 0x7F // that affect gone, its icon with it
 	ServerFlyTarget        ServerHeader = 0x47 // what another's arrow flies at
 	ServerAddFlyTarget     ServerHeader = 0x45 // another their skill's arrows fly at
 	ServerSkillLevels      ServerHeader = 0x4C // every skill's level, by the client's number for it

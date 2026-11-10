@@ -846,3 +846,15 @@ func TestAnExchangeNewsIsFortySevenBytes(t *testing.T) {
 		t.Fatalf("accept %x", got[:7])
 	}
 }
+
+// An affect on the player and its removal, laid out as the client reads AFFECT_ADD and
+// AFFECT_REMOVE.
+func TestAnAffectIsAddedAndRemovedInTheClientsLayout(t *testing.T) {
+	added := EncodeAffectAdd(Affect{Type: 512, Point: 3, Value: -4, Flag: 5, Duration: AffectForever, ManaCost: 6})
+	if want := mustHex(t, "7e"+"00020000"+"03"+"fcffffff"+"05000000"+"ffffff1f"+"06000000"); !bytes.Equal(added, want) {
+		t.Fatalf("added %x, want %x", added, want)
+	}
+	if got, want := EncodeAffectRemove(513, 0), mustHex(t, "7f"+"01020000"+"00"); !bytes.Equal(got, want) {
+		t.Fatalf("removed %x, want %x", got, want)
+	}
+}

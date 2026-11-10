@@ -116,12 +116,12 @@ func (a Accounts) withAccount(ctx context.Context, id int64, fn func(pgx.Tx, acc
 // characterColumns are what account.Character holds, in the order scanCharacter reads them.
 const characterColumns = `id, slot, name, class, sex, shape, level, exp, stat_points, play_minutes,
 	coalesce(hp, 0), coalesce(sp, 0),
-	coalesce((SELECT vnum FROM items WHERE character_id = characters.id AND worn = 'body'), 0), vitality, intelligence, strength, dexterity, hair, x, y, coalesce(skill_group, ''), blocks`
+	coalesce((SELECT vnum FROM items WHERE character_id = characters.id AND worn = 'body'), 0), vitality, intelligence, strength, dexterity, hair, x, y, coalesce(skill_group, ''), blocks, aids`
 
 func scanCharacter(row pgx.Row) (account.Character, error) {
 	var c account.Character
 	err := row.Scan(&c.ID, &c.Slot, &c.Name, &c.Class, &c.Sex, &c.Shape, &c.Level, &c.Exp, &c.StatPoints, &c.PlayMinutes,
-		&c.HP, &c.SP, &c.Body, &c.Vitality, &c.Intelligence, &c.Strength, &c.Dexterity, &c.Hair, &c.X, &c.Y, &c.SkillGroup, &c.Blocks)
+		&c.HP, &c.SP, &c.Body, &c.Vitality, &c.Intelligence, &c.Strength, &c.Dexterity, &c.Hair, &c.X, &c.Y, &c.SkillGroup, &c.Blocks, &c.Aids)
 	return c, err
 }
 

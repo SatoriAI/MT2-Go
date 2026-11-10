@@ -260,6 +260,31 @@ func TestBooksAndSoulStonesComeFromTheStrongest(t *testing.T) {
 	}
 }
 
+// The helpers of a read come only from the stones: Zwój Egzorcyzmu once in 100 and Rada
+// Pustelnika once in 200, and from Metin Bitwy each 3 times in 100.
+func TestTheHelpersOfAReadComeOnlyFromTheStones(t *testing.T) {
+	want := map[uint16][2]uint16{8001: {100, 50}, 8002: {100, 50}, 8003: {300, 300}}
+	for vnum, p := range protos {
+		var got [2]uint16
+		for _, d := range p.Drops {
+			switch d.VNum {
+			case item.ExorcismScroll:
+				got[0] = d.Chance
+			case item.HermitsAdvice:
+				got[1] = d.Chance
+			}
+		}
+		if got != want[vnum] {
+			t.Errorf("%d leaves the helpers at %v, want %v", vnum, got, want[vnum])
+		}
+	}
+	for _, v := range []uint32{item.ExorcismScroll, item.HermitsAdvice} {
+		if p, ok := item.Lookup(v); !ok || p.Aid == "" {
+			t.Errorf("%d leaves no aid", v)
+		}
+	}
+}
+
 // The rare gear, which no trader sells, is the gear past the first of level 21 and more:
 // every such kind at +0, from the cursed monsters only, once in 200, besides the books of
 // those of level 15 or more.

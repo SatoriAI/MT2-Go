@@ -171,6 +171,14 @@ var (
 	fieldBooks = []Pick{{From: books, Count: 1, Chance: 30}}
 )
 
+// The helpers of a read, as the debaters settled: a stone leaves Zwój Egzorcyzmu once in
+// 100 and Rada Pustelnika once in 200, and Metin Bitwy, the strongest, each 3 times in
+// 100. No other monster leaves them.
+var (
+	stoneAids  = []Drop{{VNum: item.ExorcismScroll, Count: 1, Chance: 100}, {VNum: item.HermitsAdvice, Count: 1, Chance: 50}}
+	battleAids = []Drop{{VNum: item.ExorcismScroll, Count: 1, Chance: 300}, {VNum: item.HermitsAdvice, Count: 1, Chance: 300}}
+)
+
 // Fightable reports whether a player can attack the mob.
 func (p Proto) Fightable() bool { return p.Kind != NPC }
 
@@ -269,15 +277,15 @@ var protos = map[uint16]Proto{
 
 	8001: {VNum: 8001, Name: "Metin Cierpienia", Kind: Stone, MoveSpeed: 109, AttackSpeed: 104,
 		Level: 5, MaxHP: 7000, Vitality: 6, Armour: 8, Exp: 900, RegenCycle: 5, RegenPercent: 1,
-		Picks: stonePicks(3, 2, 1500), Yang: Yang{Chance: 10000, Min: 500, Max: 800},
+		Drops: stoneAids, Picks: stonePicks(3, 2, 1500), Yang: Yang{Chance: 10000, Min: 500, Max: 800},
 		Wave: []uint16{102, 102, 102, 103, 103}, Respawn: 10 * time.Minute, HealsAfter: 10 * time.Second},
 	8002: {VNum: 8002, Name: "Metin Walki", Kind: Stone, MoveSpeed: 114, AttackSpeed: 110,
 		Level: 10, MaxHP: 11500, Vitality: 12, Armour: 14, Exp: 2200, RegenCycle: 5, RegenPercent: 1,
-		Picks: stonePicks(4, 3, 2500), Yang: Yang{Chance: 10000, Min: 900, Max: 1400},
+		Drops: stoneAids, Picks: stonePicks(4, 3, 2500), Yang: Yang{Chance: 10000, Min: 900, Max: 1400},
 		Wave: []uint16{104, 104, 104, 105, 105}, Respawn: 10 * time.Minute, HealsAfter: 10 * time.Second},
 	8003: {VNum: 8003, Name: "Metin Bitwy", Kind: Stone, MoveSpeed: 121, AttackSpeed: 115,
 		Level: 15, MaxHP: 17000, Vitality: 18, Armour: 19, Exp: 3300, RegenCycle: 5, RegenPercent: 1,
-		Drops: []Drop{{VNum: item.SoulStone, Count: 1, Chance: 100}},
+		Drops: append([]Drop{{VNum: item.SoulStone, Count: 1, Chance: 100}}, battleAids...),
 		Picks: append(stonePicks(5, 4, 3500), Pick{From: firstGearP3, Count: 1, Chance: 500}), Yang: Yang{Chance: 10000, Min: 1500, Max: 2200},
 		Wave: []uint16{109, 109, 110, 110, 111}, Respawn: 10 * time.Minute, HealsAfter: 10 * time.Second},
 
