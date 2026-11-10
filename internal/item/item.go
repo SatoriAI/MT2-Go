@@ -50,6 +50,9 @@ type Proto struct {
 	TwoHanded bool   // a two-handed weapon, which some take as a sword
 	Dagger    bool   // a dagger, which the ninja's skills take
 	Bow       bool   // a bow, which shoots arrows and never strikes in melee
+	// AttackSpeed is what a weapon adds to the speed its wearer strikes at: item_proto's
+	// ADDON APPLY_ATT_SPEED, which every weapon has.
+	AttackSpeed uint8
 	// Grade is how far the kind is upgraded, from +0 to MaxGrade, and Graded that it is
 	// upgraded at all: each grade is the next vnum, as the client numbers them.
 	Grade  uint8
@@ -122,21 +125,21 @@ func VNums() []uint32 { return slices.Sorted(maps.Keys(protos)) }
 // books.go. The names are the Polish client's own, from its locale item_proto
 // (docs/mechanics/items.md), in UTF-8.
 var protos = withBooks(withGrades(withGear(map[uint32]Proto{
-	10: {VNum: 10, Name: "Miecz+0", Size: 2, Stack: 1, Wear: Weapon,
+	10: {VNum: 10, Name: "Miecz+0", Size: 2, Stack: 1, Wear: Weapon, AttackSpeed: 22,
 		Classes: []account.Class{account.Warrior, account.Ninja, account.Sura}, AttackMin: 13, AttackMax: 15, MagicMin: 15, MagicMax: 19, Sword: true,
 		Price: 100, SellPrice: 0},
-	1000: {VNum: 1000, Name: "Sztylet+0", Size: 1, Stack: 1, Wear: Weapon,
+	1000: {VNum: 1000, Name: "Sztylet+0", Size: 1, Stack: 1, Wear: Weapon, AttackSpeed: 28,
 		Classes: []account.Class{account.Ninja}, AttackMin: 8, AttackMax: 11, Dagger: true, Price: 100, SellPrice: 0},
-	2000: {VNum: 2000, Name: "Łuk+0", Size: 2, Stack: 1, Wear: Weapon,
+	2000: {VNum: 2000, Name: "Łuk+0", Size: 2, Stack: 1, Wear: Weapon, AttackSpeed: 28,
 		Classes: []account.Class{account.Ninja}, AttackMin: 7, AttackMax: 29, Bow: true, Price: 100, SellPrice: 0},
 	// Drewniana Strzała, the first arrow: VALUE3 adds 3 to the bow's least attack and
 	// VALUE4 none to its most, and its item_proto price, 5, is how many a gold buys
 	// (COUNT_PER_1GOLD).
 	8000: {VNum: 8000, Name: "Drewniana Strzała", Size: 1, Stack: MaxStack, Wear: Arrow,
 		Classes: []account.Class{account.Ninja}, AttackMin: 3, PerGold: 5},
-	3000: {VNum: 3000, Name: "Glewia+0", Size: 3, Stack: 1, Wear: Weapon,
+	3000: {VNum: 3000, Name: "Glewia+0", Size: 3, Stack: 1, Wear: Weapon, AttackSpeed: 36,
 		Classes: []account.Class{account.Warrior}, AttackMin: 14, AttackMax: 22, TwoHanded: true, Price: 100, SellPrice: 0},
-	7000: {VNum: 7000, Name: "Wachlarz+0", Size: 1, Stack: 1, Wear: Weapon,
+	7000: {VNum: 7000, Name: "Wachlarz+0", Size: 1, Stack: 1, Wear: Weapon, AttackSpeed: 26,
 		Classes: []account.Class{account.Shaman}, AttackMin: 11, AttackMax: 15, MagicMin: 13, MagicMax: 15, Price: 100, SellPrice: 0},
 	11200: {VNum: 11200, Name: "Mnisia Zbr. Płyt.+0", Size: 2, Stack: 1, Wear: Body,
 		Classes: []account.Class{account.Warrior}, Defence: 12, Price: 3000, SellPrice: 600},

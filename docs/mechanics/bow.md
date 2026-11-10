@@ -57,7 +57,7 @@ A ninja holding a bow, with arrows in the arrow place of the equipment window, s
   - arrows are worn and a bow is in hand;
   - the shooter is alive;
   - the monster is alive, in sight and within 2800 (the bow's 2500 and 300 for late positions, the debaters' reach);
-  - 1.25 s × 100 ÷ attack speed have passed since the last shot that landed (the bow's motion less a sixth, the debaters' limit).
+  - 1.25 s × 100 ÷ attack speed have passed since the last shot that landed (the bow's motion less a sixth, the debaters' limit). The bow's own attack speed counts in it, from 15 to 29 ([equipment.md](equipment.md)): a bow of 29 shoots every 698 ms where one of none would wait 833.
 
   It uses one arrow up, kept one fewer and shown so, or forgotten with its last, which undresses the character of arrows. A shot that cannot land is dropped, and uses no arrow. A shot that landed whose arrow cannot be kept in the database still lands: the client is shown the arrows it had, and the error is logged.
 - **Arrows in the attack:**
