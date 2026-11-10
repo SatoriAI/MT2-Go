@@ -56,7 +56,7 @@ The cell is one byte, which the bag's 90 cells fit.
 
 `internal/upgrade` holds the table. `internal/item` holds the grades, `internal/mob` the blacksmith and the drops, and `internal/game/upgrade.go` carries out each step.
 
-- **The grades** are generated, +1 to +9 at the next vnums as the client numbers them, from each graded kind's rows in item_proto (`internal/item/gear.go`): the first gear and the gear past it ([equipment.md](equipment.md)). Each takes the client's own values:
+- **The grades** are made, +1 to +9 at the next vnums as the client numbers them, from each graded kind's rows in item_proto, transcribed (`internal/item/gear.go`): the first gear and the gear past it ([equipment.md](equipment.md)). Each takes the client's own values:
   - its name, its +0's with its grade;
   - its item_proto VALUE5 added to both ends of a weapon's attack and of its magic attack, or twice to armour's defence, as the tooltip shows. It is a step a grade for the first gear, and grows faster for the gear from level 25: a sword of 25 adds 6, 12, 18, 24, 32, 41, 51, 62 and 74;
   - its sell price, divided by 5 as for every kind ([shops.md](shops.md));
@@ -92,7 +92,7 @@ The cell is one byte, which the bag's 90 cells fit.
 
 ## What proves it
 
-- `internal/upgrade/upgrade_test.go`: a sword from +0 to +9 by the table; armour, a helmet, shoes and the shield taking a tooth; a failure costing a grade only from the step to +5; only gear below +9 upgraded.
+- `internal/upgrade/upgrade_test.go`: a sword from +0 to +9 by the table; armour, a helmet, shoes and the shield taking a tooth; a failure costing a grade only from the step to +5; only gear below +9 upgraded; gear past the first costing the table's yang twice from level 20, four times from 25 and eight times from 34, its chance and material the table's.
 - `internal/item/item_test.go`: the grades' names, attack and defence as the client's; their sell prices; every worn kind graded.
 - `internal/mob/mob_test.go`: wolves and boars leaving the materials, 3 in 100; only the blacksmith upgrading.
 - `internal/protocol/protocol_test.go`: GIVE_ITEM and REFINE read and framed; REFINE_INFORMATION_NEW byte for byte.

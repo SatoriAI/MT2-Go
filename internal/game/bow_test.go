@@ -277,8 +277,8 @@ func TestArrowsArePutOnInTheirPlace(t *testing.T) {
 	}
 }
 
-// The weapon trader sells the first weapons for 100 and a hundred arrows, under the
-// dagger, for 20: five a gold.
+// The weapon trader's window holds every ware at its cell and price: a hundred arrows,
+// under the dagger, for 20, five a gold, and each weapon for its kind's price.
 func TestTheWeaponTraderSellsArrowsByTheGold(t *testing.T) {
 	svc := worldWith(t, world.Spawn{VNum: 9001, X: homeX, Y: homeY, Count: 1})
 	client, hendra := aPlayer(t, svc, 1000, 7, "Hendra", 100)
@@ -291,16 +291,15 @@ func TestTheWeaponTraderSellsArrowsByTheGold(t *testing.T) {
 	}
 
 	var cells [protocol.ShopCells]protocol.ShopItem
-	for i, vnum := range []uint32{10, 1000, 2000, 3000, 7000} {
-		cells[i] = protocol.ShopItem{VNum: vnum, Price: 100, Count: 1}
+	trader, _ := mob.Lookup(9001)
+	for _, w := range trader.Sells {
+		kind, _ := item.Lookup(w.VNum)
+		cells[w.Cell] = protocol.ShopItem{VNum: w.VNum, Price: kind.PriceOf(w.Count), Count: w.Count}
 	}
-	cells[6] = protocol.ShopItem{VNum: 8000, Price: 20, Count: 100}
-	got := read(t, client, 1728)
-	want := protocol.EncodeShopStart(svc.lastVID.Load(), cells)
-	const header, entry = 8, 43 // the first two rows' entries, the arrows among them
-	for cell := range 7 {
-		if at := header + cell*entry; string(got[at:at+entry]) != string(want[at:at+entry]) {
-			t.Fatalf("cell %d: got %x", cell, got[at:at+entry])
-		}
+	if cells[6] != (protocol.ShopItem{VNum: 8000, Price: 20, Count: 100}) || cells[19] != (protocol.ShopItem{VNum: 3040, Price: 3000, Count: 1}) {
+		t.Fatalf("arrows %+v, the glaive of 20 %+v", cells[6], cells[19])
+	}
+	if got := read(t, client, 1728); string(got) != string(protocol.EncodeShopStart(svc.lastVID.Load(), cells)) {
+		t.Fatalf("got %x", got[:64])
 	}
 }

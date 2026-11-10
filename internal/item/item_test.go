@@ -138,10 +138,9 @@ func TestAWornItemTakesNoCell(t *testing.T) {
 	}
 }
 
-// Who may wear what: the sword is for warriors, ninjas and suras, and Sejmitar for them
-// from level 10; a potion is not worn at all.
+// Who may wear what: the sword is for warriors, ninjas and suras; a potion is not worn at
+// all.
 func TestOnlyTheClassesAKindIsForMayWearIt(t *testing.T) {
-	scimitar, _ := Lookup(30)
 	cases := []struct {
 		p     Proto
 		class account.Class
@@ -151,8 +150,6 @@ func TestOnlyTheClassesAKindIsForMayWearIt(t *testing.T) {
 		{sword, account.Sura, 1, nil},
 		{sword, account.Shaman, 1, ErrWrongClass},
 		{potion, account.Sura, 1, ErrNotWearable},
-		{scimitar, account.Sura, 9, ErrTooLow},
-		{scimitar, account.Sura, 10, nil},
 	}
 	for _, c := range cases {
 		if got := c.p.CanWear(c.class, c.level); !errors.Is(got, c.want) || (got == nil) != (c.want == nil) {
@@ -367,5 +364,16 @@ func TestTheGearPastTheFirstIsTheClients(t *testing.T) {
 		if p, _ := Lookup(vnum); !kind(p) {
 			t.Errorf("%d: %+v", vnum, p)
 		}
+	}
+}
+
+// A kind with a level is worn only from it: Sejmitar from level 10.
+func TestGearIsWornOnlyFromItsLevel(t *testing.T) {
+	scimitar, _ := Lookup(30)
+	if err := scimitar.CanWear(account.Sura, 9); !errors.Is(err, ErrTooLow) {
+		t.Errorf("at 9: %v", err)
+	}
+	if err := scimitar.CanWear(account.Sura, 10); err != nil {
+		t.Errorf("at 10: %v", err)
 	}
 }

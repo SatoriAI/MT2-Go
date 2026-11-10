@@ -109,7 +109,7 @@ Seen from the real client: a red potion laid at (977491, 272599) is `1a 53ea0e00
 
 ## What proves it
 
-- `internal/mob/mob_test.go`: every drop an item the game has, in a count it holds; the wolves and boars, blue and red ones too, leaving the materials of upgrades.
+- `internal/mob/mob_test.go`: every drop an item the game has, in a count it holds; the wolves and boars, blue and red ones too, leaving the materials of upgrades; skill books from monsters of level 15 or more; the rare gear every +0 kind of level 21 or more, from the cursed monsters only, once in 200.
 - `internal/item/item_test.go`: an item picked up joining its stack or taking a free cell.
 - `internal/protocol/protocol_test.go`: GROUND_ADD, GROUND_DEL and OWNERSHIP byte for byte; PICKUP cut and read as the real client sent it.
 - `internal/store/items_test.go`: a new item and a stack's count kept.

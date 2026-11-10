@@ -101,7 +101,8 @@ The client's SHOP is the one packet framed by its subheader. A subheader the ser
 ## What proves it
 
 - `internal/item/item_test.go`: every kind's prices, and none paying more than it costs.
-- `internal/mob/mob_test.go`: every ware fitting the window without covering another, and only the three traders selling.
+- `internal/mob/mob_test.go`: every ware fitting the window without covering another, and only the three traders selling; the armour trader's cells, the armours of levels 9 and 18 and the shoes of 17 among them; the weapon trader selling every weapon below level 25 and none from it.
+- `internal/game/bow_test.go`: the weapon trader's whole window, every ware at its cell and price, the arrows and the glaive of level 20 among them.
 - `internal/protocol/protocol_test.go`:
   - START byte for byte at its cells;
   - a refusal;

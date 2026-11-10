@@ -4,7 +4,8 @@ import "github.com/SatoriAI/MT2-Go/internal/account"
 
 // gear is the gear past the first, at +0: a curated few for each class and place up to
 // level 36, from the client's item_proto (--dump_proto--/item_proto.txt), as the debaters
-// chose them (docs/mechanics/equipment.md). Generated from it; the names are the Polish
+// chose them (docs/mechanics/equipment.md). Transcribed from it by a throwaway script, as
+// the monster areas were; the tests check a sample against it. The names are the Polish
 // client's own.
 var gear = map[uint32]Proto{
 	30:    {VNum: 30, Name: "Sejmitar+0", Size: 2, Stack: 1, Level: 10, Wear: Weapon, Classes: []account.Class{account.Warrior, account.Ninja, account.Sura}, AttackMin: 20, AttackMax: 24, MagicMin: 20, MagicMax: 24, Sword: true, Price: 600, SellPrice: 120},
@@ -55,8 +56,8 @@ var gear = map[uint32]Proto{
 // grades are each graded kind's +1 to +9, from item_proto: what each adds over its +0,
 // its VALUE5, which the client adds to both ends of a weapon's attack and, twice, to the
 // defence of anything else; what a shop pays before the client's division by 5; and for
-// shoes, their APPLY_MOV_SPEED. A shield's stays its +0's at every grade. Generated from
-// it.
+// shoes, their APPLY_MOV_SPEED. A shield's stays its +0's at every grade. Transcribed, as
+// gear is.
 var grades = map[uint32]gradeRows{
 	10:    {bonus: [MaxGrade]uint16{7, 14, 21, 28, 35, 42, 49, 56, 63}, sales: [MaxGrade]uint32{100, 100, 150, 150, 200, 250, 350, 500, 750}},
 	1000:  {bonus: [MaxGrade]uint16{4, 8, 12, 16, 20, 24, 28, 32, 36}, sales: [MaxGrade]uint32{100, 100, 150, 150, 200, 250, 350, 500, 750}},

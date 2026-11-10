@@ -6,7 +6,7 @@ The inventory window's upper half is the character: the places worn items go. A 
 
 Putting on a second weapon swaps them: the one held goes where the new one was. An item for another class stays where it was, and the chat says «Ta postać nie może tego nosić.»; one above the character's level does too, with «Masz za niski poziom, aby to założyć.»
 
-A weapon makes every blow stronger. Armour, a helmet, shoes and a shield each take more off every bite, and the character window's DEF rises by their defence; its attack follows the weapon. Shoes also make the character faster, more with each grade, for themselves and as everyone near sees them run. A shield makes them 2 slower at every grade. It is not drawn on the character, as in the original.
+A weapon makes every blow stronger. Armour, a helmet, shoes and a shield each take more off every bite, and the character window's DEF rises by their defence; its attack follows the weapon. Shoes also make the character faster, more with each grade, for themselves and as everyone near sees them run. A shield makes them slower at every grade: the first 2, the Pięciokątna Tarcza 6. It is not drawn on the character, as in the original.
 
 Only a weapon, body armour, a helmet, shoes, a shield and arrows can be worn so far, arrows a whole stack at a time, for the bow to shoot ([bow.md](bow.md)). The kinds are each class's first ones, the first shoes and shield for all, and a curated few beyond them up to level 36, with their grades ([upgrading.md](upgrading.md)):
 - **Weapons:** each line at levels 10, 20, 25 and 36, the bells at 32 in place of 25, which has none.
@@ -67,7 +67,7 @@ The weapon and armour traders sell those below level 21 ([shops.md](shops.md)). 
   | Drewniana Strzała (8000) | arrows | ninja | adds 3 to a bow's least | |
 
   The starters are wearable from level 0, as are their grades.
-- **The gear past the first** (`internal/item/gear.go`), 43 kinds at +0 chosen by the veteran and the designer, is generated from item_proto with every graded kind's grades. Each kind takes:
+- **The gear past the first** (`internal/item/gear.go`), 43 kinds at +0 chosen by the veteran and the designer, is transcribed from item_proto by a throwaway script with every graded kind's grades. Each kind takes:
   - its level from `LIMIT_LEVEL`;
   - its classes, place, attack, magic attack and defence as the starters do;
   - its prices and sell prices by grade;
@@ -116,7 +116,8 @@ The weapon and armour traders sell those below level 21 ([shops.md](shops.md)). 
 
 ## What proves it
 
-- `internal/item/item_test.go`: a worn item in no cell; who may wear what, by class; every worn kind with its classes and stats.
+- `internal/item/item_test.go`: a worn item in no cell; who may wear what, by class; gear worn only from its level; every worn kind with its classes and stats; the 43 kinds past the first, from levels 9 to 36, with their grades, levels, sell prices, speeds and weapon kinds as item_proto has them, at +5 and +9.
+- `internal/game/equipment_test.go`: also gear above the character's level refused with a line and kept in its cell, then put on at its level.
 - `internal/combat/combat_test.go`: a sword adding twice a roll of its attack, 31 to 42 on a wild dog; armour taking bites down to 24 to 28.
 - `internal/protocol/protocol_test.go`: CHARACTER_UPDATE and CHARACTER_INFO with armour and weapon, byte for byte; DEF at point 20.
 - `internal/store/items_test.go`: a helmet, shoes and a shield kept worn; a swap kept whole; one item to a place, and an item in a cell or worn; the armour read with the character.
