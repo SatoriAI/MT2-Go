@@ -97,12 +97,6 @@ func (t *trade) changedAt(now time.Time) {
 	}
 }
 
-func line(p *present, text string) { p.send(infoLine(text)) }
-
-func infoLine(text string) []byte {
-	return protocol.EncodeChat(protocol.ChatInfo, 0, 0, textToClient(text))
-}
-
 // startTrade opens a trade between the player vid and the player with: both alive, of one
 // kingdom, on one map within tradeReach, neither trading already and with not refusing
 // trades. Anything else is refused, with a line where the player could not know why;
@@ -117,19 +111,19 @@ func (w *presence) startTrade(vid, with uint32) {
 	}
 	if t := w.trades[vid]; t != nil {
 		if _, other := t.side(vid); other.p != o {
-			line(p, "Już handlujesz.")
+			inform(p, "Już handlujesz.")
 		}
 		return
 	}
 	switch {
 	case o.info.Empire != p.info.Empire:
-		line(p, "Nie możesz handlować z graczem z innego królestwa.")
+		inform(p, "Nie możesz handlować z graczem z innego królestwa.")
 		return
 	case w.trades[with] != nil:
-		line(p, "Ten gracz już handluje.")
+		inform(p, "Ten gracz już handluje.")
 		return
 	case o.blocks.Has(account.BlockExchange):
-		line(p, "Ten gracz nie przyjmuje propozycji handlu.")
+		inform(p, "Ten gracz nie przyjmuje propozycji handlu.")
 		return
 	}
 	t := &trade{sides: [2]*trader{{p: p, fromX: p.add.X, fromY: p.add.Y}, {p: o, fromX: o.add.X, fromY: o.add.Y}}}
@@ -155,7 +149,7 @@ func (w *presence) offerItem(vid uint32, it item.Item, shown uint8, now time.Tim
 	if !me.fits(p, shown) {
 		var ok bool
 		if shown, ok = me.free(p); !ok {
-			line(me.p, "Nie ma już miejsca w oknie handlu.")
+			inform(me.p, "Nie ma już miejsca w oknie handlu.")
 			return
 		}
 	}
@@ -199,17 +193,17 @@ func (w *presence) offerYang(vid, amount, held uint32, now time.Time) {
 	me, other := t.side(vid)
 	switch {
 	case me.gold != 0:
-		line(me.p, "Nie możesz teraz zmienić kwoty.")
+		inform(me.p, "Nie możesz teraz zmienić kwoty.")
 		return
 	case amount > held:
 		me.p.send(protocol.EncodeExchange(protocol.ExchangeNews{Sub: protocol.ExchangeLessYang, Mine: true}))
-		line(me.p, "Nie masz tyle yang.")
+		inform(me.p, "Nie masz tyle yang.")
 		return
 	}
 	me.gold = amount
 	t.changedAt(now)
 	t.tell(me, protocol.ExchangeNews{Sub: protocol.ExchangeYangSet, Arg: amount})
-	line(other.p, fmt.Sprintf("%s oferuje %s yang.", me.p.info.Name, inFull(amount)))
+	inform(other.p, fmt.Sprintf("%s oferuje %s yang.", me.p.info.Name, inFull(amount)))
 }
 
 // inFull writes yang with a dot between each three digits, as the trade window does.
@@ -245,14 +239,14 @@ func (w *presence) accept(vid uint32, now time.Time, planned plan) *trade {
 		me.p.send(protocol.EncodeExchange(protocol.ExchangeNews{Sub: protocol.ExchangeAccepted, Mine: true}))
 	}
 	if now.Sub(t.changed) < acceptAfter {
-		line(me.p, "Oferta właśnie się zmieniła. Poczekaj chwilę.")
+		inform(me.p, "Oferta właśnie się zmieniła. Poczekaj chwilę.")
 		refused()
 		return nil
 	}
 	places, slots, why := planned(me.offer, me.gold, other.offer, other.gold)
 	if why != "" {
-		line(me.p, why)
-		line(other.p, fmt.Sprintf("%s nie może przyjąć tej oferty.", me.p.info.Name))
+		inform(me.p, why)
+		inform(other.p, fmt.Sprintf("%s nie może przyjąć tej oferty.", me.p.info.Name))
 		refused()
 		return nil
 	}
@@ -272,7 +266,7 @@ func (w *presence) cancelTrade(vid uint32) {
 	if t := w.trades[vid]; t != nil && t.done == nil {
 		_, other := t.side(vid)
 		w.endTrade(t)
-		line(other.p, "Handel został anulowany.")
+		inform(other.p, "Handel został anulowany.")
 	}
 }
 
@@ -282,7 +276,7 @@ func (w *presence) breakTrade(p *present) {
 	if t := w.trades[p.add.VID]; t != nil && t.done == nil {
 		w.endTrade(t)
 		for _, s := range t.sides {
-			line(s.p, "Handel został przerwany.")
+			inform(s.p, "Handel został przerwany.")
 		}
 	}
 }
@@ -324,7 +318,7 @@ func (w *presence) leaveTrade(vid uint32) <-chan struct{} {
 	}
 	_, other := t.side(vid)
 	w.endTrade(t)
-	line(other.p, "Handel został anulowany.")
+	inform(other.p, "Handel został anulowany.")
 	return nil
 }
 

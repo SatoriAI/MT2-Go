@@ -44,18 +44,32 @@ type Whispers interface {
 	Save(ctx context.Context, sender, recipient uint32, text string, sentAt time.Time) error
 }
 
+// Deps is what the game port is made with, wired in internal/server; tests leave out what
+// they do not touch.
+type Deps struct {
+	Accounts Accounts
+	Whispers Whispers
+	Items    Items
+	Taskbar  Taskbar
+	Skills   Skills
+	Keys     *account.Keys
+	Clock    handshake.Clock
+	// Public is the address the client is told to connect to for this game server. It has
+	// to be reachable from the client, so it is never 0.0.0.0.
+	Public netip.AddrPort
+	Spawns []world.Spawn
+}
+
 // Service is what every game connection shares.
 type Service struct {
-	store    Accounts
+	accounts Accounts
 	whispers Whispers
 	items    Items
 	taskbar  Taskbar
 	skills   Skills
 	keys     *account.Keys
 	clock    handshake.Clock
-	// public is the address the client is told to connect to for this game server. It
-	// has to be reachable from the client, so it is never 0.0.0.0.
-	public netip.AddrPort
+	public   netip.AddrPort
 	// lastVID numbers the characters in the world, so each has its own id.
 	lastVID atomic.Uint32
 
@@ -84,11 +98,11 @@ type loop struct {
 	// stone called is gone for good, for the tick to drop.
 	called map[*monster][]*monster
 	forget bool
-	// poisons are the poisoned monsters, which the loop ticks, and drainings the toggles
-	// it takes mana for.
-	poisons   []poisoning
-	drainings []draining
-	burnings  []burning
+	// poisons and burnings are the monsters poisoned and alight, which the loop ticks, and
+	// drainings the toggles it takes mana for.
+	poisons   periodic[*present]
+	drainings periodic[buffEnd]
+	burnings  periodic[*present]
 	watchers  []*monster // the aggressive monsters, which look out for players each tick
 	// nextPlayerRegen is when the loop next heals the players.
 	nextPlayerRegen time.Time
@@ -98,12 +112,16 @@ type loop struct {
 }
 
 // NewService makes the game port's shared state; Run puts spawns' mobs in the world.
-func NewService(store Accounts, whispers Whispers, items Items, taskbar Taskbar, skills Skills, keys *account.Keys, clock handshake.Clock, public netip.AddrPort,
-	spawns []world.Spawn) *Service {
-	return &Service{store: store, whispers: whispers, items: items, taskbar: taskbar, skills: skills, keys: keys, clock: clock, public: public, claims: map[uint32]*claim{},
-		presence: presence{all: map[uint32]*present{}, onMap: map[string]map[uint32]*present{}, byName: map[string]*present{}, ground: map[uint32]*groundItem{}, groundOn: map[string]map[uint32]*groundItem{},
-			trades: map[uint32]*trade{}, settled: map[uint32]settlement{}}, now: time.Now,
-		loop: loop{spawns: spawns, rand: newRand(), byPresent: map[*present]*monster{}, kinds: map[uint16]*mob.Proto{}, called: map[*monster][]*monster{}}}
+func NewService(d Deps) *Service {
+	return &Service{
+		accounts: d.Accounts, whispers: d.Whispers, items: d.Items, taskbar: d.Taskbar, skills: d.Skills,
+		keys: d.Keys, clock: d.Clock, public: d.Public,
+		claims:   map[uint32]*claim{},
+		presence: newPresence(),
+		now:      time.Now,
+		loop: loop{spawns: d.Spawns, rand: newRand(), byPresent: map[*present]*monster{}, kinds: map[uint16]*mob.Proto{},
+			called: map[*monster][]*monster{}},
+	}
 }
 
 func (svc *Service) NewSession(conn *network.Conn) network.Session {
@@ -287,14 +305,14 @@ func (s *session) onLoginByKey(ctx context.Context, body []byte) error {
 	s.accountID = id
 	s.conn.KeepOpen() // the player may sit on the selection screens for as long as they like
 
-	acc, err := s.svc.store.AccountByID(ctx, id)
+	acc, err := s.svc.accounts.AccountByID(ctx, id)
 	if err != nil {
 		return err
 	}
 	s.empire = acc.Empire
 	var packets [][]byte
 	if acc.Empire != account.EmpireNone {
-		characters, err := s.svc.store.Characters(ctx, id)
+		characters, err := s.svc.accounts.Characters(ctx, id)
 		if err != nil {
 			return err
 		}
@@ -322,7 +340,7 @@ func (s *session) onEmpire(ctx context.Context, body []byte) error {
 	if empire == s.empire {
 		return nil // a repeat, for example a double click; nothing to store
 	}
-	chosen, err := s.svc.store.ChooseEmpire(ctx, s.accountID, empire)
+	chosen, err := s.svc.accounts.ChooseEmpire(ctx, s.accountID, empire)
 	if err != nil {
 		return err
 	}
@@ -362,7 +380,7 @@ func (s *session) onCreateCharacter(ctx context.Context, body []byte) error {
 		Y:     y,
 	}
 
-	c.ID, err = s.svc.store.CreateCharacter(ctx, s.accountID, s.empire, c)
+	c.ID, err = s.svc.accounts.CreateCharacter(ctx, s.accountID, s.empire, c)
 	switch {
 	case errors.Is(err, account.ErrNameTaken):
 		return s.conn.Send(protocol.EncodeCreateFailure(protocol.CreateNameTaken))

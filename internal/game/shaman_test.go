@@ -243,7 +243,7 @@ func TestOnlyABurningSkillBurns(t *testing.T) {
 		}
 	}
 
-	if len(s.svc.presence.burned) != 0 {
-		t.Fatalf("%d set alight", len(s.svc.presence.burned))
+	if len(s.svc.presence.news.burned) != 0 {
+		t.Fatalf("%d set alight", len(s.svc.presence.news.burned))
 	}
 }

@@ -103,15 +103,10 @@ func (svc *Service) lookOut(now time.Time) {
 // prey is the nearest player the monster sees within its sight whom it would attack, or
 // nil. Called under the lock.
 func prey(m *monster, now time.Time) *present {
-	var nearest *present
-	for _, p := range m.p.sees {
-		if p.dead() || now.Before(p.char.UnseenUntil) || p.char.Level > m.proto.Level+ignoredAbove ||
-			!within(m.p, p, aggressiveSight) || (nearest != nil && distance(m.p, p) >= distance(m.p, nearest)) {
-			continue
-		}
-		nearest = p
-	}
-	return nearest
+	return nearest(m.p, m.p.sees, func(p *present) bool {
+		return !p.dead() && !now.Before(p.char.UnseenUntil) && p.char.Level <= m.proto.Level+ignoredAbove &&
+			within(m.p, p, aggressiveSight)
+	})
 }
 
 // chaseOn sets the monster on the player.
@@ -127,8 +122,7 @@ func (svc *Service) rally(m *monster, target *present, now time.Time) {
 		return
 	}
 	for _, mate := range m.pack.members {
-		dx, dy := int64(mate.x-m.x), int64(mate.y-m.y)
-		if mate != m && mate.diedAt.IsZero() && mate.chase == nil && dx*dx+dy*dy <= packReach*packReach {
+		if mate != m && mate.diedAt.IsZero() && mate.chase == nil && apart(mate.x, mate.y, m.x, m.y) <= packReach*packReach {
 			svc.chaseOn(mate, target, now)
 		}
 	}
@@ -291,10 +285,4 @@ func approach(x, y, tx, ty int32, stop, step float64) (int32, int32) {
 		return x, y
 	}
 	return x + int32(math.Round(dx/dist*walk)), y + int32(math.Round(dy/dist*walk))
-}
-
-// near is whether (x, y) is less than reach from (fx, fy).
-func near(x, y, fx, fy int32, reach int64) bool {
-	dx, dy := int64(x)-int64(fx), int64(y)-int64(fy)
-	return dx*dx+dy*dy < reach*reach
 }

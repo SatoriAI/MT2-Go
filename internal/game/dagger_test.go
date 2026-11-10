@@ -186,7 +186,7 @@ func TestAPoisonTakesItsShareEveryTwoSeconds(t *testing.T) {
 	if got := read(t, client, damageSize); string(got) != string(protocol.EncodeDamage(dog.p.add.VID, 2, 1)) { // the client's DAMAGE_POISON
 		t.Fatalf("told %x", got)
 	}
-	if len(s.presence.provoked) != 0 {
+	if len(s.presence.news.provoked) != 0 {
 		t.Fatal("the poison provoked it")
 	}
 }
@@ -223,7 +223,7 @@ func TestAPoisonKillsAtThePoisonersHand(t *testing.T) {
 		t.Fatal("the poison runs on after its death")
 	}
 
-	if !dog.p.dead() || dog.p.fight.poisoned || c.Exp == exp || len(s.presence.fallen) != 1 {
+	if !dog.p.dead() || dog.p.fight.poisoned || c.Exp == exp || len(s.presence.news.fallen) != 1 {
 		t.Fatalf("dead %v, poisoned %v, exp %d from %d", dog.p.dead(), dog.p.fight.poisoned, c.Exp, exp)
 	}
 }

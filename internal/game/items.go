@@ -133,7 +133,7 @@ func (s *session) putOn(it item.Item) error {
 	p, _ := item.Lookup(it.VNum)
 	level, _ := s.svc.presence.trainee(s.playing.vid)
 	if err := p.CanWear(s.playing.Class, level); err != nil {
-		return s.conn.Send(protocol.EncodeChat(protocol.ChatInfo, 0, 0, textToClient(cannotWear[err])), itemSet(it))
+		return s.conn.Send(infoLine(cannotWear[err]), itemSet(it))
 	}
 	on := it
 	on.Worn = p.Wear

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"strings"
-	"time"
 
 	"github.com/SatoriAI/MT2-Go/internal/account"
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
@@ -35,7 +34,7 @@ func (s *session) onWhisper(body []byte) error {
 	}
 	// The line's time is taken before it can reach the recipient, so a reply to it is
 	// later, whichever session saves first.
-	now := time.Now()
+	now := s.svc.now()
 	// A whisper over the limit gets no reply at all, so a flood cannot be turned into
 	// replies.
 	if !s.flood.allow(now) {

@@ -10,7 +10,6 @@ import (
 	"log/slog"
 	"math/rand/v2"
 	"net"
-	"net/netip"
 	"slices"
 	"testing"
 	"time"
@@ -57,7 +56,7 @@ func watcher(t *testing.T) (*network.Conn, net.Conn) {
 // a fixed seed, so every stroll is the same each run.
 func worldWith(t *testing.T, spawns ...world.Spawn) *Service {
 	t.Helper()
-	s := NewService(nil, nil, nil, nil, nil, nil, handshake.NewClock(), netip.AddrPort{}, spawns)
+	s := NewService(Deps{Clock: handshake.NewClock(), Spawns: spawns})
 	s.rand = rand.New(rand.NewPCG(1, 2)) //nolint:gosec // a fixed seed, so each run strolls the same
 	if err := s.spawn(noon); err != nil {
 		t.Fatal(err)

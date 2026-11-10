@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/SatoriAI/MT2-Go/internal/event"
-	"github.com/SatoriAI/MT2-Go/internal/protocol"
 )
 
 // Events is what the game needs of the stored events.
@@ -24,7 +23,7 @@ func (svc *Service) WatchEvents(ctx context.Context, events Events, every time.D
 	t := time.NewTicker(every)
 	defer t.Stop()
 	for {
-		e, running, err := lookForEvent(ctx, events, every)
+		e, running, err := lookForEvent(ctx, events, every, svc.now())
 		switch {
 		case ctx.Err() != nil:
 			return nil
@@ -41,10 +40,10 @@ func (svc *Service) WatchEvents(ctx context.Context, events Events, every time.D
 	}
 }
 
-func lookForEvent(ctx context.Context, events Events, within time.Duration) (event.Event, bool, error) {
+func lookForEvent(ctx context.Context, events Events, within time.Duration, now time.Time) (event.Event, bool, error) {
 	ctx, cancel := context.WithTimeout(ctx, within)
 	defer cancel()
-	return events.Running(ctx, time.Now())
+	return events.Running(ctx, now)
 }
 
 // switchEvent makes e the running event, or none, and tells every player of the one that
@@ -81,10 +80,4 @@ func eventNotice(e event.Event) []byte {
 	}
 	return notice(fmt.Sprintf("Wydarzenie „%s” trwa do %s: %s.", e.Name, e.End.In(event.Zone).Format("02.01 15:04"),
 		strings.Join(gives, ", ")))
-}
-
-// notice is a line from the server itself: from vid 0, which the client shows at the top
-// of the screen and in chat.
-func notice(text string) []byte {
-	return protocol.EncodeChat(protocol.ChatNotice, 0, 0, textToClient(text))
 }

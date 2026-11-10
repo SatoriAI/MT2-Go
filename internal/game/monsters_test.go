@@ -3,7 +3,6 @@ package game
 import (
 	"math"
 	"net"
-	"net/netip"
 	"testing"
 	"time"
 
@@ -110,7 +109,7 @@ func TestASpawnPutsItsCountWithinItsSpread(t *testing.T) {
 }
 
 func TestASpawnOfAnUnknownKindIsRefused(t *testing.T) {
-	s := NewService(nil, nil, nil, nil, nil, nil, handshake.NewClock(), netip.AddrPort{}, []world.Spawn{{VNum: 1, Count: 1}})
+	s := NewService(Deps{Clock: handshake.NewClock(), Spawns: []world.Spawn{{VNum: 1, Count: 1}}})
 
 	if err := s.spawn(noon); err == nil {
 		t.Fatal("spawned a kind with no proto")

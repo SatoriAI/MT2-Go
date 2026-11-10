@@ -194,6 +194,20 @@ func smokeOf(f *fight) uint64 {
 	return 0
 }
 
+// infoLine is a line from the server to one player, shown in their chat.
+func infoLine(text string) []byte {
+	return protocol.EncodeChat(protocol.ChatInfo, 0, 0, textToClient(text))
+}
+
+// inform sends the player an info line.
+func inform(p *present, text string) { p.send(infoLine(text)) }
+
+// notice is a line from the server itself: from vid 0, which the client shows at the top
+// of the screen and in chat.
+func notice(text string) []byte {
+	return protocol.EncodeChat(protocol.ChatNotice, 0, 0, textToClient(text))
+}
+
 // textToClient turns UTF-8 into the client's code page, cp1250, as textFromClient reads
 // it. A character cp1250 lacks becomes "?", so encoding never fails.
 func textToClient(text string) string {

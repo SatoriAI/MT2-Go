@@ -87,7 +87,7 @@ func (k *pack) down() (bool, time.Time) {
 
 // Run puts the world's mobs in it, then walks the monsters until ctx ends.
 func (svc *Service) Run(ctx context.Context) error {
-	if err := svc.spawn(time.Now()); err != nil {
+	if err := svc.spawn(svc.now()); err != nil {
 		return err
 	}
 	t := time.NewTicker(tick)
@@ -172,7 +172,7 @@ func (svc *Service) place(m *monster, now time.Time) {
 	}
 	svc.placeAt(m, x, y, now)
 	if m.proto.Kind == mob.Stone {
-		svc.dismiss(m, now)
+		svc.dismiss(m)
 		svc.presence.tellMap(m.p, "Pojawił się "+m.proto.Name+".")
 		svc.callWave(m, nil, now)
 	}
@@ -215,10 +215,10 @@ func (svc *Service) callWave(stone *monster, by *present, now time.Time) {
 // dismiss takes away what the stone called out before and is still alive, as it comes
 // back elsewhere; the tick then forgets them. One a player killed since the loop last
 // took the news is left to die as any monster does, so its drops and body are not lost.
-func (svc *Service) dismiss(stone *monster, now time.Time) {
+func (svc *Service) dismiss(stone *monster) {
 	for _, m := range svc.called[stone] {
 		if m.diedAt.IsZero() && !m.gone && svc.presence.sendOff(m.p) {
-			m.gone, m.diedAt, m.chase = true, now, nil // diedAt, so nothing later this tick strolls it
+			m.gone, m.chase = true, nil
 			svc.forget = true
 		}
 	}
@@ -258,13 +258,13 @@ func (svc *Service) tick(now time.Time) {
 		svc.dropFrom(m, d, now)
 	}
 	for _, p := range n.poisoned {
-		svc.poisons = append(svc.poisons, poisoning{p, now.Add(poisonEvery)})
+		svc.poisons.add(p, now.Add(poisonEvery))
 	}
 	for _, p := range n.burned {
-		svc.burnings = append(svc.burnings, burning{p, now.Add(burnEvery)})
+		svc.burnings.add(p, now.Add(burnEvery))
 	}
 	for _, d := range n.drains {
-		svc.drainings = append(svc.drainings, draining{d, now.Add(drainEvery)})
+		svc.drainings.add(d, now.Add(drainEvery))
 	}
 	for _, c := range n.calls {
 		if stone := svc.byPresent[c.stone]; stone != nil && stone.diedAt.IsZero() {
@@ -277,13 +277,17 @@ func (svc *Service) tick(now time.Time) {
 	svc.lookOut(now)
 	for _, m := range svc.monsters {
 		switch {
-		case !m.diedAt.IsZero() && !m.gone && !now.Before(m.diedAt.Add(corpseTime)):
-			svc.presence.leave(m.p.add.VID)
-			m.gone = true
-			svc.forget = svc.forget || m.summoned
-		case m.gone && !m.summoned:
-			svc.bringBack(m, now)
-		case m.diedAt.IsZero() && m.wanders && m.chase == nil && !now.Before(m.nextStroll):
+		case m.gone: // a body taken away, or one a stone dismissed while still alive
+			if !m.summoned {
+				svc.bringBack(m, now)
+			}
+		case !m.diedAt.IsZero():
+			if !now.Before(m.diedAt.Add(corpseTime)) {
+				svc.presence.leave(m.p.add.VID)
+				m.gone = true
+				svc.forget = svc.forget || m.summoned
+			}
+		case m.wanders && m.chase == nil && !now.Before(m.nextStroll):
 			svc.stroll(m, now)
 		}
 	}
@@ -298,9 +302,9 @@ func (svc *Service) tick(now time.Time) {
 		svc.forget = false
 	}
 	svc.fightOn(now)
-	svc.tickPoisons(now)
-	svc.tickBurns(now)
-	svc.keepDrains(now)
+	svc.poisons.run(now, poisonEvery, func(p *present) bool { return svc.presence.poisonTick(p, now) })
+	svc.burnings.run(now, burnEvery, func(p *present) bool { return svc.presence.burnTick(p, now) })
+	svc.drainings.run(now, drainEvery, svc.presence.drain)
 	svc.healMonsters(now)
 	switch {
 	case svc.nextPlayerRegen.IsZero():

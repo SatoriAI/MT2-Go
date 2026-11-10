@@ -286,7 +286,7 @@ func TestAMonsterKilledAsItsStoneComesBackStillDies(t *testing.T) {
 	s.presence.strike(p, wolf.p, wolf.p.fight.hp, noon)
 	s.presence.mu.Unlock()
 
-	s.dismiss(stone, noon)
+	s.dismiss(stone)
 	s.tick(noon)
 
 	if wolf.diedAt.IsZero() || wolf.gone {

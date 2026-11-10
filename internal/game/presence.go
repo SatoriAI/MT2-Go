@@ -27,19 +27,21 @@ type presence struct {
 	all      map[uint32]*present               // by vid
 	onMap    map[string]map[uint32]*present    // the same, by the map each stands on and vid
 	byName   map[string]*present               // players, by lower-cased name: unique regardless of case
-	fallen   []death                           // monsters killed since the world loop last asked
-	provoked []provocation                     // blows on living monsters since the world loop last asked
-	laid     []timed                           // items players dropped since the world loop last asked, to clear away
-	buffs    []buffEnd                         // buffs players started since the world loop last asked, to end
-	calls    []call                            // waves stones called since the world loop last asked
-	poisoned []*present                        // monsters poisoned since the world loop last asked, to tick
-	drains   []buffEnd                         // toggles started since the world loop last asked that drain mana
-	burned   []*present                        // monsters set alight since the world loop last asked, to tick
+	news     news                              // what happened since the world loop last asked
 	event    *event.Event                      // the event running; nil for none
 	ground   map[uint32]*groundItem            // items lying in the world, by vid
 	groundOn map[string]map[uint32]*groundItem // the same, by the map each lies on and vid
 	trades   map[uint32]*trade                 // the trades going on, under each side's vid
 	settled  map[uint32]settlement             // what trades others kept changed for players, for each to take
+}
+
+// newPresence is an empty world record.
+func newPresence() presence {
+	return presence{
+		all: map[uint32]*present{}, onMap: map[string]map[uint32]*present{}, byName: map[string]*present{},
+		ground: map[uint32]*groundItem{}, groundOn: map[string]map[uint32]*groundItem{},
+		trades: map[uint32]*trade{}, settled: map[uint32]settlement{},
+	}
 }
 
 // sender is where a player's packets go: their connection, which only queues them.
@@ -93,8 +95,7 @@ func (p *present) send(packets ...[]byte) {
 
 // inView is whether p and o see each other: a player, and on the same map within range.
 func (p *present) inView(o *present) bool {
-	dx, dy := int64(p.add.X)-int64(o.add.X), int64(p.add.Y)-int64(o.add.Y)
-	return (p.isPlayer() || o.isPlayer()) && p.world == o.world && dx*dx+dy*dy <= viewRange*viewRange
+	return (p.isPlayer() || o.isPlayer()) && p.world == o.world && within(p, o, viewRange)
 }
 
 func link(a, b *present) {
@@ -245,12 +246,12 @@ func (w *presence) sendOff(p *present) bool {
 
 // tellMap shows a notice to every player on the map p stands on.
 func (w *presence) tellMap(p *present, line string) {
-	notice := protocol.EncodeChat(protocol.ChatNotice, 0, 0, textToClient(line)) // outside the lock, to keep it short
+	packet := notice(line) // outside the lock, to keep it short
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	for _, other := range w.byName {
 		if other.world == p.world {
-			other.send(notice)
+			other.send(packet)
 		}
 	}
 }
@@ -302,7 +303,7 @@ func (w *presence) whisper(name string, packet []byte) (uint32, whisperOutcome) 
 	case p.blocks.Has(account.BlockWhisper):
 		return p.char.ID, whisperRefused
 	}
-	_ = p.out.Send(packet)
+	p.send(packet)
 	return p.char.ID, whisperDelivered
 }
 
@@ -352,8 +353,7 @@ func (w *presence) walk(vid uint32, m protocol.Move, now time.Time) (int32, int3
 	}
 	p.tether = p.tether.towards(m.X, m.Y, 1.5*4.5*float64(p.add.MoveSpeed), now)
 	l := p.tether
-	dx, dy := int64(m.X)-int64(l.x), int64(m.Y)-int64(l.y)
-	if dx*dx+dy*dy <= tetherLength*tetherLength {
+	if apart(m.X, m.Y, l.x, l.y) <= tetherLength*tetherLength {
 		w.moveLocked(p, m)
 		return m.X, m.Y
 	}

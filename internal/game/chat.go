@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/SatoriAI/MT2-Go/internal/network"
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
@@ -34,7 +33,7 @@ func (s *session) onChat(ctx context.Context, body []byte) error {
 	if c.Text == "" {
 		return nil
 	}
-	if !s.flood.allow(time.Now()) {
+	if !s.flood.allow(s.svc.now()) {
 		s.conn.Log().Debug("line dropped: talking too fast", "character", s.playing.Name)
 		return nil
 	}
@@ -81,7 +80,7 @@ func (s *session) onCommand(ctx context.Context, command string) error {
 		s.leaveWorld()
 		s.leftWorld = true
 		s.phase = protocol.PhaseSelect
-		characters, err := s.svc.store.Characters(ctx, s.accountID)
+		characters, err := s.svc.accounts.Characters(ctx, s.accountID)
 		if err != nil {
 			return err
 		}

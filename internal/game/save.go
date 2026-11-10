@@ -74,10 +74,10 @@ func (svc *Service) save(c account.Character, log *slog.Logger, offMap slog.Leve
 	defer cancel()
 	if _, ok := world.MapAt(c.X, c.Y); !ok {
 		log.Log(ctx, offMap, "position not saved: on no known map", "character", c.Name, "x", c.X, "y", c.Y)
-	} else if err := svc.store.SavePosition(ctx, c.ID, c.X, c.Y); err != nil {
+	} else if err := svc.accounts.SavePosition(ctx, c.ID, c.X, c.Y); err != nil {
 		log.Error("position not saved", "character", c.Name, "err", err)
 	}
-	if err := svc.store.SaveProgress(ctx, c); err != nil {
+	if err := svc.accounts.SaveProgress(ctx, c); err != nil {
 		log.Error("progress not saved", "character", c.Name, "err", err)
 	}
 }

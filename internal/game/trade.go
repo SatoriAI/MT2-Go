@@ -20,7 +20,7 @@ func (s *session) onExchange(ctx context.Context, body []byte) error {
 	switch e.Sub {
 	case protocol.ExchangeStart:
 		if s.shop != 0 || s.upgrading != nil {
-			return s.conn.Send(protocol.EncodeChat(protocol.ChatInfo, 0, 0, textToClient("Zamknij najpierw otwarte okno.")))
+			return s.conn.Send(infoLine("Zamknij najpierw otwarte okno."))
 		}
 		w.startTrade(vid, e.Arg)
 	case protocol.ExchangeAdd:
