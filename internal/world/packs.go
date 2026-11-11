@@ -34,8 +34,8 @@ var families = map[family][]uint16{
 }
 
 // band is how far out from its village a kind stands: none before from, more and more
-// up to peak, most from there to fall, fewer and fewer to to. The bands overlap, so each
-// stretch of the fields holds three or four kinds, the harder the further out.
+// up to peak, most from there to fall, fewer and fewer to to. The bands overlap, so the
+// kinds change gradually, the harder the further out (docs/mechanics/monsters.md).
 type band struct{ from, peak, fall, to float64 }
 
 var bands = map[uint16]band{
