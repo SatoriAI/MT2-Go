@@ -13,15 +13,16 @@ import (
 // atFortyFive rolls 4500 in 10,000 every time: past a chance of 30%, within one doubled.
 var atFortyFive = rand.New(always(uint64(4500*(1<<32)/10000+1) << 32)) //nolint:gosec // a roll fixed for a test
 
-// dogRolling is a dog that leaves a red potion 30 times in 100, a soul stone (steady) as
-// often, and yang as often, rolled at 4500.
+// dogRolling is a dog that leaves a red potion 30 times in 100, a skill book as often, a
+// soul stone (steady) as often, and yang as often, rolled at 4500.
 func dogRolling(t *testing.T) (*Service, *monster) {
 	t.Helper()
 	s := worldWith(t, world.Spawn{VNum: 101, X: homeX, Y: homeY, Count: 1})
 	m := s.monsters[0]
 	rolled := *m.proto
 	rolled.Drops = []mob.Drop{{VNum: 27001, Count: 1, Chance: 3000}}
-	rolled.Picks = []mob.Pick{{From: []uint32{item.SoulStone}, Count: 1, Chance: 3000, Steady: true}}
+	rolled.Picks = []mob.Pick{{From: []uint32{swirlBook}, Count: 1, Chance: 3000},
+		{From: []uint32{item.SoulStone}, Count: 1, Chance: 3000, Steady: true}}
 	rolled.Yang = mob.Yang{Min: 10, Max: 10, Chance: 3000}
 	m.proto = &rolled
 	s.rand = atFortyFive
@@ -48,15 +49,15 @@ func TestWithoutTheGlovesADropFallsAtItsOwnChance(t *testing.T) {
 	}
 }
 
-// For an owner wearing them, the potion's chance is 60%, and it falls; the steady pick and
-// the yang stay at 30%, and do not.
+// For an owner wearing them, the potion's and the book's chances are 60%, and they fall;
+// the steady pick and the yang stay at 30%, and do not.
 func TestTheGlovesDoubleAnItemsChanceButNotYangOrTheirOwn(t *testing.T) {
 	s, m := dogRolling(t)
 
 	s.dropFrom(m, death{owner: owner{7, "Hendra"}, lucky: true}, noon)
 
-	if got := fallen(s); len(got) != 1 || !got[27001] {
-		t.Fatalf("fell %v, want the potion alone", got)
+	if got := fallen(s); len(got) != 2 || !got[27001] || !got[swirlBook] {
+		t.Fatalf("fell %v, want the potion and the book", got)
 	}
 }
 

@@ -206,7 +206,7 @@ func TestEveryStoneCallsWavesOfMonstersNoStrongerThanItself(t *testing.T) {
 // once in 200 the thief's gloves, which no pair doubles; the last also, rarely, the first
 // gear at +3.
 func TestAStoneLeavesPotionsMaterialsAndMaybeGear(t *testing.T) {
-	gloves := Pick{[]uint32{70043}, 1, 50, true}
+	gloves := Pick{[]uint32{item.ThiefGloves}, 1, 50, true}
 	cases := map[uint16][]Pick{
 		8001: {{potionKinds, 3, 10000, false}, {materials, 2, 10000, false}, {firstGear, 1, 1500, false}, {books, 1, 300, false},
 			{rareGear, 1, 400, false}, gloves},

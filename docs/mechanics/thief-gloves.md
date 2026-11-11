@@ -8,7 +8,7 @@ A second pair is refused while one is worn, with «Nie możesz założyć dwóch
 
 While worn, they double the chance of every item the wearer's kills leave, up to certain: a red potion's 8% becomes 16%, a wolf claw's 3% becomes 6%, a stone's gear 15% becomes 30%. What a stone always leaves stays as it is, and so does yang. The kills count by whose drops they are, the player who took most of the monster's hit points. Two pairs are never worn at once, so it is never more than double.
 
-They are found once in 200 metin stones, kept for whoever destroyed it, and given on the command line (`mt2go item`) or with `/getitem 70043` on a development server. No shop sells them.
+They are found once in 200 metin stones, kept for whoever its drops are kept for, the player who took most of its hit points, and given on the command line (`mt2go item`) or with `/getitem 70043` on a development server. No shop sells them.
 
 ## What the client does
 
@@ -32,6 +32,7 @@ They are found once in 200 metin stones, kept for whoever destroyed it, and give
 - **The end:** at 0 the loop tells the client the place is empty and why, and leaves the item for the player's connection to forget, here and in the store, before its next packet that touches what it holds. Until then a save keeps the pair as worn its whole time, so a pair whose player left first is forgotten as the character is next loaded.
 - **In order:** the loop is handed each run of a pair as it is put on, not the player, so a pair put on and taken off between two ticks counts nothing, and one worn again ends once. Taking a pair off writes its time while holding the player's save, so a periodic save that read it before cannot land after.
 - **Not stacking:** a second item of the same unique kind is refused, in either place, so two pairs never run at once.
+- **Its end, at most a tick late:** the loop marks a pair spent at its next tick, so a kill in that tenth of a second after its time still counts as lucky.
 - **Bound:** a pair is never dropped, traded or sold ([items.md](items.md)), so its time stays with its owner.
 
 The rules were settled on 2026-11-11 by a Metin2 veteran and a game designer, with the veteran deciding ties. They agreed on every point here:

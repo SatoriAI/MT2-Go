@@ -152,11 +152,11 @@ var (
 
 // stonePicks is what a stone always leaves, potions and materials, each count of one
 // kind, and with a chance in 10,000 one piece of the first gear, 3 times in 100 a skill
-// book, and once in 200 the thief's gloves, 70043, as the debaters settled.
+// book, and once in 200 the thief's gloves, as the debaters settled.
 func stonePicks(potions, materialCount uint8, gear uint16) []Pick {
 	return []Pick{{From: potionKinds, Count: potions, Chance: 10000}, {From: materials, Count: materialCount, Chance: 10000},
 		{From: firstGear, Count: 1, Chance: gear}, {From: books, Count: 1, Chance: 300}, {From: rareGear, Count: 1, Chance: 400},
-		{From: []uint32{70043}, Count: 1, Chance: 50, Steady: true}}
+		{From: []uint32{item.ThiefGloves}, Count: 1, Chance: 50, Steady: true}}
 }
 
 // rareGear is the gear no trader sells: the helmets and the shield of level 21, each
