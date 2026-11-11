@@ -301,6 +301,23 @@ func TestEveryFirstVillageHasItsTeachers(t *testing.T) {
 	}
 }
 
+// A spawn carries where its NPC looks, as the game reads it: Jinno's teachers with their
+// backs to the temple, which faces west.
+func TestASpawnCarriesWhereItsNPCLooks(t *testing.T) {
+	teachers := 0
+	for _, s := range Spawns() {
+		if s.VNum >= 20340 && s.VNum <= 20347 {
+			teachers++
+			if s.Facing != 270 {
+				t.Errorf("teacher %d faces %v", s.VNum, s.Facing)
+			}
+		}
+	}
+	if teachers != 8 {
+		t.Fatalf("%d of Jinno's teachers", teachers)
+	}
+}
+
 // A spawn carries its band's time to come back in, as the game reads it: 30 s for every
 // dog pack.
 func TestASpawnCarriesItsTimeToComeBack(t *testing.T) {

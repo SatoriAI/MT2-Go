@@ -148,7 +148,7 @@ func (svc *Service) kind(vnum uint16) (*mob.Proto, bool) {
 func (svc *Service) spawnOne(proto *mob.Proto, sp *world.Spawn, now time.Time) *monster {
 	// Whatever can be killed is the loop's to take away and bring back, wandering or not.
 	if !proto.Fightable() {
-		svc.record.enter(svc.newMob(*proto, sp.X+svc.spread(sp.Spread), sp.Y+svc.spread(sp.Spread), 0))
+		svc.record.enter(svc.newMob(*proto, sp.X+svc.spread(sp.Spread), sp.Y+svc.spread(sp.Spread), sp.Facing))
 		return nil
 	}
 	m := &monster{proto: proto, spawn: sp, wanders: proto.Wanders()}
