@@ -40,9 +40,9 @@ type spawnAt struct {
 // the stronger the further out (docs/mechanics/stones.md).
 var spawnsByMap = map[string][]spawnAt{
 	"metin2_map_a1": {
-		{vnum: 9001, x: 59600, y: 55700}, {vnum: 9002, x: 59600, y: 60500}, {vnum: 9003, x: 67800, y: 56500},
+		{vnum: 9001, x: 59600, y: 55700}, {vnum: 9002, x: 59600, y: 60500}, {vnum: 9003, x: 67800, y: 56500, facing: 285},
 		{vnum: 9005, x: 67400, y: 60700}, {vnum: 9006, x: 63300, y: 62200},
-		{vnum: 20304, x: 62900, y: 55230, facing: 15}, {vnum: 20305, x: 62660, y: 55300, facing: 15}, {vnum: 20016, x: 68010, y: 56780, facing: 310},
+		{vnum: 20304, x: 62900, y: 55230, facing: 15}, {vnum: 20305, x: 62660, y: 55300, facing: 15}, {vnum: 20016, x: 68480, y: 57380, facing: 285},
 		{vnum: 20306, x: 62420, y: 55360, facing: 15}, {vnum: 20307, x: 62180, y: 55430, facing: 15},
 		{vnum: 20300, x: 64690, y: 54750, facing: 15}, {vnum: 20301, x: 64930, y: 54690, facing: 15},
 		{vnum: 20302, x: 65170, y: 54620, facing: 15}, {vnum: 20303, x: 65410, y: 54560, facing: 15},
@@ -164,9 +164,9 @@ var spawnsByMap = map[string][]spawnAt{
 		{vnum: 8003, spots: []Spot{{46000, 19000}, {25000, 33000}, {17000, 44000}}},
 	},
 	"metin2_map_b1": {
-		{vnum: 9001, x: 67600, y: 66200}, {vnum: 9002, x: 67600, y: 61700}, {vnum: 9003, x: 59000, y: 68900},
+		{vnum: 9001, x: 67600, y: 66200}, {vnum: 9002, x: 67600, y: 61700}, {vnum: 9003, x: 59000, y: 68900, facing: 135},
 		{vnum: 9005, x: 60900, y: 59600}, {vnum: 9006, x: 58800, y: 63300},
-		{vnum: 20324, x: 63110, y: 59340, facing: 0}, {vnum: 20325, x: 62860, y: 59340, facing: 0}, {vnum: 20016, x: 58870, y: 68570, facing: 150},
+		{vnum: 20324, x: 63110, y: 59340, facing: 0}, {vnum: 20325, x: 62860, y: 59340, facing: 0}, {vnum: 20016, x: 58500, y: 67610, facing: 135},
 		{vnum: 20326, x: 62610, y: 59340, facing: 0}, {vnum: 20327, x: 62360, y: 59340, facing: 0},
 		{vnum: 20320, x: 64960, y: 59340, facing: 0}, {vnum: 20321, x: 65210, y: 59340, facing: 0},
 		{vnum: 20322, x: 65460, y: 59340, facing: 0}, {vnum: 20323, x: 65710, y: 59340, facing: 0},
@@ -279,9 +279,9 @@ var spawnsByMap = map[string][]spawnAt{
 		{vnum: 8003, spots: []Spot{{52000, 105000}, {74000, 6000}, {86000, 16000}}},
 	},
 	"metin2_map_c1": {
-		{vnum: 9001, x: 43000, y: 60800}, {vnum: 9002, x: 40300, y: 58500}, {vnum: 9003, x: 38300, y: 69300},
+		{vnum: 9001, x: 43000, y: 60800}, {vnum: 9002, x: 40300, y: 58500}, {vnum: 9003, x: 38300, y: 69300, facing: 185},
 		{vnum: 9005, x: 31500, y: 56000}, {vnum: 9006, x: 41700, y: 67100},
-		{vnum: 20344, x: 44650, y: 63150, facing: 270}, {vnum: 20345, x: 44650, y: 62900, facing: 270}, {vnum: 20016, x: 38640, y: 69390, facing: 160},
+		{vnum: 20344, x: 44650, y: 63150, facing: 270}, {vnum: 20345, x: 44650, y: 62900, facing: 270}, {vnum: 20016, x: 39280, y: 69550, facing: 185},
 		{vnum: 20346, x: 44650, y: 62650, facing: 270}, {vnum: 20347, x: 44650, y: 62400, facing: 270},
 		{vnum: 20340, x: 44650, y: 65000, facing: 270}, {vnum: 20341, x: 44650, y: 65250, facing: 270},
 		{vnum: 20342, x: 44650, y: 65500, facing: 270}, {vnum: 20343, x: 44650, y: 65750, facing: 270},
