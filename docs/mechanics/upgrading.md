@@ -2,7 +2,7 @@
 
 ## What the player sees
 
-Each village has a blacksmith, Kowal, beside the class teachers. Dragging a first weapon, armour, helmet, shoes or shield from the bag onto him opens the refine dialog. It shows what the item becomes, its cost in yang, its chance, and, from the step to +5, the material it takes.
+Each village has a blacksmith, Kowal, by the weapon trader's building ([monsters.md](monsters.md)). Dragging a first weapon, armour, helmet, shoes or shield from the bag onto him opens the refine dialog. It shows what the item becomes, its cost in yang, its chance, and, from the step to +5, the material it takes.
 
 - **Yes** upgrades it. The item is shown at its new grade, the yang goes down, and the chat says «Przedmiot został ulepszony.».
 - **A failure** says «Ulepszanie nie powiodło się.». The yang and material are gone. From the step to +5 on, the item also drops a grade. It is never destroyed, and its bonuses stay with it at every grade ([bonuses.md](bonuses.md)).
