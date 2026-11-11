@@ -82,8 +82,9 @@ The client's SHOP is the one packet framed by its subheader. A subheader the ser
   4. Otherwise one transaction takes the yang and keeps the item, as a new one or the stack's new count, and the player is shown it and their yang.
 - **Selling** from a bag cell, any kind to any shopkeeper:
   1. a cell with no item, a worn item (which has no cell), and a count of 0 or more than the stack holds are refused;
-  2. a sale that would take the player past what they may hold is refused.
-  3. Otherwise one transaction pays the yang and keeps what is left, the stack at its lower count or the item forgotten, and the player is shown it and their yang.
+  2. a bound kind ([items.md](items.md)) is refused with the client's own «Ten Przedmiot nie może zostać sprzedany.»;
+  3. a sale that would take the player past what they may hold is refused.
+  4. Otherwise one transaction pays the yang and keeps what is left, the stack at its lower count or the item forgotten, and the player is shown it and their yang.
 - **No lock for either:** a character's yang and inventory belong to its connection's goroutine ([drops.md](drops.md)), so buying and selling take no lock. Only the click looks at the world, under its lock.
 - **A write that fails** changes nothing and is logged. The client moved nothing itself, so nothing needs undoing on screen.
 - **Dropped:** a buy or sale with no shop open, and SELL, which the scripts never send.

@@ -29,6 +29,9 @@ func (s *session) onItemDrop(body []byte) error {
 		s.conn.Log().Debug("drop refused", "pos", d.Pos, "count", d.Count)
 		return nil
 	}
+	if kind, _ := item.Lookup(it.VNum); kind.Bound {
+		return s.conn.Send(infoLine("Nie możesz upuścić tego przedmiotu."))
+	}
 	left := it
 	left.Count -= d.Count
 	ctx, cancel := context.WithTimeout(context.Background(), saveTimeout)

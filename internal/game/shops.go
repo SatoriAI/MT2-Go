@@ -119,6 +119,9 @@ func (s *session) sell(cell, count uint8) error {
 		return s.conn.Send(protocol.EncodeShopError(protocol.ShopInvalid))
 	}
 	kind, _ := item.Lookup(it.VNum)
+	if kind.Bound {
+		return s.conn.Send(infoLine("Ten Przedmiot nie może zostać sprzedany.")) // the client's own words
+	}
 	pay := kind.SellPrice * uint32(count)
 	if uint64(s.gold)+uint64(pay) > maxGold {
 		return s.conn.Send(protocol.EncodeShopError(protocol.ShopInvalid))

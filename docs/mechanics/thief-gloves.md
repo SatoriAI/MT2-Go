@@ -30,7 +30,7 @@ What the gloves do, doubling the chance of what their wearer's kills drop, comes
 - **The end:** at 0 the loop tells the client the place is empty and why, and leaves the item for the player's connection to forget, here and in the store, before its next packet that touches what it holds. Until then a save keeps the pair as worn its whole time, so a pair whose player left first is forgotten as the character is next loaded.
 - **In order:** the loop is handed each run of a pair as it is put on, not the player, so a pair put on and taken off between two ticks counts nothing, and one worn again ends once. Taking a pair off writes its time while holding the player's save, so a periodic save that read it before cannot land after.
 - **Not stacking:** a second item of the same unique kind is refused, in either place, so two pairs never run at once.
-- **Not yet:** the ANTI_ flags. Dropping a pair and picking it up gives it a new two hours, and it can be traded or sold. These wait for the change that enforces the flags, which comes before the gloves can be found.
+- **Bound:** a pair is never dropped, traded or sold ([items.md](items.md)), so its time stays with its owner.
 
 The rules were settled on 2026-11-11 by a Metin2 veteran and a game designer, with the veteran deciding ties. They agreed on every point here:
 - 70043 alone, not the item shop's timed copies (72004–72006) or the 30-minute scroll (71016);

@@ -64,7 +64,7 @@ The client reads only the cell of the server's position, so the window byte is 0
 - **Starting:** START opens a trade when the other player is alive and the starter is too. They must be of the same kingdom, on the same map within 3000, neither trading, and the other not blocking trades.
   - A player out of reach, dead or unknown is refused silently, as the client hides the button then.
   - START to the one already traded with changes nothing, so a second item dropped on them is only offered.
-- **An item offered** must be one the player carries, not worn, and not offered already. It goes to the trade cell it was dropped on if it fits there: an item stands in its column from its top cell down, as in the bag. Otherwise it goes to the first cell it fits, or is refused with «Nie ma już miejsca w oknie handlu.» A stack goes whole.
+- **An item offered** must be one the player carries, not worn, not bound ([items.md](items.md)), which is told «Nie możesz handlować tym przedmiotem.» as the client says it, and not offered already. It goes to the trade cell it was dropped on if it fits there: an item stands in its column from its top cell down, as in the bag. Otherwise it goes to the first cell it fits, or is refused with «Nie ma już miejsca w oknie handlu.» A stack goes whole.
 - **Yang** is offered once, at most what the player holds. More is told LESS_YANG with «Nie masz tyle yang.»
 - **Any change** to either offer takes back both accepts, each side told.
 - **An accept:**
