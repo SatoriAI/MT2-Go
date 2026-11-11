@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"slices"
+	"sync"
 	"time"
 
 	"github.com/SatoriAI/MT2-Go/internal/item"
@@ -43,7 +44,7 @@ func lasting(inv item.Inventory) item.Item {
 
 // wearTimed starts counting what the player now wears for a limited time, and stops
 // counting what they took off, which it returns as worn so far, unless its time ran out.
-// The world loop is told of the one put on, to tell its minutes and end it.
+// The world loop is told of the one put on, that run of it, to tell its minutes and end it.
 func (w *record) wearTimed(vid uint32, it item.Item, now time.Time) (item.Item, bool) {
 	l, unlock := w.lock()
 	defer unlock()
@@ -55,7 +56,7 @@ func (w *record) wearTimed(vid uint32, it item.Item, now time.Time) (item.Item, 
 	p.timed = nil
 	if it.ID != 0 {
 		p.timed = &wearing{it: it, since: now, shown: socketsOf(it)[2]}
-		l.news.timed = append(l.news.timed, p)
+		l.news.timed = append(l.news.timed, timing{p, p.timed})
 	}
 	if old == nil || old.spent {
 		return item.Item{}, false
@@ -114,12 +115,13 @@ func (w *record) takeSpent(vid uint32) []int64 {
 func (s *session) forgetSpent() {
 	for _, id := range s.svc.record.takeSpent(s.playing.vid) {
 		s.inventory = slices.DeleteFunc(s.inventory, func(it item.Item) bool { return it.ID == id })
-		s.svc.keepWorn(s.playing.ID, item.Item{ID: id}, true, s.conn.Log())
+		s.svc.removeSpent(s.playing.ID, id, s.conn.Log())
 	}
 }
 
 // keepTakenOff keeps how long the item taken off was worn, in the inventory and the store,
-// and shows the client its minutes left.
+// and shows the client its minutes left. It holds the player's save, so a periodic save
+// that read the time before it cannot land after it.
 func (s *session) keepTakenOff(off item.Item) error {
 	held, ok := s.inventory.ByID(off.ID)
 	if !ok {
@@ -127,24 +129,42 @@ func (s *session) keepTakenOff(off item.Item) error {
 	}
 	held.WornFor = off.WornFor
 	s.inventory.Replace(held)
+	saving := s.svc.record.savingOf(s.playing.vid)
+	saving.Lock()
 	s.svc.keepWorn(s.playing.ID, held, false, s.conn.Log())
+	saving.Unlock()
 	return s.conn.Send(itemSet(held))
 }
 
-// keepWorn keeps how long an item worn for a limited time has been worn, or forgets it
-// once its time ran out. It has its own context, as leaving runs it at shutdown too.
+// keepWorn keeps how long an item worn for a limited time has been worn: all its time,
+// once that ran out, so the store holds it spent until the connection or the next load
+// forgets it. It has its own context, as leaving runs it at shutdown too.
 func (svc *Service) keepWorn(characterID uint32, it item.Item, spent bool, log *slog.Logger) {
 	ctx, cancel := context.WithTimeout(context.Background(), saveTimeout)
 	defer cancel()
-	var err error
 	if spent {
-		err = svc.items.Remove(ctx, characterID, it.ID)
-	} else {
-		err = svc.items.SetWornFor(ctx, characterID, it.ID, it.WornFor)
+		p, _ := item.Lookup(it.VNum)
+		it.WornFor = p.WearFor
 	}
-	if err != nil {
-		log.Error("time worn not kept", "item", it.ID, "spent", spent, "err", err)
+	if err := svc.items.SetWornFor(ctx, characterID, it.ID, it.WornFor); err != nil {
+		log.Error("time worn not kept", "item", it.ID, "err", err)
 	}
+}
+
+// removeSpent forgets an item whose time ran out, in the store.
+func (svc *Service) removeSpent(characterID uint32, id int64, log *slog.Logger) {
+	ctx, cancel := context.WithTimeout(context.Background(), saveTimeout)
+	defer cancel()
+	if err := svc.items.Remove(ctx, characterID, id); err != nil {
+		log.Error("spent item not forgotten", "item", id, "err", err)
+	}
+}
+
+// savingOf is what the player's saves hold, to keep them in order.
+func (w *record) savingOf(vid uint32) *sync.Mutex {
+	l, unlock := w.lock()
+	defer unlock()
+	return &l.all[vid].saving
 }
 
 // timedOf is what the player wears for a limited time, as worn by now, and whether its
@@ -167,7 +187,7 @@ func (s *session) dropSpentOnes(characterID uint32) {
 		if p.WearFor == 0 || p.Left(it.WornFor) > 0 {
 			return false
 		}
-		s.svc.keepWorn(characterID, it, true, s.conn.Log())
+		s.svc.removeSpent(characterID, it.ID, s.conn.Log())
 		return true
 	})
 }

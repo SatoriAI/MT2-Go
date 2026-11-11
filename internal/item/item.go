@@ -76,6 +76,11 @@ type Proto struct {
 	// thief's gloves.
 	DoublesDrops bool
 
+	// Bound is a kind its owner keeps: item_proto's ANTI_DROP, ANTI_GIVE and ANTI_SELL,
+	// which the kinds that have one have all three of, so it is never dropped, traded or
+	// sold.
+	Bound bool
+
 	// What a shop asks for one, and pays for one: the client's item_proto sell price
 	// divided by 5, as its tooltip works it out, so what it shows is what is paid.
 	Price, SellPrice uint32
@@ -208,12 +213,12 @@ var protos = withBooks(withGrades(withGear(map[uint32]Proto{
 	30004: {VNum: 30004, Name: "Ząb Dzika", Size: 1, Stack: MaxStack, SellPrice: 100},
 	30028: {VNum: 30028, Name: "Szpon Wilka", Size: 1, Stack: MaxStack, SellPrice: 100},
 	// From level 5, Dawid's call, not item_proto's 30 (docs/mechanics/teleporting.md).
-	TeleportRing: {VNum: TeleportRing, Name: "Pierścień Teleportacji", Size: 1, Stack: 1, Level: 5},
-	ThiefGloves: {VNum: ThiefGloves, Name: "Rękawica Złodzieja", Size: 1, Stack: 1, Wear: Unique1, WearFor: 120 * time.Minute, DoublesDrops: true,
+	TeleportRing: {VNum: TeleportRing, Name: "Pierścień Teleportacji", Size: 1, Stack: 1, Level: 5, Bound: true},
+	ThiefGloves: {VNum: ThiefGloves, Name: "Rękawica Złodzieja", Size: 1, Stack: 1, Wear: Unique1, WearFor: 120 * time.Minute, DoublesDrops: true, Bound: true,
 		Classes: []account.Class{account.Warrior, account.Ninja, account.Sura, account.Shaman}},
 	// item_proto prices the cape at nothing; 1000 is the veteran's, and a shop pays nothing
 	// for one, as the client's sell value is 0.
-	BraveryCape: {VNum: BraveryCape, Name: "Peleryna Męstwa", Size: 1, Stack: MaxStack, Price: 1000},
+	BraveryCape: {VNum: BraveryCape, Name: "Peleryna Męstwa", Size: 1, Stack: MaxStack, Price: 1000, Bound: true},
 })))
 
 // gradeRows are what a graded kind's +1 to +9 are over its +0 (grades, in gear.go).

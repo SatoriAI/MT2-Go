@@ -337,9 +337,7 @@ func (svc *Service) tick(now time.Time) {
 	svc.keepBuffs(now)
 	svc.engage(n.provoked, now)
 	svc.lure(n.lured, now)
-	for _, p := range n.timed {
-		svc.timings = append(svc.timings, timing{p, p.timed})
-	}
+	svc.timings = append(svc.timings, n.timed...)
 	svc.keepTimed(now)
 	svc.lookOut(now)
 	for _, m := range svc.monsters {

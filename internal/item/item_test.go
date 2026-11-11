@@ -417,3 +417,17 @@ func TestOnlyUsedAndQuestItemsGoOnTheTaskbar(t *testing.T) {
 		}
 	}
 }
+
+// The kinds bound to their owner are those item_proto flags ANTI_DROP, ANTI_GIVE and
+// ANTI_SELL, all five with all three.
+func TestTheBoundKindsAreTheClientsAntiDropGiveAndSellOnes(t *testing.T) {
+	var bound []uint32
+	for _, vnum := range VNums() {
+		if p, _ := Lookup(vnum); p.Bound {
+			bound = append(bound, vnum)
+		}
+	}
+	if want := []uint32{BraveryCape, ThiefGloves, TeleportRing, ExorcismScroll, HermitsAdvice}; !slices.Equal(bound, slices.Sorted(slices.Values(want))) {
+		t.Fatalf("bound %v, want %v", bound, want)
+	}
+}
