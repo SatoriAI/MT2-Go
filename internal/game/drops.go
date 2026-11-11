@@ -71,13 +71,13 @@ func (l locked) topDamager(f *fight, killer *present) *present {
 func (svc *Service) dropFrom(m *monster, d death, now time.Time) {
 	var fallen []*groundItem
 	for _, drop := range m.proto.Drops {
-		if svc.rand.IntN(10000) < int(drop.Chance) {
+		if svc.rand.IntN(10000) < dropChance(drop.Chance, d.lucky) {
 			fallen = append(fallen, &groundItem{vid: svc.lastVID.Add(1), x: m.x + svc.spread(dropSpread),
 				y: m.y + svc.spread(dropSpread), vnum: drop.VNum, count: drop.Count, owner: d.owner, dropped: now})
 		}
 	}
 	for _, pick := range m.proto.Picks {
-		if svc.rand.IntN(10000) < int(pick.Chance) {
+		if svc.rand.IntN(10000) < dropChance(pick.Chance, d.lucky && !pick.Steady) {
 			fallen = append(fallen, &groundItem{vid: svc.lastVID.Add(1), x: m.x + svc.spread(dropSpread),
 				y: m.y + svc.spread(dropSpread), vnum: pick.From[svc.rand.IntN(len(pick.From))], count: pick.Count, owner: d.owner, dropped: now})
 		}
@@ -102,6 +102,24 @@ func (svc *Service) dropFrom(m *monster, d death, now time.Time) {
 		svc.freeing = append(svc.freeing, timed{it.vid, now.Add(ownedFor)})
 		svc.vanishing = inOrder(svc.vanishing, timed{it.vid, now.Add(lieFor)})
 	}
+}
+
+// dropChance is an item's chance to drop, in 10,000: doubled, up to certain, for an owner
+// wearing the thief's gloves. Yang is never doubled, as the debaters settled.
+func dropChance(c uint16, doubled bool) int {
+	if doubled {
+		return min(10000, 2*int(c))
+	}
+	return int(c)
+}
+
+// wearsLuck reports whether the player wears what doubles drops, and its time has not run out.
+func wearsLuck(p *present) bool {
+	if p.timed == nil || p.timed.spent {
+		return false
+	}
+	worn, _ := item.Lookup(p.timed.it.VNum)
+	return worn.DoublesDrops
 }
 
 // rollBonuses gives a piece of gear that falls its bonuses (docs/mechanics/bonuses.md):

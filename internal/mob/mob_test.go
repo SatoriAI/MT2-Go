@@ -202,18 +202,23 @@ func TestEveryStoneCallsWavesOfMonstersNoStrongerThanItself(t *testing.T) {
 }
 
 // A stone always leaves potions and materials, each of one kind, and may leave a piece of
-// the first gear, 3 times in 100 a skill book and 4 times in 100 a piece of the rare gear;
-// the last also, rarely, the first gear at +3.
+// the first gear, 3 times in 100 a skill book, 4 times in 100 a piece of the rare gear and
+// once in 200 the thief's gloves, which no pair doubles; the last also, rarely, the first
+// gear at +3.
 func TestAStoneLeavesPotionsMaterialsAndMaybeGear(t *testing.T) {
+	gloves := Pick{[]uint32{70043}, 1, 50, true}
 	cases := map[uint16][]Pick{
-		8001: {{potionKinds, 3, 10000}, {materials, 2, 10000}, {firstGear, 1, 1500}, {books, 1, 300}, {rareGear, 1, 400}},
-		8002: {{potionKinds, 4, 10000}, {materials, 3, 10000}, {firstGear, 1, 2500}, {books, 1, 300}, {rareGear, 1, 400}},
-		8003: {{potionKinds, 5, 10000}, {materials, 4, 10000}, {firstGear, 1, 3500}, {books, 1, 300}, {rareGear, 1, 400}, {firstGearP3, 1, 500}},
+		8001: {{potionKinds, 3, 10000, false}, {materials, 2, 10000, false}, {firstGear, 1, 1500, false}, {books, 1, 300, false},
+			{rareGear, 1, 400, false}, gloves},
+		8002: {{potionKinds, 4, 10000, false}, {materials, 3, 10000, false}, {firstGear, 1, 2500, false}, {books, 1, 300, false},
+			{rareGear, 1, 400, false}, gloves},
+		8003: {{potionKinds, 5, 10000, false}, {materials, 4, 10000, false}, {firstGear, 1, 3500, false}, {books, 1, 300, false},
+			{rareGear, 1, 400, false}, gloves, {firstGearP3, 1, 500, false}},
 	}
 	for vnum, want := range cases {
 		p, _ := Lookup(vnum)
 		if !slices.EqualFunc(p.Picks, want, func(a, b Pick) bool {
-			return slices.Equal(a.From, b.From) && a.Count == b.Count && a.Chance == b.Chance
+			return slices.Equal(a.From, b.From) && a.Count == b.Count && a.Chance == b.Chance && a.Steady == b.Steady
 		}) || p.Yang.Chance != 10000 {
 			t.Errorf("%d leaves %+v and %+v", vnum, p.Picks, p.Yang)
 		}

@@ -72,6 +72,9 @@ type Proto struct {
 	// WearFor is how long a kind worn for a limited time lasts, counted while it is worn in
 	// the world: item_proto's VALUE0 for a unique item, in minutes; 0 for the rest.
 	WearFor time.Duration
+	// DoublesDrops is a kind whose wearer's kills drop each item twice as often: the
+	// thief's gloves.
+	DoublesDrops bool
 
 	// What a shop asks for one, and pays for one: the client's item_proto sell price
 	// divided by 5, as its tooltip works it out, so what it shows is what is paid.
@@ -206,7 +209,7 @@ var protos = withBooks(withGrades(withGear(map[uint32]Proto{
 	30028: {VNum: 30028, Name: "Szpon Wilka", Size: 1, Stack: MaxStack, SellPrice: 100},
 	// From level 5, Dawid's call, not item_proto's 30 (docs/mechanics/teleporting.md).
 	TeleportRing: {VNum: TeleportRing, Name: "Pierścień Teleportacji", Size: 1, Stack: 1, Level: 5},
-	ThiefGloves: {VNum: ThiefGloves, Name: "Rękawica Złodzieja", Size: 1, Stack: 1, Wear: Unique1, WearFor: 120 * time.Minute,
+	ThiefGloves: {VNum: ThiefGloves, Name: "Rękawica Złodzieja", Size: 1, Stack: 1, Wear: Unique1, WearFor: 120 * time.Minute, DoublesDrops: true,
 		Classes: []account.Class{account.Warrior, account.Ninja, account.Sura, account.Shaman}},
 	// item_proto prices the cape at nothing; 1000 is the veteran's, and a shop pays nothing
 	// for one, as the client's sell value is 0.
