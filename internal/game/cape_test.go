@@ -83,7 +83,7 @@ func TestAPulledMonsterCountsItsFightFromWhenItArrives(t *testing.T) {
 	s.svc.tick(noon)
 
 	dog := s.svc.monsters[0]
-	if want := noon.Add(walkTime(dog, 2400, 0)); !dog.chase.lastExchange.Equal(want) {
+	if want := noon.Add(walkTime(dog.proto.MoveSpeed, 2400, 0)); !dog.chase.lastExchange.Equal(want) {
 		t.Fatalf("fight counted from %v, want %v", dog.chase.lastExchange, want)
 	}
 }
@@ -170,5 +170,61 @@ func TestTheDeadWearNoCape(t *testing.T) {
 
 	if len(kept.count) != 0 || chasing(s, p) != 0 {
 		t.Fatalf("kept %v, %d chasing", kept.count, chasing(s, p))
+	}
+}
+
+// A stunned monster counts its stun, too, before it can start walking.
+func TestAStunnedMonsterCountsItsStunBeforeItsWalk(t *testing.T) {
+	s, _, p := caped(t, dogsAt(2400)...)
+	dog := s.svc.monsters[0]
+	s.svc.chaseOn(dog, p, noon)
+	dog.p.fight.stunUntil = noon.Add(3 * time.Second)
+
+	wearCape(t, s)
+	s.svc.lure(s.svc.record.takeNews().lured, noon)
+
+	if want := noon.Add(3*time.Second + walkTime(dog.proto.MoveSpeed, 2400, 0)); !dog.chase.lastExchange.Equal(want) {
+		t.Fatalf("fight counted from %v, want %v", dog.chase.lastExchange, want)
+	}
+}
+
+// One already on her comes on, its fight renewed, without fighting twice.
+func TestACapeRenewsTheFightOfAMonsterAlreadyOnThePlayer(t *testing.T) {
+	s, _, p := caped(t, dogsAt(2400)...)
+	dog := s.svc.monsters[0]
+	s.svc.chaseOn(dog, p, noon.Add(-5*time.Second))
+	chase := dog.chase
+
+	wearCape(t, s)
+	s.svc.lure(s.svc.record.takeNews().lured, noon)
+
+	if dog.chase != chase || !dog.chase.lastExchange.After(noon) || len(s.svc.fighting) != 1 {
+		t.Fatalf("same fight %v, counted from %v, %d fighting", dog.chase == chase, dog.chase.lastExchange, len(s.svc.fighting))
+	}
+}
+
+// A player who left the world between the cape and the loop's tick pulls nothing.
+func TestAPlayerWhoLeftBeforeTheTickPullsNothing(t *testing.T) {
+	s, _, p := caped(t, dogsAt(500)...)
+	wearCape(t, s)
+	s.svc.record.leave(1000)
+
+	s.svc.tick(noon)
+
+	if chasing(s, p) != 0 {
+		t.Fatal("a monster was set on a player gone")
+	}
+}
+
+// A player who died between the cape and the loop's tick pulls nothing.
+func TestAPlayerWhoDiedBeforeTheTickPullsNothing(t *testing.T) {
+	s, _, p := caped(t, dogsAt(500)...)
+	wearCape(t, s)
+	s.svc.record.held(func(locked) { p.char.HP = 0 })
+
+	s.svc.lure(s.svc.record.takeNews().lured, noon)
+
+	if chasing(s, p) != 0 || len(s.svc.fighting) != 0 {
+		t.Fatal("a monster was set on a dead player")
 	}
 }

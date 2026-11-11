@@ -7,7 +7,8 @@ Peleryna Męstwa (70038) is sold by Handlarka Różności in each first village,
 - **What comes:** every living monster within 2500 of the player that fights nobody, passive ones too, the nearest 50 at most, whatever their level. One already fighting the player comes on, its fight renewed.
 - **What stays:** monsters fighting another player, metin stones, and anything further off. Their packmates come only as the pack always does, once one of them is hit ([monsters.md](monsters.md)).
 - **When:** at most once every two seconds. A use sooner, or by the dead, does nothing and keeps the cape. A cape is used up even when no monster is near.
-- **Then** each pulled monster fights as any monster does: it gives up 10 s without a bite or a blow, or 5000 from where it last bit. Those 10 s start once it could have walked to the player at its own speed, so none turns back on the way.
+- **Then** each pulled monster fights as any monster does: it gives up 10 s without a bite or a blow, or 5000 from where it was pulled or last bit. Those 10 s start once it could have reached the player, after any stun and at the speed it moves at then, slowed or not, so none turns back on the way.
+- **Again:** a monster that just gave up, walking home, fights no one, so the next cape pulls it again. That is the original's way: a player keeps a field on them by wearing capes.
 
 ## What the client does
 
@@ -26,7 +27,7 @@ A double-click sends ITEM_USE ([items.md](items.md)), and the client shows the s
 `internal/game/cape.go`:
 
 - **The use** is the session's: it checks the two seconds and that the player is alive, uses one cape up as a potion is, and leaves the player in the world record's news for the loop.
-- **The pull** is the world loop's, which owns every monster's fight. At its next tick it takes the player's position and the monsters in their view within 2500, nearest first, under one lock, then sets each that may come on the player, up to 50. One that is not fighting starts a fight, as a hit would start it, but no pack is rallied. One fighting the player has its fight renewed. Each fight counts its 10 s from now plus its walk to the player.
+- **The pull** is the world loop's, which owns every monster's fight. At its next tick it takes the player's position and the monsters in their view within 2500, nearest first, under one lock, then sets each that may come on the player, up to 50. One that is not fighting starts a fight, as a hit would start it, but no pack is rallied. One fighting the player has its fight renewed. Each fight counts its 10 s from now plus what is left of its stun and its walk to the player at its present speed, both read under the same lock.
 - **A player who died or left** between the use and the tick pulls nothing; the cape is gone.
 
 The rules were settled on 2026-11-11 in a debate between a Metin2 veteran and a game designer, with the veteran deciding ties:
@@ -45,7 +46,9 @@ The rules were settled on 2026-11-11 in a debate between a Metin2 veteran and a 
 
 - `internal/game/cape_test.go`:
   - idle monsters within 2500 pulled, however far below the player's level, one further off not, and a cape used;
-  - a pulled monster's fight counted from its arrival;
+  - a pulled monster's fight counted from its arrival, and a stunned one's from after its stun;
+  - one already on the player renewed without fighting twice;
+  - a player who left or died before the tick pulling nothing;
   - a stone left;
   - a monster fighting another player left on them, its fight unchanged;
   - at most the nearest 50;

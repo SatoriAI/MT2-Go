@@ -52,13 +52,13 @@ The client's SHOP is the one packet framed by its subheader. A subheader the ser
   | Kind | Price | Sells for |
   |---|---|---|
   | Czerwona Mikstura(M) (27001) | 32 | 6 |
-  | Peleryna Męstwa (70038) | 1000, the veteran's: item_proto prices it at nothing | 0 |
   | Czerwona Mikstura(Ś) (27002) | 96 | 18 |
   | Niebieska Mikstura(M) (27004) | 96 | 24 |
   | the first weapons (10, 1000, 2000, 3000, 7000) | 100 | 0 |
   | the first armours (11200, 11400, 11600, 11800) | 3000 | 600 |
   | the first helmets (12200, 12340, 12480, 12620) and shoes (15000) | 500 | 100 |
   | Bojowa Tarcza+0 (13000) | 400 | 80 |
+  | Peleryna Męstwa (70038) | 1000, the veteran's: item_proto prices it at nothing | 0 |
   | Drewniana Strzała (8000) | 5 to a yang, so 20 for a hundred | 0 |
   | their grades +1 to +9 ([upgrading.md](upgrading.md)) | not sold | a weapon 20 at +1 to 150 at +9; armour 1000 at +1 to 16000 at +9; a helmet or shoes 160 at +1 to 4000 at +9; the shield 160 at +1 to 4000 at +9 |
   | Szpon Wilka (30028), Ząb Dzika (30004) | not sold | 100 |
