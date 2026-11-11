@@ -48,7 +48,11 @@ No shop sells the ring and nothing drops it; it is given on the command line (`m
 
 - **The item:** the client's `--dump_proto--/item_proto.txt` (ITEM_QUEST, not stackable, LIMIT LEVEL 30, VALUE0 50), and the Polish `itemdesc.txt`. The village names are `locale_game.txt`'s MAP_A1, MAP_B1 and MAP_C1.
 - **The warp:** the client's source named above, and open-mt2's teleport ring, which warps with the same 15-byte packet after taking the player out of view.
-- **Not yet seen in a client:** MT2-Godot does not yet answer WARP.
+- **Seen from a bot** against the dev server (2026-11-11), as Ringo, a level-30 Jinno character, 4000 east of the start:
+  - the ring asked with «Strefa Pyungmoo» and «Anuluj»;
+  - the first button brought WARP to (963400, 278200) at 127.0.0.1:13001;
+  - a new connection with the same key, after the old one closed, loaded her there.
+- **Not yet seen in a client:** MT2-Godot answers WARP since its e8df425, but has not been watched doing it.
 
 ## What proves it
 
