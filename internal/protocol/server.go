@@ -436,6 +436,19 @@ func EncodeDead(vid uint32) []byte {
 	return w.Bytes()
 }
 
+// EncodeWarp sends the player to (x, y): the client leaves the game server it is on,
+// connects to game, and enters the world again by its login key and character slot, where
+// the server has the character saved.
+func EncodeWarp(x, y int32, game netip.AddrPort) []byte {
+	ip := game.Addr().As4()
+	w := NewWriter(byte(ServerWarp), 15)
+	w.I32(x)
+	w.I32(y)
+	w.Raw(ip[:]) // the client reads the address in network byte order
+	w.U16(game.Port())
+	return w.Bytes()
+}
+
 func EncodeCharacterDelete(vid uint32) []byte {
 	w := NewWriter(byte(ServerCharacterDelete), 5)
 	w.U32(vid)

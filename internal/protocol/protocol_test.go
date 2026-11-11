@@ -874,3 +874,12 @@ func TestAnItemsBonusesAreLaidOutAsTheClientReadsThem(t *testing.T) {
 		t.Fatalf("EXCHANGE %x\nwant     %x", got, want)
 	}
 }
+
+func TestWarpCarriesTheDestinationAndTheGameServerToReconnectTo(t *testing.T) {
+	got := EncodeWarp(469_300, 964_100, netip.MustParseAddrPort("192.168.1.200:13001"))
+
+	want := mustHex(t, "41"+"34290700"+"04b60e00"+"c0a801c8"+"c932")
+	if !bytes.Equal(got, want) {
+		t.Fatalf("got % x\nwant % x", got, want)
+	}
+}

@@ -190,13 +190,16 @@ func pointsOf(p *character, gold uint32) protocol.CharacterPoints {
 
 // leaveWorld takes the character in play out of the others' view and saves it, if it
 // entered the world, and lets go of it.
-func (s *session) leaveWorld() {
+func (s *session) leaveWorld() { s.leaveBy(s.svc.record.leave) }
+
+// leaveBy is leaveWorld, with out taking the character out of the world record.
+func (s *session) leaveBy(out func(vid uint32) *present) {
 	if s.claim == nil {
 		return
 	}
 	if s.phase == protocol.PhaseGame {
 		s.leaveTrade()
-		s.svc.leaveAndSave(s.playing, s.empire, s.conn.Log())
+		s.svc.leaveAndSave(out, s.playing, s.empire, s.conn.Log())
 	}
 	s.svc.release(s.claim)
 	s.claim, s.playing, s.shop, s.talking, s.upgrading = nil, nil, 0, nil, nil
