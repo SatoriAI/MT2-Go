@@ -45,9 +45,10 @@ func (s *session) onChat(ctx context.Context, body []byte) error {
 
 // onCommand carries out the commands the system menu sends: exit, log out and change
 // character, what the options window blocks, the restart dialog after dying, and the
-// character and skill windows' + buttons. Leaving
-// acts at once: the original counts down to keep a player from leaving a fight, which
-// this server does not yet. Every other command, and the buttons send many, is ignored.
+// character and skill windows' + buttons; /bonusy, and with the development switch on
+// /getitem and /getyang. Leaving acts at once: the original counts down to keep a player
+// from leaving a fight, which this server does not yet. Every other command, and the
+// buttons send many, is ignored.
 func (s *session) onCommand(ctx context.Context, command string) error {
 	switch name, arg, _ := strings.Cut(command, " "); name {
 	case "quit":
@@ -89,6 +90,11 @@ func (s *session) onCommand(ctx context.Context, command string) error {
 		return s.conn.Send(protocol.EncodePhase(protocol.PhaseSelect),
 			protocol.EncodeCharacterList(slots(characters), s.svc.public))
 	default:
+		if s.svc.dev {
+			if given, err := s.onDevCommand(name, arg); given {
+				return err
+			}
+		}
 		s.conn.Log().Debug("command ignored", "command", name)
 		return nil
 	}

@@ -75,6 +75,7 @@ func Serve(ctx context.Context, ports Ports, pool *pgxpool.Pool, spawns []world.
 	gameSvc := game.NewService(game.Deps{
 		Accounts: accounts, Whispers: store.Whispers{Pool: pool}, Items: items, Taskbar: store.Taskbar{Pool: pool},
 		Skills: store.Skills{Pool: pool}, Keys: keys, Clock: clock, Public: cfg.GamePublic, Spawns: spawns, Log: log,
+		DevCommands: cfg.DevCommands,
 	})
 
 	log.Info("listening", "auth", ports.Auth.Addr().String(), "game", ports.Game.Addr().String(),

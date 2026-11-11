@@ -43,3 +43,27 @@ func TestEveryVariableReadIsDocumentedInEnvExampleAndNoOtherIs(t *testing.T) {
 		t.Fatalf("read %v, documented %v", got, want)
 	}
 }
+
+// The development commands are off unless DEV_COMMANDS says true, and a value that is no
+// yes or no stops the server rather than guessing.
+func TestDevCommandsAreOffUnlessTurnedOn(t *testing.T) {
+	with := func(value string) (Config, error) {
+		return load(func(name string) string {
+			switch name {
+			case "DATABASE_URL":
+				return "postgres://localhost/x"
+			case "DEV_COMMANDS":
+				return value
+			}
+			return ""
+		})
+	}
+	for value, want := range map[string]bool{"": false, "false": false, "true": true} {
+		if c, err := with(value); err != nil || c.DevCommands != want {
+			t.Errorf("DEV_COMMANDS=%q: %v, %v; want %v", value, c.DevCommands, err, want)
+		}
+	}
+	if _, err := with("yes"); err == nil {
+		t.Error("DEV_COMMANDS=yes loaded")
+	}
+}

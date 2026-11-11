@@ -341,23 +341,34 @@ func (s *session) onItemPickup(body []byte) error {
 	if it.gold > 0 {
 		return s.pickGold(ctx, it)
 	}
-	if into.ID != 0 {
-		err = s.svc.items.SetCount(ctx, s.playing.ID, into.ID, into.Count)
-	} else {
+	if into.ID == 0 {
 		into.Bonuses = it.bonuses
-		into.ID, err = s.svc.items.Add(ctx, s.playing.ID, into)
 	}
-	if err != nil {
+	if into, err = s.receive(ctx, into); err != nil {
 		s.conn.Log().Error("item picked up not kept", "vnum", it.vnum, "err", err)
 		s.svc.record.putBack(it, s.svc.now()) // after the write gave up, which may be seconds on
 		return nil
+	}
+	return s.conn.Send(itemSet(into))
+}
+
+// receive keeps into where RoomFor put it, a stack grown or a new item, and holds it.
+func (s *session) receive(ctx context.Context, into item.Item) (item.Item, error) {
+	var err error
+	if into.ID != 0 {
+		err = s.svc.items.SetCount(ctx, s.playing.ID, into.ID, into.Count)
+	} else {
+		into.ID, err = s.svc.items.Add(ctx, s.playing.ID, into)
+	}
+	if err != nil {
+		return into, err
 	}
 	if _, held := s.inventory.ByID(into.ID); held {
 		s.inventory.Replace(into)
 	} else {
 		s.inventory = append(s.inventory, into)
 	}
-	return s.conn.Send(itemSet(into))
+	return into, nil
 }
 
 // maxGold is the most yang a character may hold, as the characters table checks too: a
