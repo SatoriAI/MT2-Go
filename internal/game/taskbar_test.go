@@ -86,9 +86,28 @@ func TestPotionsDraggedToTheTaskbarFillASlot(t *testing.T) {
 	}
 }
 
-// Only what is drunk goes on the taskbar from the bag: not a sword, not an empty cell; nor
+// The bravery cape and the teleport ring go on the taskbar as potions do, kept and shown
+// at their cells.
+func TestTheCapeAndTheRingFillATaskbarSlot(t *testing.T) {
+	for _, vnum := range []uint32{item.BraveryCape, item.TeleportRing} {
+		s, _, client := carrying(t)
+		s.inventory = append(s.inventory, item.Item{ID: 3, VNum: vnum, Count: 1, Cell: 5})
+		bar := onTheTaskbar(t, s, 99)
+		delete(bar.slots, 0)
+
+		if err := s.onQuickslotAdd(slotAdded(4, 1, 5)); err != nil {
+			t.Fatal(err)
+		}
+
+		if got := read(t, client, 4); string(got) != string(slotShown(4, shownSlot{cell: 5})) || bar.slots[4] != (account.Shortcut{Item: 3}) {
+			t.Fatalf("%d: told %x, kept %v", vnum, got, bar.slots)
+		}
+	}
+}
+
+// Only what is used goes on the taskbar from the bag: not a sword, not an empty cell; nor
 // a place in the skill window no group has a skill at, nor a slot past the client's 36.
-func TestOnlyPotionsFillATaskbarSlot(t *testing.T) {
+func TestOnlyWhatIsUsedFillsATaskbarSlot(t *testing.T) {
 	for name, body := range map[string][]byte{
 		"a sword":       slotAdded(3, 1, 0),
 		"an empty cell": slotAdded(3, 1, 9),

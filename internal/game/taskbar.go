@@ -77,14 +77,14 @@ func (s *session) onQuickslotAdd(body []byte) error {
 	return s.conn.Send(slotShown(q.Slot, shown))
 }
 
-// shortcutFor is what the client asks a slot to hold: a potion in the bag, or a skill
-// learnt.
+// shortcutFor is what the client asks a slot to hold: an item in the bag a slot may hold,
+// or a skill learnt.
 func (s *session) shortcutFor(q protocol.QuickslotAdd) (shownSlot, bool) {
 	switch q.Type {
 	case taskbarItem:
-		it, _ := s.inventory.At(uint16(q.Position)) // an empty cell is the zero item, which restores nothing
+		it, _ := s.inventory.At(uint16(q.Position)) // an empty cell is the zero item, which no slot holds
 		kind, _ := item.Lookup(it.VNum)
-		return shownSlot{account.Shortcut{Item: it.ID}, it.Cell}, kind.HP > 0 || kind.SP > 0
+		return shownSlot{account.Shortcut{Item: it.ID}, it.Cell}, kind.OnTaskbar()
 	case taskbarSkill:
 		_, group := s.svc.record.trainee(s.playing.vid)
 		sk, known := skillByWindowSlot(group, q.Position)

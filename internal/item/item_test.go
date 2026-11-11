@@ -401,3 +401,17 @@ func TestEveryWeaponAddsItsAttackSpeed(t *testing.T) {
 		}
 	}
 }
+
+// A taskbar slot holds what the client offers it: item_proto's used and quest items, the
+// potions, aids, soul stone, ring and cape; never gear, a book or a material.
+func TestOnlyUsedAndQuestItemsGoOnTheTaskbar(t *testing.T) {
+	for vnum, want := range map[uint32]bool{
+		27001: true, 27004: true, 71001: true, 71094: true, SoulStone: true, TeleportRing: true, BraveryCape: true,
+		10: false, 11200: false, 50401: false, 30004: false,
+	} {
+		p, ok := Lookup(vnum)
+		if !ok || p.OnTaskbar() != want {
+			t.Errorf("%d (%v): on the taskbar %v, want %v", vnum, ok, p.OnTaskbar(), want)
+		}
+	}
+}

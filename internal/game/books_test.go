@@ -174,6 +174,23 @@ func TestASoulStoneTrainsTheSkillPicked(t *testing.T) {
 	}
 }
 
+// A soul stone on the taskbar, used up, empties its slot; the store forgets the slot with
+// the stone it held.
+func TestASoulStoneUsedUpEmptiesItsTaskbarSlot(t *testing.T) {
+	s, _, client := soulsAt(t, lucky)
+	onTheTaskbar(t, s, 6)
+	usedFirst(t, s)
+	drain(t, client)
+
+	if err := s.onScriptAnswer(context.Background(), answered(0)); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := packets(t, drain(t, client)); !holds(got, protocol.EncodeQuickslotDel(0)) || len(s.taskbar) != 0 {
+		t.Fatalf("told %x, taskbar %v", got, s.taskbar)
+	}
+}
+
 // An M10 picked becomes a Grand Master, G1, on success.
 func TestASoulStoneMakesAnM10AGrandMaster(t *testing.T) {
 	s, kept, client := soulsAt(t, lucky)
