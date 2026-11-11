@@ -101,10 +101,10 @@ func TestOnlyAStonesDropRollsOrdinaryBonuses(t *testing.T) {
 	}
 }
 
-// A level-30 or level-36 weapon from anything carries the pair 15 times in 100: average or
-// skill damage at its strong value, and the other always taken off at the same grade's
-// weak one. Other weapons never do.
-func TestTheBestWeaponsSometimesCarryThePair(t *testing.T) {
+// A level-30 weapon from anything carries the pair 15 times in 100: average or skill damage
+// at its strong value, and the other always taken off at the same grade's weak one. No other
+// weapon does, not even a level-36 one.
+func TestTheLevelThirtyWeaponsSometimesCarryThePair(t *testing.T) {
 	const n = 20000
 	pairs := 0
 	for _, b := range rolls(t, 290, false, n) {
@@ -124,9 +124,11 @@ func TestTheBestWeaponsSometimesCarryThePair(t *testing.T) {
 	if got := pairs * 100 / n; got < 13 || got > 17 {
 		t.Errorf("the pair %d times in 100, want about 15", got)
 	}
-	for _, b := range rolls(t, 60, false, 2000) { // a sword of level 25
-		if len(b) != 0 {
-			t.Fatalf("a level-25 sword carries %+v", b)
+	for vnum, kind := range map[uint32]string{60: "a level-25 sword", 80: "a level-36 sword"} {
+		for _, b := range rolls(t, vnum, false, 2000) {
+			if len(b) != 0 {
+				t.Fatalf("%s carries %+v", kind, b)
+			}
 		}
 	}
 }

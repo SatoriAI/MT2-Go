@@ -105,8 +105,8 @@ func (svc *Service) dropFrom(m *monster, d death, now time.Time) {
 }
 
 // rollBonuses gives a piece of gear that falls its bonuses (docs/mechanics/bonuses.md):
-// from a stone, one to three, and from anything a level-30 or level-36 weapon sometimes its
-// pair. Each roll is logged, so the odds can be weighed against what players found.
+// from a stone, one to three, and from anything a level-30 weapon sometimes its pair.
+// Each roll is logged, so the odds can be weighed against what players found.
 func (svc *Service) rollBonuses(m *monster, it *groundItem) {
 	p, _ := item.Lookup(it.vnum)
 	if it.bonuses = item.Roll(p, m.proto.Kind == mob.Stone, svc.rand); len(it.bonuses) > 0 {
