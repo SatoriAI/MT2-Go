@@ -116,7 +116,7 @@ func TestTheSaveOnLeavingLandsAfterOneUnderWay(t *testing.T) {
 		c.Exp = 55 // a kill, under the lock as in play
 	})
 	leaving := make(chan struct{})
-	go func() { s.leaveAndSave(c, account.EmpireNone, quiet); close(leaving) }()
+	go func() { s.leaveAndSave(s.record.leave, c, account.EmpireNone, quiet); close(leaving) }()
 	select {
 	case <-leaving:
 		t.Fatal("the save on leaving did not wait for the one under way")
@@ -177,7 +177,7 @@ func TestLeavingSavesWhereTheWorldRecordHasThePlayer(t *testing.T) {
 	s, store, c, _ := playing(t)
 	c.X = homeX + 900 // the connection's copy, moved where the record did not follow
 
-	s.leaveAndSave(c, account.EmpireNone, quiet)
+	s.leaveAndSave(s.record.leave, c, account.EmpireNone, quiet)
 
 	if _, at, _ := store.ofHendra(); at != [2]int32{homeX, homeY} {
 		t.Fatalf("saved at %v, want where the record has her", at)
@@ -218,7 +218,7 @@ func TestAPlayerWhoLeavesDeadIsKeptAtTheStart(t *testing.T) {
 	s, store, c, _ := playing(t)
 	c.HP = 0
 
-	s.leaveAndSave(c, account.EmpireShinsoo, quiet)
+	s.leaveAndSave(s.record.leave, c, account.EmpireShinsoo, quiet)
 
 	x, y, _ := account.EmpireShinsoo.StartPosition()
 	if _, at, _ := store.ofHendra(); at != [2]int32{x, y} {
@@ -245,7 +245,7 @@ func TestAPlayerWhoLeavesDeadIsSavedWhole(t *testing.T) {
 	s, store, c, _ := playing(t)
 	c.HP, c.SP = 0, 10
 
-	s.leaveAndSave(c, account.EmpireShinsoo, quiet)
+	s.leaveAndSave(s.record.leave, c, account.EmpireShinsoo, quiet)
 
 	if got, _, _ := store.ofHendra(); got.HP != 1000 || got.SP != 850 {
 		t.Fatalf("saved with %d and %d, want 1000 and 850", got.HP, got.SP)

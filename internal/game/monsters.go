@@ -61,10 +61,11 @@ type monster struct {
 }
 
 // pack is the monsters standing at one spawn centre: a pack of a kind, and its leader with
-// it. They fight together and come back together.
+// it, or a family's pack. They fight together and come back together.
 type pack struct {
 	members   []*monster
-	calmUntil time.Time // until its monsters, walking home from a fight, attack no one on sight
+	calmUntil time.Time    // until its monsters, walking home from a fight, attack no one on sight
+	family    *world.Spawn // a family's spawn, which rolls the pack afresh each time it comes back; nil for one of a kind
 }
 
 // packReach is how far from a packmate a monster may stand and still join its fight: the
@@ -107,6 +108,12 @@ func (svc *Service) spawn(now time.Time) error {
 	packs := map[[2]int32]*pack{}
 	for i := range svc.spawns {
 		sp := &svc.spawns[i]
+		if len(sp.Kinds) > 0 {
+			if err := svc.spawnFamily(sp, now); err != nil {
+				return err
+			}
+			continue
+		}
 		proto, ok := svc.kind(sp.VNum)
 		if !ok {
 			return fmt.Errorf("game: spawn of %d, which has no proto", sp.VNum)
@@ -130,6 +137,61 @@ func (svc *Service) spawn(now time.Time) error {
 		}
 	}
 	return nil
+}
+
+// spawnFamily puts a family's pack in the world: room for as many as it may hold, rolled
+// as it comes. Its kinds are monsters that wait to be hit: one that attacks on sight would
+// have to join the loop's watchers each time the pack is rolled.
+func (svc *Service) spawnFamily(sp *world.Spawn, now time.Time) error {
+	for _, k := range sp.Kinds {
+		proto, ok := svc.kind(k.VNum)
+		if !ok {
+			return fmt.Errorf("game: pack of %d, which has no proto", k.VNum)
+		}
+		if !proto.Fightable() || proto.Aggressive || proto.Kind == mob.Stone {
+			return fmt.Errorf("game: %d in a family's pack, which takes only monsters that wait to be hit", k.VNum)
+		}
+	}
+	k := &pack{family: sp}
+	for range sp.Count {
+		m := &monster{spawn: sp, pack: k}
+		k.members = append(k.members, m)
+		svc.monsters = append(svc.monsters, m)
+	}
+	svc.placeFamily(k, now)
+	return nil
+}
+
+// placeFamily puts a family's pack in the world afresh: MinCount to Count of it, each of a
+// kind picked by the kinds' weights. Those it leaves out stay away until it comes back.
+func (svc *Service) placeFamily(k *pack, now time.Time) {
+	sp := k.family
+	n := sp.MinCount + svc.rand.IntN(sp.Count-sp.MinCount+1)
+	for i, m := range k.members {
+		m.proto, _ = svc.kind(pickKind(sp.Kinds, svc.rand)) // one left out still has a kind, whose time it waits
+		m.wanders = m.proto.Wanders()
+		if i >= n {
+			m.diedAt, m.gone = now, true
+			continue
+		}
+		svc.place(m, now)
+	}
+}
+
+// pickKind picks one of the kinds, each as likely as its weight against the others'.
+func pickKind(kinds []world.Kind, r *rand.Rand) uint16 {
+	total := 0
+	for _, k := range kinds {
+		total += k.Weight
+	}
+	roll := r.IntN(total)
+	for _, k := range kinds[:len(kinds)-1] {
+		if roll < k.Weight {
+			return k.VNum
+		}
+		roll -= k.Weight
+	}
+	return kinds[len(kinds)-1].VNum
 }
 
 // kind is the proto of vnum, one shared by every monster of it.
@@ -327,6 +389,10 @@ func (svc *Service) bringBack(m *monster, now time.Time) {
 		return
 	}
 	if down, last := m.pack.down(); down && !now.Before(last.Add(m.respawnAfter())) {
+		if m.pack.family != nil {
+			svc.placeFamily(m.pack, now)
+			return
+		}
 		for _, mate := range m.pack.members {
 			svc.place(mate, now)
 		}

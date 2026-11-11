@@ -120,6 +120,8 @@ func (s *session) onItemUse(ctx context.Context, body []byte) error {
 		return s.readBook(ctx, it, p.Teaches)
 	case it.VNum == item.SoulStone:
 		return s.offerSoulStone(it)
+	case it.VNum == item.TeleportRing:
+		return s.offerTeleport(it)
 	case it.VNum == item.BraveryCape:
 		return s.wearCape(it)
 	case p.Aid != "":

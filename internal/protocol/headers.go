@@ -83,6 +83,7 @@ const (
 	ServerAddFlyTarget     ServerHeader = 0x45 // another their skill's arrows fly at
 	ServerSkillLevels      ServerHeader = 0x4C // every skill's level, by the client's number for it
 	ServerScript           ServerHeader = 0x2D // an NPC's dialog: text, buttons
+	ServerWarp             ServerHeader = 0x41 // go to a place: the client reconnects and enters there
 	ServerRefineInfo       ServerHeader = 0x77 // the refine dialog: what upgrading an item takes
 	ServerChangeSkillGroup ServerHeader = 0x70 // the skill group chosen
 	ServerCharacterList    ServerHeader = 0x20 // LOGIN_SUCCESS4: four character slots
