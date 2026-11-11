@@ -1,6 +1,8 @@
 package game
 
 import (
+	"context"
+
 	"github.com/SatoriAI/MT2-Go/internal/account"
 	"github.com/SatoriAI/MT2-Go/internal/item"
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
@@ -31,8 +33,13 @@ func (s *session) offerTeleport(ring item.Item) error {
 }
 
 // teleport carries out the answer to offerTeleport: the first takes the player home if
-// they still carry the ring and still may, the last cancels.
-func (s *session) teleport(t *talk, answer uint8) error {
+// they still carry the ring and still may, the last cancels. What a trade the other side
+// kept since moved is taken first, as the answer is no packet that takes it: it may have
+// taken the ring.
+func (s *session) teleport(ctx context.Context, t *talk, answer uint8) error {
+	if _, err := s.catchUp(ctx); err != nil {
+		return err
+	}
 	if _, held := s.inventory.ByID(t.ring); !held || answer != 0 {
 		return nil
 	}
@@ -44,12 +51,14 @@ func (s *session) teleport(t *talk, answer uint8) error {
 }
 
 // whyNotTeleport is what the player is told instead of being taken anywhere, or "": not
-// while dead, trading, or at a shop or the blacksmith, nor below the ring's level.
+// while dead, trading, or at a shop or the blacksmith, nor below the ring's level, nor
+// with no kingdom to go home to.
 func (s *session) whyNotTeleport() string {
 	ring, _ := item.Lookup(item.TeleportRing)
 	level, free := s.svc.record.unbusy(s.playing.vid)
+	_, _, home := s.empire.StartPosition()
 	switch {
-	case !free || s.shop != 0 || s.upgrading != nil:
+	case !free || !home || s.shop != 0 || s.upgrading != nil:
 		return ringRefused
 	case level < ring.Level:
 		return ringTooLow

@@ -6,7 +6,8 @@ A double-click on Pierścień Teleportacji (70058) opens a dialog: «Dokąd chce
 
 It is refused with a line in the chat:
 - «Masz za niski poziom, aby użyć tego przedmiotu.» below level 30;
-- «Nie możesz teraz użyć tego przedmiotu.» while dead, trading, at a shop, or at the blacksmith.
+- «Nie możesz tego zrobić podczas handlu.» while trading, as every use of an item is ([trading.md](trading.md));
+- «Nie możesz teraz użyć tego przedmiotu.» while dead, at a shop or at the blacksmith, and when the answer comes during a trade.
 
 No shop sells the ring and nothing drops it; it is given on the command line (`mt2go item`) or with `/getitem 70058` on a development server.
 
@@ -30,7 +31,7 @@ No shop sells the ring and nothing drops it; it is given on the command line (`m
 `internal/game/teleport.go`:
 
 - **Asking:** a use of the ring checks the player may go, then asks. It keeps which ring it asked about until the answer, as the soul stone's question does.
-- **The answer** is checked again, since a trade may open or the player die while the dialog is up. The first button, if the player still carries the ring, warps them to `Empire.StartPosition`; any other does nothing.
+- **The answer** is checked again, since a trade may open or the player die while the dialog is up. It first takes in what a trade the other side kept has moved, as item packets do, so a ring traded away with the question open goes nowhere. The first button, if the player still carries the ring, warps them to `Empire.StartPosition`; any other does nothing.
 - **The warp,** in order:
   1. the player is taken out of the world record, so everyone who saw them is told CHARACTER_DELETE;
   2. their position is set to the destination and the character saved there, as leaving the world saves it;
@@ -39,8 +40,8 @@ No shop sells the ring and nothing drops it; it is given on the command line (`m
   The old connection then sits in the select phase until the client closes it. Moves and other game packets still in flight from the client are dropped, as after Change character. The login key outlives the connection ([connection-and-login.md](connection-and-login.md)), so the new one logs in with it.
 - **Not modelled:**
   - **The 50 charges** of item_proto's VALUE0, and the Polish tooltip's «50 razy». Our items keep no count of their own besides a stack's, so the ring is used without wearing out. With one destination, the player's own village, that gives nothing a restart in town does not. The charges come with the first way for a player to get the ring.
-  - **VALUE1, 1800.** Nobody remembers what it did; the original had no cooldown players saw.
-  - **Fighting** does not stop a warp: the original let players escape a fight with it.
+  - **VALUE1, 1800.** Its meaning is not known. The veteran recalls no cooldown on the ring, so none is modelled.
+  - **Fighting** does not stop a warp. The veteran recalls players escaping fights with it.
 - **The rules** were settled in a debate between a Metin2 veteran and a game designer (2026-11-11), with the veteran deciding ties: unlimited for now, level 30 enforced, no combat lock, a dev command as the only source.
 
 ## How we know
@@ -58,5 +59,6 @@ No shop sells the ring and nothing drops it; it is given on the command line (`m
   - a move after the warp dropped;
   - cancel going nowhere;
   - refusals below level 30 and at a shop;
-  - a player who died with the question open not taken.
+  - a player who died with the question open not taken;
+  - a ring traded away with the question open taking nobody.
 - `internal/server/teleport_test.go`: a level-30 player given the ring on the command line, taken over real connections from the question to WARP, and a new connection with the same key, while the old one is still open, loading her at the start.

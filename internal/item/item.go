@@ -111,7 +111,7 @@ func Lookup(vnum uint32) (Proto, bool) {
 	return p, ok
 }
 
-// TeleportRing is Pierścień Teleportacji, which takes its wearer home to their kingdom's
+// TeleportRing is Pierścień Teleportacji, which takes whoever uses it home to their kingdom's
 // village (docs/mechanics/teleporting.md). No shop sells it.
 const TeleportRing = 70058
 

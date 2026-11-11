@@ -107,7 +107,7 @@ func (s *session) onScriptAnswer(ctx context.Context, body []byte) error {
 		return s.useSoulStone(ctx, t, answer)
 	}
 	if t != nil && t.ring != 0 {
-		return s.teleport(t, answer)
+		return s.teleport(ctx, t, answer)
 	}
 	if t == nil || answer != 0 {
 		return nil

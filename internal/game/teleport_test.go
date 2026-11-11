@@ -98,6 +98,7 @@ func TestAMoveAfterAWarpIsDropped(t *testing.T) {
 	if err := s.Handle(context.Background(), move); err != nil {
 		t.Fatal(err)
 	}
+	expectNothing(t, client)
 }
 
 // Cancel takes her nowhere.
@@ -151,5 +152,35 @@ func TestTheRingTakesNobodyWhoDiedSinceTheQuestion(t *testing.T) {
 
 	if got := packets(t, drain(t, client)); len(got) != 1 || !holds(got, infoLine(ringRefused)) {
 		t.Fatalf("told %x", got)
+	}
+}
+
+// A ring traded away with the question open, the trade kept by the other side, takes her
+// nowhere: the answer first takes in what the trade moved.
+func TestARingTradedAwayWithTheQuestionOpenTakesNobody(t *testing.T) {
+	s, _, client, _ := ringing(t, 30)
+	useRing(t, s)
+	drain(t, client)
+	s.svc.record.held(func(l locked) {
+		l.settled[1000] = settlement{gave: []item.Item{{ID: 5}}}
+	})
+
+	answer(t, s, 0)
+
+	expectNothing(t, client)
+	if _, inWorld := s.svc.record.state.all[1000]; !inWorld {
+		t.Fatal("she was taken away without the ring")
+	}
+}
+
+// A player of no kingdom has no village to go to, so the ring is refused.
+func TestTheRingIsRefusedWithNoKingdom(t *testing.T) {
+	s, _, client, _ := ringing(t, 30)
+	s.empire = account.EmpireNone
+
+	useRing(t, s)
+
+	if got := read(t, client, len(infoLine(ringRefused))); string(got) != string(infoLine(ringRefused)) {
+		t.Fatalf("told %q", got)
 	}
 }
