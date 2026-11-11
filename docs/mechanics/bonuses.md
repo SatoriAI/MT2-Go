@@ -17,7 +17,7 @@ Gear can carry bonuses, drawn in its tooltip below its stats, each in the client
 
 - **Where bonuses come from:**
   - Gear a **Metin stone** leaves carries one bonus half the time, two 35 times in 100 and three 15, each of a different kind its place allows.
-  - A **level-30 or level-36 weapon**, from anything that leaves it, carries **the pair** 15 times in 100: Średnie Obrażenia or Obrażenie Umiejętności at a strong value, and the other always taken off. It's a weapon for hitting or for skills, never both.
+  - A **level-30 weapon**, from anything that leaves it, carries **the pair** 15 times in 100: Średnie Obrażenia or Obrażenie Umiejętności at a strong value, and the other always taken off. It's a weapon for hitting or for skills, never both.
   - Nothing else carries bonuses, and nothing sold in a shop does.
 - **Grades:** each bonus rolls one of five values, the top one rare (40, 30, 18, 9 and 3 times in 100). Gear below level 25 never rolls the top one.
 
@@ -99,7 +99,7 @@ The client's numbers for the bonuses, its APPLY_ types (open-mt2's `ApplyTypeEnu
 - **The slots and the damage flags:** open-mt2's `ApplyTypeEnum` and `DamageFlagEnum`, read for facts.
 - **The rules, kinds, values, odds and caps:** the veteran and the designer debated them, the veteran deciding where they differed, as Dawid asked. The two disagreed on:
   - which drops roll bonuses (any monster's or only a stone's): a stone's only, which the veteran accepted;
-  - where the pair comes: only on level-30 and level-36 weapons, the veteran's;
+  - where the pair comes: only on the best weapons, the veteran's. They named levels 30 and 36; Dawid then kept it to level 30 alone, so that average and skill damage stay rare.
   - resistance: the designer's, which the veteran accepted.
 - **Every monster being an animal:** mob_proto's RACE_FLAG for each of the 19.
 
@@ -110,7 +110,7 @@ The client's numbers for the bonuses, its APPLY_ types (open-mt2's `ApplyTypeEnu
   - armour carrying at most two;
   - the top grade only from level 25;
   - nothing but a stone giving ordinary bonuses, and nothing unworn any;
-  - the pair 15 times in 100, always with its weak side, and on no other weapon;
+  - the pair 15 times in 100 on a level-30 weapon, always with its weak side, and never on a level-25 or level-36 one;
   - what is remarkable;
   - totals summed then capped.
 - `internal/store/items_test.go`: an item's bonuses kept in order and read back, through an upgrade and a trade, gone with the item, and an unknown kind refused with nothing kept.

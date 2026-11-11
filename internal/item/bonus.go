@@ -56,21 +56,23 @@ var allowed = map[Wear][]account.Bonus{
 // in hundredths.
 var countWeights = [3]int{50, 35, 15}
 
-// The pair: a level-30 or level-36 weapon carries, pairChance times in 100, Średnie
-// Obrażenia or Obrażenie Umiejętności at a grade's strong value, and the other at its weak
-// one taken off, whichever way round at even odds: a weapon for hitting or for skills,
-// never for both.
-const pairChance = 15
+// The pair: a level-30 weapon carries, pairChance times in 100, Średnie Obrażenia or
+// Obrażenie Umiejętności at a grade's strong value, and the other at its weak one taken
+// off, whichever way round at even odds: a weapon for hitting or for skills, never for
+// both. Only the level-30 weapons carry it, so it stays rare.
+const (
+	pairChance = 15
+	pairLevel  = 30
+)
 
 var (
 	pairStrong = map[account.Bonus][5]int16{account.BonusAverage: {10, 15, 20, 25, 30}, account.BonusSkill: {5, 8, 10, 12, 15}}
 	pairWeak   = [5]int16{5, 8, 10, 12, 15}
-	pairLevels = []uint8{30, 36}
 )
 
 // Roll is what a piece of gear of kind p carries as it drops: from a Metin stone, one to
-// three bonuses its place allows, each of its own kind; and for a level-30 or level-36
-// weapon, from anything, sometimes the pair. Anything else carries none.
+// three bonuses its place allows, each of its own kind; and for a level-30 weapon, from
+// anything, sometimes the pair. Anything else carries none.
 func Roll(p Proto, fromStone bool, r *rand.Rand) Bonuses {
 	kinds, worn := allowed[p.Wear]
 	if !worn {
@@ -84,7 +86,7 @@ func Roll(p Proto, fromStone bool, r *rand.Rand) Bonuses {
 			b = append(b, Rolled{kind, bonusValues[kind][grade(p.Level, r)]})
 		}
 	}
-	if p.Wear == Weapon && slices.Contains(pairLevels, p.Level) && r.IntN(100) < pairChance {
+	if p.Wear == Weapon && p.Level == pairLevel && r.IntN(100) < pairChance {
 		g := grade(p.Level, r)
 		strong, weak := account.BonusAverage, account.BonusSkill
 		if r.IntN(2) == 1 {
