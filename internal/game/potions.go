@@ -60,7 +60,7 @@ func (s *session) showUsed(it, left item.Item, told ...[]byte) error {
 		return err
 	}
 	if left.Count == 0 && it.Worn != "" {
-		s.dress()
+		return s.dress()
 	}
 	return nil
 }

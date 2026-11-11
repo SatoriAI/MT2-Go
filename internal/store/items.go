@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -171,6 +172,12 @@ func (s Items) SetCount(ctx context.Context, characterID uint32, id int64, count
 	return setCount(ctx, s.Pool, characterID, id, count)
 }
 
+// SetWornFor keeps how long an item worn for a limited time has been worn, to the second.
+func (s Items) SetWornFor(ctx context.Context, characterID uint32, id int64, wornFor time.Duration) error {
+	return owned(s.Pool.Exec(ctx, `UPDATE items SET worn_for = $3 WHERE id = $1 AND character_id = $2`,
+		id, characterID, int32(wornFor/time.Second))) //nolint:gosec // at most a kind's wear time, hours
+}
+
 // Remove forgets an item the character no longer has, such as the last potion of a stack.
 func (s Items) Remove(ctx context.Context, characterID uint32, id int64) error {
 	return remove(ctx, s.Pool, characterID, id)
@@ -214,7 +221,7 @@ func (s Items) UnknownKinds(ctx context.Context, known []uint32) ([]uint32, erro
 }
 
 func inventory(ctx context.Context, tx pgx.Tx, characterID uint32) (item.Inventory, error) {
-	rows, err := tx.Query(ctx, `SELECT id, vnum, count, coalesce(cell, 0), coalesce(worn, ''),
+	rows, err := tx.Query(ctx, `SELECT id, vnum, count, coalesce(cell, 0), coalesce(worn, ''), worn_for,
 		coalesce((SELECT array_agg(kind ORDER BY slot) FROM item_bonuses WHERE item_id = items.id), '{}'),
 		coalesce((SELECT array_agg(value ORDER BY slot) FROM item_bonuses WHERE item_id = items.id), '{}')
 		FROM items WHERE character_id = $1 ORDER BY worn NULLS FIRST, cell`, characterID)
@@ -225,7 +232,9 @@ func inventory(ctx context.Context, tx pgx.Tx, characterID uint32) (item.Invento
 		var it item.Item
 		var kinds []account.Bonus
 		var values []int16
-		err := row.Scan(&it.ID, &it.VNum, &it.Count, &it.Cell, &it.Worn, &kinds, &values)
+		var wornFor int32
+		err := row.Scan(&it.ID, &it.VNum, &it.Count, &it.Cell, &it.Worn, &wornFor, &kinds, &values)
+		it.WornFor = time.Duration(wornFor) * time.Second
 		for i, kind := range kinds {
 			it.Bonuses = append(it.Bonuses, item.Rolled{Kind: kind, Value: values[i]})
 		}

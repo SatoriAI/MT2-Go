@@ -516,16 +516,16 @@ func EncodeChannelStatus(channels []ChannelStatus) []byte {
 	return w.Bytes()
 }
 
-// EncodeItemSet puts count of item vnum in the cell, with its bonuses, or empties it with
-// vnum 0. The sockets are not used yet, so they are sent empty.
-func EncodeItemSet(at ItemPos, vnum uint32, count uint8, bonuses Bonuses) []byte {
+// EncodeItemSet puts count of item vnum in the cell, with its sockets and bonuses, or
+// empties it with vnum 0.
+func EncodeItemSet(at ItemPos, vnum uint32, count uint8, sockets Sockets, bonuses Bonuses) []byte {
 	w := NewWriter(byte(ServerItemSet), 42)
 	w.U8(at.Window)
 	w.U16(at.Cell)
 	w.U32(vnum)
 	w.U8(count)
-	for range 3 { // sockets
-		w.I32(0)
+	for _, v := range sockets {
+		w.I32(v)
 	}
 	bonuses.write(w)
 	return w.Bytes()
@@ -537,6 +537,10 @@ type Bonus struct {
 	Type  uint8
 	Value int16
 }
+
+// Sockets are an item's three sockets. The client reads the last of a unique item, worn
+// for a limited time, as the minutes it has left.
+type Sockets [3]int32
 
 // Bonuses are an item's seven slots.
 type Bonuses [7]Bonus

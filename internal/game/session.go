@@ -117,6 +117,7 @@ type loop struct {
 	// The drops on the ground, in the order they fell, to free and to clear away.
 	freeing, vanishing []timed
 	buffEnds           []buffEnd
+	timings            []timing // the items worn for a limited time, to count down
 }
 
 // NewService makes the game port's shared state; Run puts spawns' mobs in the world.

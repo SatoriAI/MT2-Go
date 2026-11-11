@@ -43,6 +43,9 @@ func (svc *Service) saveInWorld(p *present, log *slog.Logger) {
 	if c, ok := svc.record.snapshot(p); ok {
 		svc.save(c, log, slog.LevelDebug) // warned once, on leaving, not every minute
 	}
+	if it, spent, ok := svc.record.timedOf(p, svc.now()); ok {
+		svc.keepWorn(p.char.ID, it, spent, log)
+	}
 }
 
 // leaveAndSave takes the player out of the world by out, after which nobody else touches the
@@ -64,6 +67,10 @@ func (svc *Service) leaveAndSave(out func(vid uint32) *present, c *character, em
 		saved.HP, saved.SP = points.MaxHP, points.MaxSP
 	}
 	svc.save(saved, log, slog.LevelWarn)
+	if p.timed != nil { // out of the world, it is counted no more
+		it, spent := p.timed.soFar(svc.now())
+		svc.keepWorn(c.ID, it, spent, log)
+	}
 }
 
 // save keeps the character's progress, and where it stands if that is on a map the server

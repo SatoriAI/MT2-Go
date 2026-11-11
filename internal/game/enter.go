@@ -143,6 +143,7 @@ func (s *session) onEnterGame() error {
 	// record, so they must be in it.
 	me.tether, p.UnseenUntil = tether{x: p.X, y: p.Y}, s.svc.now().Add(unseenFor)
 	s.svc.record.enter(me)
+	s.svc.record.wearTimed(p.vid, lasting(s.inventory), s.svc.now())
 	s.phase = protocol.PhaseGame
 	s.conn.Log().Info("entered the world", "character", p.Name, "x", p.X, "y", p.Y)
 	return nil

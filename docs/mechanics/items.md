@@ -25,7 +25,7 @@ A position is the window (u8, the inventory is `01`) and the cell (u16). Every c
 
 | Packet | Bytes | Fields |
 |---|---|---|
-| ITEM_SET `14`, server | 42 | position, vnum u32, count u8, 3 sockets i32, 7 bonuses {type u8, value i16}; all zero for now. vnum 0 empties the cell |
+| ITEM_SET `14`, server | 42 | position, vnum u32, count u8, 3 sockets i32, 7 bonuses {type u8, value i16}. The sockets are zero but the last of an item worn for a limited time, its minutes left ([thief-gloves.md](thief-gloves.md)); the bonuses are on [bonuses.md](bonuses.md). vnum 0 empties the cell |
 | ITEM_MOVE `0D` | 8 | from, to, count u8 |
 | ITEM_USE `0B` | 4 | position |
 | ITEM_DROP `0C` | 8 | position, gold u32 |
@@ -43,7 +43,7 @@ Seen from the real client: a sword dragged from cell 0 to 17 sends `0D 01 00 00 
 
 `internal/item` holds the kinds and the inventory's rules; `internal/store/items.go` keeps what characters own; `internal/game/items.go` shows and moves it.
 
-- **The kinds** are a table in `internal/item`, only those the game hands out: each class's first weapons, body armour and helmet, the first shoes and shield, and a curated few beyond them up to level 36, with their grades +1 to +9 ([equipment.md](equipment.md), [upgrading.md](upgrading.md)), red and blue potions, the two materials of upgrades, and the skill books of the game's 38 skills, the soul stone and the two helpers of a read ([skills.md](skills.md)), the bravery cape ([cape.md](cape.md)) and the teleport ring ([teleporting.md](teleporting.md)). Each has its vnum, the Polish client's name, its height in cells, and how many one item holds, 1 or 200; what is worn says more ([equipment.md](equipment.md)), and so do a shop's prices ([shops.md](shops.md)). A kind is added with a line there. A stack holds up to 200, as open-mt2's shops sell potions.
+- **The kinds** are a table in `internal/item`, only those the game hands out: each class's first weapons, body armour and helmet, the first shoes and shield, and a curated few beyond them up to level 36, with their grades +1 to +9 ([equipment.md](equipment.md), [upgrading.md](upgrading.md)), red and blue potions, the two materials of upgrades, and the skill books of the game's 38 skills, the soul stone and the two helpers of a read ([skills.md](skills.md)), the bravery cape ([cape.md](cape.md)), the teleport ring ([teleporting.md](teleporting.md)) and the thief's gloves ([thief-gloves.md](thief-gloves.md)). Each has its vnum, the Polish client's name, its height in cells, and how many one item holds, 1 or 200; what is worn says more ([equipment.md](equipment.md)), and so do a shop's prices ([shops.md](shops.md)). A kind is added with a line there. A stack holds up to 200, as open-mt2's shops sell potions.
 - **An item** is a row: its kind, its count, and the cell of its top. The database keeps two items from sharing a top cell, and the game keeps a tall item from covering another's cells. Every change is written as it happens, never in a periodic save, so a crash neither loses nor duplicates an item. Every write names the item's owner as well as its id, so one aimed at another character's item changes nothing and is refused.
 - **Where items come from:** monsters' drops ([drops.md](drops.md)), and the command line.
 - **Giving and taking** are orders, left by the command line while there is no website:

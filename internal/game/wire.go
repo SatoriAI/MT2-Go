@@ -268,7 +268,8 @@ func textFromClient(text string) string {
 // feet at 92, the weapon at 94, the arrows at 99 and the shield at 100 (ItemData.h).
 const inventoryWindow uint8 = 1
 
-var wornCells = map[item.Wear]uint16{item.Body: 90, item.Head: 91, item.Feet: 92, item.Weapon: 94, item.Arrow: 99, item.Shield: 100}
+var wornCells = map[item.Wear]uint16{item.Body: 90, item.Head: 91, item.Feet: 92, item.Weapon: 94, item.Unique1: 97, item.Unique2: 98,
+	item.Arrow: 99, item.Shield: 100}
 
 // placeFromWire returns where a position the client names is: an inventory cell, or
 // where an item is worn. False for another window, or a cell the game does not use.
@@ -475,7 +476,17 @@ func itemPos(it item.Item) protocol.ItemPos {
 }
 
 func itemSet(it item.Item) []byte {
-	return protocol.EncodeItemSet(itemPos(it), it.VNum, it.Count, bonusSlots(it.Bonuses))
+	return protocol.EncodeItemSet(itemPos(it), it.VNum, it.Count, socketsOf(it), bonusSlots(it.Bonuses))
+}
+
+// socketsOf is an item's sockets as the client reads them: for a kind worn for a limited
+// time, the minutes it has left, rounded up, in the last, which its tooltip shows.
+func socketsOf(it item.Item) protocol.Sockets {
+	p, _ := item.Lookup(it.VNum)
+	if p.WearFor == 0 {
+		return protocol.Sockets{}
+	}
+	return protocol.Sockets{2: int32((p.Left(it.WornFor) + time.Minute - 1) / time.Minute)} //nolint:gosec // at most VALUE0's minutes
 }
 
 // bonusTypes are the client's numbers for the bonuses, its APPLY_ types (open-mt2's
@@ -496,7 +507,7 @@ func bonusSlots(b item.Bonuses) protocol.Bonuses {
 
 // itemCleared empties the place the item stood in.
 func itemCleared(it item.Item) []byte {
-	return protocol.EncodeItemSet(itemPos(it), 0, 0, protocol.Bonuses{})
+	return protocol.EncodeItemSet(itemPos(it), 0, 0, protocol.Sockets{}, protocol.Bonuses{})
 }
 
 // bodyPart is how the client is told to dress a character: in its armour, by the

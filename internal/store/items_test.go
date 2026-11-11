@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/SatoriAI/MT2-Go/internal/account"
 	"github.com/SatoriAI/MT2-Go/internal/item"
@@ -176,6 +177,28 @@ func TestAMovedItemIsKept(t *testing.T) {
 
 	if inv, _, _ := s.Owned(context.Background(), "Hendra"); inv[0].Cell != 17 {
 		t.Fatalf("kept at %d", inv[0].Cell)
+	}
+}
+
+// The thief's gloves are kept worn in the second unique place, with how long they have
+// been worn, to the second.
+func TestGlovesAreKeptInAUniquePlaceWithTheTimeWorn(t *testing.T) {
+	s, cid := hendrasItems(t)
+	s.mustOrder(t, item.Order{Kind: item.Give, VNum: item.ThiefGloves, Count: 1})
+	inv, _ := s.mustApply(t, cid)
+	inv[0].Worn = item.Unique2
+	ctx := context.Background()
+	if err := s.Place(ctx, cid, inv[0]); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := s.SetWornFor(ctx, cid, inv[0].ID, 37*time.Minute+5*time.Second); err != nil {
+		t.Fatal(err)
+	}
+
+	got, _, _ := s.Owned(ctx, "Hendra")
+	if gloves, ok := got.WornIn(item.Unique2); !ok || gloves.WornFor != 37*time.Minute+5*time.Second {
+		t.Fatalf("kept %+v", got)
 	}
 }
 

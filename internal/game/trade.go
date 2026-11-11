@@ -109,9 +109,10 @@ func (s *session) settle(ctx context.Context, st settlement) error {
 	return nil
 }
 
-// catchUp applies what a trade the other side kept changed for the player, and reports
-// whether they are trading.
+// catchUp forgets the items whose time ran out and applies what a trade the other side
+// kept changed for the player, and reports whether they are trading.
 func (s *session) catchUp(ctx context.Context) (bool, error) {
+	s.forgetSpent()
 	st, kept, trading := s.svc.record.catchUp(s.playing.vid)
 	if kept {
 		return trading, s.settle(ctx, st)

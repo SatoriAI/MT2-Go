@@ -38,6 +38,7 @@ type state struct {
 	groundOn map[string]map[uint32]*groundItem // the same, by the map each lies on and vid
 	trades   map[uint32]*trade                 // the trades going on, under each side's vid
 	settled  map[uint32]settlement             // what trades others kept changed for players, for each to take
+	spent    map[uint32][]int64                // items whose time ran out, by their player's vid, for each to take
 }
 
 // newRecord is an empty world record.
@@ -45,7 +46,7 @@ func newRecord() record {
 	return record{state: state{
 		all: map[uint32]*present{}, onMap: map[string]map[uint32]*present{}, byName: map[string]*present{},
 		ground: map[uint32]*groundItem{}, groundOn: map[string]map[uint32]*groundItem{},
-		trades: map[uint32]*trade{}, settled: map[uint32]settlement{},
+		trades: map[uint32]*trade{}, settled: map[uint32]settlement{}, spent: map[uint32][]int64{},
 	}}
 }
 
@@ -83,6 +84,8 @@ type present struct {
 	// sees is who this player has been shown, by vid. Seeing is mutual, so both sides
 	// change together, and leaving tells exactly these.
 	sees map[uint32]*present
+	// timed is what a player wears for a limited time, counted while they are in the world.
+	timed *wearing
 }
 
 // appearance is what shows the character to another client. The client builds a player

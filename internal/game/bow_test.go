@@ -268,7 +268,7 @@ func TestArrowsArePutOnInTheirPlace(t *testing.T) {
 	}
 
 	if got := drain(t, client); kept.worn[3] != item.Arrow || s.svc.record.state.all[1000].char.Arrow != 8000 ||
-		!bytes.Contains(got, protocol.EncodeItemSet(protocol.ItemPos{Window: 1, Cell: 99}, 8000, 50, protocol.Bonuses{})) {
+		!bytes.Contains(got, protocol.EncodeItemSet(protocol.ItemPos{Window: 1, Cell: 99}, 8000, 50, protocol.Sockets{}, protocol.Bonuses{})) {
 		t.Fatalf("worn %q, holding %d, told %x", kept.worn[3], s.svc.record.state.all[1000].char.Arrow, got)
 	}
 	shot(t, s, 0)
