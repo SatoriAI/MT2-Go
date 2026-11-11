@@ -40,7 +40,7 @@ The rules were settled on 2026-11-11 in a debate between a Metin2 veteran and a 
 
 - **The item:** the client's `--dump_proto--/item_proto.txt` (ITEM_USE, stackable, shop price 0) and the Polish `itemdesc.txt`, which says the cape's bright colours lure every monster from around. 70057 is the same cape, tradeable, for an item shop; the store sells 70038, which the client flags against trading, dropping and selling.
 - **The rules:** open-mt2's cape use (radius 2500, cap 50, idle monsters only, two seconds) and the veteran's memory of the original.
-- **Seen from a bot** against the dev server (2026-11-11): Ringo walked to about 1200 from the nearest pack west of Jinno's start and wore a cape. The stack went from 9 to 8, and all four monsters within 2500 moved towards her in the next four seconds.
+- **Seen from a bot** against the dev server (2026-11-11): Ringo walked west of Jinno's start, to (959445, 278390), until the nearest monster she saw was within 1200, and wore a cape. The stack went from 9 to 8, and all four monsters within 2500 moved towards her in the next four seconds.
 - **Seen in MT2-Godot** (its 6158bd6, which knows the cape's kind): on Jinno's first map, a cape used up its stack of one. Within 2.5 s the four Alfa Wilk and a Niebieski Wilk near the character ran at her and began biting.
 
 ## What proves it
