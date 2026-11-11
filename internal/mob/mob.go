@@ -112,7 +112,9 @@ var (
 		{VNum: 15040, Count: 1, Cell: 24},
 		{VNum: 11220, Count: 1, Cell: 30}, {VNum: 11420, Count: 1, Cell: 31}, {VNum: 11620, Count: 1, Cell: 32}, {VNum: 11820, Count: 1, Cell: 33}}
 	sundries = []Ware{{VNum: 27001, Count: 1, Cell: 0}, {VNum: 27002, Count: 1, Cell: 1}, {VNum: 27004, Count: 1, Cell: 2},
-		{VNum: 27001, Count: 20, Cell: 5}, {VNum: 27002, Count: 20, Cell: 6}, {VNum: 27004, Count: 20, Cell: 7}}
+		{VNum: 70038, Count: 1, Cell: 3},
+		{VNum: 27001, Count: 20, Cell: 5}, {VNum: 27002, Count: 20, Cell: 6}, {VNum: 27004, Count: 20, Cell: 7},
+		{VNum: 70038, Count: 20, Cell: 8}}
 )
 
 // potions is what every monster of the first villages may leave: a red and a blue potion,

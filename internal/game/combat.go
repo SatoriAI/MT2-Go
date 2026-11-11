@@ -335,6 +335,7 @@ type news struct {
 	poisoned []*present    // monsters newly poisoned, to tick
 	drains   []buffEnd     // toggles started that drain mana
 	burned   []*present    // monsters newly set alight, to tick
+	lured    []*present    // players who wore a cape, to set the monsters around them on
 }
 
 // takeNews hands the world loop the news, with one lock a tick.

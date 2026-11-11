@@ -159,8 +159,7 @@ func (svc *Service) goHome(m *monster, now time.Time) {
 	m.chase = nil
 	svc.record.move(m.p.add.VID, protocol.Move{Type: protocol.MoveWait, Rotation: rotationTowards(m.homeX-m.x, m.homeY-m.y),
 		X: m.homeX, Y: m.homeY, Time: svc.clock.Now()})
-	walk := time.Duration(math.Hypot(float64(m.homeX-m.x), float64(m.homeY-m.y)) /
-		(walkPerSecond * float64(max(m.proto.MoveSpeed, 1)) / 100) * float64(time.Second))
+	walk := walkTime(m.proto.MoveSpeed, m.homeX-m.x, m.homeY-m.y)
 	m.x, m.y = m.homeX, m.homeY
 	m.nextStroll = now.Add(walk + svc.strollWait()) // not before the client has walked it home
 	if m.pack != nil && m.pack.calmUntil.Before(now.Add(walk)) {
