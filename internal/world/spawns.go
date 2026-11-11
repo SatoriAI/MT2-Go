@@ -101,7 +101,7 @@ var spawnsByMap = map[string][]spawnAt{
 		{vnum: 108, x: 74500, y: 73000, spread: 800, count: 4, respawn: 30},
 		{vnum: 103, x: 77500, y: 72500, spread: 800, count: 1, respawn: 30},
 		{vnum: 102, x: 77500, y: 72500, spread: 800, count: 3, respawn: 30},
-		{vnum: 102, x: 71500, y: 56500, spread: 800, count: 5, respawn: 30},
+		{vnum: 102, x: 74100, y: 54400, spread: 800, count: 5, respawn: 30},
 		{vnum: 108, x: 76500, y: 78000, spread: 800, count: 4, respawn: 30},
 		{vnum: 102, x: 68000, y: 84000, spread: 800, count: 4, respawn: 30},
 		{vnum: 108, x: 49500, y: 67500, spread: 800, count: 4, respawn: 30},
