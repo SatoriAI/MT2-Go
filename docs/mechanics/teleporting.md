@@ -52,7 +52,7 @@ No shop sells the ring and nothing drops it; it is given on the command line (`m
   - the ring asked with «Strefa Pyungmoo» and «Anuluj»;
   - the first button brought WARP to (963400, 278200) at 127.0.0.1:13001;
   - a new connection with the same key, after the old one closed, loaded her there.
-- **Not yet seen in a client:** MT2-Godot answers WARP since its e8df425, but has not been watched doing it.
+- **Seen in MT2-Godot** (its e8df425, against the same server): a level-91 Jinno character got the question, and the first button sent WARP. The client reconnected by key and slot, skipped the select screen, loaded, and entered at Jinno's start (963400, 278200).
 
 ## What proves it
 
