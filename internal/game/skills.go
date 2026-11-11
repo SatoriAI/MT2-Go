@@ -53,6 +53,8 @@ type talk struct {
 	// stone is the soul stone the player was asked to use on one of skills, by its id.
 	stone  int64
 	skills []account.Skill
+	// ring is the teleport ring the player was asked where to take them, by its id.
+	ring int64
 }
 
 // teach answers a click on a class teacher. A character of its class of level 5 or more
@@ -103,6 +105,9 @@ func (s *session) onScriptAnswer(ctx context.Context, body []byte) error {
 	s.talking = nil
 	if t != nil && t.skills != nil {
 		return s.useSoulStone(ctx, t, answer)
+	}
+	if t != nil && t.ring != 0 {
+		return s.teleport(ctx, t, answer)
 	}
 	if t == nil || answer != 0 {
 		return nil

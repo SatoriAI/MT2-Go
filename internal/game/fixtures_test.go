@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"math/rand/v2"
 	"net"
+	"net/netip"
 	"slices"
 	"testing"
 	"time"
@@ -153,6 +154,7 @@ var fixedSizes = map[protocol.ServerHeader]int{
 	protocol.ServerTime:             len(protocol.EncodeTime(0)),
 	protocol.ServerChannel:          len(protocol.EncodeChannel(0)),
 	protocol.ServerExchange:         len(protocol.EncodeExchange(protocol.ExchangeNews{})),
+	protocol.ServerWarp:             len(protocol.EncodeWarp(0, 0, netip.AddrPortFrom(netip.IPv4Unspecified(), 0))),
 }
 
 // packets cuts what a client was sent into whole packets, by each one's length: its own,
