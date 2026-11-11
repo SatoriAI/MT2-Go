@@ -80,6 +80,21 @@ func TestAnNPCNeverStrolls(t *testing.T) {
 	expectNothing(t, client)
 }
 
+// An NPC stands facing where its spawn says, as ADD tells the client.
+func TestAnNPCFacesWhereItsSpawnSays(t *testing.T) {
+	s := worldWith(t, world.Spawn{VNum: 9001, X: homeX, Y: homeY, Count: 1, Facing: 270})
+
+	for _, p := range s.record.state.all {
+		if p.add.Race == 9001 {
+			if p.add.Rotation != 270 {
+				t.Fatalf("faces %v", p.add.Rotation)
+			}
+			return
+		}
+	}
+	t.Fatal("no NPC in the world")
+}
+
 // A monster that walks into a player's view is shown before its move, as a player is.
 func TestAMonsterWalkingIntoViewIsShownBeforeItsMove(t *testing.T) {
 	s := worldWith(t, world.Spawn{VNum: 101, X: homeX + 9000, Y: homeY, Count: 1})
