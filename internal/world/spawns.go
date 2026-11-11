@@ -166,7 +166,7 @@ var spawnsByMap = map[string][]spawnAt{
 	"metin2_map_b1": {
 		{vnum: 9001, x: 67600, y: 66200}, {vnum: 9002, x: 67600, y: 61700}, {vnum: 9003, x: 59000, y: 68900, facing: 135},
 		{vnum: 9005, x: 60900, y: 59600}, {vnum: 9006, x: 58800, y: 63300},
-		{vnum: 20324, x: 63110, y: 59340, facing: 0}, {vnum: 20325, x: 62860, y: 59340, facing: 0}, {vnum: 20016, x: 58500, y: 67610, facing: 135},
+		{vnum: 20324, x: 63110, y: 59340, facing: 0}, {vnum: 20325, x: 62860, y: 59340, facing: 0}, {vnum: 20016, x: 58250, y: 67610, facing: 135},
 		{vnum: 20326, x: 62610, y: 59340, facing: 0}, {vnum: 20327, x: 62360, y: 59340, facing: 0},
 		{vnum: 20320, x: 64960, y: 59340, facing: 0}, {vnum: 20321, x: 65210, y: 59340, facing: 0},
 		{vnum: 20322, x: 65460, y: 59340, facing: 0}, {vnum: 20323, x: 65710, y: 59340, facing: 0},
