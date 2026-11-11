@@ -246,3 +246,85 @@ func TestGlovesWornOnEnteringCountFromThen(t *testing.T) {
 		t.Fatalf("told %x", got)
 	}
 }
+
+// takeOffGloves double-clicks the gloves where they are worn, at 97.
+func takeOffGloves(t *testing.T, s *session) {
+	t.Helper()
+	if err := s.onItemUse(context.Background(), doubleClicked(97)); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// Put on and taken off before the loop's tick, the gloves count nothing more there.
+func TestGlovesOnAndOffWithinATickAreNotCounted(t *testing.T) {
+	s, _, client := gloved(t, 119*time.Minute)
+	putOnGloves(t, s, client)
+	takeOffGloves(t, s)
+	drain(t, client)
+
+	s.svc.tick(noon.Add(2 * time.Minute))
+
+	expectNothing(t, client)
+	if len(s.svc.timings) != 0 {
+		t.Fatalf("%d counted", len(s.svc.timings))
+	}
+}
+
+// Put on, off and on again within a tick, they end once, with one line.
+func TestGlovesReWornWithinATickEndOnce(t *testing.T) {
+	s, _, client := gloved(t, 119*time.Minute)
+	putOnGloves(t, s, client)
+	takeOffGloves(t, s)
+	if err := s.onItemUse(context.Background(), doubleClicked(4)); err != nil { // where they went
+		t.Fatal(err)
+	}
+
+	s.svc.tick(noon.Add(time.Minute))
+
+	ended := 0
+	for _, p := range packets(t, drain(t, client)) {
+		if string(p) == string(infoLine("Czas działania przedmiotu Rękawica Złodzieja minął.")) {
+			ended++
+		}
+	}
+	if ended != 1 || len(s.svc.record.state.spent[1000]) != 1 {
+		t.Fatalf("ended %d times, %v spent", ended, s.svc.record.state.spent)
+	}
+}
+
+// Worn and taken off while the world loop ticks on its own goroutine, as in play, the
+// gloves race with nothing.
+func TestGlovesWornWhileTheLoopTicks(t *testing.T) {
+	s, _, client := gloved(t, 0)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for i := range 200 {
+			s.svc.tick(noon.Add(time.Duration(i) * time.Second))
+		}
+	}()
+	putOnGloves(t, s, client)
+	for range 20 {
+		takeOffGloves(t, s)
+		if err := s.onItemUse(context.Background(), doubleClicked(4)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	<-done
+}
+
+// Spent, then left, the pair is kept as worn its whole time, for the next load to forget,
+// and not forgotten twice.
+func TestSpentGlovesLeftAreKeptWhole(t *testing.T) {
+	s, kept, client := gloved(t, 119*time.Minute)
+	putOnGloves(t, s, client)
+	s.svc.tick(noon.Add(time.Minute))
+	s.claim = &claim{character: 7, done: make(chan struct{})}
+	s.svc.accounts = newSaves()
+
+	s.leaveWorld()
+
+	if kept.wornFor[5] != 120*time.Minute || len(kept.gone) != 0 {
+		t.Fatalf("kept worn for %v, forgotten %v", kept.wornFor[5], kept.gone)
+	}
+}

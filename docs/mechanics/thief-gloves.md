@@ -2,7 +2,7 @@
 
 ## What the player sees
 
-Rękawica Złodzieja (70043) is worn in one of the inventory window's two unique places, beside the shoes. A double-click puts it in the first, a drag in either. Its tooltip says how much time it has left, from «2:00» when new. The time counts down only while the gloves are worn and the character is in the world: taking them off, changing character or logging out stops it, and putting them on again goes on from where it stopped. When the time runs out, the gloves leave their place and the chat says «Czas działania przedmiotu Rękawica Złodzieja minął.»
+Rękawica Złodzieja (70043) is worn in one of the inventory window's two unique places, beside the shoes. A double-click puts it in the first, a drag in either. Its tooltip says how much time it has left: «Pozostały Czas : 2Godzin» when new, then for example «1Godzin 59Minut». The time counts down only while the gloves are worn and the character is in the world: taking them off, changing character or logging out stops it, and putting them on again goes on from where it stopped. When the time runs out, the gloves leave their place and the chat says «Czas działania przedmiotu Rękawica Złodzieja minął.»
 
 A second pair is refused while one is worn, with «Nie możesz założyć dwóch takich samych przedmiotów.», since both would only spend their time.
 
@@ -27,8 +27,10 @@ What the gloves do, doubling the chance of what their wearer's kills drop, comes
 
 - **Counting:** the world record holds what each player wears for a limited time, with how long it had been worn and since when, as they put it on or enter the world wearing it. Taking it off, leaving the world, and the periodic save keep how long it has been worn by then, so a crash loses at most one save's round.
 - **The minutes:** the world loop looks at the players wearing such an item each tick, and sends the item again when its minutes left, rounded up, drop by one.
-- **The end:** at 0 the loop tells the client the place is empty and why, and leaves the item for the player's connection to forget at its next move of an item, here and in the store. A pair that ended while its player left, or was saved worn to its end, is forgotten as the character is next loaded.
+- **The end:** at 0 the loop tells the client the place is empty and why, and leaves the item for the player's connection to forget, here and in the store, before its next packet that touches what it holds. Until then a save keeps the pair as worn its whole time, so a pair whose player left first is forgotten as the character is next loaded.
+- **In order:** the loop is handed each run of a pair as it is put on, not the player, so a pair put on and taken off between two ticks counts nothing, and one worn again ends once. Taking a pair off writes its time while holding the player's save, so a periodic save that read it before cannot land after.
 - **Not stacking:** a second item of the same unique kind is refused, in either place, so two pairs never run at once.
+- **Not yet:** the ANTI_ flags. Dropping a pair and picking it up gives it a new two hours, and it can be traded or sold. These wait for the change that enforces the flags, which comes before the gloves can be found.
 
 The rules were settled on 2026-11-11 by a Metin2 veteran and a game designer, with the veteran deciding ties. They agreed on every point here:
 - 70043 alone, not the item shop's timed copies (72004–72006) or the 30-minute scroll (71016);
@@ -52,6 +54,7 @@ The rules were settled on 2026-11-11 by a Metin2 veteran and a game designer, wi
   - taken off after 30 minutes, with 90 shown and 30 kept;
   - counted only while worn, and from entering the world wearing them;
   - kept on leaving and in the periodic save;
-  - a spent pair forgotten on loading.
+  - a spent pair kept whole on leaving, and forgotten on loading;
+  - on and off within a tick counting nothing, worn again ending once, and worn while the loop ticks on its own goroutine without a race.
 - `internal/store/items_test.go`: the gloves kept in the second unique place with their time worn.
 - `internal/protocol/protocol_test.go`: ITEM_SET with its sockets.
