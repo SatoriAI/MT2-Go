@@ -13,16 +13,31 @@ import (
 // The client stands a mob's animation still at speed 0, so every kind the world spawns
 // needs a proto with real speeds.
 func TestEveryKindTheWorldSpawnsIsKnownAndMoves(t *testing.T) {
-	for _, s := range world.Spawns() {
-		p, ok := Lookup(s.VNum)
+	for _, vnum := range spawned() {
+		p, ok := Lookup(vnum)
 		if !ok {
-			t.Errorf("%d is spawned but has no proto", s.VNum)
+			t.Errorf("%d is spawned but has no proto", vnum)
 			continue
 		}
-		if p.VNum != s.VNum || p.MoveSpeed == 0 || p.AttackSpeed == 0 || p.Name == "" {
-			t.Errorf("%d: %+v", s.VNum, p)
+		if p.VNum != vnum || p.MoveSpeed == 0 || p.AttackSpeed == 0 || p.Name == "" {
+			t.Errorf("%d: %+v", vnum, p)
 		}
 	}
+}
+
+// spawned are the kinds the world puts in it: each spawn's own, and every kind its
+// family's pack may hold.
+func spawned() []uint16 {
+	var vnums []uint16
+	for _, s := range world.Spawns() {
+		if len(s.Kinds) == 0 {
+			vnums = append(vnums, s.VNum)
+		}
+		for _, k := range s.Kinds {
+			vnums = append(vnums, k.VNum)
+		}
+	}
+	return vnums
 }
 
 func TestOnlyMonstersWander(t *testing.T) {
@@ -37,19 +52,19 @@ func TestOnlyMonstersWander(t *testing.T) {
 // Every monster and stone the world spawns can be fought: it has hit points and a level;
 // NPCs cannot be.
 func TestEveryMonsterCanBeFoughtAndNoNPC(t *testing.T) {
-	for _, s := range world.Spawns() {
-		p, _ := Lookup(s.VNum)
+	for _, vnum := range spawned() {
+		p, _ := Lookup(vnum)
 		if p.Fightable() != (p.Kind != NPC) || (p.Fightable() && (p.MaxHP == 0 || p.Level == 0)) {
-			t.Errorf("%d: %+v", s.VNum, p)
+			t.Errorf("%d: %+v", vnum, p)
 		}
 	}
 }
 
 // Every monster can bite: dice that run upwards and a reach. Stones never bite.
 func TestEveryMonsterCanBite(t *testing.T) {
-	for _, s := range world.Spawns() {
-		if p, _ := Lookup(s.VNum); p.Kind == Monster && (p.DamageMin == 0 || p.DamageMax < p.DamageMin || p.AttackRange == 0) {
-			t.Errorf("%d: dice %d to %d, reach %d", s.VNum, p.DamageMin, p.DamageMax, p.AttackRange)
+	for _, vnum := range spawned() {
+		if p, _ := Lookup(vnum); p.Kind == Monster && (p.DamageMin == 0 || p.DamageMax < p.DamageMin || p.AttackRange == 0) {
+			t.Errorf("%d: dice %d to %d, reach %d", vnum, p.DamageMin, p.DamageMax, p.AttackRange)
 		}
 	}
 }

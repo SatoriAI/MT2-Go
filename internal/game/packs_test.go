@@ -244,9 +244,15 @@ func TestNothingAggressiveStandsNearAVillage(t *testing.T) {
 	for _, e := range []account.Empire{account.EmpireShinsoo, account.EmpireChunjo, account.EmpireJinno} {
 		x, y, _ := e.StartPosition()
 		for _, sp := range world.Spawns() {
-			p, _ := mob.Lookup(sp.VNum)
-			if d := math.Hypot(float64(sp.X-x), float64(sp.Y-y)); p.Aggressive && d < 10000 {
-				t.Errorf("%s: %d at (%d, %d), %.0f from the start", e, sp.VNum, sp.X, sp.Y, d)
+			vnums := []uint16{sp.VNum}
+			for _, k := range sp.Kinds {
+				vnums = append(vnums, k.VNum)
+			}
+			for _, vnum := range vnums {
+				p, _ := mob.Lookup(vnum)
+				if d := math.Hypot(float64(sp.X-x), float64(sp.Y-y)); p.Aggressive && d < 10000 {
+					t.Errorf("%s: %d at (%d, %d), %.0f from the start", e, vnum, sp.X, sp.Y, d)
+				}
 			}
 		}
 	}
