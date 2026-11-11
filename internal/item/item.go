@@ -92,6 +92,14 @@ var (
 	ErrTooLow = errors.New("item: the level is too low")
 )
 
+// OnTaskbar is whether a taskbar slot may hold the kind: the client offers only what
+// item_proto calls a used item or a quest item (PythonItemModule.cpp's
+// CanAddToQuickSlotItem), which of ours are the potions, the aids, the soul stone, the
+// teleport ring and the bravery cape.
+func (p Proto) OnTaskbar() bool {
+	return p.HP > 0 || p.SP > 0 || p.Aid != "" || p.VNum == SoulStone || p.VNum == TeleportRing || p.VNum == BraveryCape
+}
+
 // CanWear reports why a character of class at level cannot wear the kind, or nil.
 func (p Proto) CanWear(class account.Class, level uint8) error {
 	switch {
