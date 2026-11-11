@@ -53,38 +53,18 @@ func TestEveryFirstVillageHasItsBlacksmith(t *testing.T) {
 	}
 }
 
-// bands are how far from its kingdom's start each kind of monster stands: dogs nearest,
-// then wolves and boars, alpha and blue wolves, and the second ring, overlapping a
-// little where a kind leads a pack.
-var bands = map[uint16]struct{ from, to float64 }{
-	101: {2500, 15000},
-	102: {9000, 18000}, 108: {9000, 18000},
-	103: {9000, 30000}, 104: {18000, 30000},
-	105: {18000, 42000}, 109: {30000, 42000},
-	110: {30000, 55000}, 111: {42000, 55000}, 114: {42000, 55000},
-	// the cursed, which attack on sight, in the far bands only
+// cursedBands are how far from its kingdom's start each cursed kind stands, which attacks
+// on sight: in the far bands only.
+var cursedBands = map[uint16]struct{ from, to float64 }{
 	131: {30000, 42000}, 132: {30000, 42000},
 	133: {30000, 55000}, 137: {30000, 55000}, // kin of a far leader too
 	134: {42000, 55000}, 135: {42000, 55000}, 136: {42000, 55000}, 138: {42000, 55000}, 139: {42000, 55000},
 }
 
-// backAfter is how long a pack that far from the start takes to come back, in seconds.
-func backAfter(d float64) int {
-	switch {
-	case d < 18000:
-		return 30
-	case d < 30000:
-		return 45
-	}
-	return 60
-}
+// leaders are the cursed kinds that lead a pack of their kin.
+var leaders = map[uint16]uint16{132: 131, 134: 133, 136: 135, 138: 137}
 
-// leaders are the kinds that lead a pack of their kin: an alpha wolf three wolves, an
-// alpha blue wolf three blue wolves, and each cursed alpha, and the cursed red boar, three
-// of their cursed kin.
-var leaders = map[uint16]uint16{103: 102, 105: 104, 132: 131, 134: 133, 136: 135, 138: 137}
-
-// monsterAreas are each first village's monster packs.
+// monsterAreas are each first village's monster packs, the families' and the cursed.
 func monsterAreas(t *testing.T) map[string][]spawnAt {
 	t.Helper()
 	got := map[string][]spawnAt{}
@@ -119,24 +99,93 @@ func packs(all []spawnAt) map[[2]int32][]spawnAt {
 	return byCentre
 }
 
-// Each kind of monster stands in its band from the kingdom's start, and comes back as its
-// distance says: within 18000 after 30 s, within 30000 after 45, further out after 60.
-func TestEveryMonsterStandsInItsBand(t *testing.T) {
+// home is the village a map's packs are measured out from: the box its NPCs stand in and
+// the safe ground within 3000 of it, not the safe spots about the map.
+func home(name string) [][4]int32 {
+	box := town(name)[len(safeGround[name])]
+	rects := [][4]int32{box}
+	for _, r := range safeGround[name] {
+		if clearOf(r[0], r[1], [][4]int32{box}) < 3000 || clearOf(r[2], r[3], [][4]int32{box}) < 3000 ||
+			clearOf(r[0], r[3], [][4]int32{box}) < 3000 || clearOf(r[2], r[1], [][4]int32{box}) < 3000 {
+			rects = append(rects, r)
+		}
+	}
+	return rects
+}
+
+// A family's pack says how far out from its village it stands, as placed, within the
+// attribute map's 100; at that distance at least one of its family's kinds stands.
+func TestEveryFamilyPackStandsWhereItsKindsDo(t *testing.T) {
 	for name, all := range monsterAreas(t) {
 		for _, a := range all {
-			band, known := bands[a.vnum]
-			if d := fromStart(name, a); !known || d < band.from || d >= band.to || a.respawn != backAfter(d) {
+			if a.family == "" {
+				continue
+			}
+			if d := clearOf(a.x, a.y, home(name)); math.Abs(d-float64(a.out)) > 150 || len(kindsAt(a.family, float64(a.out))) == 0 {
+				t.Errorf("%s: %s at (%d, %d) says %d out, is %.0f", name, a.family, a.x, a.y, a.out, d)
+			}
+		}
+	}
+}
+
+// Each stretch out from a village holds the kinds whose bands cover it, the harder the
+// further: dogs and wolves by the gate, bears from 25000, tigers only from 40000.
+func TestTheKindsGetHarderFurtherOut(t *testing.T) {
+	for d, want := range map[float64][]uint16{
+		3000:  {101, 102},
+		10000: {101, 102, 103, 108},
+		26000: {104, 105, 109, 110},
+		45000: {110, 111, 114},
+	} {
+		var got []uint16
+		for f := range families {
+			for _, k := range kindsAt(f, d) {
+				got = append(got, k.VNum)
+			}
+		}
+		slices.Sort(got)
+		if !slices.Equal(got, want) {
+			t.Errorf("%.0f out: %v, want %v", d, got, want)
+		}
+	}
+}
+
+// A kind is most likely on its band's plateau, less so towards its edges, and absent
+// beyond them.
+func TestAKindsWeightRisesAndFalls(t *testing.T) {
+	b := bands[110]
+	if b.weight(24999) != 0 || b.weight(28500) != 50 || b.weight(36000) != 100 || b.weight(45000) != 50 || b.weight(50000) != 0 {
+		t.Errorf("bears weigh %d, %d, %d, %d, %d", b.weight(24999), b.weight(28500), b.weight(36000), b.weight(45000), b.weight(50000))
+	}
+}
+
+// Each cursed kind stands in its band from the kingdom's start and comes back after 60 s.
+func TestEveryCursedPackStandsInItsBand(t *testing.T) {
+	for name, all := range monsterAreas(t) {
+		for _, a := range all {
+			if a.family != "" {
+				continue
+			}
+			band, known := cursedBands[a.vnum]
+			if d := fromStart(name, a); !known || d < band.from || d >= band.to || a.respawn != 60 {
 				t.Errorf("%s: %d at (%d, %d), %.0f out, back after %d s", name, a.vnum, a.x, a.y, d, a.respawn)
 			}
 		}
 	}
 }
 
-// A pack is 3 to 5 of one kind, or a leader with 3 of its kin, standing at one centre.
-func TestEveryPackIsOneKindOrALeaderWithItsKin(t *testing.T) {
+// A family's pack holds 3 to 5, as the world serves it; a cursed pack is a leader with
+// 3 of its kin or 3 to 5 of one kind.
+func TestEveryPackHoldsThreeToFive(t *testing.T) {
+	for _, s := range Spawns() {
+		if len(s.Kinds) > 0 && (s.MinCount != 3 || s.Count != 5) {
+			t.Errorf("a pack at (%d, %d) of %d to %d", s.X, s.Y, s.MinCount, s.Count)
+		}
+	}
 	for name, all := range monsterAreas(t) {
 		for centre, pack := range packs(all) {
 			switch {
+			case pack[0].family != "":
 			case len(pack) == 1 && pack[0].count >= 3 && pack[0].count <= 5:
 			case len(pack) == 2 && pack[0].count+pack[1].count == 4 &&
 				(pack[0].count == 1 && leaders[pack[0].vnum] == pack[1].vnum ||
@@ -148,72 +197,65 @@ func TestEveryPackIsOneKindOrALeaderWithItsKin(t *testing.T) {
 	}
 }
 
-// Packs stand apart: 2000 between centres where both lie within 18000 of the start, 2500
-// within 30000, and 4000 where either lies further; and their centres 2500 from every NPC
-// and 3500 from every stone's spot.
+// Packs stand apart: 2000 between centres where both lie within 30000 of the village, and
+// 2500 where either lies further or is cursed; and their centres 2500 from every NPC and
+// 3500 from every stone's spot.
 func TestPacksStandApart(t *testing.T) {
 	for name, all := range monsterAreas(t) {
-		var centres [][2]int32
-		for c := range packs(all) {
-			centres = append(centres, c)
+		var centres []spawnAt
+		for _, p := range packs(all) {
+			centres = append(centres, p[0])
 		}
 		var spots []Spot
 		for _, s := range spawnsByMap[name] {
 			spots = append(spots, s.spots...)
 		}
+		far := func(a spawnAt) bool { return a.family == "" || a.out >= 30000 }
 		for i, a := range centres {
-			da := fromStart(name, spawnAt{x: a[0], y: a[1]})
 			for _, o := range centres[i+1:] {
 				gap := 2000.0
-				switch further := max(da, fromStart(name, spawnAt{x: o[0], y: o[1]})); {
-				case further >= 30000:
-					gap = 4000
-				case further >= 18000:
+				if far(a) || far(o) {
 					gap = 2500
 				}
-				if d := math.Hypot(float64(o[0]-a[0]), float64(o[1]-a[1])); d < gap {
-					t.Errorf("%s: packs at %v and %v are %.0f apart", name, a, o, d)
+				if d := math.Hypot(float64(o.x-a.x), float64(o.y-a.y)); d < gap {
+					t.Errorf("%s: packs at (%d, %d) and (%d, %d) are %.0f apart", name, a.x, a.y, o.x, o.y, d)
 				}
 			}
 			for _, n := range areas(name) {
-				if n.vnum >= 9000 && math.Hypot(float64(n.x-a[0]), float64(n.y-a[1])) < 2500 {
-					t.Errorf("%s: the pack at %v is near NPC %d", name, a, n.vnum)
+				if n.vnum >= 9000 && math.Hypot(float64(n.x-a.x), float64(n.y-a.y)) < 2500 {
+					t.Errorf("%s: the pack at (%d, %d) is near NPC %d", name, a.x, a.y, n.vnum)
 				}
 			}
 			for _, p := range spots {
-				if math.Hypot(float64(p.X-a[0]), float64(p.Y-a[1])) < 3500 {
-					t.Errorf("%s: the pack at %v is near a stone's spot %v", name, a, p)
+				if math.Hypot(float64(p.X-a.x), float64(p.Y-a.y)) < 3500 {
+					t.Errorf("%s: the pack at (%d, %d) is near a stone's spot %v", name, a.x, a.y, p)
 				}
 			}
 		}
 	}
 }
 
-// Each first village's fields are full, as the world serves them, its Mobs applied: at
-// least 380 monsters, at least 70 within 15000 of the start, the nearest within 4500, or
-// within 8000 for Jinno, whose town wraps its start on two sides.
+// Each first village's fields are full, as the world serves them, its Mobs applied: some
+// 800 monsters on average, the middle of each pack's 3 to 5, at least 60 of them within
+// 10000 of the village, and fewer and fewer further out past 20000.
 func TestEveryFirstVillagesFieldsAreFull(t *testing.T) {
-	for _, e := range []account.Empire{account.EmpireShinsoo, account.EmpireChunjo, account.EmpireJinno} {
-		x, y, _ := e.StartPosition()
-		home, _ := MapAt(x, y)
-		total, near, nearest := 0, 0, math.Inf(1)
-		for _, s := range Spawns() {
-			if m, _ := MapAt(s.X, s.Y); m.Name != home.Name || s.VNum >= 9000 || len(s.Spots) > 0 {
+	for name, all := range monsterAreas(t) {
+		var bands [11]float64
+		total := 0.0
+		for _, a := range all {
+			if a.family == "" {
 				continue
 			}
-			d := math.Hypot(float64(s.X-x), float64(s.Y-y))
-			total += s.Count
-			if d < 15000 {
-				near += s.Count
+			bands[min(int(a.out/5000), 10)] += 4
+			total += 4
+		}
+		if total < 760 || bands[0]+bands[1] < 60 {
+			t.Errorf("%s: %.0f monsters, %.0f within 10000 of the village", name, total, bands[0]+bands[1])
+		}
+		for i := 4; i < 10; i++ {
+			if bands[i+1] > bands[i] {
+				t.Errorf("%s: more out at %d-%d (%.0f) than at %d-%d (%.0f)", name, (i+1)*5, (i+2)*5, bands[i+1], i*5, (i+1)*5, bands[i])
 			}
-			nearest = min(nearest, d)
-		}
-		reach := 4500.0
-		if e == account.EmpireJinno {
-			reach = 8000
-		}
-		if total < 380 || near < 70 || nearest > reach {
-			t.Errorf("%s: %d monsters, %d within 15000, the nearest pack %.0f out", home.Name, total, near, nearest)
 		}
 	}
 }
@@ -318,63 +360,56 @@ func TestASpawnCarriesWhereItsNPCLooks(t *testing.T) {
 	}
 }
 
-// A spawn carries its band's time to come back in, as the game reads it: 30 s for every
-// dog pack.
+// A family's pack carries its time to come back, as the game reads it: 30 s within 18000
+// of the village, 45 within 30000, 60 further out.
 func TestASpawnCarriesItsTimeToComeBack(t *testing.T) {
-	dogs := 0
-	for _, s := range Spawns() {
-		if s.VNum == 101 {
-			dogs++
-			if s.Respawn != 30*time.Second {
-				t.Errorf("dogs at (%d, %d) back after %v", s.X, s.Y, s.Respawn)
+	for _, m := range maps {
+		for _, s := range spawnsByMap[m.Name] {
+			if s.family == "" {
+				continue
+			}
+			if got := packOf(m, s).Respawn; got != time.Duration(backAfter(float64(s.out)))*time.Second {
+				t.Errorf("%s at (%d, %d), %d out, back after %v", s.family, s.x, s.y, s.out, got)
 			}
 		}
 	}
-	if dogs == 0 {
-		t.Fatal("no dogs")
+	if backAfter(17999) != 30 || backAfter(18000) != 45 || backAfter(30000) != 60 {
+		t.Error("the bands' times")
 	}
 }
 
 // A map's Mobs multiplies its packs, rounded and never below one, and no other map's:
-// Jinno's packs of 3, 4 and 5 at 2, 1.5 and 0.1, while its leaders, NPCs and stones stay
-// one each.
+// Jinno's families' packs of 3 to 5 become 6 to 10 at 2 and 1 to 1 at 0.1, its cursed
+// packs likewise, while its leaders, NPCs and stones stay one each.
 func TestAMapsMobsMultiplyItsPacks(t *testing.T) {
-	type place struct {
-		vnum uint16
-		x, y int32
-	}
-	count := func(on []Map) map[place]int {
-		got := map[place]int{}
-		for _, s := range spawnsOn(on) {
-			if len(s.Spots) > 0 { // a stone, which stands at one of its spots
-				if s.Count != 1 {
-					t.Errorf("a stone %d of %d", s.VNum, s.Count)
-				}
-				continue
-			}
-			got[place{s.VNum, s.X, s.Y}] += s.Count
-		}
-		return got
-	}
-	plain := count(maps)
 	for _, c := range []struct {
-		mobs float64
-		want map[int]int // a pack's count as placed, and as the map holds it
-	}{
-		{2, map[int]int{3: 6, 4: 8, 5: 10}},
-		{1.5, map[int]int{3: 5, 4: 6, 5: 8}},
-		{0.1, map[int]int{3: 1, 4: 1, 5: 1}},
-	} {
+		mobs        float64
+		least, most int
+		cursed      map[int]int // a cursed pack's count as placed, and as the map holds it
+	}{{2, 6, 10, map[int]int{3: 6, 4: 8, 5: 10}}, {1.5, 5, 8, map[int]int{3: 5, 4: 6, 5: 8}}, {0.1, 1, 1, map[int]int{3: 1, 4: 1, 5: 1}}} {
 		changed := slices.Clone(maps)
 		changed[2].Mobs = c.mobs // metin2_map_c1, Jinno
-		got := count(changed)
-		for p, n := range plain {
-			expect := n
-			if m, _ := MapAt(p.x, p.y); m.Name == "metin2_map_c1" && n > 1 {
-				expect = c.want[n]
+		plain := spawnsOn(maps)
+		for i, s := range spawnsOn(changed) {
+			if m, _ := MapAt(s.X, s.Y); len(s.Kinds) == 0 && len(s.Spots) == 0 && m.Name == "metin2_map_c1" {
+				want := plain[i].Count
+				if want > 1 {
+					want = c.cursed[want]
+				}
+				if s.Count != want {
+					t.Errorf("at %v: %d at (%d, %d) holds %d, want %d", c.mobs, s.VNum, s.X, s.Y, s.Count, want)
+				}
 			}
-			if got[p] != expect {
-				t.Errorf("at %v: %d at (%d, %d) holds %d, want %d", c.mobs, p.vnum, p.x, p.y, got[p], expect)
+			m, _ := MapAt(s.X, s.Y)
+			switch {
+			case len(s.Kinds) == 0:
+			case m.Name == "metin2_map_c1" && (s.MinCount != c.least || s.Count != c.most):
+				t.Errorf("at %v: a pack of %d to %d", c.mobs, s.MinCount, s.Count)
+			case m.Name != "metin2_map_c1" && (s.MinCount != 3 || s.Count != 5):
+				t.Errorf("at %v: %s's pack of %d to %d", c.mobs, m.Name, s.MinCount, s.Count)
+			}
+			if len(s.Spots) > 0 && s.Count != 1 {
+				t.Errorf("a stone %d of %d", s.VNum, s.Count)
 			}
 		}
 	}
