@@ -62,6 +62,8 @@ type Deps struct {
 	Spawns []world.Spawn
 	// Log is where the world loop writes what it rolls; nothing is written without one.
 	Log *slog.Logger
+	// DevCommands answers /getitem and /getyang, which hand any player items and yang.
+	DevCommands bool
 }
 
 // Service is what every game connection shares.
@@ -74,6 +76,7 @@ type Service struct {
 	keys     *account.Keys
 	clock    handshake.Clock
 	public   netip.AddrPort
+	dev      bool // whether /getitem and /getyang are answered
 	// lastVID numbers the characters in the world, so each has its own id.
 	lastVID atomic.Uint32
 
@@ -120,7 +123,7 @@ type loop struct {
 func NewService(d Deps) *Service {
 	return &Service{
 		accounts: d.Accounts, whispers: d.Whispers, items: d.Items, taskbar: d.Taskbar, skills: d.Skills,
-		keys: d.Keys, clock: d.Clock, public: d.Public,
+		keys: d.Keys, clock: d.Clock, public: d.Public, dev: d.DevCommands,
 		claims: map[uint32]*claim{},
 		record: newRecord(),
 		now:    time.Now,

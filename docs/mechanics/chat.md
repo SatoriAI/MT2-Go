@@ -53,6 +53,11 @@ The phase packet with `0`: the connection is ending.
 - **`/phase_select`:** the character leaves the world (saved, and its claim released), then the server sends phase select **first**, and the character list after it. The client, still in its game window, ignores a kingdom and list sent ahead of the phase: tried first, it stayed in the game and went on sending moves. Once in the select phase it takes a list as it does at login and replaces the one it kept (`PythonNetworkStreamPhaseSelect.cpp`, `__RecvLoginSuccessPacket4`); the character screen, opening after the fade, shows it (`introselect.py`, `Open`). A list that cannot be read ends the connection, logged, as it does at login. The list is read after the character is saved, so the screen shows its level and stats as they are now, not as they were at login. When the player then presses Start, it reconnects and logs in with its key again, getting a fresh list. Moves, chat and whispers the client sent before it took in the phase are dropped on the old connection until the next Start, rather than ending it as out of their phase.
 - **`/bonusy`:** the bonuses of everything worn, summed and capped, as info lines named as the tooltip names each, or a line saying nothing worn has any ([bonuses.md](bonuses.md)).
 - **`/setblockmode N`:** what the options window blocks. N is the client's whole mask after the button pressed: exchange 1, party 2, guild 4, whisper 8, friend 16, party request 32 (`Packet.h`, `BLOCK_*`). The server keeps it per character, by name, in `characters.blocks`, dropping bits the client doesn't name, and replies with a command chat `setblockmode N`. The client shows the buttons pressed only from that reply (`PythonNetworkStreamCommand.cpp`, `OnBlockMode`). The same reply goes out on entering the world, so the choice survives logging out, which the client alone doesn't keep. A mask that isn't a number is ignored. Whispers ([whispers.md](whispers.md)) and trades ([trading.md](trading.md)) are refused; the other blocks wait for their mechanics. open-mt2 keeps the mask in memory only and enforces none of it.
+- **`/getitem VNUM [ilość]` and `/getyang ilość`,** for testing, only while `DEV_COMMANDS` is true; it is false unless set, and then these are ignored like any unknown command.
+  - **`/getitem`** puts the kind into the bag where a pick-up would: onto a stack of it with room, or the first free cells. The count is 1 if not given, and a larger one than a stack holds gives a full stack. It answers with an info line for a kind the server doesn't know («Serwer nie zna przedmiotu N.»), a full bag, or a line it can't read («Użycie: /getitem VNUM [ilość]»).
+  - **`/getyang`** adds the yang, which the client then announces itself. A sum that would take the character past the 2,000,000,000 it may hold is refused whole («Tyle się nie zmieści: postać może mieć najwyżej 2000000000 Yang.»), and a line it can't read is answered «Użycie: /getyang ilość».
+  - Every item and every sum given is logged with the character's name.
+  - There are no GM accounts yet. Dawid is the only tester, so the switch stands in for them, and must never be on where others play.
 - **Every other command** is logged and ignored.
 - **When they act:** the original game counts down before leaving, so nobody escapes a fight. With no fighting yet, these act at once.
 - **Saving:** in every case the position is saved, through the same path as a dropped connection.
@@ -83,10 +88,17 @@ The phase packet with `0`: the connection is ending.
 - `internal/server/blocks_test.go`: `/setblockmode` answered and kept for the next entry, where it still refuses whispers; unknown bits dropped and a non-number ignored; a change over the flood limit dropped and not kept.
 - `internal/game/wire_test.go`: each block's bit is the client's and leads back, and no blocks is an empty list, not NULL.
 - `internal/game/flood_test.go`: ten lines passing and the eleventh not, the window rolling at exactly five seconds, and refused lines not counted.
+- `internal/game/devcommands_test.go`:
+  - `/getitem` putting the kind in the bag, kept and shown;
+  - a count joining a stack, and stopping at a full one;
+  - an unknown kind, an unreadable line and a full bag answered, with nothing given;
+  - `/getyang` adding to the yang, up to exactly the most a character may hold, and refusing a sum past it;
+  - both ignored with the switch off, and the switch passed on from what the game port is made with.
+- `internal/config/config_test.go`: `DEV_COMMANDS` off unless true, and a value neither true nor false refused.
 - `internal/game/session_test.go`: the error for a packet out of its phase shows at most 64 bytes of its body, and none of a login packet's.
 
 ## Not done yet
 
 - The leave countdown.
-- GM commands.
+- GM accounts, which would let `/getitem` and `/getyang` be given to a few players rather than to all of them by a switch.
 - A server-side insult filter. The client already refuses lines with banned words before sending, in chat (`uichat.py`) and whispers (`uiwhisper.py`); the original's own filter needs a banned-word list we don't have.

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/netip"
 	"os"
+	"strconv"
 )
 
 type Config struct {
@@ -17,6 +18,8 @@ type Config struct {
 	// GamePublic is the game address handed to the client, which must be able to reach
 	// it; it differs from GameListen when the server listens on 0.0.0.0.
 	GamePublic netip.AddrPort
+	// DevCommands turns on the chat commands that hand a tester items and yang.
+	DevCommands bool
 }
 
 // Load reads the environment, falling back to the local defaults the client in this
@@ -56,6 +59,9 @@ func load(getenv func(string) string) (Config, error) {
 		return c, fmt.Errorf("config: GAME_PUBLIC_ADDRESS must be a reachable IPv4 address, got %s", public)
 	}
 	c.GamePublic = netip.AddrPortFrom(public, c.GameListen.Port())
+	if c.DevCommands, err = strconv.ParseBool(env("DEV_COMMANDS", "false")); err != nil {
+		return c, fmt.Errorf("config: DEV_COMMANDS: %w", err)
+	}
 	return c, nil
 }
 
