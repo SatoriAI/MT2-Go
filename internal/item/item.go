@@ -171,12 +171,13 @@ var protos = withBooks(withGrades(withGear(map[uint32]Proto{
 	13000: {VNum: 13000, Name: "Bojowa Tarcza+0", Size: 1, Stack: 1, Wear: Shield,
 		Classes: []account.Class{account.Warrior, account.Ninja, account.Sura, account.Shaman}, Defence: 3, MoveSpeed: -2,
 		Price: 400, SellPrice: 80},
-	27001:        {VNum: 27001, Name: "Czerwona Mikstura(M)", Size: 1, Stack: MaxStack, HP: 300, Price: 32, SellPrice: 6},
-	27002:        {VNum: 27002, Name: "Czerwona Mikstura(Ś)", Size: 1, Stack: MaxStack, HP: 800, Price: 96, SellPrice: 18},
-	27004:        {VNum: 27004, Name: "Niebieska Mikstura(M)", Size: 1, Stack: MaxStack, SP: 100, Price: 96, SellPrice: 24},
-	30004:        {VNum: 30004, Name: "Ząb Dzika", Size: 1, Stack: MaxStack, SellPrice: 100},
-	30028:        {VNum: 30028, Name: "Szpon Wilka", Size: 1, Stack: MaxStack, SellPrice: 100},
-	TeleportRing: {VNum: TeleportRing, Name: "Pierścień Teleportacji", Size: 1, Stack: 1, Level: 30},
+	27001: {VNum: 27001, Name: "Czerwona Mikstura(M)", Size: 1, Stack: MaxStack, HP: 300, Price: 32, SellPrice: 6},
+	27002: {VNum: 27002, Name: "Czerwona Mikstura(Ś)", Size: 1, Stack: MaxStack, HP: 800, Price: 96, SellPrice: 18},
+	27004: {VNum: 27004, Name: "Niebieska Mikstura(M)", Size: 1, Stack: MaxStack, SP: 100, Price: 96, SellPrice: 24},
+	30004: {VNum: 30004, Name: "Ząb Dzika", Size: 1, Stack: MaxStack, SellPrice: 100},
+	30028: {VNum: 30028, Name: "Szpon Wilka", Size: 1, Stack: MaxStack, SellPrice: 100},
+	// From level 5, Dawid's call, not item_proto's 30 (docs/mechanics/teleporting.md).
+	TeleportRing: {VNum: TeleportRing, Name: "Pierścień Teleportacji", Size: 1, Stack: 1, Level: 5},
 	// item_proto prices the cape at nothing; 1000 is the veteran's, and a shop pays nothing
 	// for one, as the client's sell value is 0.
 	BraveryCape: {VNum: BraveryCape, Name: "Peleryna Męstwa", Size: 1, Stack: MaxStack, Price: 1000},
