@@ -30,9 +30,9 @@ func supporting(t *testing.T) (*session, net.Conn, *present, net.Conn) {
 }
 
 // Blessing on Kira, picked within its 800, runs on her at the shaman's level of it and
-// INT, shown on her, and not on the shaman.
+// INT, shown on her with its time on her icon, and not on the shaman, who is told no time.
 func TestBlessingLandsOnThePlayerPicked(t *testing.T) {
-	s, _, kira, kiraClient := supporting(t)
+	s, client, kira, kiraClient := supporting(t)
 
 	if err := s.onUseSkill(usedOn(skill.Blessing, 1001)); err != nil {
 		t.Fatal(err)
@@ -44,8 +44,15 @@ func TestBlessingLandsOnThePlayerPicked(t *testing.T) {
 	if _, running := s.svc.record.state.all[1000].char.Buffs[skill.Blessing]; running {
 		t.Fatal("it ran on the shaman too")
 	}
-	if got := drain(t, kiraClient); !bytes.Contains(got, protocol.EncodeCharacterUpdate(kira.info, kira.add, 1<<22)) {
-		t.Fatalf("Kira got %x, want the blessing shown", got)
+	blessing, _ := skill.Lookup(skill.Blessing)
+	if got := drain(t, kiraClient); !bytes.Contains(got, protocol.EncodeCharacterUpdate(kira.info, kira.add, 1<<22)) ||
+		!bytes.Contains(got, buffShown(skill.Blessing, blessing.LastsAt(1))) {
+		t.Fatalf("Kira got %x, want the blessing shown with its time", got)
+	}
+	for _, p := range packets(t, drain(t, client)) {
+		if p[0] == byte(protocol.ServerAffectAdd) {
+			t.Fatalf("the shaman got %x, a time", p)
+		}
 	}
 }
 

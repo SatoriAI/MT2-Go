@@ -520,6 +520,9 @@ func TestEnchantedArmourEndsWhenItsTimeIsUp(t *testing.T) {
 	if got := read(t, client, pointChangeSize); string(got) != string(defenceTold(before)) {
 		t.Fatalf("told %x", got)
 	}
+	if got := read(t, client, affectRemoveSize); string(got) != string(buffGone(skill.EnchantedArmour)) {
+		t.Fatalf("its time not taken off: %x", got)
+	}
 }
 
 // The blade and the armour run together: each shows its own effect and adds its own
