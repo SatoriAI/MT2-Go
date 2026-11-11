@@ -129,12 +129,14 @@ func TestEveryFamilyPackStandsWhereItsKindsDo(t *testing.T) {
 }
 
 // Each stretch out from a village holds the kinds whose bands cover it, the harder the
-// further: dogs and wolves by the gate, bears from 25000, tigers only from 40000.
+// further: dogs and wolves by the gate, bears from 18000 and grizzlies from 20000, tigers
+// only from 40000.
 func TestTheKindsGetHarderFurtherOut(t *testing.T) {
 	for d, want := range map[float64][]uint16{
 		3000:  {101, 102},
 		10000: {101, 102, 103, 108},
-		26000: {104, 105, 109, 110},
+		20000: {103, 104, 105, 108, 110, 111},
+		26000: {104, 105, 109, 110, 111},
 		45000: {110, 111, 114},
 	} {
 		var got []uint16
@@ -154,8 +156,8 @@ func TestTheKindsGetHarderFurtherOut(t *testing.T) {
 // beyond them.
 func TestAKindsWeightRisesAndFalls(t *testing.T) {
 	b := bands[110]
-	if b.weight(24999) != 0 || b.weight(28500) != 50 || b.weight(36000) != 100 || b.weight(45000) != 50 || b.weight(50000) != 0 {
-		t.Errorf("bears weigh %d, %d, %d, %d, %d", b.weight(24999), b.weight(28500), b.weight(36000), b.weight(45000), b.weight(50000))
+	if b.weight(17999) != 0 || b.weight(20000) != 50 || b.weight(30000) != 100 || b.weight(42000) != 50 || b.weight(48000) != 0 {
+		t.Errorf("bears weigh %d, %d, %d, %d, %d", b.weight(17999), b.weight(20000), b.weight(30000), b.weight(42000), b.weight(48000))
 	}
 }
 
