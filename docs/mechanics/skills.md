@@ -125,7 +125,7 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
 
 - **The skills the game has** are a table, each by name, with its class and group: `finger_strike`, `dragon_swirl`, `enchanted_blade` and `enchanted_armour`, the sura's Weaponry, and `three_way_cut`, `sword_spin`, `berserk` and `sword_aura`, the warrior's Body. The client's numbers for them, 61, 62, 63 and 65, and 1, 2, 3 and 4, and their places in the skill window, by group, are in `internal/game/wire.go`.
 - **The teachers** are NPC kinds that teach a group (`mob.Proto.Teaches`): 20304, 20324 and 20344 teach Weaponry, 20305, 20325 and 20345 Black Magic, 20300, 20320 and 20340 Body, and 20301, 20321 and 20341 Mental, one of each per village (`internal/world/spawns.go`).
-  - Their spots are this server's own, in a row through the old lady, the warrior's west of her. open-mt2's come from the original server's data, which this repository keeps out ([monsters.md](monsters.md)). Unlike the monster areas, they have not been checked against the client's terrain; the Jinno pair was seen standing by a bot.
+  - Their spots are this server's own, in a row before each village's temple, placed against the client's map objects and seen clear of them on screen in all three villages ([monsters.md](monsters.md)). open-mt2's come from the original server's data, which this repository keeps out.
   - A click reaches them from 1000, as it does a shopkeeper.
 - **Talking:**
   - The connection keeps which teacher asked, and the next answer answers it. Yes to the offer asks whether the player is sure; yes to that takes up the group. Anything else, or an answer to nothing asked, ends the talk. Leaving the world forgets it, so another character of the account cannot answer it.
