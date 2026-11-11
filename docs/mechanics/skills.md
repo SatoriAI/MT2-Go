@@ -2,7 +2,7 @@
 
 ## What the player sees
 
-A character's class has two skill groups, its paths. The sura's are **Weaponry** («Moc Broni») and **Black Magic** («Czarna Magia»), the warrior's **Body** («Moc Ciała») and **Mental** («Moc Duchowa»), the ninja's **Dagger** («Moc Ostrza») and **Archery** («Moc Łuku»), and the shaman's **Dragon** («Moc Smoka») and **Healing** («Moc Leczenia»). Each village has a teacher for each: «Trener Mocy Broni» and «Trener Mocy Czarn. Magii» a few steps east of the old lady, with «Trener Mocy Smoka» and «Trener Mocy Leczenia» past the blacksmith, and «Trener Mocy Ciała», «Trener Mocy Duchowej», «Trener Mocy Ostrza» and «Trener Mocy Łuku» a few steps west.
+A character's class has two skill groups, its paths. The sura's are **Weaponry** («Moc Broni») and **Black Magic** («Czarna Magia»), the warrior's **Body** («Moc Ciała») and **Mental** («Moc Duchowa»), the ninja's **Dagger** («Moc Ostrza») and **Archery** («Moc Łuku»), and the shaman's **Dragon** («Moc Smoka») and **Healing** («Moc Leczenia»). Each village has a teacher for each: all eight in a row before the village's temple ([monsters.md](monsters.md)): «Trener Mocy Ciała», «Trener Mocy Duchowej», «Trener Mocy Ostrza» and «Trener Mocy Łuku» on one side of its middle path, «Trener Mocy Broni», «Trener Mocy Czarn. Magii», «Trener Mocy Smoka» and «Trener Mocy Leczenia» on the other.
 
 **Choosing a path.**
 - **The offer.** From level 5, a character who clicks a teacher of their class is offered their path, for a sura at Weaponry's «Mogę nauczyć cię drogi Mocy Broni. Czy chcesz nią podążać?», with Tak and Nie. Yes asks whether they are sure, and a second yes takes it up.

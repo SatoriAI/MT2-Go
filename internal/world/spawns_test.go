@@ -38,7 +38,7 @@ func TestSpawnsAreInWorldCoordinatesWithAtLeastOneMob(t *testing.T) {
 	}
 }
 
-// Each first village has its blacksmith, beside the sura's teachers.
+// Each first village has its blacksmith.
 func TestEveryFirstVillageHasItsBlacksmith(t *testing.T) {
 	for _, village := range []string{"metin2_map_a1", "metin2_map_b1", "metin2_map_c1"} {
 		smiths := 0

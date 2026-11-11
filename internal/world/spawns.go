@@ -31,21 +31,19 @@ type spawnAt struct {
 	spots   []Spot // in the map's coordinates
 }
 
-// The village NPCs stand at the client's minimap marks (locale/pl/map/*_point.txt). The
-// teachers and the blacksmith, which the marks leave out, stand in a row through the old
-// lady at this server's spots, not checked against the terrain: the warrior's and then
-// the ninja's west of her, the sura's, the blacksmith and the shaman's east. The monster packs
-// stand on open, gentle ground of the client's terrain, in bands from each start, and out of
-// the town (docs/mechanics/monsters.md); each Metin stone stands at one of three spots of
-// the same ground, the stronger the further out (docs/mechanics/stones.md).
+// The village NPCs stand at the client's minimap marks (locale/pl/map/*_point.txt); the
+// teachers and the blacksmith, which the marks leave out, by the temple and the weapon
+// trader's building, and the monster packs on open, gentle ground in bands from each start
+// (docs/mechanics/monsters.md), each Metin stone at one of three spots, the stronger the
+// further out (docs/mechanics/stones.md).
 var spawnsByMap = map[string][]spawnAt{
 	"metin2_map_a1": {
 		{vnum: 9001, x: 59600, y: 55700}, {vnum: 9002, x: 59600, y: 60500}, {vnum: 9003, x: 67800, y: 56500},
 		{vnum: 9005, x: 67400, y: 60700}, {vnum: 9006, x: 63300, y: 62200},
-		{vnum: 20304, x: 63800, y: 62200}, {vnum: 20305, x: 64300, y: 62200}, {vnum: 20016, x: 64800, y: 62200},
-		{vnum: 20306, x: 65300, y: 62200}, {vnum: 20307, x: 65800, y: 62200},
-		{vnum: 20300, x: 62800, y: 62200}, {vnum: 20301, x: 62300, y: 62200},
-		{vnum: 20302, x: 61800, y: 62200}, {vnum: 20303, x: 61300, y: 62200},
+		{vnum: 20304, x: 63740, y: 55580}, {vnum: 20305, x: 63500, y: 55640}, {vnum: 20016, x: 59250, y: 55650},
+		{vnum: 20306, x: 62730, y: 55850}, {vnum: 20307, x: 62490, y: 55910},
+		{vnum: 20300, x: 64130, y: 55470}, {vnum: 20301, x: 64370, y: 55410},
+		{vnum: 20302, x: 65150, y: 55200}, {vnum: 20303, x: 65390, y: 55140},
 		{vnum: 9009, x: 35400, y: 32700}, {vnum: 9009, x: 32500, y: 40500}, {vnum: 9009, x: 25100, y: 87400},
 		{vnum: 9009, x: 19500, y: 93700}, {vnum: 9009, x: 30400, y: 118600}, {vnum: 9009, x: 52500, y: 114700},
 		{vnum: 9009, x: 59100, y: 116600}, {vnum: 9009, x: 68000, y: 37900}, {vnum: 9009, x: 82100, y: 29700},
@@ -101,7 +99,7 @@ var spawnsByMap = map[string][]spawnAt{
 		{vnum: 108, x: 74500, y: 73000, spread: 800, count: 4, respawn: 30},
 		{vnum: 103, x: 77500, y: 72500, spread: 800, count: 1, respawn: 30},
 		{vnum: 102, x: 77500, y: 72500, spread: 800, count: 3, respawn: 30},
-		{vnum: 102, x: 69000, y: 52500, spread: 800, count: 5, respawn: 30},
+		{vnum: 102, x: 70300, y: 52800, spread: 800, count: 5, respawn: 30},
 		{vnum: 108, x: 76500, y: 78000, spread: 800, count: 4, respawn: 30},
 		{vnum: 102, x: 68000, y: 84000, spread: 800, count: 4, respawn: 30},
 		{vnum: 108, x: 49500, y: 67500, spread: 800, count: 4, respawn: 30},
@@ -166,10 +164,10 @@ var spawnsByMap = map[string][]spawnAt{
 	"metin2_map_b1": {
 		{vnum: 9001, x: 67600, y: 66200}, {vnum: 9002, x: 67600, y: 61700}, {vnum: 9003, x: 59000, y: 68900},
 		{vnum: 9005, x: 60900, y: 59600}, {vnum: 9006, x: 58800, y: 63300},
-		{vnum: 20324, x: 59300, y: 63300}, {vnum: 20325, x: 59800, y: 63300}, {vnum: 20016, x: 60300, y: 63300},
-		{vnum: 20326, x: 60800, y: 63300}, {vnum: 20327, x: 61300, y: 63300},
-		{vnum: 20320, x: 58300, y: 63300}, {vnum: 20321, x: 57800, y: 63300},
-		{vnum: 20322, x: 57300, y: 63300}, {vnum: 20323, x: 56800, y: 63300},
+		{vnum: 20324, x: 63830, y: 59890}, {vnum: 20325, x: 63580, y: 59890}, {vnum: 20016, x: 67920, y: 66100},
+		{vnum: 20326, x: 62780, y: 59890}, {vnum: 20327, x: 62530, y: 59890},
+		{vnum: 20320, x: 64230, y: 59890}, {vnum: 20321, x: 64480, y: 59890},
+		{vnum: 20322, x: 65280, y: 59890}, {vnum: 20323, x: 65530, y: 59890},
 		{vnum: 9009, x: 67500, y: 53900}, {vnum: 9009, x: 74200, y: 87900}, {vnum: 9009, x: 20600, y: 55200},
 		{vnum: 9009, x: 21800, y: 67900}, {vnum: 9009, x: 22100, y: 86500}, {vnum: 9009, x: 23100, y: 97600},
 		{vnum: 9009, x: 23400, y: 107700},
@@ -281,10 +279,10 @@ var spawnsByMap = map[string][]spawnAt{
 	"metin2_map_c1": {
 		{vnum: 9001, x: 43000, y: 60800}, {vnum: 9002, x: 40300, y: 58500}, {vnum: 9003, x: 38300, y: 69300},
 		{vnum: 9005, x: 31500, y: 56000}, {vnum: 9006, x: 41700, y: 67100},
-		{vnum: 20344, x: 42200, y: 67100}, {vnum: 20345, x: 42700, y: 67100}, {vnum: 20016, x: 43200, y: 67100},
-		{vnum: 20346, x: 43700, y: 67100}, {vnum: 20347, x: 44200, y: 67100},
-		{vnum: 20340, x: 41200, y: 67100}, {vnum: 20341, x: 40700, y: 67100},
-		{vnum: 20342, x: 40200, y: 67100}, {vnum: 20343, x: 39700, y: 67100},
+		{vnum: 20344, x: 44100, y: 63870}, {vnum: 20345, x: 44100, y: 63620}, {vnum: 20016, x: 43270, y: 61120},
+		{vnum: 20346, x: 44100, y: 62820}, {vnum: 20347, x: 44100, y: 62570},
+		{vnum: 20340, x: 44100, y: 64270}, {vnum: 20341, x: 44100, y: 64520},
+		{vnum: 20342, x: 44100, y: 65320}, {vnum: 20343, x: 44100, y: 65570},
 		{vnum: 9009, x: 71100, y: 23400}, {vnum: 9009, x: 73200, y: 39000}, {vnum: 9009, x: 77200, y: 47200},
 		{vnum: 9009, x: 76300, y: 80900}, {vnum: 9009, x: 77300, y: 90500}, {vnum: 9009, x: 42800, y: 48000},
 		{vnum: 9009, x: 38600, y: 84900}, {vnum: 9009, x: 81900, y: 31500},
