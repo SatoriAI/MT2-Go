@@ -272,15 +272,20 @@ func (w *record) dress(vid uint32, o outfit) {
 	c.Weapon, c.Body, c.Head, c.Feet, c.Shield, c.Arrow = o.weapon, o.body, o.head, o.feet, o.shield, o.arrow
 	c.Totals = o.totals
 	held, _ := item.Lookup(o.weapon)
+	var dropped []account.Skill
 	for sk := range c.Buffs {
 		if buff, _ := skill.Lookup(sk); !buff.Wieldable(held) {
 			delete(c.Buffs, sk) // it runs only with its weapon in hand
+			dropped = append(dropped, sk)
 		}
 	}
 	p.add.MoveSpeed, p.add.AttackSpeed = moveSpeed(c), attackSpeed(c)
 	p.info.BodyPart, p.info.WeaponPart = bodyPart(*c), weaponPart(*c)
 	update := protocol.EncodeCharacterUpdate(p.info, p.add, affectsOf(c))
 	p.send(update)
+	for _, sk := range dropped {
+		p.send(buffGone(sk))
+	}
 	if armourChanged {
 		p.send(pointTold(vid, protocol.PointDefence, 0, defence(c)))
 	}
