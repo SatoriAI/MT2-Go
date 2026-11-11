@@ -49,7 +49,7 @@ func answer(t *testing.T, s *session, button uint8) {
 // The ring asks where to go, offering her kingdom's village by the client's name for it
 // and a cancel; the ring stays in her bag.
 func TestTheRingAsksWhereToGo(t *testing.T) {
-	s, _, client, _ := ringing(t, 30)
+	s, _, client, _ := ringing(t, 5)
 
 	useRing(t, s)
 
@@ -115,9 +115,9 @@ func TestCancellingTheRingGoesNowhere(t *testing.T) {
 	}
 }
 
-// Below level 30, item_proto's limit, the ring asks nothing and says why.
+// Below level 5 the ring asks nothing and says why.
 func TestTheRingRefusesAPlayerBelowItsLevel(t *testing.T) {
-	s, _, client, _ := ringing(t, 29)
+	s, _, client, _ := ringing(t, 4)
 
 	useRing(t, s)
 

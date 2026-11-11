@@ -5,7 +5,7 @@
 A double-click on Pierścień Teleportacji (70058) opens a dialog: «Dokąd chcesz się przenieść?», with the player's own village, Strefa Yongan, Strefa Joan or Strefa Pyungmoo by kingdom, and «Anuluj». Picking the village shows the loading screen, and the character stands at the kingdom's start, where a new character first appears and a restart in town puts them. The others nearby see the character vanish. The ring stays in the bag.
 
 It is refused with a line in the chat:
-- «Masz za niski poziom, aby użyć tego przedmiotu.» below level 30;
+- «Masz za niski poziom, aby użyć tego przedmiotu.» below level 5;
 - «Nie możesz tego zrobić podczas handlu.» while trading, as every use of an item is ([trading.md](trading.md));
 - «Nie możesz teraz użyć tego przedmiotu.» while dead, at a shop or at the blacksmith, and when the answer comes during a trade.
 
@@ -42,7 +42,7 @@ No shop sells the ring and nothing drops it; it is given on the command line (`m
   - **The 50 charges** of item_proto's VALUE0, and the Polish tooltip's «50 razy». Our items keep no count of their own besides a stack's, so the ring is used without wearing out. With one destination, the player's own village, that gives nothing a restart in town does not. The charges come with the first way for a player to get the ring.
   - **VALUE1, 1800.** Its meaning is not known. The veteran recalls no cooldown on the ring, so none is modelled.
   - **Fighting** does not stop a warp. The veteran recalls players escaping fights with it.
-- **The rules** were settled in a debate between a Metin2 veteran and a game designer (2026-11-11), with the veteran deciding ties: unlimited for now, level 30 enforced, no combat lock, a dev command as the only source.
+- **The rules** were settled in a debate between a Metin2 veteran and a game designer (2026-11-11), with the veteran deciding ties: unlimited for now, item_proto's level 30 enforced, no combat lock, a dev command as the only source. Dawid then lowered the level to 5, so the ring serves new players too (2026-11-11). The client neither shows nor checks the ring's level; the server decides.
 
 ## How we know
 
@@ -62,7 +62,7 @@ No shop sells the ring and nothing drops it; it is given on the command line (`m
   - the village picked: the warp to the start, the others seeing the player go, the position saved there, the character let go, and the ring kept;
   - a move after the warp dropped;
   - cancel going nowhere;
-  - refusals below level 30 and at a shop;
+  - the question at level 5, refusals below it and at a shop;
   - a player who died with the question open not taken;
   - a ring traded away with the question open taking nobody.
 - `internal/server/teleport_test.go`: a level-30 player given the ring on the command line, taken over real connections from the question to WARP, and a new connection with the same key, while the old one is still open, loading her at the start.
