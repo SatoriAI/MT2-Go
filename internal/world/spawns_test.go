@@ -197,9 +197,9 @@ func TestEveryPackHoldsThreeToFive(t *testing.T) {
 	}
 }
 
-// Packs stand apart: 2000 between centres where both lie within 30000 of the village, and
-// 2500 where either lies further or is cursed; and their centres 2500 from every NPC and
-// 3500 from every stone's spot.
+// Packs stand apart: 2000 between centres where both lie within 30000 of the village, 2500
+// where either lies further, and 4000 from a cursed pack, which attacks on sight; and their
+// centres 2500 from every NPC and 3500 from every stone's spot.
 func TestPacksStandApart(t *testing.T) {
 	for name, all := range monsterAreas(t) {
 		var centres []spawnAt
@@ -210,11 +210,13 @@ func TestPacksStandApart(t *testing.T) {
 		for _, s := range spawnsByMap[name] {
 			spots = append(spots, s.spots...)
 		}
-		far := func(a spawnAt) bool { return a.family == "" || a.out >= 30000 }
 		for i, a := range centres {
 			for _, o := range centres[i+1:] {
 				gap := 2000.0
-				if far(a) || far(o) {
+				switch {
+				case a.family == "" || o.family == "":
+					gap = 4000
+				case a.out >= 30000 || o.out >= 30000:
 					gap = 2500
 				}
 				if d := math.Hypot(float64(o.x-a.x), float64(o.y-a.y)); d < gap {
@@ -456,14 +458,20 @@ func clearOf(x, y int32, rects [][4]int32) float64 {
 	return nearest
 }
 
-// No monster strolls into a town: every pack's ground, its spread and a stroll of 600
-// beyond, stays 2000 from the safe ground and the box of the village's NPCs; and every
-// stone's spot stays 4000 from them, as its waves gather round it.
+// No monster strolls into a town or onto a kingdom's start: every pack's ground, its spread
+// and a stroll of 600 beyond, stays 2000 from the safe ground, the box of the village's NPCs
+// and the start, which lies outside both; and every stone's spot stays 4000 from the town,
+// as its waves gather round it.
 func TestTheTownsAreFreeOfMonsters(t *testing.T) {
 	for name, all := range monsterAreas(t) {
 		for _, a := range all {
 			if d := clearOf(a.x, a.y, town(name)); d < float64(a.spread)+600+2000 {
 				t.Errorf("%s: %d at (%d, %d) is %.0f from the town", name, a.vnum, a.x, a.y, d)
+			}
+		}
+		for _, a := range all {
+			if d := fromStart(name, a); d < float64(a.spread)+600+2000 {
+				t.Errorf("%s: %d at (%d, %d) is %.0f from the start", name, a.vnum, a.x, a.y, d)
 			}
 		}
 		for _, s := range spawnsByMap[name] {
