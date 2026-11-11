@@ -37,6 +37,9 @@ func TestABoundItemIsNotOfferedInATrade(t *testing.T) {
 	if got := kira.told(t); len(got) != 0 {
 		t.Fatalf("Kira told %x", got)
 	}
+	if offer := hendra.s.svc.record.state.trades[1000].sides[0].offer; len(offer) != 0 {
+		t.Fatalf("offered %v", offer)
+	}
 }
 
 // Nor sold to a shop: she is told in the client's words, and keeps her capes and yang.
