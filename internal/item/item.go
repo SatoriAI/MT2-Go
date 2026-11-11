@@ -111,6 +111,10 @@ func Lookup(vnum uint32) (Proto, bool) {
 	return p, ok
 }
 
+// BraveryCape is Peleryna Męstwa, which calls the monsters around its wearer onto them
+// (docs/mechanics/cape.md).
+const BraveryCape = 70038
+
 // MaxGrade is the last grade gear is upgraded to.
 const MaxGrade = 9
 
@@ -168,6 +172,9 @@ var protos = withBooks(withGrades(withGear(map[uint32]Proto{
 	27004: {VNum: 27004, Name: "Niebieska Mikstura(M)", Size: 1, Stack: MaxStack, SP: 100, Price: 96, SellPrice: 24},
 	30004: {VNum: 30004, Name: "Ząb Dzika", Size: 1, Stack: MaxStack, SellPrice: 100},
 	30028: {VNum: 30028, Name: "Szpon Wilka", Size: 1, Stack: MaxStack, SellPrice: 100},
+	// item_proto prices the cape at nothing; 1000 is the veteran's, and it sells for nothing,
+	// as the client flags it ANTI_SELL.
+	BraveryCape: {VNum: BraveryCape, Name: "Peleryna Męstwa", Size: 1, Stack: MaxStack, Price: 1000},
 })))
 
 // gradeRows are what a graded kind's +1 to +9 are over its +0 (grades, in gear.go).

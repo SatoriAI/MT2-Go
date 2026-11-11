@@ -165,7 +165,9 @@ type session struct {
 	// arrow skill has left to let go.
 	flyAdds []uint32
 	volley  volley
-	rand    *rand.Rand // this connection's own, for its blows' damage
+	// lastCape is when the player last wore a cape, which they may again capeEvery after.
+	lastCape time.Time
+	rand     *rand.Rand // this connection's own, for its blows' damage
 }
 
 // inFlightAfterLeaving are what the client may still send from its game window after

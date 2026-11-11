@@ -5,7 +5,7 @@
 Clicking a shopkeeper in a village walks the character to them and opens their shop: a window of five by eight cells beside the inventory, each item with its price in its tooltip.
 - **The weapon trader** (Handlarz Bronią) sells each class's first weapon, its weapons of levels 10 and 20 below it, the shaman's bells among them, and a hundred arrows for the ninja's bow ([bow.md](bow.md)).
 - **The armour trader** (Handlarz Zbrojami) sells each class's first armour and helmet, the first shoes and the first shield, then each class's armour of levels 9 and 18 and the shoes of level 17 ([equipment.md](equipment.md)).
-- **The general store** (Handlarka Różności) sells the red and blue potions, singly and twenty to a pack.
+- **The general store** (Handlarka Różności) sells the red and blue potions and Peleryna Męstwa, singly and twenty to a pack ([cape.md](cape.md)).
 
 A right-click on an item, or a click with the buy cursor, buys it into the bag. Potions join a stack of their kind with room for them. The yang at the foot of the inventory goes down by the price.
 
@@ -52,6 +52,7 @@ The client's SHOP is the one packet framed by its subheader. A subheader the ser
   | Kind | Price | Sells for |
   |---|---|---|
   | Czerwona Mikstura(M) (27001) | 32 | 6 |
+  | Peleryna Męstwa (70038) | 1000, the veteran's: item_proto prices it at nothing | 0 |
   | Czerwona Mikstura(Ś) (27002) | 96 | 18 |
   | Niebieska Mikstura(M) (27004) | 96 | 24 |
   | the first weapons (10, 1000, 2000, 3000, 7000) | 100 | 0 |
@@ -62,7 +63,7 @@ The client's SHOP is the one packet framed by its subheader. A subheader the ser
   | their grades +1 to +9 ([upgrading.md](upgrading.md)) | not sold | a weapon 20 at +1 to 150 at +9; armour 1000 at +1 to 16000 at +9; a helmet or shoes 160 at +1 to 4000 at +9; the shield 160 at +1 to 4000 at +9 |
   | Szpon Wilka (30028), Ząb Dzika (30004) | not sold | 100 |
 
-  - **The price** is the client's item_proto shop price, but 100 for each first weapon, which it prices at nothing or 100. For a kind flagged COUNT_PER_1GOLD, the arrows, that price is how many a yang buys, and a ware costs its count over it, never under 1.
+  - **The price** is the client's item_proto shop price, but 100 for each first weapon, which it prices at nothing or 100, and 1000 for the cape, which it prices at nothing. For a kind flagged COUNT_PER_1GOLD, the arrows, that price is how many a yang buys, and a ware costs its count over it, never under 1.
   - **What a shop pays** is the client's sell value divided by 5, exactly what the tooltip shows. A gate test checks it is never more than the price, so buying and selling back never makes yang.
 - **The wares** are on the shopkeeper's kind, each in a cell written out:
 
@@ -70,7 +71,7 @@ The client's SHOP is the one packet framed by its subheader. A subheader the ser
   |---|---|
   | 9001 | the five first weapons, along the top row, a hundred arrows under the dagger, and each line's weapons of levels 10 and 20 down its column, the bells under the arrows and the level-20 glaive under the fans, at cell 19 |
   | 9002 | the four first armours along the top row, the four helmets and the shoes on the third, below them, the shield on the fourth, the armours of level 9 on the fifth with the level-17 shoes beside them, and those of level 18 on the seventh |
-  | 9003 | each potion singly on the top row, and twenty to a pack on the next |
+  | 9003 | each potion and the cape singly on the top row, and twenty to a pack on the next |
 
   The rows below a tall item are left empty. A gate test checks that every ware fits the window, covers no other, and is priced within the client's u32.
 - **Opening:** a click opens the shop of a character whose kind has wares, if the player is alive and it stands on their map within 1000 of them. That's the client's 500, plus room for moves not yet arrived. The connection keeps which shop is open until END, Change character or leaving.

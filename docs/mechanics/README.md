@@ -30,6 +30,7 @@ Pages state facts in our own words. They never paste code from another server or
 | [shops.md](shops.md) | The village shopkeepers: opening a shop, buying and selling, and the prices |
 | [trading.md](trading.md) | Trading between players: the window on both sides, offering items and yang, accepting, and the swap kept whole |
 | [upgrading.md](upgrading.md) | The blacksmith: upgrading the first gear to +9, its cost, chance and materials, and the grades |
+| [cape.md](cape.md) | Peleryna Męstwa: calling the monsters around onto the player, what it pulls, and its price |
 | [potions.md](potions.md) | Drinking red and blue potions: healing, mana, the stack and the effect |
 | [items.md](items.md) | Item kinds, what a character owns, the inventory window, moving items, and giving or taking them on the command line |
 | [events.md](events.md) | Scheduled events multiplying experience and yang, their command line and their notices |

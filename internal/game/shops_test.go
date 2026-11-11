@@ -52,8 +52,9 @@ func expectRefused(t *testing.T, c net.Conn, e protocol.ShopError) {
 	}
 }
 
-// A click on the general store beside her opens its window: each potion singly on the top
-// row and twenty to a pack below, priced for the whole of it, the store named as its owner.
+// A click on the general store beside her opens its window: each potion and the cape singly
+// on the top row and twenty to a pack below, priced for the whole of it, the store named as
+// its owner.
 func TestAClickOnAShopkeeperOpensTheShop(t *testing.T) {
 	s, _, client, store := shopping(t, 100, 0, nil)
 
@@ -65,9 +66,11 @@ func TestAClickOnAShopkeeperOpensTheShop(t *testing.T) {
 	cells[0] = protocol.ShopItem{VNum: 27001, Price: 32, Count: 1}
 	cells[1] = protocol.ShopItem{VNum: 27002, Price: 96, Count: 1}
 	cells[2] = protocol.ShopItem{VNum: 27004, Price: 96, Count: 1}
+	cells[3] = protocol.ShopItem{VNum: 70038, Price: 1000, Count: 1}
 	cells[5] = protocol.ShopItem{VNum: 27001, Price: 640, Count: 20}
 	cells[6] = protocol.ShopItem{VNum: 27002, Price: 1920, Count: 20}
 	cells[7] = protocol.ShopItem{VNum: 27004, Price: 1920, Count: 20}
+	cells[8] = protocol.ShopItem{VNum: 70038, Price: 20000, Count: 20}
 	if got := read(t, client, 1728); string(got) != string(protocol.EncodeShopStart(store, cells)) || s.shop != 9003 {
 		t.Fatalf("shop %d, got %x", s.shop, got[:16])
 	}
@@ -154,7 +157,7 @@ func TestABuyThatCannotBeIsRefusedWithItsReason(t *testing.T) {
 	}{
 		{"too dear", 31, nil, 0, protocol.ShopNotEnoughYang},
 		{"no room", 100, full, 0, protocol.ShopBagFull},
-		{"an empty cell", 100, nil, 3, protocol.ShopInvalid},
+		{"an empty cell", 100, nil, 4, protocol.ShopInvalid},
 	}
 	for _, c := range cases {
 		s, kept, client, store := shopping(t, 100, c.gold, c.carrying)

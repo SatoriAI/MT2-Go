@@ -274,6 +274,7 @@ func (svc *Service) tick(now time.Time) {
 	svc.keepGround(now)
 	svc.keepBuffs(now)
 	svc.engage(n.provoked, now)
+	svc.lure(n.lured, now)
 	svc.lookOut(now)
 	for _, m := range svc.monsters {
 		switch {
