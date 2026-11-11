@@ -142,7 +142,7 @@ func (w *record) useSkill(vid uint32, sk account.Skill, target uint32, now time.
 	case proto.Reach > 0:
 		l.splash(pl, pl, proto, percent, level, now, r)
 	default:
-		l.startBuff(pl, sk, now.Add(proto.LastsAt(level)))
+		l.startBuff(pl, sk, now, now.Add(proto.LastsAt(level)))
 	}
 	return skillUsed, wait
 }
@@ -442,7 +442,7 @@ func (l locked) help(pl, to *present, sk account.Skill, proto skill.Proto, level
 		c.BuffBy = map[account.Skill]account.BuffCaster{}
 	}
 	c.BuffBy[sk] = account.BuffCaster{Level: level, Intelligence: pl.char.Intelligence}
-	l.startBuff(to, sk, now.Add(proto.LastsAt(level)))
+	l.startBuff(to, sk, now, now.Add(proto.LastsAt(level)))
 }
 
 // cooldownOf is a cooldown at a casting speed, shortened as the client shortens it: by
@@ -458,15 +458,17 @@ func castingSpeedOf(c *account.Character) int {
 	return 100 + buffBonus(c, skill.CastingSpeed)
 }
 
-// startBuff starts the buff until a time, shows its effect on the player to them and
-// everyone who sees them, and leaves its end for the world loop.
-func (l locked) startBuff(pl *present, sk account.Skill, until time.Time) {
+// startBuff starts the buff, from now until a time, shows its effect on the player to
+// them and everyone who sees them and its time to them, and leaves its end for the world
+// loop.
+func (l locked) startBuff(pl *present, sk account.Skill, now, until time.Time) {
 	c := pl.char
 	if c.Buffs == nil {
 		c.Buffs = map[account.Skill]time.Time{}
 	}
 	c.Buffs[sk] = until
 	l.showAffects(pl, sk)
+	pl.send(buffShown(sk, until.Sub(now)))
 	l.news.buffs = append(l.news.buffs, buffEnd{pl.add.VID, sk, until})
 	if p, _ := skill.Lookup(sk); p.Drain != (skill.Scaled{}) {
 		l.news.drains = append(l.news.drains, buffEnd{pl.add.VID, sk, until})
@@ -510,11 +512,13 @@ func (w *record) endBuff(b buffEnd) {
 	l.stopBuff(pl, b.skill)
 }
 
-// stopBuff ends a running buff and takes its effect off the player for everyone.
+// stopBuff ends a running buff and takes its effect off the player for everyone, and its
+// time off its icon.
 func (l locked) stopBuff(pl *present, sk account.Skill) {
 	delete(pl.char.Buffs, sk)
 	delete(pl.char.BuffBy, sk)
 	l.showAffects(pl, sk)
+	pl.send(buffGone(sk))
 }
 
 // stopBuffs ends every buff of a player who died.

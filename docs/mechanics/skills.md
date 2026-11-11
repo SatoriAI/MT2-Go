@@ -116,7 +116,7 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
 | CHARACTER_ADD `01`, CHARACTER_UPDATE `13` | 35 each | the effects, two u32 words: bit 19 of the first is Enchanted Blade, 21 Enchanted Armour, 14 Berserk, 15 Sword Aura, 16 Strong Body, and on a monster 5 its stun, 3 its poison, 4 its slow, with its slower pace, and 28 its fire; and the move and attack speeds |
 | POINT_CHANGE `11` | 17 | the attack speed is point 17, the move speed 19 |
 | DAMAGE `87` | 10 | a poison's turn has flag 2 |
-| AFFECT_ADD `7E` | 22 | type u32 (512 Rada Pustelnika's, 513 Zwój Egzorcyzmu's), point u8, value i32, flag u32, duration i32 (0x1FFFFFFF, the client's forever, which it hides for these two), mana cost i32; all but the type and duration 0 |
+| AFFECT_ADD `7E` | 22 | type u32 (512 Rada Pustelnika's, 513 Zwój Egzorcyzmu's, or a buff skill's own number, 63 Enchanted Blade's), point u8, value i32, flag u32, duration i32 (0x1FFFFFFF, the client's forever, which it hides for the aids; a buff's whole seconds left, never 0), mana cost i32; all but the type and duration 0 |
 | AFFECT_REMOVE `7F` | 6 | type u32, point u8 (0) |
 
 ## What the server does
@@ -163,6 +163,7 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
     - The client's own hit reports are dropped.
   - **Enchanted Blade:** it runs for three minutes, a choice of this server's (the client's own lasts 50 + 100k seconds), and adds 7 + (5·INT + 13)·k to every blow and swirl, rounded down: the client's tooltip, so what it shows is what is given. It needs a one-handed sword in hand, as the client's own check does, and taking the sword off ends it.
     - **Showing it:** its effect bit is worked out from the buffs a character has running whenever it is shown, so the record's entries keep their size. It is shown in CHARACTER_UPDATE to the player and everyone who sees them as it starts and ends, in every later CHARACTER_ADD, and in the update a change of armour sends.
+    - **Its time:** to the one it runs on, as it starts or is renewed, an AFFECT_ADD of the skill's own number with the whole seconds left, as the original server adds one per buff, which the client draws on the skill's icon on the taskbar and in the skill window; as it ends, by its time, turned off, its mana run out, its shield broken, a change of skill group, its sword taken off or death, an AFFECT_REMOVE of that number. Our buffs' lengths are our own, not the skilltable's the client knows, so it cannot count them itself. Buffs end as their character leaves the world, so entering has none to show.
     - **Its end** is handed to the world loop with its news, and queued in order of when it ends. The loop ends it then, if it is still the same run.
     - **Using it again** ends it, for nothing, as the client turns it off without checking mana. Death ends it. It is not stored, so leaving the world ends it too.
   - **Enchanted Armour:** the client's skilltable throughout. It runs 30 + 120k seconds and adds (INT + 30)·k to the armour set against every bite, rounded down. It is not a toggle: its cooldown always outlasts it, so using it again while it runs is refused. Its effect bit is 21, shown as the blade's is, and the player is told their defence, point 20, as it starts and ends, and when a point of intelligence or a level of the skill raises it.
@@ -249,7 +250,8 @@ A character's class has two skill groups, its paths. The sura's are **Weaponry**
   - CHANGE_SKILL_GROUP;
   - SCRIPT_ANSWER framed and read;
   - USE_SKILL framed and read;
-  - the effects in CHARACTER_ADD and CHARACTER_UPDATE.
+  - the effects in CHARACTER_ADD and CHARACTER_UPDATE;
+  - a buff's time shown on its icon as it starts, in whole seconds rounded up, and taken off as it ends by its time, turned off, by death or with the sword, and on an ally it is cast on rather than its caster.
 - `internal/store/skills_test.go`: a skill raised and kept, and choosing a group forgetting the skills; the database refusing an unknown skill, a level past 39 and another class's group; every Weaponry and Archery skill kept; a read kept whole, the skill, its wait and the book; a read of a skill at another level, or with a book not the character's, changing nothing.
 - `internal/skill/skill_test.go`: also a point past 17 making a Master; the grade by level; the books' and soul stones' chances; points spent by a Master; the power table to G10; costs worked out as the client does.
 - `internal/game/books_test.go`:

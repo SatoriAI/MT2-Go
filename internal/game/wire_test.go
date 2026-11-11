@@ -2,8 +2,11 @@ package game
 
 import (
 	"testing"
+	"time"
 
 	"github.com/SatoriAI/MT2-Go/internal/account"
+	"github.com/SatoriAI/MT2-Go/internal/protocol"
+	"github.com/SatoriAI/MT2-Go/internal/skill"
 )
 
 // The numbers are the client's RACE_* constants in playersettingmodule.py.
@@ -101,5 +104,18 @@ func TestAnEmojiOrChineseCharacterIsNotShownByTheClient(t *testing.T) {
 		if ClientCanShow(text) {
 			t.Errorf("%q: cp1250 lacks it", text)
 		}
+	}
+}
+
+// A buff's time goes to the client as an affect of the skill's own number, in whole seconds
+// rounded up and never 0, which the client would take for no time at all.
+func TestABuffsTimeIsAnAffectOfItsSkill(t *testing.T) {
+	for left, want := range map[time.Duration]int32{180 * time.Second: 180, 179200 * time.Millisecond: 180, time.Millisecond: 1, 0: 1} {
+		if got := buffShown(skill.EnchantedArmour, left); string(got) != string(protocol.EncodeAffectAdd(protocol.Affect{Type: 65, Duration: want})) {
+			t.Errorf("%v left: %x, want %d s", left, got, want)
+		}
+	}
+	if got := buffGone(skill.EnchantedArmour); string(got) != string(protocol.EncodeAffectRemove(65, 0)) {
+		t.Errorf("gone: %x", got)
 	}
 }

@@ -180,6 +180,19 @@ func TestASkillThatCannotBeUsedIsNot(t *testing.T) {
 	}
 }
 
+const (
+	affectAddSize    = 22
+	affectRemoveSize = 6
+)
+
+// expectBladeGone reads Enchanted Blade's time taken off its icon.
+func expectBladeGone(t *testing.T, c net.Conn) {
+	t.Helper()
+	if got := read(t, c, affectRemoveSize); string(got) != string(buffGone(skill.EnchantedBlade)) {
+		t.Fatalf("got %x, want the blade's time gone", got)
+	}
+}
+
 // expectGlow reads Hendra's CHARACTER_UPDATE, with the blade's glow or without.
 func expectGlow(t *testing.T, c net.Conn, on bool) {
 	t.Helper()
@@ -190,8 +203,8 @@ func expectGlow(t *testing.T, c net.Conn, on bool) {
 	}
 }
 
-// Enchanted Blade costs its mana, puts its glow on her for her and Kira, and makes her
-// blows stronger while it runs.
+// Enchanted Blade costs its mana, puts its glow on her for her and Kira, shows her its
+// three minutes on its icon, and makes her blows stronger while it runs.
 func TestEnchantedBladeGlowsAndStrengthensHerBlows(t *testing.T) {
 	s, client, kira := swirling(t)
 	pl := s.svc.record.state.all[1000]
@@ -205,6 +218,9 @@ func TestEnchantedBladeGlowsAndStrengthensHerBlows(t *testing.T) {
 		t.Fatalf("told %x", got)
 	}
 	expectGlow(t, client, true)
+	if got := read(t, client, affectAddSize); string(got) != string(protocol.EncodeAffectAdd(protocol.Affect{Type: 63, Duration: 180})) {
+		t.Fatalf("its time told %x", got)
+	}
 	expectGlow(t, kira, true)
 	if got := attackerOf(pl.char).Bonus; plain != 0 || got != bladeBonus(5, 1) || got == 0 {
 		t.Fatalf("bonus %d, before %d", got, plain)
@@ -217,7 +233,7 @@ func TestEnchantedBladeUsedAgainEndsFree(t *testing.T) {
 	if err := s.onUseSkill(used(skill.EnchantedBlade)); err != nil {
 		t.Fatal(err)
 	}
-	read(t, client, pointChangeSize+updateSize)
+	read(t, client, pointChangeSize+updateSize+affectAddSize)
 	s.svc.record.state.all[1000].char.SP = 0 // turning it off needs none, as the client checks none
 
 	if err := s.onUseSkill(used(skill.EnchantedBlade)); err != nil {
@@ -225,6 +241,7 @@ func TestEnchantedBladeUsedAgainEndsFree(t *testing.T) {
 	}
 
 	expectGlow(t, client, false)
+	expectBladeGone(t, client)
 	if c := s.svc.record.state.all[1000].char; c.SP != 0 || len(c.Buffs) != 0 || attackerOf(c).Bonus != 0 {
 		t.Fatalf("SP %d, buffs %v", c.SP, c.Buffs)
 	}
@@ -236,7 +253,7 @@ func TestEnchantedBladeEndsAfterThreeMinutes(t *testing.T) {
 	if err := s.onUseSkill(used(skill.EnchantedBlade)); err != nil {
 		t.Fatal(err)
 	}
-	read(t, client, pointChangeSize+updateSize)
+	read(t, client, pointChangeSize+updateSize+affectAddSize)
 	for _, m := range s.svc.monsters {
 		m.nextStroll = noon.Add(time.Hour) // nothing in these ticks but the blade
 	}
@@ -250,6 +267,7 @@ func TestEnchantedBladeEndsAfterThreeMinutes(t *testing.T) {
 	s.svc.tick(noon.Add(3 * time.Minute))
 
 	expectGlow(t, client, false)
+	expectBladeGone(t, client)
 }
 
 // A run turned off and started again a minute in is not ended when the first was due.
@@ -264,7 +282,7 @@ func TestALaterRunOfTheBladeOutlastsTheFirstsEnd(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	read(t, client, pointChangeSize+updateSize+updateSize+pointChangeSize+updateSize)
+	read(t, client, pointChangeSize+updateSize+affectAddSize+updateSize+affectRemoveSize+pointChangeSize+updateSize+affectAddSize)
 	queueBuffEnds(s.svc) // both runs' ends
 
 	s.svc.keepBuffs(noon.Add(3 * time.Minute))
@@ -272,6 +290,7 @@ func TestALaterRunOfTheBladeOutlastsTheFirstsEnd(t *testing.T) {
 	expectNothing(t, client)
 	s.svc.keepBuffs(noon.Add(4 * time.Minute))
 	expectGlow(t, client, false)
+	expectBladeGone(t, client)
 }
 
 // Death ends the blade at once.
@@ -280,7 +299,7 @@ func TestEnchantedBladeEndsOnDeath(t *testing.T) {
 	if err := s.onUseSkill(used(skill.EnchantedBlade)); err != nil {
 		t.Fatal(err)
 	}
-	read(t, client, pointChangeSize+updateSize)
+	read(t, client, pointChangeSize+updateSize+affectAddSize)
 	pl := s.svc.record.state.all[1000]
 
 	s.svc.record.held(func(l locked) {
@@ -289,6 +308,7 @@ func TestEnchantedBladeEndsOnDeath(t *testing.T) {
 	})
 
 	expectGlow(t, client, false)
+	expectBladeGone(t, client)
 	if len(pl.char.Buffs) != 0 {
 		t.Fatalf("buffs %v", pl.char.Buffs)
 	}
@@ -300,7 +320,7 @@ func TestANewcomerSeesTheBladesGlow(t *testing.T) {
 	if err := s.onUseSkill(used(skill.EnchantedBlade)); err != nil {
 		t.Fatal(err)
 	}
-	read(t, client, pointChangeSize+updateSize)
+	read(t, client, pointChangeSize+updateSize+affectAddSize)
 
 	newcomer, _ := aPlayer(t, s.svc, 1002, 9, "Lena", 300)
 
@@ -336,7 +356,7 @@ func TestDressingKeepsTheBladesGlow(t *testing.T) {
 	if err := s.onUseSkill(used(skill.EnchantedBlade)); err != nil {
 		t.Fatal(err)
 	}
-	read(t, client, pointChangeSize+updateSize)
+	read(t, client, pointChangeSize+updateSize+affectAddSize)
 
 	s.svc.record.dress(1000, outfit{weapon: 10})
 
@@ -349,11 +369,12 @@ func TestTakingTheSwordOffEndsTheBlade(t *testing.T) {
 	if err := s.onUseSkill(used(skill.EnchantedBlade)); err != nil {
 		t.Fatal(err)
 	}
-	read(t, client, pointChangeSize+updateSize)
+	read(t, client, pointChangeSize+updateSize+affectAddSize)
 
 	s.svc.record.dress(1000, outfit{})
 
 	expectGlow(t, client, false)
+	expectBladeGone(t, client)
 	if c := s.svc.record.state.all[1000].char; len(c.Buffs) != 0 {
 		t.Fatalf("buffs %v", c.Buffs)
 	}
@@ -454,6 +475,10 @@ func TestEnchantedArmourRaisesHerDefenceUntilItEnds(t *testing.T) {
 	if got := read(t, client, pointChangeSize); string(got) != string(defenceTold(before+1)) {
 		t.Fatalf("told %x", got)
 	}
+	armour, _ := skill.Lookup(skill.EnchantedArmour)
+	if got := read(t, client, affectAddSize); string(got) != string(buffShown(skill.EnchantedArmour, armour.LastsAt(c.Skills[skill.EnchantedArmour]))) {
+		t.Fatalf("its time told %x", got)
+	}
 	expectArmoured(t, kira, true)
 	if armourOf(c) != plain+1 { // (5 + 30) × 0.05
 		t.Fatalf("armour %d, before %d", armourOf(c), plain)
@@ -479,7 +504,7 @@ func TestEnchantedArmourEndsWhenItsTimeIsUp(t *testing.T) {
 	if err := s.onUseSkill(used(skill.EnchantedArmour)); err != nil {
 		t.Fatal(err)
 	}
-	read(t, client, pointChangeSize+updateSize+pointChangeSize)
+	read(t, client, pointChangeSize+updateSize+pointChangeSize+affectAddSize)
 	for _, m := range s.svc.monsters {
 		m.nextStroll = noon.Add(time.Hour)
 	}
@@ -494,6 +519,9 @@ func TestEnchantedArmourEndsWhenItsTimeIsUp(t *testing.T) {
 	expectArmoured(t, client, false)
 	if got := read(t, client, pointChangeSize); string(got) != string(defenceTold(before)) {
 		t.Fatalf("told %x", got)
+	}
+	if got := read(t, client, affectRemoveSize); string(got) != string(buffGone(skill.EnchantedArmour)) {
+		t.Fatalf("its time not taken off: %x", got)
 	}
 }
 
@@ -511,7 +539,7 @@ func TestTheBladeAndTheArmourRunTogether(t *testing.T) {
 		}
 	}
 
-	read(t, client, pointChangeSize+updateSize+pointChangeSize)
+	read(t, client, pointChangeSize+updateSize+pointChangeSize+affectAddSize)
 	got := read(t, client, updateSize)
 	if affects := binary.LittleEndian.Uint32(got[16:]); affects != 1<<19|1<<21 {
 		t.Fatalf("affects %b", affects)
@@ -540,7 +568,7 @@ func TestIntelligenceRaisedUnderTheArmourTellsHerDefence(t *testing.T) {
 	if err := s.onUseSkill(used(skill.EnchantedArmour)); err != nil {
 		t.Fatal(err)
 	}
-	read(t, client, pointChangeSize+updateSize+pointChangeSize)
+	read(t, client, pointChangeSize+updateSize+pointChangeSize+affectAddSize)
 	before := defence(c)
 
 	s.svc.record.spendStatPoint(1000, "iq")

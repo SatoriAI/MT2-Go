@@ -5,7 +5,9 @@
 package game
 
 import (
+	"math"
 	"strings"
+	"time"
 
 	"golang.org/x/text/encoding/charmap"
 
@@ -170,6 +172,16 @@ func aidShown(aid account.Aid) []byte {
 }
 
 func aidGone(aid account.Aid) []byte { return protocol.EncodeAffectRemove(aidAffects[aid], 0) }
+
+// buffShown and buffGone show and hide a running buff's time on its skill's icon: an
+// affect whose type is the skill's own number, as the original server adds one, with the
+// whole seconds left, never 0, which the client takes for no time at all.
+func buffShown(sk account.Skill, left time.Duration) []byte {
+	seconds := max(1, int32(math.Ceil(left.Seconds())))
+	return protocol.EncodeAffectAdd(protocol.Affect{Type: uint32(skillVNums[sk]), Duration: seconds})
+}
+
+func buffGone(sk account.Skill) []byte { return protocol.EncodeAffectRemove(uint32(skillVNums[sk]), 0) }
 
 // ailmentBits are the client's affect bits for each ailment.
 var ailmentBits = [ailmentKinds]uint64{stun: stunBit, poison: poisonBit, slow: slowBit, fire: fireBit}
