@@ -134,7 +134,7 @@ func (s *session) onEnterGame() error {
 	}
 	err := s.conn.Send(slices.Concat(
 		[][]byte{protocol.EncodePhase(protocol.PhaseGame), protocol.EncodeTime(s.svc.clock.Now()), protocol.EncodeChannel(1)},
-		me.appearance(), [][]byte{s.blockMode()}, s.inventoryShown(), s.taskbarShown(), s.aidsShown(),
+		me.appearance(), [][]byte{s.blockMode()}, s.inventoryShown(), s.taskbarShown(), s.aidsShown(), s.handShown(),
 	)...)
 	if err != nil {
 		return err
@@ -142,8 +142,10 @@ func (s *session) onEnterGame() error {
 	// Only now is the player in the game phase: leaving the world takes them out of the
 	// record, so they must be in it.
 	me.tether, p.UnseenUntil = tether{x: p.X, y: p.Y}, s.svc.now().Add(unseenFor)
+	me.hand, s.me = handOf(s.inventory), me
 	s.svc.record.enter(me)
 	s.svc.record.wearTimed(p.vid, lasting(s.inventory), s.svc.now())
+	s.keepLasting()
 	s.phase = protocol.PhaseGame
 	s.conn.Log().Info("entered the world", "character", p.Name, "x", p.X, "y", p.Y)
 	return nil
@@ -203,7 +205,7 @@ func (s *session) leaveBy(out func(vid uint32) *present) {
 		s.svc.leaveAndSave(out, s.playing, s.empire, s.conn.Log())
 	}
 	s.svc.release(s.claim)
-	s.claim, s.playing, s.shop, s.talking, s.upgrading = nil, nil, 0, nil, nil
+	s.claim, s.playing, s.shop, s.talking, s.upgrading, s.me = nil, nil, 0, nil, nil, nil
 	s.flyTarget, s.flyAdds, s.volley = 0, nil, volley{} // the next character's arrows are their own
 }
 

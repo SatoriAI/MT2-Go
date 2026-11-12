@@ -180,11 +180,12 @@ func (w *record) timedOf(p *present, now time.Time) (item.Item, bool, bool) {
 }
 
 // dropSpentOnes forgets the items of the inventory whose time has run out: worn to the end
-// before the character last left.
+// before the character last left, or past their end in real time.
 func (s *session) dropSpentOnes(characterID uint32) {
 	s.inventory = slices.DeleteFunc(s.inventory, func(it item.Item) bool {
 		p, _ := item.Lookup(it.VNum)
-		if p.WearFor == 0 || p.Left(it.WornFor) > 0 {
+		ended := p.Lasts > 0 && !s.svc.now().Before(it.EndsAt)
+		if !ended && (p.WearFor == 0 || p.Left(it.WornFor) > 0) {
 			return false
 		}
 		s.svc.removeSpent(characterID, it.ID, s.conn.Log())

@@ -86,9 +86,13 @@ func (svc *Service) dropFrom(m *monster, d death, now time.Time) {
 		svc.rollBonuses(m, it)
 	}
 	if y := m.proto.Yang; svc.rand.IntN(10000) < int(y.Chance) {
-		fallen = append(fallen, &groundItem{vid: svc.lastVID.Add(1), x: m.x + svc.spread(dropSpread),
-			y: m.y + svc.spread(dropSpread), gold: y.Min + uint32(svc.rand.IntN(int(y.Max-y.Min+1))), //nolint:gosec // a small range
-			owner: d.owner, dropped: now})
+		gold := y.Min + uint32(svc.rand.IntN(int(y.Max-y.Min+1))) //nolint:gosec // a small range
+		if d.collector != nil {
+			svc.picked[d.collector] += gold // never on the ground: the third hand picks it up
+		} else {
+			fallen = append(fallen, &groundItem{vid: svc.lastVID.Add(1), x: m.x + svc.spread(dropSpread),
+				y: m.y + svc.spread(dropSpread), gold: gold, owner: d.owner, dropped: now})
+		}
 	}
 	if len(fallen) == 0 {
 		return
@@ -376,6 +380,8 @@ func (s *session) receive(ctx context.Context, into item.Item) (item.Item, error
 	if into.ID != 0 {
 		err = s.svc.items.SetCount(ctx, s.playing.ID, into.ID, into.Count)
 	} else {
+		p, _ := item.Lookup(into.VNum)
+		into.EndsAt = p.EndOf(s.svc.now()) // a kind lasting in real time starts as it is made
 		into.ID, err = s.svc.items.Add(ctx, s.playing.ID, into)
 	}
 	if err != nil {
@@ -386,6 +392,7 @@ func (s *session) receive(ctx context.Context, into item.Item) (item.Item, error
 	} else {
 		s.inventory = append(s.inventory, into)
 	}
+	s.keepLasting()
 	return into, nil
 }
 

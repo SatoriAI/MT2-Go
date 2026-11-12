@@ -224,6 +224,7 @@ func (s *session) place(changed ...item.Item) error {
 	for _, it := range changed {
 		packets = append(packets, itemSet(it))
 	}
+	s.keepLasting()
 	if err := s.conn.Send(append(packets, s.followTaskbar()...)...); err != nil {
 		return err
 	}
@@ -237,6 +238,7 @@ func (s *session) place(changed ...item.Item) error {
 // everyone who sees them, and counts the time of what is worn for a limited time.
 func (s *session) dress() error {
 	s.svc.record.dress(s.playing.vid, outfitOf(s.inventory))
+	s.svc.record.wearHand(s.playing.vid, handOf(s.inventory), s.svc.now())
 	if off, ok := s.svc.record.wearTimed(s.playing.vid, lasting(s.inventory), s.svc.now()); ok {
 		return s.keepTakenOff(off)
 	}

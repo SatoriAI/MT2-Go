@@ -75,6 +75,11 @@ type Proto struct {
 	// DoublesDrops is a kind whose wearer's kills drop each item twice as often: the
 	// thief's gloves.
 	DoublesDrops bool
+	// Lasts is how long a kind lasts from its making, in real time, worn or not:
+	// item_proto's VALUE0 in seconds for a unique item whose VALUE2 is 1; 0 for the rest.
+	Lasts time.Duration
+	// PicksYang is a kind whose wearer's yang goes straight to them: the third hand.
+	PicksYang bool
 
 	// Bound is a kind its owner keeps: item_proto's ANTI_DROP, ANTI_GIVE and ANTI_SELL,
 	// which the kinds that have one have all three of, so it is never dropped, traded or
@@ -121,6 +126,15 @@ func (p Proto) WornIn(place Wear) bool {
 	return place == p.Wear || p.Wear == Unique1 && place == Unique2
 }
 
+// EndOf is when an item of the kind made at now ends, for a kind lasting in real time;
+// zero for the rest.
+func (p Proto) EndOf(now time.Time) time.Time {
+	if p.Lasts == 0 {
+		return time.Time{}
+	}
+	return now.Add(p.Lasts)
+}
+
 // Left is how much longer an item of a kind worn for a limited time lasts, worn for used.
 func (p Proto) Left(used time.Duration) time.Duration { return max(0, p.WearFor-used) }
 
@@ -154,6 +168,10 @@ const BraveryCape = 70038
 // ThiefGloves is Rękawica Złodzieja, which doubles the chance of what its wearer's kills
 // drop for two hours of wearing (docs/mechanics/thief-gloves.md).
 const ThiefGloves = 70043
+
+// ThirdHand is Trzecia Ręka, which picks up its wearer's yang for thirty days
+// (docs/mechanics/third-hand.md).
+const ThirdHand = 71010
 
 // MaxGrade is the last grade gear is upgraded to.
 const MaxGrade = 9
@@ -216,6 +234,8 @@ var protos = withBooks(withGrades(withGear(map[uint32]Proto{
 	TeleportRing: {VNum: TeleportRing, Name: "Pierścień Teleportacji", Size: 1, Stack: 1, Level: 5, Bound: true},
 	ThiefGloves: {VNum: ThiefGloves, Name: "Rękawica Złodzieja", Size: 1, Stack: 1, Wear: Unique1, WearFor: 120 * time.Minute, DoublesDrops: true, Bound: true,
 		Classes: []account.Class{account.Warrior, account.Ninja, account.Sura, account.Shaman}},
+	ThirdHand: {VNum: ThirdHand, Name: "Trzecia Ręka", Size: 1, Stack: 1, Wear: Unique1, Lasts: 30 * 24 * time.Hour, PicksYang: true,
+		Bound: true, Classes: []account.Class{account.Warrior, account.Ninja, account.Sura, account.Shaman}},
 	// item_proto prices the cape at nothing; 1000 is the veteran's, and a shop pays nothing
 	// for one, as the client's sell value is 0.
 	BraveryCape: {VNum: BraveryCape, Name: "Peleryna Męstwa", Size: 1, Stack: MaxStack, Price: 1000, Bound: true},
@@ -276,6 +296,8 @@ type Item struct {
 	Bonuses Bonuses
 	// WornFor is how long an item of a kind worn for a limited time has been worn.
 	WornFor time.Duration
+	// EndsAt is when an item of a kind that lasts in real time ends; zero for the rest.
+	EndsAt time.Time
 }
 
 // The inventory is two pages of 45 cells, five to a row; an item stands in its column

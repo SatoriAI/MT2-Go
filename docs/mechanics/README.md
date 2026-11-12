@@ -36,6 +36,7 @@ Pages state facts in our own words. They never paste code from another server or
 | [events.md](events.md) | Scheduled events multiplying experience and yang, their command line and their notices |
 | [monsters.md](monsters.md) | Village NPCs and monsters: where they stand, how they appear, and their strolls |
 | [stones.md](stones.md) | Metin stones: where they stand, the waves they call, their smoke, what they leave, and their return |
+| [third-hand.md](third-hand.md) | Trzecia Ręka: the wearer's yang picked up as it falls, its icon, and its thirty days of real time |
 | [thief-gloves.md](thief-gloves.md) | Rękawica Złodzieja: worn in a unique place, its two hours counted down and shown, and gone at the end |
 | [teleporting.md](teleporting.md) | The teleport ring: its question, the warp home, and the client connecting again |
 | [whispers.md](whispers.md) | A line for one player by name, wherever they are, and keeping every one |

@@ -117,7 +117,9 @@ type loop struct {
 	// The drops on the ground, in the order they fell, to free and to clear away.
 	freeing, vanishing []timed
 	buffEnds           []buffEnd
-	timings            []timing // the items worn for a limited time, to count down
+	timings            []timing            // the items worn for a limited time, to count down
+	lastings           []*present          // the players holding what lasts in real time
+	picked             map[*present]uint32 // yang third hands picked up this tick, by player
 }
 
 // NewService makes the game port's shared state; Run puts spawns' mobs in the world.
@@ -129,7 +131,7 @@ func NewService(d Deps) *Service {
 		record: newRecord(),
 		now:    time.Now,
 		loop: loop{spawns: d.Spawns, log: cmp.Or(d.Log, slog.New(slog.DiscardHandler)), rand: newRand(), byPresent: map[*present]*monster{}, kinds: map[uint16]*mob.Proto{},
-			called: map[*monster][]*monster{}},
+			called: map[*monster][]*monster{}, picked: map[*present]uint32{}},
 	}
 }
 
@@ -152,6 +154,7 @@ type session struct {
 	taskbar   map[uint8]shownSlot // playing's taskbar, by slot, read with the inventory
 	talking   *talk               // what the NPC the player talks to asked them, or nil
 	claim     *claim              // this connection's hold on playing
+	me        *present            // playing's place in the world record, while in the world
 	flood     floodLimit          // the lines this player said lately, to others
 	// leftWorld is set from change character until the next Start: the client may still
 	// send moves and chat it wrote before it took in the select phase.

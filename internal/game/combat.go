@@ -275,7 +275,7 @@ func (l locked) kill(p, v *present, now time.Time) {
 	f, vid := v.fight, v.add.VID
 	f.diedAt, f.ailing = now, 0 // a body has no ailments
 	winner := l.topDamager(f, p)
-	l.news.fallen = append(l.news.fallen, death{v, now, owner{id: winner.char.ID, name: winner.info.Name}, wearsLuck(winner)})
+	l.news.fallen = append(l.news.fallen, death{v, now, owner{id: winner.char.ID, name: winner.info.Name}, wearsLuck(winner), collector(winner, v, now)})
 	if f.stone {
 		inform(winner, "Zniszczyłeś kamień Metin.")
 	}
@@ -324,6 +324,8 @@ type death struct {
 	at    time.Time
 	owner owner
 	lucky bool // the owner wore what doubles drops as it died
+	// collector is who its yang goes straight to, the owner wearing a third hand; nil else.
+	collector *present
 }
 
 // news is what happened since the world loop last asked, kept on the world record for it.
@@ -338,6 +340,7 @@ type news struct {
 	burned   []*present    // monsters newly set alight, to tick
 	lured    []*present    // players who wore a cape, to set the monsters around them on
 	timed    []timing      // items worn for a limited time put on, each run to count down
+	lasting  []*present    // players newly holding what lasts in real time, to watch
 }
 
 // takeNews hands the world loop the news, with one lock a tick.
