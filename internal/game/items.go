@@ -3,6 +3,7 @@ package game
 import (
 	"context"
 	"math"
+	"time"
 
 	"github.com/SatoriAI/MT2-Go/internal/account"
 	"github.com/SatoriAI/MT2-Go/internal/item"
@@ -21,6 +22,8 @@ type Items interface {
 	// Add keeps a new item the character owns and returns its id; SetCount keeps a stack's.
 	Add(ctx context.Context, characterID uint32, it item.Item) (int64, error)
 	SetCount(ctx context.Context, characterID uint32, id int64, count uint8) error
+	// SetWornFor keeps how long an item worn for a limited time has been worn.
+	SetWornFor(ctx context.Context, characterID uint32, id int64, wornFor time.Duration) error
 	// Remove forgets an item the character no longer has.
 	Remove(ctx context.Context, characterID uint32, id int64) error
 	// Gold returns the character's yang; AddGold keeps more of it and returns the balance.
@@ -55,6 +58,7 @@ func (s *session) loadInventory(ctx context.Context, characterID uint32) error {
 		return err
 	}
 	s.inventory, s.gold = inv, gold
+	s.dropSpentOnes(characterID)
 	return nil
 }
 
@@ -84,8 +88,8 @@ func (s *session) onItemMove(body []byte) error {
 		moved := it
 		moved.Cell = cell
 		return s.place(moved)
-	case it.Worn == "" && worn != "" && worn == p.Wear && !taken:
-		return s.putOn(it)
+	case it.Worn == "" && worn != "" && p.WornIn(worn) && !taken:
+		return s.putOnAt(it, worn)
 	case it.Worn != "" && worn == "" && s.inventory.Fits(p, cell, it.ID):
 		return s.place(takenOff(it, cell))
 	}
@@ -138,13 +142,24 @@ func (s *session) onItemUse(ctx context.Context, body []byte) error {
 // no room for it, nothing changes.
 func (s *session) putOn(it item.Item) error {
 	p, _ := item.Lookup(it.VNum)
+	return s.putOnAt(it, p.Wear)
+}
+
+// putOnAt is putOn into the place, one of the kind's: a unique kind may be worn in either
+// unique place, but never twice at once, as two pairs of gloves would only waste the
+// time of one.
+func (s *session) putOnAt(it item.Item, place item.Wear) error {
+	p, _ := item.Lookup(it.VNum)
 	level, _ := s.svc.record.trainee(s.playing.vid)
 	if err := p.CanWear(s.playing.Class, level); err != nil {
 		return s.conn.Send(infoLine(cannotWear[err]), itemSet(it))
 	}
+	if s.wearsUnique(it.VNum) {
+		return s.conn.Send(infoLine("Nie możesz założyć dwóch takich samych przedmiotów."), itemSet(it))
+	}
 	on := it
-	on.Worn = p.Wear
-	old, ok := s.inventory.WornIn(p.Wear)
+	on.Worn = place
+	old, ok := s.inventory.WornIn(place)
 	if !ok {
 		return s.place(on)
 	}
@@ -157,6 +172,16 @@ func (s *session) putOn(it item.Item) error {
 		return s.conn.Send(itemSet(it))
 	}
 	return s.place(on, takenOff(old, cell))
+}
+
+// wearsUnique reports whether a unique kind of vnum is worn in either unique place.
+func (s *session) wearsUnique(vnum uint32) bool {
+	for _, place := range []item.Wear{item.Unique1, item.Unique2} {
+		if worn, ok := s.inventory.WornIn(place); ok && worn.VNum == vnum {
+			return true
+		}
+	}
+	return false
 }
 
 // cannotWear is what a player is told when they may not wear an item.
@@ -203,15 +228,19 @@ func (s *session) place(changed ...item.Item) error {
 		return err
 	}
 	if dressed {
-		s.dress()
+		return s.dress()
 	}
 	return nil
 }
 
 // dress puts what the inventory has worn on the character, for the fights and for
-// everyone who sees them.
-func (s *session) dress() {
+// everyone who sees them, and counts the time of what is worn for a limited time.
+func (s *session) dress() error {
 	s.svc.record.dress(s.playing.vid, outfitOf(s.inventory))
+	if off, ok := s.svc.record.wearTimed(s.playing.vid, lasting(s.inventory), s.svc.now()); ok {
+		return s.keepTakenOff(off)
+	}
+	return nil
 }
 
 // outfit is what a character wears, each by vnum, 0 for nothing.

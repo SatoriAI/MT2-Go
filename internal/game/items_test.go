@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net"
 	"testing"
+	"time"
 
 	"github.com/SatoriAI/MT2-Go/internal/account"
 	"github.com/SatoriAI/MT2-Go/internal/item"
@@ -27,6 +28,15 @@ type keptItems struct {
 	// what the last upgrade kept: the item and the stacks of material spent
 	upgraded item.Item
 	spent    []item.Item
+	wornFor  map[int64]time.Duration // how long each item worn for a limited time was kept as worn
+}
+
+func (k *keptItems) SetWornFor(_ context.Context, _ uint32, id int64, wornFor time.Duration) error {
+	if k.wornFor == nil {
+		k.wornFor = map[int64]time.Duration{}
+	}
+	k.wornFor[id] = wornFor
+	return nil
 }
 
 func (k *keptItems) Upgrade(_ context.Context, _, cost uint32, upgraded item.Item, spent []item.Item) (uint32, error) {

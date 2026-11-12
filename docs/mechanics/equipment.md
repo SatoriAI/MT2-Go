@@ -17,7 +17,7 @@ The weapon and armour traders sell those below level 21 ([shops.md](shops.md)). 
 
 ## What the client does
 
-- **Worn items are in the inventory window too:** cells 90 and up, by the client's wear places: the body at 90, the head at 91, the feet at 92, the weapon at 94, the arrows at 99 and the shield at 100 (`GameType.h`, `ItemData.h`, WEAR_ARROW 9, WEAR_SHIELD 10), with the window number `01`. The inventory window has a slot for each (`inventorywindow.py`).
+- **Worn items are in the inventory window too:** cells 90 and up, by the client's wear places: the body at 90, the head at 91, the feet at 92, the weapon at 94, the two unique places at 97 and 98, the arrows at 99 and the shield at 100 (`GameType.h`, `ItemData.h`, WEAR_UNIQUE1 7, WEAR_UNIQUE2 8, WEAR_ARROW 9, WEAR_SHIELD 10), with the window number `01`. The inventory window has a slot for each (`inventorywindow.py`).
 - **What it sends** (`uiinventory.py`):
   - **A double-click** sends ITEM_USE with the item's position, whether it's in the bag or worn.
   - **A drag onto an empty place** sends ITEM_MOVE to its place; onto an occupied place, ITEM_USE of the dragged item, leaving the place to the server.
@@ -36,7 +36,7 @@ The weapon and armour traders sell those below level 21 ([shops.md](shops.md)). 
 |---|---|---|
 | ITEM_USE `0B`, client | 4 | position: window u8, cell u16 |
 | ITEM_MOVE `0D`, client | 8 | from, to, count u8 |
-| ITEM_SET `14` | 42 | as on [items.md](items.md); worn items at cells 90, 91, 92, 94, 99 and 100 |
+| ITEM_SET `14` | 42 | as on [items.md](items.md); worn items at cells 90, 91, 92, 94, 97, 98, 99 and 100 |
 | CHARACTER_UPDATE `13` | 35 | vid u32, parts u16 ×4 (armour, weapon, head, hair), move speed u8, attack speed u8, state u8, affects u32 ×2, guild u32, alignment u16, player-kill mode u8, mount u32 |
 | CHARACTER_INFO `88` | 54 | as on [entering-the-world.md](entering-the-world.md), with the armour and weapon parts |
 | POINT_CHANGE `11` | 17 | DEF is point 20, the move speed 19 |
@@ -144,7 +144,7 @@ The weapon and armour traders sell those below level 21 ([shops.md](shops.md)). 
 
 ## Not done yet
 
-- The other places: wrists, neck, ears, the unique places and arrows.
+- The other places: wrists, neck and ears. The unique places hold only the thief's gloves ([thief-gloves.md](thief-gloves.md)).
 - Gear past level 36, and jewellery: bracelets, necklaces and earrings.
 - Attack speed, armour's slowness and the other bonuses the tooltip shows.
 - The sex limits some kinds carry; costumes.

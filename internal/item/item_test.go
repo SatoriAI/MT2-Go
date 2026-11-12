@@ -158,15 +158,17 @@ func TestOnlyTheClassesAKindIsForMayWearIt(t *testing.T) {
 	}
 }
 
-// Every kind that is worn says who may wear it and adds to a blow or sets against one;
-// all but arrows, which stack, are worn one at a time.
+// Every kind that is worn says who may wear it and adds to a blow or sets against one, or
+// is worn for a limited time for what it does, as the gloves are; all but arrows, which
+// stack, are worn one at a time.
 func TestEveryWornKindHasItsClassesAndStats(t *testing.T) {
 	for _, vnum := range VNums() {
 		p, _ := Lookup(vnum)
 		weapon := p.Wear == Weapon && p.AttackMin > 0 && p.AttackMin <= p.AttackMax && p.Defence == 0 && p.Stack == 1
 		armour := p.Wear != Weapon && p.Wear != Arrow && p.Defence > 0 && p.AttackMax == 0 && p.Stack == 1
 		arrows := p.Wear == Arrow && p.AttackMin > 0 && p.Defence == 0 && p.Stack == MaxStack
-		if p.Wear != "" && (len(p.Classes) == 0 || (!weapon && !armour && !arrows)) {
+		timed := p.Wear == Unique1 && p.WearFor > 0 && p.Defence == 0 && p.AttackMax == 0 && p.Stack == 1
+		if p.Wear != "" && (len(p.Classes) == 0 || (!weapon && !armour && !arrows && !timed)) {
 			t.Errorf("kind %d: %+v", vnum, p)
 		}
 	}
@@ -263,7 +265,7 @@ func TestGearComesInTheClientsNineGrades(t *testing.T) {
 		}
 	}
 	for _, vnum := range VNums() {
-		if p, _ := Lookup(vnum); p.Graded != (p.Wear != "" && p.Wear != Arrow) {
+		if p, _ := Lookup(vnum); p.Graded != (p.Wear != "" && p.Wear != Arrow && p.WearFor == 0) {
 			t.Errorf("kind %d graded %v", vnum, p.Graded)
 		}
 	}

@@ -336,6 +336,7 @@ type news struct {
 	drains   []buffEnd     // toggles started that drain mana
 	burned   []*present    // monsters newly set alight, to tick
 	lured    []*present    // players who wore a cape, to set the monsters around them on
+	timed    []timing      // items worn for a limited time put on, each run to count down
 }
 
 // takeNews hands the world loop the news, with one lock a tick.

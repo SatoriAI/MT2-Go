@@ -540,7 +540,16 @@ func TestDecodeItemMoveRefusesAShortBody(t *testing.T) {
 func TestAnItemIsSetInACell(t *testing.T) {
 	want := mustHex(t, "14"+"01"+"1100"+"79690000"+"32"+strings.Repeat("00", 12+21))
 
-	if got := EncodeItemSet(ItemPos{Window: 1, Cell: 17}, 27001, 50, Bonuses{}); !bytes.Equal(got, want) {
+	if got := EncodeItemSet(ItemPos{Window: 1, Cell: 17}, 27001, 50, Sockets{}, Bonuses{}); !bytes.Equal(got, want) {
+		t.Errorf("got  %x\nwant %x", got, want)
+	}
+}
+
+// The sockets follow the count, each an i32: the gloves at 97 with 119 minutes in the last.
+func TestItemSetCarriesTheSockets(t *testing.T) {
+	want := mustHex(t, "14"+"01"+"6100"+"9b110100"+"01"+"00000000"+"00000000"+"77000000"+strings.Repeat("00", 21))
+
+	if got := EncodeItemSet(ItemPos{Window: 1, Cell: 97}, 70043, 1, Sockets{2: 119}, Bonuses{}); !bytes.Equal(got, want) {
 		t.Errorf("got  %x\nwant %x", got, want)
 	}
 }
@@ -865,7 +874,7 @@ func TestAnItemsBonusesAreLaidOutAsTheClientReadsThem(t *testing.T) {
 	bonuses := Bonuses{{Type: 72, Value: 20}, {Type: 71, Value: -10}}
 	empty := "000000" + "000000" + "000000" + "000000" + "000000"
 	slots := "481400" + "47f6ff" + empty
-	if got, want := EncodeItemSet(ItemPos{Window: 1, Cell: 4}, 290, 1, bonuses), mustHex(t, "14"+"01"+"0400"+"22010000"+"01"+
+	if got, want := EncodeItemSet(ItemPos{Window: 1, Cell: 4}, 290, 1, Sockets{}, bonuses), mustHex(t, "14"+"01"+"0400"+"22010000"+"01"+
 		"000000000000000000000000"+slots); !bytes.Equal(got, want) {
 		t.Fatalf("ITEM_SET %x\nwant     %x", got, want)
 	}

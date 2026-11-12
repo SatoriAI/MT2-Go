@@ -40,7 +40,7 @@ func (c *client) startAgain() {
 }
 
 func inInventory(cell uint16, vnum uint32, count uint8) []byte {
-	return protocol.EncodeItemSet(protocol.ItemPos{Window: 1, Cell: cell}, vnum, count, protocol.Bonuses{})
+	return protocol.EncodeItemSet(protocol.ItemPos{Window: 1, Cell: cell}, vnum, count, protocol.Sockets{}, protocol.Bonuses{})
 }
 
 // A sword and 50 potions given on the command line are hers the next time she is selected,
@@ -170,7 +170,7 @@ func TestArmourWithABonusIsShownAndWorn(t *testing.T) {
 		t.Fatal(err)
 	}
 	hendra.startAgain()
-	hendra.expect(protocol.EncodeItemSet(protocol.ItemPos{Window: 1, Cell: 0}, 11600, 1, protocol.Bonuses{{Type: 1, Value: 400}}))
+	hendra.expect(protocol.EncodeItemSet(protocol.ItemPos{Window: 1, Cell: 0}, 11600, 1, protocol.Sockets{}, protocol.Bonuses{{Type: 1, Value: 400}}))
 
 	hendra.send([]byte{byte(protocol.ClientItemMove), 1, 0, 0, 1, 90, 0, 1, sequenceByte})
 	hendra.read(2*42 + 35 + 17) // its cells emptied, it worn, her model and her DEF
