@@ -54,6 +54,7 @@ The rules were settled on 2026-11-12 by a Metin2 veteran and a game designer, wi
   - nothing picked up from the bag, for another owner, or from another map;
   - yang the store refuses falling at the wearer's feet;
   - the icon on putting it on and off;
+  - the gloves put on beside it by a double-click, and it put in the first place when only that one is free;
   - its end in the last socket;
   - its end on time: told gone, its icon gone, no yang after, then forgotten;
   - one past its end forgotten on loading;

@@ -2,7 +2,7 @@
 
 ## What the player sees
 
-Rękawica Złodzieja (70043) is worn in one of the inventory window's two unique places, beside the shoes. A double-click puts it in the first, a drag in either. Its tooltip says how much time it has left: «Pozostały Czas : 2Godzin» when new, then for example «1Godzin 59Minut». The time counts down only while the gloves are worn and the character is in the world: taking them off, changing character or logging out stops it, and putting them on again goes on from where it stopped. When the time runs out, the gloves leave their place and the chat says «Czas działania przedmiotu Rękawica Złodzieja minął.»
+Rękawica Złodzieja (70043) is worn in one of the inventory window's two unique places, beside the shoes. A double-click puts it in the first unique place that is free, a drag in either. Its tooltip says how much time it has left: «Pozostały Czas : 2Godzin» when new, then for example «1Godzin 59Minut». The time counts down only while the gloves are worn and the character is in the world: taking them off, changing character or logging out stops it, and putting them on again goes on from where it stopped. When the time runs out, the gloves leave their place and the chat says «Czas działania przedmiotu Rękawica Złodzieja minął.»
 
 A second pair is refused while one is worn, with «Nie możesz założyć dwóch takich samych przedmiotów.», since both would only spend their time.
 
