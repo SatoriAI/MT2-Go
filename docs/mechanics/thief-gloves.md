@@ -6,7 +6,9 @@ Rękawica Złodzieja (70043) is worn in one of the inventory window's two unique
 
 A second pair is refused while one is worn, with «Nie możesz założyć dwóch takich samych przedmiotów.», since both would only spend their time.
 
-What the gloves do, doubling the chance of what their wearer's kills drop, comes in the next change, and so does a way to find them. Until then they are given on the command line (`mt2go item`) or with `/getitem 70043` on a development server.
+While worn, they double the chance of every item the wearer's kills leave, up to certain: a red potion's 8% becomes 16%, a wolf claw's 3% becomes 6%, a stone's gear 15% becomes 30%. What a stone always leaves stays as it is, and so does yang. The kills count by whose drops they are, the player who took most of the monster's hit points. Two pairs are never worn at once, so it is never more than double.
+
+They are found once in 200 metin stones, kept for whoever its drops are kept for, the player who took most of its hit points, and given on the command line (`mt2go item`) or with `/getitem 70043` on a development server. No shop sells them.
 
 ## What the client does
 
@@ -23,20 +25,23 @@ What the gloves do, doubling the chance of what their wearer's kills drop, comes
 
 ## What the server does
 
-`internal/item` has the kind and its two hours (item_proto's VALUE0, 120 minutes); `internal/game/timed.go` counts them; `internal/store` keeps how long each pair has been worn, to the second, in `items.worn_for`.
+`internal/item` has the kind and its two hours (item_proto's VALUE0, 120 minutes); `internal/game/timed.go` counts them; `internal/game/drops.go` doubles the chances ([drops.md](drops.md)); `internal/store` keeps how long each pair has been worn, to the second, in `items.worn_for`.
 
 - **Counting:** the world record holds what each player wears for a limited time, with how long it had been worn and since when, as they put it on or enter the world wearing it. Taking it off, leaving the world, and the periodic save keep how long it has been worn by then, so a crash loses at most one save's round.
 - **The minutes:** the world loop looks at the players wearing such an item each tick, and sends the item again when its minutes left, rounded up, drop by one.
 - **The end:** at 0 the loop tells the client the place is empty and why, and leaves the item for the player's connection to forget, here and in the store, before its next packet that touches what it holds. Until then a save keeps the pair as worn its whole time, so a pair whose player left first is forgotten as the character is next loaded.
 - **In order:** the loop is handed each run of a pair as it is put on, not the player, so a pair put on and taken off between two ticks counts nothing, and one worn again ends once. Taking a pair off writes its time while holding the player's save, so a periodic save that read it before cannot land after.
 - **Not stacking:** a second item of the same unique kind is refused, in either place, so two pairs never run at once.
+- **Its end, at most a tick late:** the loop marks a pair spent at its next tick, so a kill in that tenth of a second after its time still counts as lucky.
 - **Bound:** a pair is never dropped, traded or sold ([items.md](items.md)), so its time stays with its owner.
 
 The rules were settled on 2026-11-11 by a Metin2 veteran and a game designer, with the veteran deciding ties. They agreed on every point here:
 - 70043 alone, not the item shop's timed copies (72004–72006) or the 30-minute scroll (71016);
 - 120 minutes of wearing;
 - no stacking;
-- a plain line at the end.
+- a plain line at the end;
+- every item chance doubled, capped at certain, with yang left alone, for the owner of the drops;
+- found once in 200 stones, a chance the gloves themselves do not double, with no shop.
 
 ## How we know
 
@@ -56,5 +61,7 @@ The rules were settled on 2026-11-11 by a Metin2 veteran and a game designer, wi
   - kept on leaving and in the periodic save;
   - a spent pair kept whole on leaving, and forgotten on loading;
   - on and off within a tick counting nothing, worn again ending once, and worn while the loop ticks on its own goroutine without a race.
+- `internal/game/luck_test.go`: a chance doubled for an owner wearing them, capped at certain, not for yang or a steady pick, not for a spent pair, and the owner's, not the killer's.
+- `internal/mob/mob_test.go`: every stone's chance of the gloves, steady.
 - `internal/store/items_test.go`: the gloves kept in the second unique place with their time worn.
 - `internal/protocol/protocol_test.go`: ITEM_SET with its sockets.

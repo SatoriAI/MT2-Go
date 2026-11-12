@@ -32,6 +32,7 @@
 - **The gear** is one of each class's first weapons and armours.
 - **A piece of the rare gear,** 4 times in 100 from every stone: one +0 kind of the gear past the first from level 21 ([equipment.md](equipment.md)).
 - **Bonuses:** every piece of gear a stone leaves carries one to three bonuses ([bonuses.md](bonuses.md)).
+- **The thief's gloves,** once in 200 from every stone, a chance no pair doubles, so one pair does not find the next ([thief-gloves.md](thief-gloves.md)).
 - **A skill book,** 3 times in 100 from every stone, is the book of one skill of any class; Metin Bitwy also leaves a soul stone once in 100 ([skills.md](skills.md)).
 - **The helpers of a read:** Zwój Egzorcyzmu once in 100 and Rada Pustelnika once in 200 from every stone, and from Metin Bitwy each 3 times in 100 ([skills.md](skills.md)).
 
@@ -112,7 +113,7 @@ Damage, target, death and drops use the same packets as for monsters ([combat.md
 - `internal/mob/mob_test.go`:
   - each stone's waves are monsters no stronger than it;
   - only stones call waves and come back late;
-  - each stone's drops are as in the table above, with a skill book 3 times in 100 and a piece of the rare gear 4 times in 100;
+  - each stone's drops are as in the table above, with a skill book 3 times in 100, a piece of the rare gear 4 times in 100 and the thief's gloves once in 200;
   - the +3 gear is the first gear's +3.
 - `internal/world/spawns_test.go`: three, two and two stones per village, each with three spots; each spot in its band, on its map, and clear of everything else.
 - `internal/game/monsters_test.go`: a stone's waves and their strolls stay on its map.

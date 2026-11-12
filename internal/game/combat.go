@@ -275,7 +275,7 @@ func (l locked) kill(p, v *present, now time.Time) {
 	f, vid := v.fight, v.add.VID
 	f.diedAt, f.ailing = now, 0 // a body has no ailments
 	winner := l.topDamager(f, p)
-	l.news.fallen = append(l.news.fallen, death{v, now, owner{id: winner.char.ID, name: winner.info.Name}})
+	l.news.fallen = append(l.news.fallen, death{v, now, owner{id: winner.char.ID, name: winner.info.Name}, wearsLuck(winner)})
 	if f.stone {
 		inform(winner, "Zniszczyłeś kamień Metin.")
 	}
@@ -323,6 +323,7 @@ type death struct {
 	p     *present
 	at    time.Time
 	owner owner
+	lucky bool // the owner wore what doubles drops as it died
 }
 
 // news is what happened since the world loop last asked, kept on the world record for it.

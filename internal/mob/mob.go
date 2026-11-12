@@ -87,11 +87,13 @@ type Drop struct {
 }
 
 // Pick is Count of one kind of item, picked evenly from From, that a monster may leave
-// when it dies, with a chance of Chance in 10,000.
+// when it dies, with a chance of Chance in 10,000. Steady is a chance the thief's gloves
+// do not double: theirs, so a pair does not find the next.
 type Pick struct {
 	From   []uint32
 	Count  uint8
 	Chance uint16
+	Steady bool
 }
 
 // The village shops (docs/mechanics/shops.md): the weapon trader's first weapons along the
@@ -149,11 +151,12 @@ var (
 )
 
 // stonePicks is what a stone always leaves, potions and materials, each count of one
-// kind, and with a chance in 10,000 one piece of the first gear, and 3 times in 100 a
-// skill book.
+// kind, and with a chance in 10,000 one piece of the first gear, 3 times in 100 a skill
+// book, and once in 200 the thief's gloves, as the debaters settled.
 func stonePicks(potions, materialCount uint8, gear uint16) []Pick {
 	return []Pick{{From: potionKinds, Count: potions, Chance: 10000}, {From: materials, Count: materialCount, Chance: 10000},
-		{From: firstGear, Count: 1, Chance: gear}, {From: books, Count: 1, Chance: 300}, {From: rareGear, Count: 1, Chance: 400}}
+		{From: firstGear, Count: 1, Chance: gear}, {From: books, Count: 1, Chance: 300}, {From: rareGear, Count: 1, Chance: 400},
+		{From: []uint32{item.ThiefGloves}, Count: 1, Chance: 50, Steady: true}}
 }
 
 // rareGear is the gear no trader sells: the helmets and the shield of level 21, each
