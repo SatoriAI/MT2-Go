@@ -30,6 +30,9 @@ func (s *session) onExchange(ctx context.Context, body []byte) error {
 			s.conn.Log().Debug("trade offer refused", "pos", e.Pos)
 			return nil
 		}
+		if kind, _ := item.Lookup(it.VNum); kind.Bound {
+			return s.conn.Send(infoLine("Nie możesz handlować tym przedmiotem.")) // the client's own words
+		}
 		w.offerItem(vid, it, e.Shown, now)
 	case protocol.ExchangeYang:
 		w.offerYang(vid, e.Arg, s.gold, now)
