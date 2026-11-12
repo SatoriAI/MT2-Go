@@ -96,6 +96,7 @@ func (svc *Service) Run(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
+			svc.crediting.Wait()
 			return nil
 		case now := <-t.C:
 			svc.tick(now)
@@ -319,6 +320,7 @@ func (svc *Service) tick(now time.Time) {
 		m.diedAt, m.chase = d.at, nil
 		svc.dropFrom(m, d, now)
 	}
+	svc.creditYang()
 	for _, p := range n.poisoned {
 		svc.poisons.add(p, now.Add(poisonEvery))
 	}
@@ -339,6 +341,8 @@ func (svc *Service) tick(now time.Time) {
 	svc.lure(n.lured, now)
 	svc.timings = append(svc.timings, n.timed...)
 	svc.keepTimed(now)
+	svc.lastings = append(svc.lastings, n.lasting...)
+	svc.endLasting(now)
 	svc.lookOut(now)
 	for _, m := range svc.monsters {
 		switch {

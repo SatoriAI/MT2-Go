@@ -202,6 +202,25 @@ func TestGlovesAreKeptInAUniquePlaceWithTheTimeWorn(t *testing.T) {
 	}
 }
 
+// A third hand given lasts thirty days from then; a sword lasts for ever.
+func TestAThirdHandGivenEndsInThirtyDays(t *testing.T) {
+	s, cid := hendrasItems(t)
+	s.mustOrder(t, item.Order{Kind: item.Give, VNum: item.ThirdHand, Count: 1})
+	s.mustOrder(t, item.Order{Kind: item.Give, VNum: 10, Count: 1})
+	before := time.Now()
+
+	inv, _ := s.mustApply(t, cid)
+
+	hand, sword := inv[0], inv[1]
+	if hand.VNum != item.ThirdHand {
+		hand, sword = sword, hand
+	}
+	if want := before.Add(30 * 24 * time.Hour); hand.EndsAt.Before(want.Add(-time.Minute)) || hand.EndsAt.After(want.Add(time.Minute)) ||
+		!sword.EndsAt.IsZero() {
+		t.Fatalf("the hand ends %v, the sword %v", hand.EndsAt, sword.EndsAt)
+	}
+}
+
 // Putting on a sword where another is worn moves both in one transaction, as the game
 // writes them: the new one into the weapon's place, then the old one into the cell the new
 // one left. One to a place is checked at the end, when they no longer share it.

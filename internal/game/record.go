@@ -4,10 +4,12 @@ import (
 	"math"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/SatoriAI/MT2-Go/internal/account"
 	"github.com/SatoriAI/MT2-Go/internal/event"
+	"github.com/SatoriAI/MT2-Go/internal/item"
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
 	"github.com/SatoriAI/MT2-Go/internal/world"
 )
@@ -86,6 +88,16 @@ type present struct {
 	sees map[uint32]*present
 	// timed is what a player wears for a limited time, counted while they are in the world.
 	timed *wearing
+	// hand is when the third hand a player wears ends, zero for none; lasting is what they
+	// hold that lasts in real time, which the world loop ends on time while watched.
+	hand    time.Time
+	lasting []item.Item
+	watched bool
+	// credited is set once their third hand's yang is kept, for their connection to read
+	// its yang again; it is written off the world's lock, so it is atomic.
+	credited atomic.Bool
+	// creditTurn is held by the one credit of their yang being kept, so credits take turns.
+	creditTurn sync.Mutex
 }
 
 // appearance is what shows the character to another client. The client builds a player

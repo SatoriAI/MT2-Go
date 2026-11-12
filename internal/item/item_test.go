@@ -167,7 +167,7 @@ func TestEveryWornKindHasItsClassesAndStats(t *testing.T) {
 		weapon := p.Wear == Weapon && p.AttackMin > 0 && p.AttackMin <= p.AttackMax && p.Defence == 0 && p.Stack == 1
 		armour := p.Wear != Weapon && p.Wear != Arrow && p.Defence > 0 && p.AttackMax == 0 && p.Stack == 1
 		arrows := p.Wear == Arrow && p.AttackMin > 0 && p.Defence == 0 && p.Stack == MaxStack
-		timed := p.Wear == Unique1 && p.WearFor > 0 && p.Defence == 0 && p.AttackMax == 0 && p.Stack == 1
+		timed := p.Wear == Unique1 && (p.WearFor > 0 || p.Lasts > 0) && p.Defence == 0 && p.AttackMax == 0 && p.Stack == 1
 		if p.Wear != "" && (len(p.Classes) == 0 || (!weapon && !armour && !arrows && !timed)) {
 			t.Errorf("kind %d: %+v", vnum, p)
 		}
@@ -265,7 +265,7 @@ func TestGearComesInTheClientsNineGrades(t *testing.T) {
 		}
 	}
 	for _, vnum := range VNums() {
-		if p, _ := Lookup(vnum); p.Graded != (p.Wear != "" && p.Wear != Arrow && p.WearFor == 0) {
+		if p, _ := Lookup(vnum); p.Graded != (p.Wear != "" && p.Wear != Arrow && p.WearFor == 0 && p.Lasts == 0) {
 			t.Errorf("kind %d graded %v", vnum, p.Graded)
 		}
 	}
@@ -419,7 +419,7 @@ func TestOnlyUsedAndQuestItemsGoOnTheTaskbar(t *testing.T) {
 }
 
 // The kinds bound to their owner are those item_proto flags ANTI_DROP, ANTI_GIVE and
-// ANTI_SELL, all five with all three.
+// ANTI_SELL, all six with all three.
 func TestTheBoundKindsAreTheClientsAntiDropGiveAndSellOnes(t *testing.T) {
 	var bound []uint32
 	for _, vnum := range VNums() {
@@ -427,7 +427,7 @@ func TestTheBoundKindsAreTheClientsAntiDropGiveAndSellOnes(t *testing.T) {
 			bound = append(bound, vnum)
 		}
 	}
-	if want := []uint32{BraveryCape, ThiefGloves, TeleportRing, ExorcismScroll, HermitsAdvice}; !slices.Equal(bound, slices.Sorted(slices.Values(want))) {
+	if want := []uint32{BraveryCape, ThiefGloves, TeleportRing, ExorcismScroll, HermitsAdvice, ThirdHand}; !slices.Equal(bound, slices.Sorted(slices.Values(want))) {
 		t.Fatalf("bound %v, want %v", bound, want)
 	}
 }

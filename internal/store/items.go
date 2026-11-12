@@ -108,9 +108,9 @@ func (s Items) ApplyOrders(ctx context.Context, characterID uint32) (item.Invent
 				if !ok {
 					continue
 				}
-				it := item.Item{VNum: o.VNum, Count: o.Count, Cell: cell}
-				if err := tx.QueryRow(ctx, `INSERT INTO items (character_id, vnum, count, cell)
-					VALUES ($1, $2, $3, $4) RETURNING id`, characterID, it.VNum, it.Count, it.Cell).
+				it := item.Item{VNum: o.VNum, Count: o.Count, Cell: cell, EndsAt: p.EndOf(time.Now())}
+				if err := tx.QueryRow(ctx, `INSERT INTO items (character_id, vnum, count, cell, ends_at)
+					VALUES ($1, $2, $3, $4, $5) RETURNING id`, characterID, it.VNum, it.Count, it.Cell, endsAt(it)).
 					Scan(&it.ID); err != nil {
 					return err
 				}
@@ -152,8 +152,8 @@ func (s Items) Place(ctx context.Context, characterID uint32, items ...item.Item
 func (s Items) Add(ctx context.Context, characterID uint32, it item.Item) (int64, error) {
 	var id int64
 	err := pgx.BeginFunc(ctx, s.Pool, func(tx pgx.Tx) error {
-		if err := tx.QueryRow(ctx, `INSERT INTO items (character_id, vnum, count, cell) VALUES ($1, $2, $3, $4)
-			RETURNING id`, characterID, it.VNum, it.Count, it.Cell).Scan(&id); err != nil {
+		if err := tx.QueryRow(ctx, `INSERT INTO items (character_id, vnum, count, cell, ends_at) VALUES ($1, $2, $3, $4, $5)
+			RETURNING id`, characterID, it.VNum, it.Count, it.Cell, endsAt(it)).Scan(&id); err != nil {
 			return err
 		}
 		for slot, b := range it.Bonuses {
@@ -220,8 +220,16 @@ func (s Items) UnknownKinds(ctx context.Context, known []uint32) ([]uint32, erro
 	return pgx.CollectRows(rows, pgx.RowTo[uint32])
 }
 
+// endsAt is an item's end as the table keeps it: NULL for one that does not end.
+func endsAt(it item.Item) *time.Time {
+	if it.EndsAt.IsZero() {
+		return nil
+	}
+	return &it.EndsAt
+}
+
 func inventory(ctx context.Context, tx pgx.Tx, characterID uint32) (item.Inventory, error) {
-	rows, err := tx.Query(ctx, `SELECT id, vnum, count, coalesce(cell, 0), coalesce(worn, ''), worn_for,
+	rows, err := tx.Query(ctx, `SELECT id, vnum, count, coalesce(cell, 0), coalesce(worn, ''), worn_for, ends_at,
 		coalesce((SELECT array_agg(kind ORDER BY slot) FROM item_bonuses WHERE item_id = items.id), '{}'),
 		coalesce((SELECT array_agg(value ORDER BY slot) FROM item_bonuses WHERE item_id = items.id), '{}')
 		FROM items WHERE character_id = $1 ORDER BY worn NULLS FIRST, cell`, characterID)
@@ -233,8 +241,12 @@ func inventory(ctx context.Context, tx pgx.Tx, characterID uint32) (item.Invento
 		var kinds []account.Bonus
 		var values []int16
 		var wornFor int32
-		err := row.Scan(&it.ID, &it.VNum, &it.Count, &it.Cell, &it.Worn, &wornFor, &kinds, &values)
+		var endsAt *time.Time
+		err := row.Scan(&it.ID, &it.VNum, &it.Count, &it.Cell, &it.Worn, &wornFor, &endsAt, &kinds, &values)
 		it.WornFor = time.Duration(wornFor) * time.Second
+		if endsAt != nil {
+			it.EndsAt = *endsAt
+		}
 		for i, kind := range kinds {
 			it.Bonuses = append(it.Bonuses, item.Rolled{Kind: kind, Value: values[i]})
 		}

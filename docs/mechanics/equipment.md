@@ -144,7 +144,7 @@ The weapon and armour traders sell those below level 21 ([shops.md](shops.md)). 
 
 ## Not done yet
 
-- The other places: wrists, neck and ears. The unique places hold only the thief's gloves ([thief-gloves.md](thief-gloves.md)).
+- The other places: wrists, neck and ears. The unique places hold only the thief's gloves ([thief-gloves.md](thief-gloves.md)) and the third hand ([third-hand.md](third-hand.md)).
 - Gear past level 36, and jewellery: bracelets, necklaces and earrings.
 - Attack speed, armour's slowness and the other bonuses the tooltip shows.
 - The sex limits some kinds carry; costumes.

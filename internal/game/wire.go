@@ -173,6 +173,16 @@ func aidShown(aid account.Aid) []byte {
 
 func aidGone(aid account.Aid) []byte { return protocol.EncodeAffectRemove(aidAffects[aid], 0) }
 
+// handAffect is the client's affect type for the third hand at work, NEW_AFFECT_AUTOLOOT,
+// whose icon its affect bar shows.
+const handAffect = 503
+
+func handShown() []byte {
+	return protocol.EncodeAffectAdd(protocol.Affect{Type: handAffect, Duration: protocol.AffectForever})
+}
+
+func handGone() []byte { return protocol.EncodeAffectRemove(handAffect, 0) }
+
 // buffShown and buffGone show and hide a running buff's time on its skill's icon: an
 // affect whose type is the skill's own number, as the original server adds one, with the
 // whole seconds left, never 0, which the client takes for no time at all.
@@ -479,10 +489,14 @@ func itemSet(it item.Item) []byte {
 	return protocol.EncodeItemSet(itemPos(it), it.VNum, it.Count, socketsOf(it), bonusSlots(it.Bonuses))
 }
 
-// socketsOf is an item's sockets as the client reads them: for a kind worn for a limited
-// time, the minutes it has left, rounded up, in the last, which its tooltip shows.
+// socketsOf is an item's sockets as the client reads them: in the last, which its tooltip
+// shows, the minutes left of a kind worn for a limited time, rounded up, or the end of one
+// lasting in real time.
 func socketsOf(it item.Item) protocol.Sockets {
 	p, _ := item.Lookup(it.VNum)
+	if p.Lasts > 0 { // VALUE2 1: the client reads the end, in unix seconds, against its clock
+		return protocol.Sockets{2: int32(it.EndsAt.Unix())} //nolint:gosec // until 2038
+	}
 	if p.WearFor == 0 {
 		return protocol.Sockets{}
 	}
