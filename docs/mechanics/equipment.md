@@ -90,7 +90,7 @@ The weapon and armour traders sell those below level 21 ([shops.md](shops.md)). 
 - **An item is in a cell or worn, never both,** and one item is worn in each place; the database keeps both rules. A swap moves two items in one transaction, the new one in before the old one out, so one to a place is checked at its end.
 - **Putting on:**
   - A double-click on a wearable item in the bag, or a drag onto its own empty place.
-  - A unique item double-clicked goes in the first unique place that is free, 97 then 98, and only with both taken in place of what is in 97. The client sends no place with a double-click, so the server chooses; open-mt2 always takes 97, which would take off the gloves to put on the third hand.
+  - A unique item double-clicked goes in the first unique place that is free, 97 then 98, and only with both taken in place of what is in 97. The client sends no place with a double-click, so the server chooses; open-mt2 always takes 97, which would take off the gloves to put on the third hand. As a drag onto an occupied place arrives as a double-click, one onto 97 with 98 free puts the item in 98 too.
   - What is worn there goes into the cells the new item leaves if it fits, or the first room in the bag. With no room, nothing changes.
   - A class that may not wear it is told why, as a chat line from the game (type 1, vid 0), and the item is shown where it was.
   - A drag onto the wrong place, or onto an occupied one, is refused the same way, without a chat line. The client sends a drag onto an occupied place as a double-click anyway.
