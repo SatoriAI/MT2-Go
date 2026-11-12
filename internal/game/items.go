@@ -142,7 +142,21 @@ func (s *session) onItemUse(ctx context.Context, body []byte) error {
 // no room for it, nothing changes.
 func (s *session) putOn(it item.Item) error {
 	p, _ := item.Lookup(it.VNum)
-	return s.putOnAt(it, p.Wear)
+	return s.putOnAt(it, s.placeFor(p))
+}
+
+// placeFor is where a double-click wears the kind: its own place, or for a unique kind the
+// first unique place that is free, so the gloves and the third hand go on side by side.
+func (s *session) placeFor(p item.Proto) item.Wear {
+	if p.Wear != item.Unique1 {
+		return p.Wear
+	}
+	if _, taken := s.inventory.WornIn(item.Unique1); taken {
+		if _, taken := s.inventory.WornIn(item.Unique2); !taken {
+			return item.Unique2
+		}
+	}
+	return item.Unique1
 }
 
 // putOnAt is putOn into the place, one of the kind's: a unique kind may be worn in either

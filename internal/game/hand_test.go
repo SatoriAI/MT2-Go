@@ -185,6 +185,43 @@ func TestTheThirdHandShowsItsIconWhileWorn(t *testing.T) {
 	}
 }
 
+// With the third hand in the first unique place, a double-click puts the gloves in the
+// second, beside it, and the hand keeps working.
+func TestTheGlovesGoBesideTheThirdHand(t *testing.T) {
+	s, _, _, client := handed(t, true, 0)
+	s.inventory = append(s.inventory, item.Item{ID: 6, VNum: item.ThiefGloves, Count: 1, Cell: 20})
+
+	if err := s.onItemUse(context.Background(), doubleClicked(20)); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := packets(t, drain(t, client)); !holds(got, glovesShown(98, 120)) || holds(got, handGone()) {
+		t.Fatalf("told %x", got)
+	}
+	gloves, _ := s.inventory.ByID(6)
+	hand, _ := s.inventory.ByID(5)
+	if gloves.Worn != item.Unique2 || hand.Worn != item.Unique1 {
+		t.Fatalf("gloves in %q, the hand in %q", gloves.Worn, hand.Worn)
+	}
+}
+
+// With the second unique place taken, a double-click fills the first.
+func TestTheThirdHandGoesInTheFirstUniquePlaceWhenOnlyItIsFree(t *testing.T) {
+	s, _, _, client := handed(t, false, 0)
+	s.inventory = append(s.inventory, item.Item{ID: 6, VNum: item.ThiefGloves, Count: 1, Cell: 98, Worn: item.Unique2})
+
+	if err := s.onItemUse(context.Background(), doubleClicked(4)); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := packets(t, drain(t, client)); !holds(got, handShown()) {
+		t.Fatalf("told %x", got)
+	}
+	if hand, _ := s.inventory.ByID(5); hand.Worn != item.Unique1 {
+		t.Fatalf("the hand in %q", hand.Worn)
+	}
+}
+
 // Its tooltip reads its end, in unix seconds, from the last socket.
 func TestTheThirdHandShowsItsEnd(t *testing.T) {
 	ends := noon.Add(30 * 24 * time.Hour)
