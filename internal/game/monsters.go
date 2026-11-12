@@ -96,6 +96,7 @@ func (svc *Service) Run(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
+			svc.crediting.Wait()
 			return nil
 		case now := <-t.C:
 			svc.tick(now)

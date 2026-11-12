@@ -61,6 +61,9 @@ func (s *session) getYang(ctx context.Context, arg string) error {
 	if err != nil || amount == 0 {
 		return s.conn.Send(infoLine("Użycie: /getyang ilość"))
 	}
+	if err := s.catchUpYang(ctx); err != nil {
+		return err
+	}
 	if uint64(s.gold)+amount > maxGold {
 		return s.conn.Send(infoLine(fmt.Sprintf("Tyle się nie zmieści: postać może mieć najwyżej %d Yang.", maxGold)))
 	}

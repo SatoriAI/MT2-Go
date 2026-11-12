@@ -96,6 +96,8 @@ type present struct {
 	// credited is set once their third hand's yang is kept, for their connection to read
 	// its yang again; it is written off the world's lock, so it is atomic.
 	credited atomic.Bool
+	// creditTurn is held by the one credit of their yang being kept, so credits take turns.
+	creditTurn sync.Mutex
 }
 
 // appearance is what shows the character to another client. The client builds a player

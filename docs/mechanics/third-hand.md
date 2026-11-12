@@ -8,7 +8,7 @@ It lasts thirty days of real time from the moment it is made, worn or not, logge
 
 - **Only the wearer's yang:** that of monsters whose drops are kept for them, the player who took most of their hit points. Yang kept for another, yang free for anyone after its owner's time, and yang players drop are clicked as always.
 - **Not from elsewhere:** a wearer who has left the monster's map, by the teleport ring, gets its yang on the ground by the body, theirs, as any owner does.
-- **Never past the cap:** yang the store will not keep, past what a character may hold, falls at the wearer's feet, theirs alone.
+- **Never past the cap:** yang the store will not keep, past what a character may hold or when the store fails, falls at the wearer's feet, theirs alone, if they are still in the world; else it is lost, and logged as a warning.
 - **Items** are never picked up, only yang.
 - **Bound:** it is never dropped, traded or sold ([items.md](items.md)). It comes only from `/getitem 71010` on a development server, and the command line, for now.
 
@@ -31,7 +31,7 @@ It lasts thirty days of real time from the moment it is made, worn or not, logge
 `internal/item` has the kind, which lasts thirty days (item_proto's VALUE0, 2,592,000 seconds), and its end is set as it is made: by the server's clock when it is picked up or given by `/getitem`, by the store's when an order from the command line makes it. `internal/store` keeps it in `items.ends_at`. `internal/game/hand.go` does the rest.
 
 - **Who collects:** as a monster dies, under the world's lock, its drops' owner is its collector if they wear a third hand not yet at its end and stand on its map. The world loop then rolls its yang as always, the thief's gloves doubling none of it, and adds a collector's to what they picked up this tick instead of laying it down.
-- **Keeping it:** after the tick, the loop starts one write a collector, off its own goroutine, since a write may take seconds. The write tells the player their new balance, and marks that their connection must read its yang again, which it does before its next packet that touches what it holds, so the yang it holds is always the store's.
+- **Keeping it:** after the tick, the loop starts one write a collector, off its own goroutine, since a write may take seconds, and waits for those under way as it stops. One player's writes take turns, so the balances they are told only rise. Each tells the player their new balance, and marks that their connection must read its yang again, which it does, and shows, before its next packet that touches what it holds or `/getyang`, so the yang it holds is always the store's.
 - **The end:** the world record holds what each player holds that lasts in real time, where it is, as their connection tells it on entering and after each move of an item. The loop watches the players holding any, and at an item's end tells the client it is gone, takes the icon away for a worn hand, and leaves the item for the connection to forget, as a spent pair of gloves is. One ended while its owner was away is forgotten as they are next loaded.
 
 The rules were settled on 2026-11-12 by a Metin2 veteran and a game designer, with the veteran deciding ties. Dawid chose the thirty calendar days and the development command as its only source.

@@ -48,24 +48,29 @@ func collector(winner, body *present, now time.Time) *present {
 
 // creditYang hands each player the yang their third hand picked up this tick, one write and
 // one POINT_CHANGE each, however many monsters fell. The write is the store's, so it runs
-// off the world loop; the player's connection reads its yang again before it next uses it.
+// off the world loop, which waits for those under way as it stops; the player's connection
+// reads its yang again before it next uses it.
 func (svc *Service) creditYang() {
 	for p, amount := range svc.picked {
-		go svc.credit(p, amount)
+		svc.crediting.Go(func() { svc.credit(p, amount) })
 	}
 	clear(svc.picked)
 }
 
-// credit keeps the yang picked up for the player and tells them their balance. Yang past
-// what they may hold, which the store refuses, falls at their feet instead, theirs alone.
+// credit keeps the yang picked up for the player and tells them their balance. One player's
+// credits take turns, so the balances they are told only rise. Yang the store refuses, past
+// what they may hold, falls at their feet instead, theirs alone, if they are still there.
 func (svc *Service) credit(p *present, amount uint32) {
+	p.creditTurn.Lock()
+	defer p.creditTurn.Unlock()
 	ctx, cancel := context.WithTimeout(context.Background(), saveTimeout)
 	defer cancel()
 	gold, err := svc.items.AddGold(ctx, p.char.ID, amount)
 	if err != nil {
-		svc.log.Info("yang picked up by the third hand not kept", "character", p.char.ID, "amount", amount, "err", err)
-		svc.record.layYang(p, &groundItem{vid: svc.lastVID.Add(1), gold: amount,
+		laid := svc.record.layYang(p, &groundItem{vid: svc.lastVID.Add(1), gold: amount,
 			owner: owner{id: p.char.ID, name: p.info.Name}, dropped: svc.now()})
+		svc.log.Warn("yang picked up by the third hand not kept", "character", p.char.ID, "amount", amount,
+			"laid at their feet", laid, "err", err)
 		return
 	}
 	p.credited.Store(true)
@@ -73,17 +78,18 @@ func (svc *Service) credit(p *present, amount uint32) {
 }
 
 // layYang lays yang the third hand could not keep at the player's feet, if they are still
-// in the world.
-func (w *record) layYang(p *present, it *groundItem) {
+// in the world, and reports whether it did.
+func (w *record) layYang(p *present, it *groundItem) bool {
 	l, unlock := w.lock()
 	defer unlock()
 	if l.all[p.add.VID] != p {
-		return
+		return false
 	}
 	it.world, it.x, it.y = p.world, p.add.X, p.add.Y
 	l.lay(it)
 	l.toNear(it, shown(it)...)
 	l.news.laid = append(l.news.laid, timed{it.vid, it.dropped.Add(lieFor)})
+	return true
 }
 
 // lastingIn is what the inventory holds that lasts in real time.
@@ -98,11 +104,17 @@ func lastingIn(inv item.Inventory) []item.Item {
 }
 
 // keepLasting tells the world record what the player holds that lasts in real time, where
-// it now is, for the world loop to end it on time. Such an item is bound and leaves only
-// at its end, which the loop itself takes off its list, so a player holding none has
-// nothing to tell.
+// it now is, for the world loop to end it on time; not what has ended, which the loop has
+// already, until the connection forgets it. Such an item is bound and leaves only at its
+// end, which the loop itself takes off its list, so a player holding none tells nothing.
 func (s *session) keepLasting() {
-	if lasting := lastingIn(s.inventory); len(lasting) > 0 {
+	lasting := lastingIn(s.inventory)
+	if len(lasting) == 0 {
+		return
+	}
+	now := s.svc.now()
+	lasting = slices.DeleteFunc(lasting, func(it item.Item) bool { return !now.Before(it.EndsAt) })
+	if len(lasting) > 0 {
 		s.svc.record.holdLasting(s.playing.vid, lasting)
 	}
 }
@@ -160,7 +172,8 @@ func (s *session) handShown() [][]byte {
 }
 
 // catchUpYang reads the player's yang again once their third hand has picked some up, so
-// what the connection holds is the store's before it is used.
+// what the connection holds is the store's before it is used, and shows the client it, in
+// case a credit's balance reached it after one of its own.
 func (s *session) catchUpYang(ctx context.Context) error {
 	if s.me == nil || !s.me.credited.Swap(false) {
 		return nil
@@ -170,5 +183,5 @@ func (s *session) catchUpYang(ctx context.Context) error {
 		return err
 	}
 	s.gold = gold
-	return nil
+	return s.conn.Send(s.yangChanged(0))
 }

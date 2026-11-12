@@ -2,6 +2,7 @@ package game
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"net"
 	"slices"
@@ -264,5 +265,44 @@ func TestTheThirdHandTakesNothingFromAnotherMap(t *testing.T) {
 
 	if len(s.svc.record.state.ground) != 1 {
 		t.Fatalf("%d lie", len(s.svc.record.state.ground))
+	}
+}
+
+// Catching up shows the client the balance it read, in case a credit's reached the client
+// after one of its own.
+func TestCatchingUpOnTheHandsYangShowsTheBalance(t *testing.T) {
+	s, _, p, client := handed(t, true, 1)
+	kill(s, p, s.svc.monsters[0])
+	s.svc.tick(noon)
+	drain(t, client)
+
+	if _, err := s.catchUp(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := packets(t, drain(t, client)); !holds(got, pointTold(1000, protocol.PointGold, 0, 27)) {
+		t.Fatalf("told %x", got)
+	}
+}
+
+// One that has ended is not watched again by a move of another item before her
+// connection forgets it, so it ends once.
+func TestAnEndedThirdHandEndsOnce(t *testing.T) {
+	s, _, _, client := handed(t, true, 0)
+	s.inventory = append(s.inventory, item.Item{ID: 6, VNum: 27001, Count: 1, Cell: 10})
+	s.svc.tick(noon.Add(24 * time.Hour))
+	drain(t, client)
+	at(s, 24*time.Hour)
+
+	moved := slices.Concat([]byte{1}, binary.LittleEndian.AppendUint16(nil, 10), []byte{1},
+		binary.LittleEndian.AppendUint16(nil, 11), []byte{1})
+	if err := s.onItemMove(moved); err != nil {
+		t.Fatal(err)
+	}
+	drain(t, client)
+	s.svc.tick(noon.Add(24*time.Hour + time.Second))
+
+	if got := packets(t, drain(t, client)); len(got) != 0 {
+		t.Fatalf("told %x", got)
 	}
 }

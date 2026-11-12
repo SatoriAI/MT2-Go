@@ -120,6 +120,7 @@ type loop struct {
 	timings            []timing            // the items worn for a limited time, to count down
 	lastings           []*present          // the players holding what lasts in real time
 	picked             map[*present]uint32 // yang third hands picked up this tick, by player
+	crediting          sync.WaitGroup      // the writes of that yang under way
 }
 
 // NewService makes the game port's shared state; Run puts spawns' mobs in the world.
