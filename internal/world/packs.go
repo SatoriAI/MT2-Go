@@ -16,6 +16,7 @@ const (
 	boars  family = "boars"
 	bears  family = "bears"
 	tigers family = "tigers"
+	orcs   family = "orcs"
 )
 
 // A family's pack holds from smallest, the original's three, to largest, rolled each time
@@ -31,11 +32,14 @@ var families = map[family][]uint16{
 	boars:  {108, 109},
 	bears:  {110, 111, 112, 113},
 	tigers: {114},
+	orcs:   {601, 602, 603, 604, 631, 632, 633, 634, 635, 636, 637},
 }
 
 // band is how far out from its village a kind stands: none before from, more and more
 // up to peak, most from there to fall, fewer and fewer to to. The bands overlap, so the
-// kinds change gradually, the harder the further out (docs/mechanics/monsters.md).
+// kinds change gradually, the harder the further out (docs/mechanics/monsters.md). In the
+// valley, which has no village, out is how far in from its arrival's ring about the
+// centre, so the orcs harden towards the middle (docs/mechanics/maps.md).
 type band struct{ from, peak, fall, to float64 }
 
 var bands = map[uint16]band{
@@ -51,6 +55,18 @@ var bands = map[uint16]band{
 	112: {36000, 42000, 55000, 55001},
 	113: {42000, 48000, 55000, 55001},
 	114: {40000, 48000, 55000, 55001},
+
+	601: {0, 0, 12000, 22000},
+	602: {4000, 12000, 20000, 30000},
+	603: {12000, 20000, 28000, 36000},
+	604: {18000, 26000, 34000, 42000},
+	631: {26000, 34000, 40000, 46000},
+	632: {30000, 36000, 44000, 50000},
+	633: {34000, 40000, 48000, 54000},
+	634: {36000, 42000, 50000, 56000},
+	635: {44000, 50000, 60000, 60001},
+	636: {48000, 54000, 60000, 60001},
+	637: {52000, 56000, 60000, 60001},
 }
 
 // weight is how likely the kind is d out from the village, out of 100 at its most.

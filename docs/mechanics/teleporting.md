@@ -2,7 +2,11 @@
 
 ## What the player sees
 
-A double-click on Pierścień Teleportacji (70058) opens a dialog: «Dokąd chcesz się przenieść?», with the player's own village, Strefa Yongan, Strefa Joan or Strefa Pyungmoo by kingdom, and «Anuluj». Picking the village shows the loading screen, and the character stands at the kingdom's start, where a new character first appears and a restart in town puts them. The others nearby see the character vanish. The ring stays in the bag.
+A double-click on Pierścień Teleportacji (70058) opens a dialog: «Dokąd chcesz się przenieść?», a line «Dolina Seungryong: zalecany poziom 20+, potwory są tam silniejsze.», and three buttons: the player's own village (Strefa Yongan, Strefa Joan or Strefa Pyungmoo by kingdom), «Dolina Seungryong» and «Anuluj».
+- **The village:** the loading screen shows, and the character stands at the kingdom's start, where a new character first appears and a restart in town puts them.
+- **The valley:** from level 20 the character stands at the valley's arrival, on its southern plateau ([maps.md](maps.md)). Below it the chat says «Dolina Seungryong jest dostępna od 20 poziomu.» and nothing happens.
+
+The others nearby see the character vanish. The ring stays in the bag.
 
 It is refused with a line in the chat:
 - «Masz za niski poziom, aby użyć tego przedmiotu.» below level 5;
@@ -22,7 +26,7 @@ No shop sells the ring and nothing drops it; it is given on the command line (`m
 | Packet | Bytes | Fields |
 |---|---|---|
 | ITEM_USE `0B`, client | 4, then the sequence byte | the item's position ([items.md](items.md)) |
-| SCRIPT `2D` | its own length | skin `01`, the text: `Dokąd chcesz się przenieść?[ENTER][QUESTION 1;Strefa Yongan\|2;Anuluj]` |
+| SCRIPT `2D` | its own length | skin `01`, the text: `Dokąd chcesz się przenieść?[ENTER]Dolina Seungryong: zalecany poziom 20+, potwory są tam silniejsze.[ENTER][QUESTION 1;Strefa Yongan\|2;Dolina Seungryong\|3;Anuluj]` |
 | SCRIPT_ANSWER `1D`, client | 2, then the sequence byte | the button, from 0 |
 | WARP `41` | 15 | x i32, y i32, the game server's IPv4 in network order (4 bytes), port u16 |
 
@@ -31,7 +35,7 @@ No shop sells the ring and nothing drops it; it is given on the command line (`m
 `internal/game/teleport.go`:
 
 - **Asking:** a use of the ring checks the player may go, then asks. It keeps which ring it asked about until the answer, as the soul stone's question does.
-- **The answer** is checked again, since a trade may open or the player die while the dialog is up. It first takes in what a trade the other side kept has moved, as item packets do, so a ring traded away with the question open goes nowhere. The first button, if the player still carries the ring, warps them to `Empire.StartPosition`; any other does nothing.
+- **The answer** is checked again, since a trade may open or the player die while the dialog is up. It first takes in what a trade the other side kept has moved, as item packets do, so a ring traded away with the question open goes nowhere. If the player still carries the ring, the first button warps them to `Empire.StartPosition`, and the second, from level 20, to the valley's arrival (`world.Map.Arrival`); the last does nothing.
 - **The warp,** in order:
   1. the player is taken out of the world record, so everyone who saw them is told CHARACTER_DELETE;
   2. their position is set to the destination and the character saved there, as leaving the world saves it;
@@ -39,14 +43,14 @@ No shop sells the ring and nothing drops it; it is given on the command line (`m
   4. WARP goes to the client with the game port's public address.
   The old connection then sits in the select phase until the client closes it. Moves and other game packets still in flight from the client are dropped, as after Change character. The login key outlives the connection ([connection-and-login.md](connection-and-login.md)), so the new one logs in with it.
 - **Not modelled:**
-  - **The 50 charges** of item_proto's VALUE0, and the Polish tooltip's «50 razy». Our items keep no count of their own besides a stack's, so the ring is used without wearing out. With one destination, the player's own village, that gives nothing a restart in town does not. The charges come with the first way for a player to get the ring.
+  - **The 50 charges** of item_proto's VALUE0, and the Polish tooltip's «50 razy». Our items keep no count of their own besides a stack's, so the ring is used without wearing out. The charges come with the first way for a player to get the ring.
   - **VALUE1, 1800.** Its meaning is not known. The veteran recalls no cooldown on the ring, so none is modelled.
   - **Fighting** does not stop a warp. The veteran recalls players escaping fights with it.
 - **The rules** were settled in a debate between a Metin2 veteran and a game designer (2026-11-11), with the veteran deciding ties: unlimited for now, item_proto's level 30 enforced, no combat lock, a dev command as the only source. Dawid then lowered the level to 5, so the ring serves new players too (2026-11-11). The client neither shows nor checks the ring's level; the server decides.
 
 ## How we know
 
-- **The item:** the client's `--dump_proto--/item_proto.txt` (ITEM_QUEST, not stackable, LIMIT LEVEL 30, VALUE0 50), and the Polish `itemdesc.txt`. The village names are `locale_game.txt`'s MAP_A1, MAP_B1 and MAP_C1.
+- **The item:** the client's `--dump_proto--/item_proto.txt` (ITEM_QUEST, not stackable, LIMIT LEVEL 30, VALUE0 50), and the Polish `itemdesc.txt`. The village and valley names are `locale_game.txt`'s MAP_A1, MAP_B1, MAP_C1 and MAP_A2.
 - **The warp:** the client's source named above, and open-mt2's teleport ring, which warps with the same 15-byte packet after taking the player out of view.
 - **Seen from a bot** against the dev server (2026-11-11). Ringo, a Jinno character set to level 30 in the database, stood at (967400, 278200), 4000 east of the start:
   - the ring asked with «Strefa Pyungmoo» and «Anuluj»;
@@ -58,7 +62,8 @@ No shop sells the ring and nothing drops it; it is given on the command line (`m
 
 - `internal/protocol/protocol_test.go`: WARP byte for byte.
 - `internal/game/teleport_test.go`:
-  - the ring asking, with the kingdom's village, and staying in the bag;
+  - the ring asking, with the kingdom's village and the valley, and staying in the bag;
+  - the valley picked at level 20: the warp to its arrival, saved there; and at 19, refused with its level;
   - the village picked: the warp to the start, the others seeing the player go, the position saved there, the character let go, and the ring kept;
   - a move after the warp dropped;
   - cancel going nowhere;

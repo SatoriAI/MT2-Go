@@ -9,11 +9,12 @@ import (
 	"github.com/SatoriAI/MT2-Go/internal/account"
 	"github.com/SatoriAI/MT2-Go/internal/item"
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
+	"github.com/SatoriAI/MT2-Go/internal/world"
 )
 
 var gameServer = netip.MustParseAddrPort("192.168.1.200:13001")
 
-const ringQuestion = "Dokąd chcesz się przenieść?[ENTER][QUESTION 1;Strefa Yongan|2;Anuluj]"
+const ringQuestion = "Dokąd chcesz się przenieść?[ENTER]Dolina Seungryong: zalecany poziom 20+, potwory są tam silniejsze.[ENTER][QUESTION 1;Strefa Yongan|2;Dolina Seungryong|3;Anuluj]"
 
 // ringing is Hendra of Shinsoo, character 7, at level level in play far from her
 // village, with the teleport ring at cell 4, and Kira beside her.
@@ -46,8 +47,8 @@ func answer(t *testing.T, s *session, button uint8) {
 	}
 }
 
-// The ring asks where to go, offering her kingdom's village by the client's name for it
-// and a cancel; the ring stays in her bag.
+// The ring asks where to go, offering her kingdom's village by the client's name for it,
+// the valley with a word on how hard it is, and a cancel; the ring stays in her bag.
 func TestTheRingAsksWhereToGo(t *testing.T) {
 	s, _, client, _ := ringing(t, 5)
 
@@ -107,11 +108,45 @@ func TestCancellingTheRingGoesNowhere(t *testing.T) {
 	useRing(t, s)
 	drain(t, client)
 
-	answer(t, s, 1)
+	answer(t, s, 2)
 
 	expectNothing(t, client)
 	if _, inWorld := s.svc.record.state.all[1000]; !inWorld {
 		t.Fatal("she left the world")
+	}
+}
+
+// From level 20, picking the valley warps her to its arrival, saved there.
+func TestPickingTheValleyWarpsThePlayerToItsArrival(t *testing.T) {
+	s, store, client, _ := ringing(t, 20)
+	useRing(t, s)
+	drain(t, client)
+
+	answer(t, s, 1)
+
+	valley, _ := world.MapNamed(world.Valley)
+	x, y := valley.Arrival.X, valley.Arrival.Y
+	if got := packets(t, drain(t, client)); !holds(got, protocol.EncodeWarp(x, y, gameServer)) {
+		t.Fatalf("told %x, want a warp to (%d, %d)", got, x, y)
+	}
+	if _, at, _ := store.ofHendra(); at != [2]int32{x, y} {
+		t.Fatalf("saved at %v, want (%d, %d)", at, x, y)
+	}
+}
+
+// Below level 20 the valley is refused with its level, and she stays where she is.
+func TestTheValleyIsRefusedBelowItsLevel(t *testing.T) {
+	s, _, client, _ := ringing(t, 19)
+	useRing(t, s)
+	drain(t, client)
+
+	answer(t, s, 1)
+
+	if got := read(t, client, len(infoLine(valleyLow))); string(got) != string(infoLine(valleyLow)) {
+		t.Fatalf("told %q", got)
+	}
+	if _, inWorld := s.svc.record.state.all[1000]; !inWorld || s.phase == protocol.PhaseSelect {
+		t.Fatal("she was taken away")
 	}
 }
 

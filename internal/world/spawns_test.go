@@ -143,6 +143,9 @@ func TestTheKindsGetHarderFurtherOut(t *testing.T) {
 	} {
 		var got []uint16
 		for f := range families {
+			if f == orcs {
+				continue // the valley's, out from its centre (valley_test.go)
+			}
 			for _, k := range kindsAt(f, d) {
 				got = append(got, k.VNum)
 			}
@@ -178,11 +181,15 @@ func TestEveryCursedPackStandsInItsBand(t *testing.T) {
 	}
 }
 
-// A family's pack holds 3 to 5, as the world serves it; a cursed pack is a leader with
-// 3 of its kin or 3 to 5 of one kind.
+// A family's pack holds 3 to 5, as the world serves it, or 3 to 4 by the valley's arrival
+// (valley_test.go); a cursed pack is a leader with 3 of its kin or 3 to 5 of one kind.
 func TestEveryPackHoldsThreeToFive(t *testing.T) {
 	for _, s := range Spawns() {
-		if len(s.Kinds) > 0 && (s.MinCount != 3 || s.Count != 5) {
+		most := 5
+		if nearArrival(s) {
+			most = 4
+		}
+		if len(s.Kinds) > 0 && (s.MinCount != 3 || s.Count != most) {
 			t.Errorf("a pack at (%d, %d) of %d to %d", s.X, s.Y, s.MinCount, s.Count)
 		}
 	}
@@ -411,7 +418,7 @@ func TestAMapsMobsMultiplyItsPacks(t *testing.T) {
 			case len(s.Kinds) == 0:
 			case m.Name == "metin2_map_c1" && (s.MinCount != c.least || s.Count != c.most):
 				t.Errorf("at %v: a pack of %d to %d", c.mobs, s.MinCount, s.Count)
-			case m.Name != "metin2_map_c1" && (s.MinCount != 3 || s.Count != 5):
+			case m.Name != "metin2_map_c1" && (s.MinCount != plain[i].MinCount || s.Count != plain[i].Count):
 				t.Errorf("at %v: %s's pack of %d to %d", c.mobs, m.Name, s.MinCount, s.Count)
 			}
 			if len(s.Spots) > 0 && s.Count != 1 {

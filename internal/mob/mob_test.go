@@ -185,16 +185,21 @@ func TestTheWeaponTraderSellsTheWeaponsBelowTwentyFive(t *testing.T) {
 	}
 }
 
-// Each stone calls out monsters there are, of no higher level than its own, and comes back
-// after a while; only stones call waves, and they never wander.
-func TestEveryStoneCallsWavesOfMonstersNoStrongerThanItself(t *testing.T) {
+// Each stone calls out monsters there are, of no higher level than its own, or in the
+// valley, which has no orcs below level 26, at most 4 above it; and comes back after a
+// while, as a boss does too. Only stones call waves, and they never wander.
+func TestEveryStoneCallsWavesOfMonstersNearItsLevel(t *testing.T) {
 	for vnum, p := range protos {
-		if (p.Kind == Stone) != (len(p.Wave) > 0) || (p.Kind == Stone) != (p.Respawn > 0) || (p.Kind == Stone && p.Wanders()) {
+		if (p.Kind == Stone) != (len(p.Wave) > 0) || (p.Kind == Stone || p.Boss) != (p.Respawn > 0) || (p.Kind == Stone && p.Wanders()) {
 			t.Errorf("%d: %+v", vnum, p)
+		}
+		above := uint8(0)
+		if vnum >= 8005 {
+			above = 4
 		}
 		for _, w := range p.Wave {
 			called, ok := Lookup(w)
-			if !ok || called.Kind != Monster || called.Level > p.Level {
+			if !ok || called.Kind != Monster || called.Level > p.Level+above {
 				t.Errorf("%d calls %d: %+v", vnum, w, called)
 			}
 		}
@@ -204,7 +209,8 @@ func TestEveryStoneCallsWavesOfMonstersNoStrongerThanItself(t *testing.T) {
 // A stone always leaves potions and materials, each of one kind, and may leave a piece of
 // the first gear, 3 times in 100 a skill book, 4 times in 100 a piece of the rare gear and
 // once in 200 the thief's gloves, which no pair doubles; the last also, rarely, the first
-// gear at +3.
+// gear at +3. The valley's leave six middle potions, five materials and the rare gear 6
+// times in 100, and no first gear.
 func TestAStoneLeavesPotionsMaterialsAndMaybeGear(t *testing.T) {
 	gloves := Pick{[]uint32{item.ThiefGloves}, 1, 50, true}
 	cases := map[uint16][]Pick{
@@ -214,6 +220,11 @@ func TestAStoneLeavesPotionsMaterialsAndMaybeGear(t *testing.T) {
 			{rareGear, 1, 400, false}, gloves},
 		8003: {{potionKinds, 5, 10000, false}, {materials, 4, 10000, false}, {firstGear, 1, 3500, false}, {books, 1, 300, false},
 			{rareGear, 1, 400, false}, gloves, {firstGearP3, 1, 500, false}},
+	}
+	valley := []Pick{{[]uint32{27002, 27004}, 6, 10000, false}, {materials, 5, 10000, false}, {books, 1, 300, false},
+		{rareGear, 1, 600, false}, gloves}
+	for _, vnum := range []uint16{8005, 8006, 8007, 8008} {
+		cases[vnum] = valley
 	}
 	for vnum, want := range cases {
 		p, _ := Lookup(vnum)
@@ -281,9 +292,10 @@ func TestBooksAndSoulStonesComeFromTheStrongest(t *testing.T) {
 }
 
 // The helpers of a read come only from the stones: Zwój Egzorcyzmu once in 100 and Rada
-// Pustelnika once in 200, and from Metin Bitwy each 3 times in 100.
+// Pustelnika once in 200, and from Metin Bitwy and the valley's stones each 3 times in 100.
 func TestTheHelpersOfAReadComeOnlyFromTheStones(t *testing.T) {
-	want := map[uint16][2]uint16{8001: {100, 50}, 8002: {100, 50}, 8003: {300, 300}}
+	want := map[uint16][2]uint16{8001: {100, 50}, 8002: {100, 50}, 8003: {300, 300},
+		8005: {300, 300}, 8006: {300, 300}, 8007: {300, 300}, 8008: {300, 300}}
 	for vnum, p := range protos {
 		var got [2]uint16
 		for _, d := range p.Drops {
@@ -306,8 +318,9 @@ func TestTheHelpersOfAReadComeOnlyFromTheStones(t *testing.T) {
 }
 
 // The rare gear, which no trader sells, is the gear past the first of level 21 and more:
-// every such kind at +0, from the cursed monsters only, once in 200, besides the books of
-// those of level 15 or more.
+// every such kind at +0, on the first maps from the cursed monsters only, once in 200,
+// besides the books of those of level 15 or more; in the valley from every orc, once in
+// 100, and from the orc lord 3 times in 10, with a book once in 10.
 func TestOnlyTheCursedAndTheStonesLeaveTheRareGear(t *testing.T) {
 	var want []uint32
 	for _, v := range item.VNums() {
@@ -319,18 +332,39 @@ func TestOnlyTheCursedAndTheStonesLeaveTheRareGear(t *testing.T) {
 		t.Errorf("rare gear %v, want %v", got, want)
 	}
 	for vnum, p := range protos {
-		rare := slices.ContainsFunc(p.Picks, func(pk Pick) bool { return slices.Equal(pk.From, rareGear) && pk.Chance == 50 })
-		if p.Kind == Monster && rare != p.Aggressive {
-			t.Errorf("%d leaves the rare gear: %v", vnum, rare)
+		var chance, want uint16
+		for _, pk := range p.Picks {
+			if slices.Equal(pk.From, rareGear) {
+				chance = pk.Chance
+			}
+		}
+		switch {
+		case p.Kind != Monster:
+			continue
+		case p.Boss:
+			want = 3000
+		case orc(vnum):
+			want = 100
+		case p.Aggressive:
+			want = 50
+		}
+		if chance != want {
+			t.Errorf("%d leaves the rare gear %d in 10,000, want %d", vnum, chance, want)
+		}
+		if p.Boss && !slices.ContainsFunc(p.Picks, func(pk Pick) bool { return slices.Equal(pk.From, books) && pk.Chance == 1000 }) {
+			t.Errorf("%d leaves no book once in 10", vnum)
 		}
 	}
 }
 
-// Every monster the world has is of the animals' race, as mob_proto's RACE_FLAG has them,
-// so strength against animals counts on all of them; stones and NPCs are of none.
-func TestTheMonstersAreAnimals(t *testing.T) {
+// orc is whether the kind is one of the valley's orcs, mob_proto's RACE_FLAG ORC.
+func orc(vnum uint16) bool { return vnum >= 600 && vnum < 700 }
+
+// Every monster the world has but the valley's orcs is of the animals' race, as mob_proto's
+// RACE_FLAG has them; stones and NPCs are of none.
+func TestTheMonstersButTheOrcsAreAnimals(t *testing.T) {
 	for vnum, p := range protos {
-		if p.Animal != (p.Kind == Monster) {
+		if p.Animal != (p.Kind == Monster && !orc(vnum)) {
 			t.Errorf("%d %s: animal %v", vnum, p.Name, p.Animal)
 		}
 	}

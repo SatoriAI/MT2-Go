@@ -54,7 +54,7 @@ Seen from the real client: a red potion laid at (977491, 272599) is `1a 53ea0e00
 
   The claw and the tooth are the materials of the later upgrades ([upgrading.md](upgrading.md)).
 
-  Metin stones leave more, each a set count of one kind picked from a list ([stones.md](stones.md)), and 3 times in 100 a skill book; Metin Bitwy also a soul stone once in 100. Only the stones leave the helpers of a read, Zwój Egzorcyzmu and Rada Pustelnika ([skills.md](skills.md)). Monsters of level 15 or more leave a skill book 3 times in 1,000, picked evenly from every skill's. The rare gear, the gear past the first from level 21, which no trader sells, comes only from the cursed monsters, once in 200, and the stones, 4 times in 100, one +0 kind picked evenly ([equipment.md](equipment.md)). Gear from a stone carries bonuses, and a level-30 weapon from anything sometimes the pair of average and skill damage ([bonuses.md](bonuses.md)); a piece picked up keeps them, and so does one a player drops.
+  Metin stones leave more, each a set count of one kind picked from a list ([stones.md](stones.md)), and 3 times in 100 a skill book; Metin Bitwy also a soul stone once in 100. Only the stones leave the helpers of a read, Zwój Egzorcyzmu and Rada Pustelnika ([skills.md](skills.md)). Monsters of level 15 or more leave a skill book 3 times in 1,000, picked evenly from every skill's. The rare gear, the gear past the first from level 21, which no trader sells, comes on the first maps only from the cursed monsters, once in 200, and the stones, 4 times in 100, one +0 kind picked evenly ([equipment.md](equipment.md)); in Seungryong Valley from every orc, once in 100, the orc lord, 3 times in 10, and its stones, 6 times in 100 ([maps.md](maps.md)). The orcs leave the middle red potion or the small blue one, each 8 times in 100, and the lord a book once in 10. Gear from a stone carries bonuses, and a level-30 weapon from anything sometimes the pair of average and skill damage ([bonuses.md](bonuses.md)); a piece picked up keeps them, and so does one a player drops.
 
 - **The thief's gloves** double the chance of each item a monster leaves, up to certain, when the player its drops are kept for wears a pair whose time has not run out as it dies ([thief-gloves.md](thief-gloves.md)). It is the owner who counts, the top damager, not whoever struck last, so a pair cannot be lent to a kill. Yang is not doubled, nor the stones' chance of the gloves themselves.
 - **The third hand** takes the yang of its wearer's kills straight to them instead ([third-hand.md](third-hand.md)).
@@ -74,8 +74,10 @@ Seen from the real client: a red potion laid at (977491, 272599) is `1a 53ea0e00
   | Czar. Niedźw. (112) | 40 to 65, 6 in 10 |
   | Brąz. Niedźw. (113) | 55 to 90, 6 in 10 |
   | Tygrys (114) | 35 to 60, 6 in 10 |
+  | Ork (601) to Czarny Ork Zwiadowca (637) | from 80 to 130 up to 200 to 330 by level, 6 in 10 |
+  | Wódz Orków (691) | 3,000 to 5,000, always |
 
-  The amounts are this server's, below the client's mob_proto gold and rising with it: the tiger leaves less than the grizzly there too.
+  The amounts are this server's, below the client's mob_proto gold and rising with it: the tiger leaves less than the grizzly there too. The orcs' rise with their level instead, as their gold in mob_proto falls from the first orcs to the elite.
 
   A small red potion costs 32 in a shop, about six dogs.
 - **Who it is kept for:**
@@ -114,7 +116,7 @@ Seen from the real client: a red potion laid at (977491, 272599) is `1a 53ea0e00
 
 ## What proves it
 
-- `internal/mob/mob_test.go`: every drop an item the game has, in a count it holds; the wolves and boars, blue and red ones too, leaving the materials of upgrades; skill books from monsters of level 15 or more; the rare gear every +0 kind of level 21 or more, from the cursed monsters only, once in 200.
+- `internal/mob/mob_test.go`: every drop an item the game has, in a count it holds; the wolves and boars, blue and red ones too, leaving the materials of upgrades; skill books from monsters of level 15 or more; the rare gear every +0 kind of level 21 or more, on the first maps from the cursed monsters only, once in 200, and in the valley from every orc, once in 100, and the orc lord, 3 times in 10.
 - `internal/item/item_test.go`: an item picked up joining its stack or taking a free cell.
 - `internal/protocol/protocol_test.go`: GROUND_ADD, GROUND_DEL and OWNERSHIP byte for byte; PICKUP cut and read as the real client sent it.
 - `internal/store/items_test.go`: a new item and a stack's count kept.
