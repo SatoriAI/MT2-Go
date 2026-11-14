@@ -173,6 +173,10 @@ const ThiefGloves = 70043
 // (docs/mechanics/third-hand.md).
 const ThirdHand = 71010
 
+// BlessingScroll is Zwój Błogosławieństwa, which, dropped onto gear, upgrades it a grade
+// that a failure does not take back (docs/mechanics/upgrading.md).
+const BlessingScroll = 25040
+
 // MaxGrade is the last grade gear is upgraded to.
 const MaxGrade = 9
 
@@ -239,6 +243,8 @@ var protos = withBooks(withGrades(withGear(map[uint32]Proto{
 	// item_proto prices the cape at nothing; 1000 is the veteran's, and a shop pays nothing
 	// for one, as the client's sell value is 0.
 	BraveryCape: {VNum: BraveryCape, Name: "Peleryna Męstwa", Size: 1, Stack: MaxStack, Price: 1000, Bound: true},
+	// item_proto's price, 5,000, and a sale at a fifth of it, as the soul stone's.
+	BlessingScroll: {VNum: BlessingScroll, Name: "Zwój Błogosławieństwa", Size: 1, Stack: 1, Price: 5000, SellPrice: 1000},
 })))
 
 // gradeRows are what a graded kind's +1 to +9 are over its +0 (grades, in gear.go).

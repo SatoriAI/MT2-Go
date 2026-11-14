@@ -67,7 +67,9 @@ func withBooks(kinds map[uint32]Proto) map[uint32]Proto {
 	for _, b := range books {
 		kinds[b.vnum] = Proto{VNum: b.vnum, Name: b.name, Size: 1, Stack: 1, Teaches: b.teaches, Price: 1000, SellPrice: 200}
 	}
-	kinds[SoulStone] = Proto{VNum: SoulStone, Name: "Kamień Duchowy", Size: 1, Stack: 1, Price: 1000, SellPrice: 200}
+	// The stone stacks, the veteran's call, which item_proto does not, as the valley leaves
+	// them often enough to fill a bag.
+	kinds[SoulStone] = Proto{VNum: SoulStone, Name: "Kamień Duchowy", Size: 1, Stack: MaxStack, Price: 1000, SellPrice: 200}
 	kinds[ExorcismScroll] = Proto{VNum: ExorcismScroll, Name: "Zwój Egzorcyzmu", Size: 1, Stack: 1, Aid: account.NoReadWait, Bound: true}
 	kinds[HermitsAdvice] = Proto{VNum: HermitsAdvice, Name: "Rada Pustelnika", Size: 1, Stack: 1, Aid: account.ReadBonus, Bound: true}
 	return kinds

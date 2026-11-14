@@ -99,8 +99,8 @@ func (s *session) useSoulStone(ctx context.Context, t *talk, answer uint8) error
 
 // train rolls the chance that the book or stone raises the skill from level, two and a
 // half times it with Rada Pustelnika spent, and keeps the read: the skill's next wait,
-// the book or stone used up, as neither stacks, and the aids spent. Then it tells the
-// player: the item gone, their skills on a rise, the aids' icons gone, and a line. A
+// one of the book or stones used up, and the aids spent. Then it tells the player: the
+// item gone or one fewer, their skills on a rise, the aids' icons gone, and a line. A
 // write that fails changes nothing, the client having moved nothing itself.
 func (s *session) train(ctx context.Context, used item.Item, sk account.Skill, level uint8, by trainer, spent account.Aids) error {
 	now := s.svc.now()
@@ -117,9 +117,16 @@ func (s *session) train(ctx context.Context, used item.Item, sk account.Skill, l
 		s.conn.Log().Error("training not kept", "skill", sk, "item", used.ID, "err", err)
 		return nil
 	}
-	s.inventory = slices.DeleteFunc(s.inventory, func(held item.Item) bool { return held.ID == used.ID })
+	left := itemCleared(used)
+	if used.Count > 1 {
+		used.Count--
+		s.inventory.Replace(used)
+		left = itemSet(used)
+	} else {
+		s.inventory = slices.DeleteFunc(s.inventory, func(held item.Item) bool { return held.ID == used.ID })
+	}
 	levels := s.svc.record.trained(s.playing.vid, read)
-	packets := append([][]byte{itemCleared(used)}, s.followTaskbar()...)
+	packets := append([][]byte{left}, s.followTaskbar()...)
 	for _, aid := range spent {
 		packets = append(packets, aidGone(aid))
 	}

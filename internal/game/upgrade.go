@@ -9,10 +9,12 @@ import (
 	"github.com/SatoriAI/MT2-Go/internal/upgrade"
 )
 
-// upgrading is the item a player gave a blacksmith, whose refine dialog is open.
+// upgrading is the item a player gave a blacksmith, or dropped Zwój Błogosławieństwa onto,
+// whose refine dialog is open.
 type upgrading struct {
-	smith uint32 // the blacksmith's vid
-	item  int64
+	smith  uint32 // the blacksmith's vid; 0 for a scroll's, which needs none
+	item   int64
+	scroll int64 // the scroll's id, or 0
 }
 
 // What a blacksmith says of an upgrade: the client's own lines for the outcome and for an
@@ -23,6 +25,10 @@ const (
 	upgradeFailed      = "Ulepszanie nie powiodło się."
 	upgradeNoYang      = "Nie masz dość Yang na ulepszenie."
 	upgradeNoMaterial  = "Brakuje ci materiałów do ulepszenia."
+	upgradeKept        = "Ulepszanie nie powiodło się, ale Zwój Błogosławieństwa zachował stopień przedmiotu."
+	// What the scroll is told of, as no client dialog's own question says it.
+	scrollWarns     = "Zwój Błogosławieństwa: przy porażce przedmiot zachowa stopień, ale Yang i materiał przepadną."
+	scrollNotNeeded = "Zwoju Błogosławieństwa używa się od ulepszenia na +5: wcześniej porażka kosztuje tylko Yang."
 )
 
 // onGiveItem answers an item dragged onto an NPC near the player: a blacksmith given gear
@@ -47,20 +53,57 @@ func (s *session) onGiveItem(body []byte) error {
 		return s.tell(upgradeNotPossible)
 	}
 	s.upgrading = &upgrading{smith: g.To, item: it.ID}
-	info := protocol.RefineInfo{Type: protocol.RefineNoQuestion, Cell: uint8(it.Cell), From: it.VNum, Into: step.Into, //nolint:gosec // a bag cell, under 90
-		Cost: step.Yang, Chance: step.Chance}
+	info := refineInfo(it, step)
 	if step.Material != 0 {
 		info.Type = protocol.RefineMayDowngrade
-		info.Materials = []protocol.Material{{VNum: step.Material, Count: uint32(step.Count)}}
 	}
 	return s.conn.Send(protocol.EncodeRefineInfo(info))
 }
 
+// onItemUseToItem answers an item dropped onto another in the bag: Zwój Błogosławieństwa
+// onto gear whose next upgrade may take a grade back opens the refine dialog, asking no
+// question, as there is nothing to warn of, for an upgrade it guards, wherever the player
+// stands, and says why of other gear, leaving any dialog open. Nothing else dropped onto an
+// item does anything yet.
+func (s *session) onItemUseToItem(body []byte) error {
+	u, err := protocol.DecodeItemUseToItem(body)
+	if err != nil {
+		return err
+	}
+	scroll, held := s.itemAt(u.From)
+	if !held || scroll.VNum != item.BlessingScroll {
+		s.conn.Log().Debug("item onto item not taken", "from", u.From, "to", u.To)
+		return nil
+	}
+	it, held := s.itemAt(u.To)
+	kind, _ := item.Lookup(it.VNum)
+	step, upgraded := upgrade.Of(kind)
+	switch {
+	case !held || it.Worn != "" || !upgraded:
+		return s.conn.Send(infoLine(upgradeNotPossible))
+	case !step.Downgrade:
+		return s.conn.Send(infoLine(scrollNotNeeded))
+	}
+	s.upgrading = &upgrading{item: it.ID, scroll: scroll.ID}
+	return s.conn.Send(protocol.EncodeRefineInfo(refineInfo(it, step)), infoLine(scrollWarns))
+}
+
+// refineInfo is the refine dialog for upgrading the bag item a grade, asking no question.
+func refineInfo(it item.Item, step upgrade.Step) protocol.RefineInfo {
+	info := protocol.RefineInfo{Type: protocol.RefineNoQuestion, Cell: uint8(it.Cell), From: it.VNum, Into: step.Into, //nolint:gosec // a bag cell, under 90
+		Cost: step.Yang, Chance: step.Chance}
+	if step.Material != 0 {
+		info.Materials = []protocol.Material{{VNum: step.Material, Count: uint32(step.Count)}}
+	}
+	return info
+}
+
 // onRefine carries out the upgrade the refine dialog asks for, of the item given the
-// blacksmith, still in its cell and the blacksmith still in reach, if the player has its
-// yang and materials: they are spent, and the item upgraded, or on a failure kept or a
-// grade lower, all kept at once. Closing the dialog sends 255, which is no bag cell, so it
-// does nothing, as does an answer to none open.
+// blacksmith, still in its cell and the blacksmith still in reach, or under a scroll still
+// held, if the player has its yang and materials: they are spent, and the item upgraded,
+// or on a failure kept or a grade lower, all kept at once. A scroll is spent on every try
+// and keeps the grade on a failure. Closing the dialog sends 255, which is no bag cell, so
+// it does nothing, as does an answer to none open.
 func (s *session) onRefine(ctx context.Context, body []byte) error {
 	q, err := protocol.DecodeRefine(body)
 	if err != nil {
@@ -68,11 +111,16 @@ func (s *session) onRefine(ctx context.Context, body []byte) error {
 	}
 	u := s.upgrading
 	s.upgrading = nil
-	it, held := s.inventory.At(uint16(q.Cell))
-	if u == nil || !held || it.ID != u.item {
+	it, given := s.inventory.At(uint16(q.Cell))
+	if u == nil || !given || it.ID != u.item {
 		return nil
 	}
-	if _, near := s.svc.record.npcInReach(s.playing.vid, u.smith); !near {
+	scrolled := u.scroll != 0
+	scroll, held := s.inventory.ByID(u.scroll)
+	if scrolled && !held {
+		return nil
+	}
+	if _, near := s.svc.record.npcInReach(s.playing.vid, u.smith); !scrolled && !near {
 		return nil
 	}
 	kind, _ := item.Lookup(it.VNum)
@@ -86,8 +134,16 @@ func (s *session) onRefine(ctx context.Context, body []byte) error {
 	}
 	upgraded, said := it, upgradeSucceeded
 	upgraded.VNum = step.Into
-	if s.rand.IntN(100) >= int(step.Chance) {
+	switch {
+	case s.rand.IntN(100) < int(step.Chance):
+	case scrolled:
+		upgraded.VNum, said = it.VNum, upgradeKept
+	default:
 		upgraded.VNum, said = step.Failed(), upgradeFailed
+	}
+	if scrolled {
+		scroll.Count--
+		spent = append(spent, scroll)
 	}
 	ctx, cancel := context.WithTimeout(ctx, saveTimeout)
 	defer cancel()

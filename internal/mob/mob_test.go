@@ -265,16 +265,27 @@ func TestEveryTeacherTeachesAGroupThereIs(t *testing.T) {
 }
 
 // Skill books come from monsters of level 15 or more, 3 times in 1,000, each the book of
-// one of every skill the game has; and soul stones only from Metin Bitwy, once in 100.
+// one of every skill the game has; soul stones from Metin Bitwy, once in 100, the valley's
+// stones 2 to 5 times in 100, the deeper the more, and the orc lord 3 times in 10; and Zwój
+// Błogosławieństwa from those but Metin Bitwy, 1 to 4 times in 100 and 3 times in 10.
 func TestBooksAndSoulStonesComeFromTheStrongest(t *testing.T) {
+	stones := map[uint16][2]uint16{8003: {100, 0}, 8005: {200, 100}, 8006: {300, 200}, 8007: {400, 300}, 8008: {500, 400}, 691: {3000, 3000}}
 	for vnum, p := range protos {
 		hasBooks := slices.ContainsFunc(p.Picks, func(pk Pick) bool { return slices.Equal(pk.From, books) })
 		if p.Kind == Monster && hasBooks != (p.Level >= 15) {
 			t.Errorf("%d, level %d: books %v", vnum, p.Level, hasBooks)
 		}
-		soul := slices.ContainsFunc(p.Drops, func(d Drop) bool { return d.VNum == item.SoulStone })
-		if soul != (vnum == 8003) {
-			t.Errorf("%d leaves a soul stone: %v", vnum, soul)
+		var soul, scroll uint16
+		for _, d := range p.Drops {
+			switch d.VNum {
+			case item.SoulStone:
+				soul = d.Chance
+			case item.BlessingScroll:
+				scroll = d.Chance
+			}
+		}
+		if want := stones[vnum]; soul != want[0] || scroll != want[1] {
+			t.Errorf("%d leaves a soul stone %d and a scroll %d in 10,000, want %v", vnum, soul, scroll, stones[vnum])
 		}
 	}
 	if p, _ := Lookup(114); !slices.EqualFunc(p.Picks, fieldBooks, func(a, b Pick) bool { return a.Chance == b.Chance && a.Count == b.Count }) ||

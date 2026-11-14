@@ -530,6 +530,18 @@ func TestDecodeItemMoveReadsBothCellsAndTheCount(t *testing.T) {
 	}
 }
 
+// ITEM_USE_TO_ITEM as MT2-Godot sends it: a scroll in bag cell 7 onto the item in cell 12.
+func TestDecodeItemUseToItemReadsBothCells(t *testing.T) {
+	frame, used, err := NextFrame(mustHex(t, "3c"+"010700"+"010c00"+"05"))
+	if err != nil || used != 8 {
+		t.Fatalf("framed %d, %v", used, err)
+	}
+	u, err := DecodeItemUseToItem(frame.Body)
+	if err != nil || u != (ItemUseToItem{From: ItemPos{Window: 1, Cell: 7}, To: ItemPos{Window: 1, Cell: 12}}) {
+		t.Fatalf("got %+v %v", u, err)
+	}
+}
+
 func TestDecodeItemMoveRefusesAShortBody(t *testing.T) {
 	if _, err := DecodeItemMove(mustHex(t, "010000011100")); !errors.Is(err, ErrShort) {
 		t.Fatalf("got %v", err)

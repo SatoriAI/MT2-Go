@@ -193,16 +193,25 @@ var (
 
 // The valley's loot, as the debaters settled: the orcs leave the gear past the first, from
 // level 20 to 36, which only the cursed and the stones leave on the first maps, once in
-// 100, the middle red potion and the books; the orc lord the gear 3 times in 10; its
-// stones the middle potions, materials and the gear 6 times in 100.
+// 100, the middle red potion and the books; the orc lord the gear 3 times in 10, and a
+// soul stone and Zwój Błogosławieństwa each 3 times in 10; its stones the middle potions,
+// materials, the gear 6 times in 100, and the two more often the deeper they stand.
 var (
 	orcDrops         = []Drop{{VNum: 27002, Count: 1, Chance: 800}, {VNum: 27004, Count: 1, Chance: 800}}
 	orcPicks         = append(slices.Clone(fieldBooks), Pick{From: rareGear, Count: 1, Chance: 100})
 	lordPicks        = []Pick{{From: rareGear, Count: 1, Chance: 3000}, {From: books, Count: 1, Chance: 1000}}
+	lordDrops        = append(slices.Clone(orcDrops), Drop{VNum: item.SoulStone, Count: 1, Chance: 3000}, Drop{VNum: item.BlessingScroll, Count: 1, Chance: 3000})
 	valleyStonePicks = []Pick{{From: []uint32{27002, 27004}, Count: 6, Chance: 10000}, {From: materials, Count: 5, Chance: 10000},
 		{From: books, Count: 1, Chance: 300}, {From: rareGear, Count: 1, Chance: 600},
 		{From: []uint32{item.ThiefGloves}, Count: 1, Chance: 50, Steady: true}}
 )
+
+// valleyStoneDrops are a valley stone's helpers of a read, and a soul stone and Zwój
+// Błogosławieństwa at their chances in 10,000.
+func valleyStoneDrops(soul, scroll uint16) []Drop {
+	return append(slices.Clone(battleAids), Drop{VNum: item.SoulStone, Count: 1, Chance: soul},
+		Drop{VNum: item.BlessingScroll, Count: 1, Chance: scroll})
+}
 
 // Fightable reports whether a player can attack the mob.
 func (p Proto) Fightable() bool { return p.Kind != NPC }
@@ -318,7 +327,7 @@ var protos = map[uint16]Proto{
 	691: {VNum: 691, Name: "Wódz Orków", Kind: Monster, MoveSpeed: 100, AttackSpeed: 100, Aggressive: true, Boss: true,
 		Level: 50, MaxHP: 24618, Vitality: 63, Armour: 57, Exp: 20422,
 		Strength: 48, DamageMin: 79, DamageMax: 146, AttackRange: 175,
-		RegenCycle: 19, RegenPercent: 22, Drops: orcDrops, Picks: lordPicks, Yang: Yang{Chance: 10000, Min: 3000, Max: 5000},
+		RegenCycle: 19, RegenPercent: 22, Drops: lordDrops, Picks: lordPicks, Yang: Yang{Chance: 10000, Min: 3000, Max: 5000},
 		Respawn: 20 * time.Minute, RespawnSpread: 10 * time.Minute},
 	// The cursed kinds, the client's AGGR, which attack players they see, each with the stats
 	// of the client's mob_proto dump and yang a little above its passive kin of its level.
@@ -381,19 +390,19 @@ var protos = map[uint16]Proto{
 	// 255, which a stone that never moves does not show.
 	8005: {VNum: 8005, Name: "Metin Czerni", Kind: Stone, MoveSpeed: 255, AttackSpeed: 255,
 		Level: 25, MaxHP: 31500, Vitality: 30, Armour: 30, Exp: 9000, RegenCycle: 5, RegenPercent: 1,
-		Drops: battleAids, Picks: valleyStonePicks, Yang: Yang{Chance: 10000, Min: 2500, Max: 3500},
+		Drops: valleyStoneDrops(200, 100), Picks: valleyStonePicks, Yang: Yang{Chance: 10000, Min: 2500, Max: 3500},
 		Wave: []uint16{601, 601, 601, 602, 602}, Respawn: 10 * time.Minute, HealsAfter: 10 * time.Second},
 	8006: {VNum: 8006, Name: "Metin Ciemności", Kind: Stone, MoveSpeed: 255, AttackSpeed: 255,
 		Level: 30, MaxHP: 40000, Vitality: 36, Armour: 35, Exp: 10500, RegenCycle: 5, RegenPercent: 1,
-		Drops: battleAids, Picks: valleyStonePicks, Yang: Yang{Chance: 10000, Min: 3000, Max: 4200},
+		Drops: valleyStoneDrops(300, 200), Picks: valleyStonePicks, Yang: Yang{Chance: 10000, Min: 3000, Max: 4200},
 		Wave: []uint16{602, 602, 603, 603, 604}, Respawn: 10 * time.Minute, HealsAfter: 10 * time.Second},
 	8007: {VNum: 8007, Name: "Metin Zazdrości", Kind: Stone, MoveSpeed: 255, AttackSpeed: 255,
 		Level: 35, MaxHP: 49000, Vitality: 42, Armour: 41, Exp: 14000, RegenCycle: 5, RegenPercent: 1,
-		Drops: battleAids, Picks: valleyStonePicks, Yang: Yang{Chance: 10000, Min: 3600, Max: 5000},
+		Drops: valleyStoneDrops(400, 300), Picks: valleyStonePicks, Yang: Yang{Chance: 10000, Min: 3600, Max: 5000},
 		Wave: []uint16{604, 631, 631, 632, 633}, Respawn: 10 * time.Minute, HealsAfter: 10 * time.Second},
 	8008: {VNum: 8008, Name: "Metin Duszy", Kind: Stone, MoveSpeed: 255, AttackSpeed: 255,
 		Level: 40, MaxHP: 60000, Vitality: 48, Armour: 46, Exp: 18000, RegenCycle: 5, RegenPercent: 1,
-		Drops: battleAids, Picks: valleyStonePicks, Yang: Yang{Chance: 10000, Min: 4200, Max: 6000},
+		Drops: valleyStoneDrops(500, 400), Picks: valleyStonePicks, Yang: Yang{Chance: 10000, Min: 4200, Max: 6000},
 		Wave: []uint16{632, 633, 634, 634, 635}, Respawn: 10 * time.Minute, HealsAfter: 10 * time.Second},
 
 	9001:  {VNum: 9001, Name: "Handlarz Bronią", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100, Sells: weapons},
