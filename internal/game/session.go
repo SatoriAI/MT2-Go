@@ -151,7 +151,7 @@ type session struct {
 	inventory item.Inventory      // what playing owns, read on Start
 	gold      uint32              // playing's yang, read with the inventory and kept as it changes
 	shop      uint16              // the kind of the shopkeeper whose shop is open, 0 for none
-	upgrading *upgrading          // the item given a blacksmith, whose refine dialog is open
+	upgrading *upgrading          // the item given a blacksmith or under a scroll, whose refine dialog is open
 	taskbar   map[uint8]shownSlot // playing's taskbar, by slot, read with the inventory
 	talking   *talk               // what the NPC the player talks to asked them, or nil
 	claim     *claim              // this connection's hold on playing
@@ -268,6 +268,8 @@ func (s *session) Handle(ctx context.Context, f protocol.Frame) error {
 		return s.onGiveItem(f.Body)
 	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientRefine:
 		return s.onRefine(ctx, f.Body)
+	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientItemUseToItem:
+		return s.onItemUseToItem(f.Body)
 	case s.phase == protocol.PhaseGame && f.Header == protocol.ClientExchange:
 		return s.onExchange(ctx, f.Body)
 	case s.phase == protocol.PhaseGame && itemPackets[f.Header]:

@@ -723,7 +723,8 @@ func EncodeChangeSkillGroup(group uint8) []byte {
 }
 
 // The refine dialog's types this server opens it with: the client asks no confirmation
-// for RefineNoQuestion and warns of a lower grade for RefineMayDowngrade.
+// for RefineNoQuestion and warns of a lower grade for RefineMayDowngrade, the original's
+// type for its blessing scroll, whose failure took a grade (docs/mechanics/upgrading.md).
 const (
 	RefineMayDowngrade uint8 = 2
 	RefineNoQuestion   uint8 = 5

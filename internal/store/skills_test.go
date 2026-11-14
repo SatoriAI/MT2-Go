@@ -136,6 +136,25 @@ func TestAReadIsKeptWhole(t *testing.T) {
 	}
 }
 
+// A read with one of a stack of soul stones spends that one and keeps the rest.
+func TestAReadSpendsOneOfAStackOfStones(t *testing.T) {
+	s, cid, _ := booked(t)
+	ctx := context.Background()
+	id, err := Items(s).Add(ctx, cid, item.Item{VNum: item.SoulStone, Count: 3, Cell: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := s.Train(ctx, cid, account.Read{Skill: "dragon_swirl", From: 20, To: 21, Next: time.Date(2026, 11, 15, 12, 0, 0, 0, time.UTC), Used: id}); err != nil {
+		t.Fatal(err)
+	}
+
+	inv, _, _ := Items(s).Owned(ctx, "Hendra")
+	if stone, held := inv.ByID(id); !held || stone.Count != 2 {
+		t.Fatalf("holds %+v", inv)
+	}
+}
+
 // A read of a skill no longer at the level it was read at, or with a book the character
 // does not hold, changes nothing.
 func TestAReadThatCannotBeKeptChangesNothing(t *testing.T) {

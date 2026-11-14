@@ -223,6 +223,17 @@ func DecodeItemMove(body []byte) (ItemMove, error) {
 	return m, r.Err()
 }
 
+// ItemUseToItem is an item dropped onto another in the bag, as a refine scroll onto gear.
+type ItemUseToItem struct {
+	From, To ItemPos
+}
+
+func DecodeItemUseToItem(body []byte) (ItemUseToItem, error) {
+	r := NewReader(body)
+	u := ItemUseToItem{From: r.itemPos(), To: r.itemPos()}
+	return u, r.Err()
+}
+
 // DecodeItemUse reads the position of the item double-clicked.
 func DecodeItemUse(body []byte) (ItemPos, error) {
 	r := NewReader(body)

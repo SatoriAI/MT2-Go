@@ -19,7 +19,7 @@
 | Metin Zazdrości (8007) | 35 | 30,000 to 48,000 | 2 | an orc sorcerer, two elite orcs, an elite scout, an elite warrior | 49,000 | 3,600 to 5,000 | 14,000 |
 | Metin Duszy (8008) | 40 | 45,000 on | 1 | an elite scout, an elite warrior, two elite sorcerers, an elite general | 60,000 | 4,200 to 6,000 | 18,000 |
 
-Each leaves six potions, all middle red or all small blue, five claws or five teeth, the rare gear 6 times in 100, and, as Metin Bitwy does, each helper of a read 3 times in 100, besides the book and the gloves every stone leaves. A valley stone's waves stand up to four levels above it: there are no orcs below level 26.
+Each leaves six potions, all middle red or all small blue, five claws or five teeth, the rare gear 6 times in 100, and, as Metin Bitwy does, each helper of a read 3 times in 100, besides the book and the gloves every stone leaves. A valley stone's waves stand up to four levels above it: there are no orcs below level 26. They also leave a soul stone and Zwój Błogosławieństwa ([upgrading.md](upgrading.md)), Metin Czerni 2 and 1 times in 100, Metin Ciemności 3 and 2, Metin Zazdrości 4 and 3, Metin Duszy 5 and 4.
 
 **Fighting one:**
 - A stone never moves and never strikes back. A wave of its monsters already stands around it.
@@ -44,7 +44,7 @@ Each leaves six potions, all middle red or all small blue, five claws or five te
 - **A piece of the rare gear,** 4 times in 100 from every stone: one +0 kind of the gear past the first from level 21 ([equipment.md](equipment.md)).
 - **Bonuses:** every piece of gear a stone leaves carries one to three bonuses ([bonuses.md](bonuses.md)).
 - **The thief's gloves,** once in 200 from every stone, a chance no pair doubles, so one pair does not find the next ([thief-gloves.md](thief-gloves.md)).
-- **A skill book,** 3 times in 100 from every stone, is the book of one skill of any class; Metin Bitwy also leaves a soul stone once in 100 ([skills.md](skills.md)).
+- **A skill book,** 3 times in 100 from every stone, is the book of one skill of any class; Metin Bitwy also leaves a soul stone once in 100 ([skills.md](skills.md)), and the valley's stones more often, below.
 - **The helpers of a read:** Zwój Egzorcyzmu once in 100 and Rada Pustelnika once in 200 from every stone, and from Metin Bitwy each 3 times in 100 ([skills.md](skills.md)).
 
 ## What the client does

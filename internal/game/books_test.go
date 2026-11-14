@@ -7,6 +7,7 @@ import (
 	"math"
 	"math/rand/v2"
 	"net"
+	"reflect"
 	"slices"
 	"testing"
 	"time"
@@ -171,6 +172,23 @@ func TestASoulStoneTrainsTheSkillPicked(t *testing.T) {
 	if !holds(got, itemCleared(item.Item{Cell: 0}), infoLine("Udało się! Umiejętność osiągnęła poziom G3.")) ||
 		kept.learnt[skill.EnchantedBlade] != 32 || kept.learnt[skill.DragonSwirl] != 29 || len(s.inventory) != 0 {
 		t.Fatalf("told %x, kept %v", got, kept.learnt)
+	}
+}
+
+// One of a stack of soul stones is used: the rest stay in its cell, one fewer.
+func TestASoulStoneOfAStackLeavesTheRest(t *testing.T) {
+	s, _, client := soulsAt(t, lucky)
+	s.inventory[0].Count = 3
+	usedFirst(t, s)
+	drain(t, client)
+
+	if err := s.onScriptAnswer(context.Background(), answered(1)); err != nil {
+		t.Fatal(err)
+	}
+
+	left := item.Item{ID: 6, VNum: item.SoulStone, Count: 2, Cell: 0}
+	if got := packets(t, drain(t, client)); !holds(got, itemSet(left)) || len(s.inventory) != 1 || !reflect.DeepEqual(s.inventory[0], left) {
+		t.Fatalf("told %x, holds %+v", got, s.inventory)
 	}
 }
 

@@ -75,9 +75,16 @@ func (s Skills) Train(ctx context.Context, characterID uint32, r account.Read) e
 		if tag.RowsAffected() != 1 {
 			return ErrNotTrained
 		}
-		if tag, err = tx.Exec(ctx, `DELETE FROM items WHERE id = $1 AND character_id = $2 AND worn IS NULL`,
+		// One of a stack of soul stones is spent; the last, or a book, is deleted.
+		if tag, err = tx.Exec(ctx, `UPDATE items SET count = count - 1 WHERE id = $1 AND character_id = $2 AND worn IS NULL AND count > 1`,
 			r.Used, characterID); err != nil {
 			return err
+		}
+		if tag.RowsAffected() == 0 {
+			if tag, err = tx.Exec(ctx, `DELETE FROM items WHERE id = $1 AND character_id = $2 AND worn IS NULL`,
+				r.Used, characterID); err != nil {
+				return err
+			}
 		}
 		if tag.RowsAffected() != 1 {
 			return ErrNotTrained

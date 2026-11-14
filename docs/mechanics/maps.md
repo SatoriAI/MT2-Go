@@ -82,7 +82,8 @@ None of their own: the map follows from the position in MAIN_CHARACTER and WARP.
   Each calls the orcs about it, at most four levels above itself, where the first maps' stones call none above their own, and comes back after ten minutes.
 - **What they leave** ([drops.md](drops.md)):
   - **An orc** leaves the middle red potion or the small blue one, each 8 in 100, and yang rising with its level. It also leaves a skill book 3 in 1,000 and a piece of the gear of levels 21 to 36 once in 100: the gear that on the first maps only the cursed monsters and the stones leave.
-  - **The lord** leaves 3,000 to 5,000 yang, that gear 3 times in 10 and a book once in 10.
+  - **The lord** leaves 3,000 to 5,000 yang, that gear 3 times in 10, a book once in 10, and a soul stone and Zwój Błogosławieństwa each 3 times in 10.
+  - **The stones** leave a soul stone 2 to 5 times in 100 and Zwój Błogosławieństwa 1 to 4 times in 100, the deeper the more ([stones.md](stones.md), [upgrading.md](upgrading.md)).
 
 ## How we know
 

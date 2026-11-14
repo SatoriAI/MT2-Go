@@ -291,8 +291,8 @@ func (s *session) itemAt(at protocol.ItemPos) (item.Item, bool) {
 }
 
 // itemPackets are the packets the client sends from its inventory window and taskbar.
-// Those the game does not do yet, the old drop its scripts never send and using one item
-// on another, are dropped, and so is any of them still in flight after Change character.
+// Those the game does not do yet, the old drop its scripts never send, are dropped, and so
+// is any of them still in flight after Change character.
 var itemPackets = map[protocol.ClientHeader]bool{
 	protocol.ClientItemUse: true, protocol.ClientItemDrop: true, protocol.ClientItemMove: true,
 	protocol.ClientQuickslotAdd: true, protocol.ClientQuickslotDel: true, protocol.ClientQuickslotSwap: true,
