@@ -50,7 +50,7 @@ Seen from the real client: a red potion laid at (977491, 272599) is `1a 53ea0e00
   | Nieb. Wilk (104) | as Wilk |
   | Nieb. Alfa Wilk (105) | as Alfa Wilk |
   | Czerw. Dzik (109) | as Dzik |
-  | Niedźwiedź (110), Niedźw. Grizzly (111), Tygrys (114) | the potions and the first gear |
+  | Niedźwiedź (110), Niedźw. Grizzly (111), Czar. Niedźw. (112), Brąz. Niedźw. (113), Tygrys (114) | the potions and the first gear |
 
   The claw and the tooth are the materials of the later upgrades ([upgrading.md](upgrading.md)).
 
@@ -71,6 +71,8 @@ Seen from the real client: a red potion laid at (977491, 272599) is `1a 53ea0e00
   | Czerw. Dzik (109) | 30 to 55, 6 in 10 |
   | Niedźwiedź (110) | 25 to 45, 6 in 10 |
   | Niedźw. Grizzly (111) | 40 to 70, 6 in 10 |
+  | Czar. Niedźw. (112) | 40 to 65, 6 in 10 |
+  | Brąz. Niedźw. (113) | 55 to 90, 6 in 10 |
   | Tygrys (114) | 35 to 60, 6 in 10 |
 
   The amounts are this server's, below the client's mob_proto gold and rising with it: the tiger leaves less than the grizzly there too.

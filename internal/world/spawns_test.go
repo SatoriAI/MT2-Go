@@ -59,6 +59,7 @@ var cursedBands = map[uint16]struct{ from, to float64 }{
 	131: {30000, 42000}, 132: {30000, 42000},
 	133: {30000, 55000}, 137: {30000, 55000}, // kin of a far leader too
 	134: {42000, 55000}, 135: {42000, 55000}, 136: {42000, 55000}, 138: {42000, 55000}, 139: {42000, 55000},
+	115: {48000, 60000},
 }
 
 // leaders are the cursed kinds that lead a pack of their kin.
@@ -129,15 +130,16 @@ func TestEveryFamilyPackStandsWhereItsKindsDo(t *testing.T) {
 }
 
 // Each stretch out from a village holds the kinds whose bands cover it, the harder the
-// further: dogs and wolves by the gate, bears from 18000 and grizzlies from 20000, tigers
-// only from 40000.
+// further: dogs and wolves by the gate, bears from 18000 and grizzlies from 20000, black
+// bears from 36000, tigers from 40000 and brown bears from 42000.
 func TestTheKindsGetHarderFurtherOut(t *testing.T) {
 	for d, want := range map[float64][]uint16{
 		3000:  {101, 102},
 		10000: {101, 102, 103, 108},
 		20000: {103, 104, 105, 108, 110, 111},
 		26000: {104, 105, 109, 110, 111},
-		45000: {110, 111, 114},
+		45000: {110, 111, 112, 113, 114},
+		38000: {109, 110, 111, 112},
 	} {
 		var got []uint16
 		for f := range families {
