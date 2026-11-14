@@ -52,7 +52,7 @@ func (svc *Service) saveInWorld(p *present, log *slog.Logger) {
 // character, and saves it once any save of it already under way has landed. The position
 // is the world record's, as the periodic save's is, so the two never disagree. A player
 // who leaves dead is saved as a restart in town would leave them: at their kingdom's
-// start, with all their hit points and mana.
+// start, or the arrival of a map no kingdom starts on, with all their hit points and mana.
 func (svc *Service) leaveAndSave(out func(vid uint32) *present, c *character, empire account.Empire, log *slog.Logger) {
 	p := out(c.vid)
 	p.saving.Lock()
@@ -61,7 +61,7 @@ func (svc *Service) leaveAndSave(out func(vid uint32) *present, c *character, em
 	saved.X, saved.Y = p.add.X, p.add.Y
 	if p.dead() {
 		if x, y, ok := empire.StartPosition(); ok {
-			saved.X, saved.Y = x, y
+			saved.X, saved.Y = riseAt(saved.X, saved.Y, x, y)
 		}
 		points, _ := saved.Points()
 		saved.HP, saved.SP = points.MaxHP, points.MaxSP

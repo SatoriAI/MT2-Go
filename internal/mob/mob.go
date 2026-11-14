@@ -56,10 +56,13 @@ type Proto struct {
 	Upgrades bool
 
 	// A stone's own: the monsters each of its waves calls out, how long after it is
-	// destroyed it comes back, and how long it must go unhit before it heals.
-	Wave       []uint16
-	Respawn    time.Duration
-	HealsAfter time.Duration
+	// destroyed it comes back, and how long it must go unhit before it heals. A boss comes
+	// back its Respawn after it dies and up to RespawnSpread later, and its map is told.
+	Wave          []uint16
+	Respawn       time.Duration
+	RespawnSpread time.Duration
+	HealsAfter    time.Duration
+	Boss          bool
 }
 
 // Ware is what one cell of a shop holds: Count of item VNum. Each cell is written out, so
@@ -188,6 +191,19 @@ var (
 	battleAids = []Drop{{VNum: item.ExorcismScroll, Count: 1, Chance: 300}, {VNum: item.HermitsAdvice, Count: 1, Chance: 300}}
 )
 
+// The valley's loot, as the debaters settled: the orcs leave the gear past the first, from
+// level 20 to 36, which only the cursed and the stones leave on the first maps, once in
+// 100, the middle red potion and the books; the orc lord the gear 3 times in 10; its
+// stones the middle potions, materials and the gear 6 times in 100.
+var (
+	orcDrops         = []Drop{{VNum: 27002, Count: 1, Chance: 800}, {VNum: 27004, Count: 1, Chance: 800}}
+	orcPicks         = append(slices.Clone(fieldBooks), Pick{From: rareGear, Count: 1, Chance: 100})
+	lordPicks        = []Pick{{From: rareGear, Count: 1, Chance: 3000}, {From: books, Count: 1, Chance: 1000}}
+	valleyStonePicks = []Pick{{From: []uint32{27002, 27004}, Count: 6, Chance: 10000}, {From: materials, Count: 5, Chance: 10000},
+		{From: books, Count: 1, Chance: 300}, {From: rareGear, Count: 1, Chance: 600},
+		{From: []uint32{item.ThiefGloves}, Count: 1, Chance: 50, Steady: true}}
+)
+
 // Fightable reports whether a player can attack the mob.
 func (p Proto) Fightable() bool { return p.Kind != NPC }
 
@@ -253,6 +269,57 @@ var protos = map[uint16]Proto{
 		Level: 18, MaxHP: 585, Vitality: 27, Armour: 22, Exp: 365,
 		Strength: 18, DamageMin: 49, DamageMax: 60, AttackRange: 175,
 		RegenCycle: 6, RegenPercent: 12, Drops: gear, Picks: fieldBooks, Yang: Yang{Chance: 6000, Min: 35, Max: 60}},
+	// The valley's orcs (docs/mechanics/maps.md), of the client's mob_proto dump, with yang
+	// rising with their level: the dump's gold for the orcs falls from the first to the elite.
+	601: {VNum: 601, Name: "Ork", Kind: Monster, MoveSpeed: 100, AttackSpeed: 110,
+		Level: 26, MaxHP: 2268, Vitality: 56, Armour: 50, Exp: 1038,
+		Strength: 42, DamageMin: 91, DamageMax: 111, AttackRange: 150,
+		RegenCycle: 6, RegenPercent: 2, Drops: orcDrops, Picks: orcPicks, Yang: Yang{Chance: 6000, Min: 80, Max: 130}},
+	602: {VNum: 602, Name: "Ork Zwiadowca", Kind: Monster, MoveSpeed: 100, AttackSpeed: 110,
+		Level: 29, MaxHP: 2348, Vitality: 57, Armour: 51, Exp: 1062,
+		Strength: 43, DamageMin: 92, DamageMax: 113, AttackRange: 150,
+		RegenCycle: 6, RegenPercent: 2, Drops: orcDrops, Picks: orcPicks, Yang: Yang{Chance: 6000, Min: 85, Max: 140}},
+	603: {VNum: 603, Name: "Ork Wojownik", Kind: Monster, MoveSpeed: 100, AttackSpeed: 110,
+		Level: 31, MaxHP: 2429, Vitality: 59, Armour: 52, Exp: 1086,
+		Strength: 44, DamageMin: 94, DamageMax: 115, AttackRange: 150,
+		RegenCycle: 6, RegenPercent: 2, Drops: orcDrops, Picks: orcPicks, Yang: Yang{Chance: 6000, Min: 90, Max: 150}},
+	604: {VNum: 604, Name: "Ork Czarodziej", Kind: Monster, MoveSpeed: 100, AttackSpeed: 110,
+		Level: 33, MaxHP: 2514, Vitality: 30, Armour: 53, Exp: 1110,
+		Strength: 45, DamageMin: 96, DamageMax: 117, AttackRange: 150,
+		RegenCycle: 6, RegenPercent: 2, Drops: orcDrops, Picks: orcPicks, Yang: Yang{Chance: 6000, Min: 95, Max: 160}},
+	631: {VNum: 631, Name: "Elit. Ork", Kind: Monster, MoveSpeed: 150, AttackSpeed: 120,
+		Level: 34, MaxHP: 1390, Vitality: 42, Armour: 40, Exp: 959,
+		Strength: 32, DamageMin: 44, DamageMax: 66, AttackRange: 175,
+		RegenCycle: 6, RegenPercent: 5, Drops: orcDrops, Picks: orcPicks, Yang: Yang{Chance: 6000, Min: 100, Max: 170}},
+	632: {VNum: 632, Name: "Elit. Ork Zwiadowca", Kind: Monster, MoveSpeed: 150, AttackSpeed: 100,
+		Level: 36, MaxHP: 1806, Vitality: 45, Armour: 42, Exp: 1218,
+		Strength: 28, DamageMin: 80, DamageMax: 120, AttackRange: 175,
+		RegenCycle: 8, RegenPercent: 10, Drops: orcDrops, Picks: orcPicks, Yang: Yang{Chance: 6000, Min: 110, Max: 180}},
+	633: {VNum: 633, Name: "Elit. Ork Wojownik", Kind: Monster, MoveSpeed: 100, AttackSpeed: 100,
+		Level: 39, MaxHP: 2025, Vitality: 43, Armour: 45, Exp: 1319,
+		Strength: 25, DamageMin: 80, DamageMax: 97, AttackRange: 175,
+		RegenCycle: 6, RegenPercent: 7, Drops: orcDrops, Picks: orcPicks, Yang: Yang{Chance: 6000, Min: 120, Max: 200}},
+	634: {VNum: 634, Name: "Elit. Ork Czarodziej", Kind: Monster, MoveSpeed: 100, AttackSpeed: 100,
+		Level: 40, MaxHP: 2800, Vitality: 50, Armour: 46, Exp: 2254,
+		Strength: 37, DamageMin: 81, DamageMax: 99, AttackRange: 175,
+		RegenCycle: 8, RegenPercent: 12, Drops: orcDrops, Picks: orcPicks, Yang: Yang{Chance: 6000, Min: 130, Max: 220}},
+	635: {VNum: 635, Name: "Elit. Ork Generał", Kind: Monster, MoveSpeed: 100, AttackSpeed: 100,
+		Level: 44, MaxHP: 3228, Vitality: 27, Armour: 51, Exp: 2478,
+		Strength: 40, DamageMin: 86, DamageMax: 106, AttackRange: 175,
+		RegenCycle: 8, RegenPercent: 12, Drops: orcDrops, Picks: orcPicks, Yang: Yang{Chance: 6000, Min: 150, Max: 250}},
+	636: {VNum: 636, Name: "Czarny Ork", Kind: Monster, MoveSpeed: 100, AttackSpeed: 100,
+		Level: 46, MaxHP: 5401, Vitality: 75, Armour: 53, Exp: 5180,
+		Strength: 20, DamageMin: 54, DamageMax: 99, AttackRange: 175,
+		RegenCycle: 9, RegenPercent: 17, Drops: orcDrops, Picks: orcPicks, Yang: Yang{Chance: 6000, Min: 180, Max: 300}},
+	637: {VNum: 637, Name: "Czarny Ork Zwiadowca", Kind: Monster, MoveSpeed: 100, AttackSpeed: 100,
+		Level: 49, MaxHP: 5959, Vitality: 60, Armour: 56, Exp: 5516,
+		Strength: 45, DamageMin: 75, DamageMax: 138, AttackRange: 175,
+		RegenCycle: 8, RegenPercent: 12, Drops: orcDrops, Picks: orcPicks, Yang: Yang{Chance: 6000, Min: 200, Max: 330}},
+	691: {VNum: 691, Name: "Wódz Orków", Kind: Monster, MoveSpeed: 100, AttackSpeed: 100, Aggressive: true, Boss: true,
+		Level: 50, MaxHP: 24618, Vitality: 63, Armour: 57, Exp: 20422,
+		Strength: 48, DamageMin: 79, DamageMax: 146, AttackRange: 175,
+		RegenCycle: 19, RegenPercent: 22, Drops: orcDrops, Picks: lordPicks, Yang: Yang{Chance: 10000, Min: 3000, Max: 5000},
+		Respawn: 20 * time.Minute, RespawnSpread: 10 * time.Minute},
 	// The cursed kinds, the client's AGGR, which attack players they see, each with the stats
 	// of the client's mob_proto dump and yang a little above its passive kin of its level.
 	131: {VNum: 131, Name: "Przeklęty Wilk", Kind: Monster, Animal: true, MoveSpeed: 120, AttackSpeed: 100, Aggressive: true,
@@ -309,6 +376,25 @@ var protos = map[uint16]Proto{
 		Drops: append([]Drop{{VNum: item.SoulStone, Count: 1, Chance: 100}}, battleAids...),
 		Picks: append(stonePicks(5, 4, 3500), Pick{From: firstGearP3, Count: 1, Chance: 500}), Yang: Yang{Chance: 10000, Min: 1500, Max: 2200},
 		Wave: []uint16{109, 109, 110, 110, 111}, Respawn: 10 * time.Minute, HealsAfter: 10 * time.Second},
+
+	// The valley's stones: speeds past the packet's byte, 305 and up in mob_proto, sent as
+	// 255, which a stone that never moves does not show.
+	8005: {VNum: 8005, Name: "Metin Czerni", Kind: Stone, MoveSpeed: 255, AttackSpeed: 255,
+		Level: 25, MaxHP: 31500, Vitality: 30, Armour: 30, Exp: 9000, RegenCycle: 5, RegenPercent: 1,
+		Drops: battleAids, Picks: valleyStonePicks, Yang: Yang{Chance: 10000, Min: 2500, Max: 3500},
+		Wave: []uint16{601, 601, 601, 602, 602}, Respawn: 10 * time.Minute, HealsAfter: 10 * time.Second},
+	8006: {VNum: 8006, Name: "Metin Ciemności", Kind: Stone, MoveSpeed: 255, AttackSpeed: 255,
+		Level: 30, MaxHP: 40000, Vitality: 36, Armour: 35, Exp: 10500, RegenCycle: 5, RegenPercent: 1,
+		Drops: battleAids, Picks: valleyStonePicks, Yang: Yang{Chance: 10000, Min: 3000, Max: 4200},
+		Wave: []uint16{602, 602, 603, 603, 604}, Respawn: 10 * time.Minute, HealsAfter: 10 * time.Second},
+	8007: {VNum: 8007, Name: "Metin Zazdrości", Kind: Stone, MoveSpeed: 255, AttackSpeed: 255,
+		Level: 35, MaxHP: 49000, Vitality: 42, Armour: 41, Exp: 14000, RegenCycle: 5, RegenPercent: 1,
+		Drops: battleAids, Picks: valleyStonePicks, Yang: Yang{Chance: 10000, Min: 3600, Max: 5000},
+		Wave: []uint16{604, 631, 631, 632, 633}, Respawn: 10 * time.Minute, HealsAfter: 10 * time.Second},
+	8008: {VNum: 8008, Name: "Metin Duszy", Kind: Stone, MoveSpeed: 255, AttackSpeed: 255,
+		Level: 40, MaxHP: 60000, Vitality: 48, Armour: 46, Exp: 18000, RegenCycle: 5, RegenPercent: 1,
+		Drops: battleAids, Picks: valleyStonePicks, Yang: Yang{Chance: 10000, Min: 4200, Max: 6000},
+		Wave: []uint16{632, 633, 634, 634, 635}, Respawn: 10 * time.Minute, HealsAfter: 10 * time.Second},
 
 	9001:  {VNum: 9001, Name: "Handlarz Bronią", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100, Sells: weapons},
 	9002:  {VNum: 9002, Name: "Handlarz Zbrojami", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100, Sells: armours},

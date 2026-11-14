@@ -226,7 +226,7 @@ func (svc *Service) spawnOne(proto *mob.Proto, sp *world.Spawn, now time.Time) *
 // place puts the monster in the world afresh, with a new vid and all its hit points: at a
 // random point of its spawn's area, or at one of its spots, picked afresh. A stone sends
 // off the monsters it called before, says it has appeared to everyone on its map, and
-// calls its first wave.
+// calls its first wave; a boss says it has woken.
 func (svc *Service) place(m *monster, now time.Time) {
 	x, y := m.spawn.X+svc.spread(m.spawn.Spread), m.spawn.Y+svc.spread(m.spawn.Spread)
 	if spots := m.spawn.Spots; len(spots) > 0 {
@@ -238,6 +238,9 @@ func (svc *Service) place(m *monster, now time.Time) {
 		svc.dismiss(m)
 		svc.record.tellMap(m.p, "Pojawił się "+m.proto.Name+".")
 		svc.callWave(m, nil, now)
+	}
+	if m.proto.Boss {
+		svc.record.tellMap(m.p, m.proto.Name+" przebudził się!")
 	}
 }
 
@@ -405,10 +408,14 @@ func (svc *Service) bringBack(m *monster, now time.Time) {
 	}
 }
 
-// respawnAfter is how long after its death the monster comes back: a stone's own time, its
-// spawn's, set by how far its band lies from the village, or else the fields' default.
+// respawnAfter is how long after its death the monster comes back: a stone's or a boss's
+// own time, its spawn's, set by how far its band lies from the village, or else the
+// fields' default. A boss's own time is spread: the nanoseconds of its death pick where in
+// it, so the roll needs no field on every monster, which the tick walks.
 func (m *monster) respawnAfter() time.Duration {
 	switch {
+	case m.proto.Respawn > 0 && m.proto.RespawnSpread > 0:
+		return m.proto.Respawn + time.Duration(m.diedAt.UnixNano()%int64(m.proto.RespawnSpread))
 	case m.proto.Respawn > 0:
 		return m.proto.Respawn
 	case m.spawn.Respawn > 0:

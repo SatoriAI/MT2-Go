@@ -10,6 +10,17 @@
 | Metin Walki (8002) | 10 | 35,000 to 45,000 | 2 | three blue wolves, two alpha blue wolves |
 | Metin Bitwy (8003) | 15 | 45,000 to 55,000 | 2 | two red boars, two bears, a grizzly |
 
+**In Seungryong Valley** nine more stand, deeper the stronger, depth measured inward from the arrival's ring about the centre ([maps.md](maps.md)), each calling the orcs about it:
+
+| Stone | Level | How deep | In the valley | Its waves | Hit points | Yang | Experience |
+|---|---|---|---|---|---|---|---|
+| Metin Czerni (8005) | 25 | 0 to 20,000 | 3 | three orcs, two orc scouts | 31,500 | 2,500 to 3,500 | 9,000 |
+| Metin Ciemności (8006) | 30 | 15,000 to 35,000 | 3 | two orc scouts, two orc warriors, an orc sorcerer | 40,000 | 3,000 to 4,200 | 10,500 |
+| Metin Zazdrości (8007) | 35 | 30,000 to 48,000 | 2 | an orc sorcerer, two elite orcs, an elite scout, an elite warrior | 49,000 | 3,600 to 5,000 | 14,000 |
+| Metin Duszy (8008) | 40 | 45,000 on | 1 | an elite scout, an elite warrior, two elite sorcerers, an elite general | 60,000 | 4,200 to 6,000 | 18,000 |
+
+Each leaves six potions, all middle red or all small blue, five claws or five teeth, the rare gear 6 times in 100, and, as Metin Bitwy does, each helper of a read 3 times in 100, besides the book and the gloves every stone leaves. A valley stone's waves stand up to four levels above it: there are no orcs below level 26.
+
 **Fighting one:**
 - A stone never moves and never strikes back. A wave of its monsters already stands around it.
 - Each fifth of its hit points the player knocks off calls another wave, which goes straight for them. A stone never has more than six of its monsters alive at once.
@@ -116,6 +127,7 @@ Damage, target, death and drops use the same packets as for monsters ([combat.md
   - each stone's drops are as in the table above, with a skill book 3 times in 100, a piece of the rare gear 4 times in 100 and the thief's gloves once in 200;
   - the +3 gear is the first gear's +3.
 - `internal/world/spawns_test.go`: three, two and two stones per village, each with three spots; each spot in its band, on its map, and clear of everything else.
+- `internal/world/valley_test.go`: the valley's three, three, two and one, each with three spots in its band, 9,000 apart and clear of the arrival.
 - `internal/game/monsters_test.go`: a stone's waves and their strolls stay on its map.
 - `internal/game/stones_test.go`:
   - **Appearing:**

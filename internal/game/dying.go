@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
+	"github.com/SatoriAI/MT2-Go/internal/world"
 )
 
 // die lays the player down at no hit points: they lose the death penalty from their
@@ -21,6 +22,23 @@ func (l locked) die(p *present) {
 	}
 	p.send(protocol.EncodeDead(vid))
 	l.toViewers(p, protocol.EncodeDead(vid))
+}
+
+// townFor is where the player rises in town (riseAt).
+func (w *record) townFor(vid uint32, x, y int32) (int32, int32) {
+	l, unlock := w.lock()
+	defer unlock()
+	p := l.all[vid]
+	return riseAt(p.add.X, p.add.Y, x, y)
+}
+
+// riseAt is where one who fell at (x, y) rises in town: the arrival of the map, if it is
+// one no kingdom starts on, else their kingdom's start at (homeX, homeY).
+func riseAt(x, y, homeX, homeY int32) (int32, int32) {
+	if m, ok := world.MapAt(x, y); ok && m.Arrival != (world.Spot{}) {
+		return m.Arrival.X, m.Arrival.Y
+	}
+	return homeX, homeY
 }
 
 // revive brings a dead player back, where they fell or in town at (x, y): with half their

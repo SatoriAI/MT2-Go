@@ -2,7 +2,7 @@
 
 ## What the player sees
 
-When a monster's bite takes the last of a player's hit points, the character falls, everyone near sees the body, and the restart dialog opens with two buttons. **Restart here** brings the character back where it fell with half its hit points and mana; **Restart in town** brings it back at the kingdom's start with all of them. Dying costs a little experience, never a level. The monster that killed the player loses interest and walks home. Back on their feet, a player's hit points and mana fill again over time ([combat.md](combat.md), healing); the dead do not heal.
+When a monster's bite takes the last of a player's hit points, the character falls, everyone near sees the body, and the restart dialog opens with two buttons. **Restart here** brings the character back where it fell with half its hit points and mana; **Restart in town** brings it back at the kingdom's start with all of them, or, in Seungryong Valley, at the valley's arrival ([maps.md](maps.md)). Dying costs a little experience, never a level. The monster that killed the player loses interest and walks home. Back on their feet, a player's hit points and mana fill again over time ([combat.md](combat.md), healing); the dead do not heal.
 
 ## What the client does
 
@@ -20,9 +20,9 @@ No new packets: DEAD, CHAT (type 5, a command, from the player's vid), CHARACTER
 
 - **A player is dead** at no hit points. A dead player's moves are dropped, their blows and picks land nowhere, and monsters chasing them give up at their next step. Someone arriving sees the body lying, as for a monster.
 - **Dying:** the player loses 2% of what their level needs, never below no experience, so a level is never lost: 6 at level 1, nothing at the top level. They get the experience lost as a POINT_CHANGE, then their death; everyone who sees them gets the death. Their pick ends.
-- **Leaving while dead,** by logging out, Change character or a dropped connection, saves the character as a restart in town would leave it: at its kingdom's start, with all its hit points and mana. The save every minute passes over a player lying dead, so a crash brings them back from the save before they fell, alive. No character is ever saved with no hit points, and the database refuses one.
+- **Leaving while dead,** by logging out, Change character or a dropped connection, saves the character as a restart in town would leave it: at its kingdom's start, or the valley's arrival, with all its hit points and mana. The save every minute passes over a player lying dead, so a crash brings them back from the save before they fell, alive. No character is ever saved with no hit points, and the database refuses one.
 - **Experience** from a monster that dies after the player did is not theirs: a dead player gets no share of a kill.
-- **Restarting,** only while dead (otherwise the command is ignored): hit points and mana are set, half here (at least 1 hit point), all in town; the player gets `CloseRestartWindow`, their own character afresh, their hit points and mana, then everyone in view. Those who saw them get them afresh, or, after a restart in town, see them go. In town the character stands at its kingdom's start, which the session keeps as where it is, so leaving saves it there. The client is only told its character's new position, which works because every first village holds its kingdom's start: dying on another map will need a warp.
+- **Restarting,** only while dead (otherwise the command is ignored): hit points and mana are set, half here (at least 1 hit point), all in town; the player gets `CloseRestartWindow`, their own character afresh, their hit points and mana, then everyone in view. Those who saw them get them afresh, or, after a restart in town, see them go. In town the character stands at its kingdom's start, or at the arrival of the map it fell on if no kingdom starts there (the valley), which the session keeps as where it is, so leaving saves it there. The client is only told its character's new position, which works because that town always lies on the map it fell on: a town on another map would need a warp.
 
 ## How we know
 
@@ -40,7 +40,8 @@ No new packets: DEAD, CHAT (type 5, a command, from the player's vid), CHARACTER
   - restarting in town with all, at the start, an onlooker seeing her go;
   - a restart while alive changing nothing;
   - a dead player getting no share of a kill.
-- `internal/game/save_test.go`: a player who leaves dead kept at their kingdom's start, with all their hit points and mana; one lying dead not saved every minute.
+- `internal/game/save_test.go`: a player who leaves dead kept at their kingdom's start, or in the valley at its arrival, with all their hit points and mana; one lying dead not saved every minute.
+- `internal/game/dying_test.go`: the town of one who fell in the valley its arrival, and on a kingdom's map its start; restart in town there rising at the arrival, kept as where she is.
 - `internal/server/combat_test.go`: the same over real sockets and the real database, which refuses a character saved with no hit points.
 
 ## Not done yet

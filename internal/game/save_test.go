@@ -9,6 +9,7 @@ import (
 
 	"github.com/SatoriAI/MT2-Go/internal/account"
 	"github.com/SatoriAI/MT2-Go/internal/protocol"
+	"github.com/SatoriAI/MT2-Go/internal/world"
 )
 
 // saves stands in for the store's saving: it keeps the last progress and position saved
@@ -223,6 +224,21 @@ func TestAPlayerWhoLeavesDeadIsKeptAtTheStart(t *testing.T) {
 	x, y, _ := account.EmpireShinsoo.StartPosition()
 	if _, at, _ := store.ofHendra(); at != [2]int32{x, y} {
 		t.Fatalf("saved at %v, want the start at (%d, %d)", at, x, y)
+	}
+}
+
+// One who leaves dead in the valley is kept at its arrival, where a restart in town there
+// puts them.
+func TestAPlayerWhoLeavesDeadInTheValleyIsKeptAtItsArrival(t *testing.T) {
+	s, store, c, p := playing(t)
+	valley, _ := world.MapNamed(world.Valley)
+	s.record.held(func(locked) { p.add.X, p.add.Y = valley.X+70000, valley.Y+70000 })
+	c.HP = 0
+
+	s.leaveAndSave(s.record.leave, c, account.EmpireShinsoo, quiet)
+
+	if _, at, _ := store.ofHendra(); at != [2]int32{valley.Arrival.X, valley.Arrival.Y} {
+		t.Fatalf("saved at %v, want the arrival %v", at, valley.Arrival)
 	}
 }
 

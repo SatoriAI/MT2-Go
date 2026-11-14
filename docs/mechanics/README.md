@@ -34,6 +34,7 @@ Pages state facts in our own words. They never paste code from another server or
 | [potions.md](potions.md) | Drinking red and blue potions: healing, mana, the stack and the effect |
 | [items.md](items.md) | Item kinds, what a character owns, the inventory window, moving items, and giving or taking them on the command line |
 | [events.md](events.md) | Scheduled events multiplying experience and yang, their command line and their notices |
+| [maps.md](maps.md) | The maps, and Seungryong Valley: its arrival, its orcs inward to the orc lord, its stones and its town |
 | [monsters.md](monsters.md) | Village NPCs and monsters: where they stand, how they appear, and their strolls |
 | [stones.md](stones.md) | Metin stones: where they stand, the waves they call, their smoke, what they leave, and their return |
 | [third-hand.md](third-hand.md) | Trzecia Ręka: the wearer's yang picked up as it falls, its icon, and its thirty days of real time |
