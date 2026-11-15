@@ -42,7 +42,7 @@ type fight struct {
 	ailing                            ailments
 	stunUntil, slowUntil, poisonUntil time.Time
 	poison, fire                      dose
-	animal                            bool // of the animals' race, which Silny przeciwko Zwierzętom strikes harder
+	animal, orc                       bool // of the animals' or orcs' race, which their strengths strike harder
 	// A stone's own: that it is one, the waves it has called as it was worn down, and the
 	// smoke it shows.
 	stone bool
@@ -164,7 +164,7 @@ func (w *record) attack(playerVID, vid uint32, gap time.Duration, r *rand.Rand, 
 
 // land strikes the monster with one of the player's blows, a swing's or an arrow's, at its
 // rolled damage: through its defence when a piercing chance comes up, raised by average
-// damage and, on an animal, by strength against animals, and twice that when a critical
+// damage and by strength against its race, and twice that when a critical
 // chance comes up, from buffs and bonuses alike. A critical or piercing blow is drawn
 // with its effect on the player, for them and everyone who sees them.
 func (l locked) land(p, v *present, r *rand.Rand, now time.Time) blow {
@@ -174,7 +174,7 @@ func (l locked) land(p, v *present, r *rand.Rand, now time.Time) blow {
 		defender, flag = combat.Defender{}, protocol.DamagePiercing
 		effects = append(effects, protocol.EncodeSpecialEffect(protocol.EffectPiercing, p.add.VID))
 	}
-	damage := raised(combat.Damage(attackerOf(p.char), defender, r), t.Average, v, t.Animals)
+	damage := raised(combat.Damage(attackerOf(p.char), defender, r), t.Average, v, t)
 	if crit := buffBonus(p.char, skill.Critical) + t.Critical; crit > 0 && r.IntN(100) < crit {
 		damage, flag = 2*damage, flag|protocol.DamageCritical
 		effects = append(effects, protocol.EncodeSpecialEffect(protocol.EffectCritical, p.add.VID))
@@ -190,17 +190,21 @@ func (l locked) land(p, v *present, r *rand.Rand, now time.Time) blow {
 	return struck
 }
 
-// raised is damage raised by percent, a bonus's, and on an animal by animals, the
-// strength against them, in one sum so small bonuses are not rounded away. A bonus never
-// takes a blow that hurts down to nothing.
-func raised(damage, percent int, v *present, animals int) int {
-	if !v.fight.animal {
-		animals = 0
+// raised is damage raised by percent, a bonus's, and by the totals' strength against the
+// monster's race, animals' or orcs', in one sum so small bonuses are not rounded away. A
+// bonus never takes a blow that hurts down to nothing.
+func raised(damage, percent int, v *present, t account.Totals) int {
+	race := 0
+	switch {
+	case v.fight.animal:
+		race = t.Animals
+	case v.fight.orc:
+		race = t.Orcs
 	}
-	if damage <= 0 || percent == 0 && animals == 0 {
+	if damage <= 0 || percent == 0 && race == 0 {
 		return damage
 	}
-	return max(1, damage*(100+percent)*(100+animals)/10000)
+	return max(1, damage*(100+percent)*(100+race)/10000)
 }
 
 // bowInHand is whether the character holds a bow, which only shoots.

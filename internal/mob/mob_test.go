@@ -354,7 +354,7 @@ func TestOnlyTheCursedAndTheStonesLeaveTheRareGear(t *testing.T) {
 			continue
 		case p.Boss:
 			want = 3000
-		case orc(vnum):
+		case p.Orc:
 			want = 100
 		case p.Aggressive:
 			want = 50
@@ -368,15 +368,13 @@ func TestOnlyTheCursedAndTheStonesLeaveTheRareGear(t *testing.T) {
 	}
 }
 
-// orc is whether the kind is one of the valley's orcs, mob_proto's RACE_FLAG ORC.
-func orc(vnum uint16) bool { return vnum >= 600 && vnum < 700 }
-
-// Every monster the world has but the valley's orcs is of the animals' race, as mob_proto's
-// RACE_FLAG has them; stones and NPCs are of none.
-func TestTheMonstersButTheOrcsAreAnimals(t *testing.T) {
+// Every monster the world has is of the animals' race or, the valley's, 601 to 691, the
+// orcs', as mob_proto's RACE_FLAG has them; stones and NPCs are of none.
+func TestTheMonstersAreAnimalsOrOrcs(t *testing.T) {
 	for vnum, p := range protos {
-		if p.Animal != (p.Kind == Monster && !orc(vnum)) {
-			t.Errorf("%d %s: animal %v", vnum, p.Name, p.Animal)
+		orc := vnum >= 600 && vnum < 700
+		if p.Orc != orc || p.Animal != (p.Kind == Monster && !orc) {
+			t.Errorf("%d %s: animal %v, orc %v", vnum, p.Name, p.Animal, p.Orc)
 		}
 	}
 }

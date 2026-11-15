@@ -452,7 +452,7 @@ func TestAnItemsBonusesAreKeptWithIt(t *testing.T) {
 	s, hendra, kira, _, _, _ := traders(t)
 	ctx := context.Background()
 	bonuses := item.Bonuses{{Kind: account.BonusCritical, Value: 5}, {Kind: account.BonusAverage, Value: 20},
-		{Kind: account.BonusSkill, Value: -10}}
+		{Kind: account.BonusSkill, Value: -10}, {Kind: account.BonusOrcs, Value: 8}}
 	id, err := s.Add(ctx, hendra, item.Item{VNum: 290, Count: 1, Cell: 10, Bonuses: bonuses})
 	if err != nil {
 		t.Fatal(err)

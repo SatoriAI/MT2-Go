@@ -26,9 +26,10 @@ type Proto struct {
 	VNum uint16 // the number the client knows the kind by, for its model and name
 	Name string
 	Kind Kind
-	// Animal is whether it is of the animals' race, mob_proto's RACE_FLAG ANIMAL, which
-	// Silny przeciwko Zwierzętom strikes harder.
+	// Animal and Orc are whether it is of the animals' or the orcs' race, mob_proto's
+	// RACE_FLAG ANIMAL and ORC, which Silny przeciwko Zwierzętom and Orkom strike harder.
 	Animal      bool
+	Orc         bool
 	MoveSpeed   uint8 // 100 is normal; the client's animation stands still at 0
 	AttackSpeed uint8
 
@@ -169,7 +170,7 @@ func stonePicks(potions, materialCount uint8, gear uint16) []Pick {
 // picked evenly, as the debaters settled.
 var (
 	rareGear = []uint32{12220, 12360, 12500, 12640, 13020, 60, 80, 290, 3050, 3070, 3210, 4020, 1040, 1170, 2050, 2070, 2150,
-		7050, 7070, 7160, 5030, 5040, 5110, 11240, 11440, 11640, 11840, 15100}
+		7050, 7070, 7160, 5030, 5040, 5110, 11230, 11430, 11630, 11830, 11240, 11440, 11640, 11840, 15100}
 	cursedGear      = []Pick{{From: rareGear, Count: 1, Chance: 50}}
 	cursedWithBooks = append(slices.Clone(fieldBooks), cursedGear...)
 )
@@ -280,51 +281,51 @@ var protos = map[uint16]Proto{
 		RegenCycle: 6, RegenPercent: 12, Drops: gear, Picks: fieldBooks, Yang: Yang{Chance: 6000, Min: 35, Max: 60}},
 	// The valley's orcs (docs/mechanics/maps.md), of the client's mob_proto dump, with yang
 	// rising with their level: the dump's gold for the orcs falls from the first to the elite.
-	601: {VNum: 601, Name: "Ork", Kind: Monster, MoveSpeed: 100, AttackSpeed: 110,
+	601: {VNum: 601, Name: "Ork", Kind: Monster, Orc: true, MoveSpeed: 100, AttackSpeed: 110,
 		Level: 26, MaxHP: 2268, Vitality: 56, Armour: 50, Exp: 1038,
 		Strength: 42, DamageMin: 91, DamageMax: 111, AttackRange: 150,
 		RegenCycle: 6, RegenPercent: 2, Drops: orcDrops, Picks: orcPicks, Yang: Yang{Chance: 6000, Min: 80, Max: 130}},
-	602: {VNum: 602, Name: "Ork Zwiadowca", Kind: Monster, MoveSpeed: 100, AttackSpeed: 110,
+	602: {VNum: 602, Name: "Ork Zwiadowca", Kind: Monster, Orc: true, MoveSpeed: 100, AttackSpeed: 110,
 		Level: 29, MaxHP: 2348, Vitality: 57, Armour: 51, Exp: 1062,
 		Strength: 43, DamageMin: 92, DamageMax: 113, AttackRange: 150,
 		RegenCycle: 6, RegenPercent: 2, Drops: orcDrops, Picks: orcPicks, Yang: Yang{Chance: 6000, Min: 85, Max: 140}},
-	603: {VNum: 603, Name: "Ork Wojownik", Kind: Monster, MoveSpeed: 100, AttackSpeed: 110,
+	603: {VNum: 603, Name: "Ork Wojownik", Kind: Monster, Orc: true, MoveSpeed: 100, AttackSpeed: 110,
 		Level: 31, MaxHP: 2429, Vitality: 59, Armour: 52, Exp: 1086,
 		Strength: 44, DamageMin: 94, DamageMax: 115, AttackRange: 150,
 		RegenCycle: 6, RegenPercent: 2, Drops: orcDrops, Picks: orcPicks, Yang: Yang{Chance: 6000, Min: 90, Max: 150}},
-	604: {VNum: 604, Name: "Ork Czarodziej", Kind: Monster, MoveSpeed: 100, AttackSpeed: 110,
+	604: {VNum: 604, Name: "Ork Czarodziej", Kind: Monster, Orc: true, MoveSpeed: 100, AttackSpeed: 110,
 		Level: 33, MaxHP: 2514, Vitality: 30, Armour: 53, Exp: 1110,
 		Strength: 45, DamageMin: 96, DamageMax: 117, AttackRange: 150,
 		RegenCycle: 6, RegenPercent: 2, Drops: orcDrops, Picks: orcPicks, Yang: Yang{Chance: 6000, Min: 95, Max: 160}},
-	631: {VNum: 631, Name: "Elit. Ork", Kind: Monster, MoveSpeed: 150, AttackSpeed: 120,
+	631: {VNum: 631, Name: "Elit. Ork", Kind: Monster, Orc: true, MoveSpeed: 150, AttackSpeed: 120,
 		Level: 34, MaxHP: 1390, Vitality: 42, Armour: 40, Exp: 959,
 		Strength: 32, DamageMin: 44, DamageMax: 66, AttackRange: 175,
 		RegenCycle: 6, RegenPercent: 5, Drops: orcDrops, Picks: orcPicks, Yang: Yang{Chance: 6000, Min: 100, Max: 170}},
-	632: {VNum: 632, Name: "Elit. Ork Zwiadowca", Kind: Monster, MoveSpeed: 150, AttackSpeed: 100,
+	632: {VNum: 632, Name: "Elit. Ork Zwiadowca", Kind: Monster, Orc: true, MoveSpeed: 150, AttackSpeed: 100,
 		Level: 36, MaxHP: 1806, Vitality: 45, Armour: 42, Exp: 1218,
 		Strength: 28, DamageMin: 80, DamageMax: 120, AttackRange: 175,
 		RegenCycle: 8, RegenPercent: 10, Drops: orcDrops, Picks: orcPicks, Yang: Yang{Chance: 6000, Min: 110, Max: 180}},
-	633: {VNum: 633, Name: "Elit. Ork Wojownik", Kind: Monster, MoveSpeed: 100, AttackSpeed: 100,
+	633: {VNum: 633, Name: "Elit. Ork Wojownik", Kind: Monster, Orc: true, MoveSpeed: 100, AttackSpeed: 100,
 		Level: 39, MaxHP: 2025, Vitality: 43, Armour: 45, Exp: 1319,
 		Strength: 25, DamageMin: 80, DamageMax: 97, AttackRange: 175,
 		RegenCycle: 6, RegenPercent: 7, Drops: orcDrops, Picks: orcPicks, Yang: Yang{Chance: 6000, Min: 120, Max: 200}},
-	634: {VNum: 634, Name: "Elit. Ork Czarodziej", Kind: Monster, MoveSpeed: 100, AttackSpeed: 100,
+	634: {VNum: 634, Name: "Elit. Ork Czarodziej", Kind: Monster, Orc: true, MoveSpeed: 100, AttackSpeed: 100,
 		Level: 40, MaxHP: 2800, Vitality: 50, Armour: 46, Exp: 2254,
 		Strength: 37, DamageMin: 81, DamageMax: 99, AttackRange: 175,
 		RegenCycle: 8, RegenPercent: 12, Drops: orcDrops, Picks: orcPicks, Yang: Yang{Chance: 6000, Min: 130, Max: 220}},
-	635: {VNum: 635, Name: "Elit. Ork Generał", Kind: Monster, MoveSpeed: 100, AttackSpeed: 100,
+	635: {VNum: 635, Name: "Elit. Ork Generał", Kind: Monster, Orc: true, MoveSpeed: 100, AttackSpeed: 100,
 		Level: 44, MaxHP: 3228, Vitality: 27, Armour: 51, Exp: 2478,
 		Strength: 40, DamageMin: 86, DamageMax: 106, AttackRange: 175,
 		RegenCycle: 8, RegenPercent: 12, Drops: orcDrops, Picks: orcPicks, Yang: Yang{Chance: 6000, Min: 150, Max: 250}},
-	636: {VNum: 636, Name: "Czarny Ork", Kind: Monster, MoveSpeed: 100, AttackSpeed: 100,
+	636: {VNum: 636, Name: "Czarny Ork", Kind: Monster, Orc: true, MoveSpeed: 100, AttackSpeed: 100,
 		Level: 46, MaxHP: 5401, Vitality: 75, Armour: 53, Exp: 5180,
 		Strength: 20, DamageMin: 54, DamageMax: 99, AttackRange: 175,
 		RegenCycle: 9, RegenPercent: 17, Drops: orcDrops, Picks: orcPicks, Yang: Yang{Chance: 6000, Min: 180, Max: 300}},
-	637: {VNum: 637, Name: "Czarny Ork Zwiadowca", Kind: Monster, MoveSpeed: 100, AttackSpeed: 100,
+	637: {VNum: 637, Name: "Czarny Ork Zwiadowca", Kind: Monster, Orc: true, MoveSpeed: 100, AttackSpeed: 100,
 		Level: 49, MaxHP: 5959, Vitality: 60, Armour: 56, Exp: 5516,
 		Strength: 45, DamageMin: 75, DamageMax: 138, AttackRange: 175,
 		RegenCycle: 8, RegenPercent: 12, Drops: orcDrops, Picks: orcPicks, Yang: Yang{Chance: 6000, Min: 200, Max: 330}},
-	691: {VNum: 691, Name: "Wódz Orków", Kind: Monster, MoveSpeed: 100, AttackSpeed: 100, Aggressive: true, Boss: true,
+	691: {VNum: 691, Name: "Wódz Orków", Kind: Monster, Orc: true, MoveSpeed: 100, AttackSpeed: 100, Aggressive: true, Boss: true,
 		Level: 50, MaxHP: 24618, Vitality: 63, Armour: 57, Exp: 20422,
 		Strength: 48, DamageMin: 79, DamageMax: 146, AttackRange: 175,
 		RegenCycle: 19, RegenPercent: 22, Drops: lordDrops, Picks: lordPicks, Yang: Yang{Chance: 10000, Min: 3000, Max: 5000},

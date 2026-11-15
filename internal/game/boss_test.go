@@ -41,3 +41,13 @@ func TestTheOrcLordsWakingIsToldToItsMap(t *testing.T) {
 		t.Fatalf("the far player got %x, want the notice", got)
 	}
 }
+
+// A monster takes its race from its kind: an orc is one, a dog an animal, so each
+// strength strikes the one it names.
+func TestAMonsterTakesItsRaceFromItsKind(t *testing.T) {
+	s := worldWith(t, world.Spawn{VNum: 601, Count: 1, X: homeX, Y: homeY}, world.Spawn{VNum: 101, Count: 1, X: homeX + 5000, Y: homeY})
+	orc, dog := s.monsters[0].p.fight, s.monsters[1].p.fight
+	if !orc.orc || orc.animal || dog.orc || !dog.animal {
+		t.Fatalf("orc %v/%v, dog %v/%v", orc.orc, orc.animal, dog.orc, dog.animal)
+	}
+}

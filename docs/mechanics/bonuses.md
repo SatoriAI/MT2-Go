@@ -10,7 +10,8 @@ Gear can carry bonuses, drawn in its tooltip below its stats, each in the client
 | Obrażenie Umiejętności | «Obrażenie Umiejętności: %d%%» | a skill's damage, by its percent; below zero, less |
 | Szansa na cios krytyczny | «Szansa na cios krytyczny +%d%%» | that chance of a blow striking twice as hard, on top of a buff's |
 | Szansa na przeszywające Uderzenie | «Szansa na przeszywające Uderzenie: %d%%» | that chance of a blow going through the monster's defence |
-| Silny przeciwko Zwierzętom | «Silny przeciwko Zwierzętom +%d%%» | damage on animals, every monster the world has so far, by its percent |
+| Silny przeciwko Zwierzętom | «Silny przeciwko Zwierzętom +%d%%» | damage on animals, every monster of the first maps, by its percent |
+| Silny przeciwko Orkom | «Silny przeciwko Orkom +%d%%» | damage on orcs, the monsters of Seungryong Valley ([maps.md](maps.md)), by its percent |
 | Szybkość ataku | «Szybkość ataku +%d%%» | attack speed, beside the weapon's own |
 | Maks. PŻ | «Maks. PŻ +%d» | that many more hit points at most |
 | Odporność na Obrażenia | «Odporność na Obrażenia: %d%%» | a monster's bite, less by its percent |
@@ -23,10 +24,10 @@ Gear can carry bonuses, drawn in its tooltip below its stats, each in the client
 
 | Place | Bonuses (values, grade 1 to 5) |
 |---|---|
-| Weapon | Silny przeciwko Zwierzętom 2/4/6/8/10 · krytyczny 1/2/3/5/8 · przeszywające 1/2/3/5/8 |
+| Weapon | Silny przeciwko Zwierzętom 2/4/6/8/10 · Silny przeciwko Orkom 2/4/6/8/10 · krytyczny 1/2/3/5/8 · przeszywające 1/2/3/5/8 |
 | Armour | Maks. PŻ 50/100/180/280/400 · Odporność 1/2/3/4/5 (two kinds, so at most two bonuses) |
-| Helmet | Szybkość ataku 1/2/3/4/5 · Odporność · Silny przeciwko Zwierzętom |
-| Shield | Maks. PŻ · Odporność · Silny przeciwko Zwierzętom |
+| Helmet | Szybkość ataku 1/2/3/4/5 · Odporność · Silny przeciwko Zwierzętom · Silny przeciwko Orkom |
+| Shield | Maks. PŻ · Odporność · Silny przeciwko Zwierzętom · Silny przeciwko Orkom |
 | Shoes | Szybkość ataku · Maks. PŻ · krytyczny |
 | The pair | Średnie 10/15/20/25/30 with Umiejętności −5/8/10/12/15, or Umiejętności 5/8/10/12/15 with Średnie −5/8/10/12/15 |
 
@@ -66,6 +67,7 @@ The client's numbers for the bonuses, its APPLY_ types (open-mt2's `ApplyTypeEnu
 | krytyczny | 15 |
 | przeszywające | 16 |
 | Silny przeciwko Zwierzętom | 18 |
+| Silny przeciwko Orkom | 19 |
 | Obrażenie Umiejętności | 71 |
 | Średnie Obrażenia | 72 |
 | Odporność na Obrażenia | 74 |
@@ -88,10 +90,11 @@ The client's numbers for the bonuses, its APPLY_ types (open-mt2's `ApplyTypeEnu
     3. then a critical roll from buffs and bonuses alike, doubling it;
     4. each bonus a percent of the rolled damage, taken in one sum, never taking a blow that hurts to nothing;
     5. a critical or piercing blow drawn with its effect on the attacker, for them and everyone who sees them.
-  - **A skill, physical or magic:** each victim's damage raised by Umiejętności and, on an animal, by Zwierzęta. It never pierces and is never critical.
+  - **A skill, physical or magic:** each victim's damage raised by Umiejętności and by the strength against its race, Zwierzęta on an animal or Orki on an orc. It never pierces and is never critical.
   - **A bite:** after buffs, less by Odporność.
   - A roll is only made when its chance is above 0, so a player with no bonuses rolls exactly as before.
-- **Race:** a monster's race is `mob.Proto.Animal`, from mob_proto's RACE_FLAG. Every monster the world has is ANIMAL, and stones are of none.
+- **Race:** a monster's race is `mob.Proto.Animal` or `Orc`, from mob_proto's RACE_FLAG. The first maps' monsters are ANIMAL, the valley's ORC, and stones are of none, so strength against orcs counts in the valley alone.
+- **Strength against orcs** came with the valley (2026-11-15), at the veteran's call: it rolls where strength against animals does, at its values and under the same cap of 25, as the bonus that gives valley gear its meaning.
 
 ## How we know
 
@@ -117,6 +120,7 @@ The client's numbers for the bonuses, its APPLY_ types (open-mt2's `ApplyTypeEnu
 - `internal/protocol/protocol_test.go`: ITEM_SET's and EXCHANGE's slots byte for byte, a negative value included.
 - `internal/game/bonuses_test.go`:
   - average damage, strength against animals on an animal only, both, and a negative average, each exact against the same dice without;
+  - strength against orcs on an orc and not an animal, and strength against animals not on an orc;
   - a piercing blow through the defence with flag 16, a critical one doubled with flag 32, and both;
   - a critical and a piercing blow drawn with their effects on the attacker, for her and a player who sees her, and a plain one with neither;
   - a bonus never making a harmless blow hurt nor a hurting one harmless, average and animals in one sum;
@@ -127,7 +131,9 @@ The client's numbers for the bonuses, its APPLY_ types (open-mt2's `ApplyTypeEnu
   - gear picked up and dropped keeping its bonuses;
   - a stone's gear rolling and a monster's not, and a remarkable one told on the map after it lies;
   - /bonusy's lines.
-- `internal/mob/mob_test.go`: every monster an animal, nothing else.
+- `internal/mob/mob_test.go`: every monster an animal or, the valley's, an orc, nothing else.
+- `internal/game/boss_test.go`: a monster taking its race from its kind, an orc's or a dog's.
+- `internal/item/bonus_test.go`, also: strength against orcs rolling where strength against animals does, at its values, its total capped at 25.
 - `internal/server/items_test.go` (real sockets and database): armour with a bonus shown with it in its slot on entering, and worn telling her max HP.
 
 ## Not done yet
