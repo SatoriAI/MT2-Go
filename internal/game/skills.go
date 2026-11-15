@@ -58,6 +58,8 @@ type talk struct {
 	// enchant is the Zaczarowanie Przedmiotu the player was asked to use on the item
 	// enchanted, both by their ids.
 	enchant, enchanted int64
+	// teleporter is the teleporter who offered the valley, by vid.
+	teleporter uint32
 }
 
 // teach answers a click on a class teacher. A character of its class of level 5 or more
@@ -114,6 +116,9 @@ func (s *session) onScriptAnswer(ctx context.Context, body []byte) error {
 	}
 	if t != nil && t.enchant != 0 {
 		return s.enchant(ctx, t, answer)
+	}
+	if t != nil && t.teleporter != 0 {
+		return s.takeTeleporter(ctx, t, answer)
 	}
 	if t == nil || answer != 0 {
 		return nil

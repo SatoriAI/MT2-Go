@@ -2,7 +2,7 @@
 
 ## What the player sees
 
-Each first village has its villagers: the weapon and armour dealers, the general store, the storekeeper, the old lady, and fishermen along the water, each standing where the minimap marks them, with their name over their head. The fields around the village are full: some 800 monsters a map, in packs of three to five that change each time they come back, wild dogs and wolves just past the gate, then alpha wolves and boars, blue wolves, red boars and bears, and further out grizzlies and tigers, two kinds by the gate and up to seven between 18,000 and 25,000 out. Every few seconds a monster strolls a few steps and stops, facing where it went. Walking away, they fade out like other players; walking back, they are there again. Monsters can be fought, and fight back when hit ([combat.md](combat.md)); NPCs cannot.
+Each first village has its villagers: the weapon and armour dealers, the general store, the storekeeper, the old lady, the Teleporter ([maps.md](maps.md)), and fishermen along the water, each standing where the minimap marks them, with their name over their head. The fields around the village are full: some 800 monsters a map, in packs of three to five that change each time they come back, wild dogs and wolves just past the gate, then alpha wolves and boars, blue wolves, red boars and bears, and further out grizzlies and tigers, two kinds by the gate and up to seven between 18,000 and 25,000 out. Every few seconds a monster strolls a few steps and stops, facing where it went. Walking away, they fade out like other players; walking back, they are there again. Monsters can be fought, and fight back when hit ([combat.md](combat.md)); NPCs cannot.
 
 ## What the client does
 

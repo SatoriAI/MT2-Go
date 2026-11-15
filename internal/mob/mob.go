@@ -55,6 +55,8 @@ type Proto struct {
 	Teaches account.SkillGroup
 	// Upgrades is that the NPC is a blacksmith, who upgrades gear given to them.
 	Upgrades bool
+	// Teleports is that the NPC is a teleporter, who takes players to the valley for yang.
+	Teleports bool
 
 	// A stone's own: the monsters each of its waves calls out, how long after it is
 	// destroyed it comes back, and how long it must go unhit before it heals. A boss comes
@@ -439,4 +441,5 @@ var protos = map[uint16]Proto{
 	9005:  {VNum: 9005, Name: "Dozorca", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100},
 	9006:  {VNum: 9006, Name: "Starsza Pani", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100},
 	9009:  {VNum: 9009, Name: "Rybak", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100},
+	9012:  {VNum: 9012, Name: "Teleporter", Kind: NPC, MoveSpeed: 100, AttackSpeed: 100, Teleports: true},
 }

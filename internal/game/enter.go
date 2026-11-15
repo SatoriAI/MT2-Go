@@ -153,7 +153,8 @@ func (s *session) onEnterGame() error {
 
 // onMove keeps where the player's character is, to be saved when the connection closes,
 // and shows the move to the others; the client moves its own character by itself. A move
-// further than the character can have gone is not taken (walk).
+// further than the character can have gone is not taken (walk). A move into a gate goes
+// through it (passGate).
 func (s *session) onMove(body []byte) error {
 	m, err := protocol.DecodeMove(body)
 	if err != nil {
@@ -161,7 +162,7 @@ func (s *session) onMove(body []byte) error {
 	}
 	s.playing.X, s.playing.Y = s.svc.record.walk(s.playing.vid, m, s.svc.now())
 	s.conn.Log().Debug("moved", "character", s.playing.Name, "type", m.Type, "x", m.X, "y", m.Y)
-	return nil
+	return s.passGate()
 }
 
 // pointsOf fills the client's points array for the character, with the hit points and
