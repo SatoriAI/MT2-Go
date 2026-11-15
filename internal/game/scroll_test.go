@@ -229,3 +229,23 @@ func TestARefusedScrollLeavesTheBlacksmithsDialogOpen(t *testing.T) {
 		t.Fatalf("kept %+v, holds %+v", kept.upgraded, s.inventory)
 	}
 }
+
+// One of a stack of scrolls is spent, the rest left in its cell.
+func TestOneOfAStackOfScrollsIsSpent(t *testing.T) {
+	carried := blessable()
+	carried[2].Count = 3
+	s, kept, client := scrolling(t, 3000, carried, anyRoll)
+	if err := s.onItemUseToItem(scrollDropped()); err != nil {
+		t.Fatal(err)
+	}
+	drain(t, client)
+
+	if err := s.onRefine(t.Context(), refined(3, protocol.RefineNoQuestion)); err != nil {
+		t.Fatal(err)
+	}
+
+	left := item.Item{ID: 5, VNum: item.BlessingScroll, Count: 2, Cell: 7}
+	if scroll, _ := s.inventory.ByID(5); scroll.Count != 2 || !holds(packets(t, drain(t, client)), itemSet(left)) || kept.spent[len(kept.spent)-1].Count != 2 {
+		t.Fatalf("holds %+v, spent %+v", s.inventory, kept.spent)
+	}
+}

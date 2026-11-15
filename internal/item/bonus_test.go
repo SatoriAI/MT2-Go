@@ -179,3 +179,31 @@ func TestStrengthAgainstOrcsRollsWhereAgainstAnimalsDoes(t *testing.T) {
 		t.Errorf("totals %+v", got)
 	}
 }
+
+// Zaczarowanie keeps how many ordinary bonuses gear carries, rolling each afresh of a kind
+// its place allows, never two alike and never the top grade below level 25, and leaves the
+// pair as it was.
+func TestARerollKeepsTheCountAndThePair(t *testing.T) {
+	pair := Bonuses{{account.BonusAverage, 20}, {account.BonusSkill, -10}}
+	sword := Bonuses{{account.BonusCritical, 1}, {account.BonusPierce, 1}}
+	sword = append(sword, pair...)
+	p, _ := Lookup(290)
+	helmet, _ := Lookup(12220)
+	r := rand.New(rand.NewPCG(1, 2)) //nolint:gosec // a test's fixed seed
+	for range 2000 {
+		got := Reroll(p, sword, r)
+		if len(got) != 4 || got.Ordinary() != 2 || !slices.Equal(got[2:], pair) || got[0].Kind == got[1].Kind {
+			t.Fatalf("rerolled to %+v", got)
+		}
+		for _, b := range got[:2] {
+			if !slices.Contains(allowed[Weapon], b.Kind) {
+				t.Fatalf("a weapon rolled %+v", b)
+			}
+		}
+		for _, b := range Reroll(helmet, Bonuses{{account.BonusResist, 1}, {account.BonusOrcs, 2}, {account.BonusAnimals, 2}}, r) {
+			if !slices.Contains(allowed[Head], b.Kind) || b.Value == bonusValues[b.Kind][4] {
+				t.Fatalf("a level-21 helmet rolled %+v", b)
+			}
+		}
+	}
+}

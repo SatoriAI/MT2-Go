@@ -2,8 +2,11 @@ package store
 
 import (
 	"context"
+	"errors"
+	"reflect"
 	"testing"
 
+	"github.com/SatoriAI/MT2-Go/internal/account"
 	"github.com/SatoriAI/MT2-Go/internal/item"
 )
 
@@ -59,5 +62,51 @@ func TestAnUpgradeTheYangCannotCoverChangesNothing(t *testing.T) {
 	sword, _ := inv.ByID(ids[0])
 	if kept != 2999 || len(inv) != 3 || sword.VNum != 14 {
 		t.Fatalf("owns %+v with %d yang", inv, kept)
+	}
+}
+
+// An enchanting keeps the item's new bonuses in place of its old ones and what is left of
+// the scroll, the last forgotten.
+func TestAnEnchantingIsKeptWhole(t *testing.T) {
+	s, cid := hendrasItems(t)
+	ctx := context.Background()
+	sword, err := s.Add(ctx, cid, item.Item{VNum: 290, Count: 1, Cell: 0,
+		Bonuses: item.Bonuses{{Kind: account.BonusCritical, Value: 1}, {Kind: account.BonusPierce, Value: 1}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	scroll, err := s.Add(ctx, cid, item.Item{VNum: item.EnchantItem, Count: 1, Cell: 5})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rolled := item.Bonuses{{Kind: account.BonusOrcs, Value: 8}}
+
+	if err := s.Enchant(ctx, cid, item.Item{ID: sword, Bonuses: rolled}, item.Item{ID: scroll, Count: 0}); err != nil {
+		t.Fatal(err)
+	}
+
+	inv, _, _ := s.Owned(ctx, "Hendra")
+	got, _ := inv.ByID(sword)
+	if _, held := inv.ByID(scroll); held || !reflect.DeepEqual(got.Bonuses, rolled) {
+		t.Fatalf("holds %+v", inv)
+	}
+}
+
+// An enchanting of an item not the character's changes nothing, the scroll included.
+func TestAnEnchantingOfAnotherCharactersItemChangesNothing(t *testing.T) {
+	s, cid := hendrasItems(t)
+	ctx := context.Background()
+	scroll, err := s.Add(ctx, cid, item.Item{VNum: item.EnchantItem, Count: 2, Cell: 5})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := s.Enchant(ctx, cid, item.Item{ID: scroll + 1000}, item.Item{ID: scroll, Count: 1}); !errors.Is(err, ErrNotOwned) {
+		t.Fatalf("got %v", err)
+	}
+
+	inv, _, _ := s.Owned(ctx, "Hendra")
+	if it, _ := inv.ByID(scroll); it.Count != 2 {
+		t.Fatalf("holds %+v", inv)
 	}
 }

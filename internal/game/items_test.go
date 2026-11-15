@@ -28,7 +28,9 @@ type keptItems struct {
 	// what the last upgrade kept: the item and the stacks of material spent
 	upgraded item.Item
 	spent    []item.Item
-	wornFor  map[int64]time.Duration // how long each item worn for a limited time was kept as worn
+	// what the last enchanting kept: the item and the scroll left
+	enchanted, scroll item.Item
+	wornFor           map[int64]time.Duration // how long each item worn for a limited time was kept as worn
 }
 
 func (k *keptItems) SetWornFor(_ context.Context, _ uint32, id int64, wornFor time.Duration) error {
@@ -46,6 +48,14 @@ func (k *keptItems) Upgrade(_ context.Context, _, cost uint32, upgraded item.Ite
 	k.gold -= cost
 	k.upgraded, k.spent = upgraded, spent
 	return k.gold, nil
+}
+
+func (k *keptItems) Enchant(_ context.Context, _ uint32, enchanted, scroll item.Item) error {
+	if k.fail != nil {
+		return k.fail
+	}
+	k.enchanted, k.scroll = enchanted, scroll
+	return nil
 }
 
 func (k *keptItems) Gold(context.Context, uint32) (uint32, error) { return k.gold, k.fail }

@@ -32,3 +32,23 @@ func (s Items) Upgrade(ctx context.Context, characterID, cost uint32, upgraded i
 	})
 	return gold, err
 }
+
+// Enchant keeps the bonuses an item now carries in place of those it had, and what is left
+// of the scroll that rolled them, forgotten with none left, all of it or none.
+func (s Items) Enchant(ctx context.Context, characterID uint32, enchanted, scroll item.Item) error {
+	return pgx.BeginFunc(ctx, s.Pool, func(tx pgx.Tx) error {
+		if err := owned(tx.Exec(ctx, `SELECT 1 FROM items WHERE id = $1 AND character_id = $2 FOR UPDATE`, enchanted.ID, characterID)); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `DELETE FROM item_bonuses WHERE item_id = $1`, enchanted.ID); err != nil {
+			return err
+		}
+		for slot, b := range enchanted.Bonuses {
+			if _, err := tx.Exec(ctx, `INSERT INTO item_bonuses (item_id, slot, kind, value) VALUES ($1, $2, $3, $4)`,
+				enchanted.ID, slot, b.Kind, b.Value); err != nil {
+				return err
+			}
+		}
+		return keepLeft(ctx, tx, characterID, scroll)
+	})
+}
