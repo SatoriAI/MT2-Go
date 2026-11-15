@@ -34,6 +34,7 @@ var bonusValues = map[account.Bonus][5]int16{
 	account.BonusCritical:    {1, 2, 3, 5, 8},
 	account.BonusPierce:      {1, 2, 3, 5, 8},
 	account.BonusAnimals:     {2, 4, 6, 8, 10},
+	account.BonusOrcs:        {2, 4, 6, 8, 10},
 	account.BonusResist:      {1, 2, 3, 4, 5},
 }
 
@@ -45,10 +46,10 @@ const topFrom = 25
 
 // allowed are the bonuses each place may roll.
 var allowed = map[Wear][]account.Bonus{
-	Weapon: {account.BonusAnimals, account.BonusCritical, account.BonusPierce},
+	Weapon: {account.BonusAnimals, account.BonusOrcs, account.BonusCritical, account.BonusPierce},
 	Body:   {account.BonusMaxHP, account.BonusResist},
-	Head:   {account.BonusAttackSpeed, account.BonusResist, account.BonusAnimals},
-	Shield: {account.BonusMaxHP, account.BonusResist, account.BonusAnimals},
+	Head:   {account.BonusAttackSpeed, account.BonusResist, account.BonusAnimals, account.BonusOrcs},
+	Shield: {account.BonusMaxHP, account.BonusResist, account.BonusAnimals, account.BonusOrcs},
 	Feet:   {account.BonusAttackSpeed, account.BonusMaxHP, account.BonusCritical},
 }
 

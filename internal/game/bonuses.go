@@ -19,6 +19,7 @@ func bonusLines(t account.Totals) [][]byte {
 		{t.Critical, "Szansa na cios krytyczny: %d%%"},
 		{t.Pierce, "Szansa na przeszywające Uderzenie: %d%%"},
 		{t.Animals, "Silny przeciwko Zwierzętom: +%d%%"},
+		{t.Orcs, "Silny przeciwko Orkom: +%d%%"},
 		{t.AttackSpeed, "Szybkość ataku: +%d%%"},
 		{t.MaxHP, "Maks. PŻ: +%d"},
 		{t.Resist, "Odporność na Obrażenia: %d%%"},

@@ -507,7 +507,7 @@ func socketsOf(it item.Item) protocol.Sockets {
 // ApplyTypeEnum), which pick the tooltip line each is drawn with.
 var bonusTypes = map[account.Bonus]uint8{
 	account.BonusMaxHP: 1, account.BonusAttackSpeed: 7, account.BonusCritical: 15, account.BonusPierce: 16,
-	account.BonusAnimals: 18, account.BonusSkill: 71, account.BonusAverage: 72, account.BonusResist: 74,
+	account.BonusAnimals: 18, account.BonusOrcs: 19, account.BonusSkill: 71, account.BonusAverage: 72, account.BonusResist: 74,
 }
 
 // bonusSlots are an item's bonuses as the client's seven slots.

@@ -325,13 +325,13 @@ func TestAKindSoldByTheGoldCostsItsCountOverIt(t *testing.T) {
 	}
 }
 
-// The gear past the first is 49 kinds, each from level 9 to 36 and worn by its classes,
+// The gear past the first is 53 kinds, each from level 9 to 36 and worn by its classes,
 // with grades as the client's item_proto has them: Srebrny Miecz, of level 25, adds 32 at
-// +5 and 74 at +9, not a step a grade; Miecz Pełni Księżyca, of level 30, 70 at +9; the armour of level 34 twice its 27 to its defence; the helmet
+// +5 and 74 at +9, not a step a grade; Miecz Pełni Księżyca, of level 30, 70 at +9; the armour of levels 26 and 34 twice its 27 to its defence; the helmet
 // of level 21 twice its 28; the shield its 35, slowing by 6; and the shoes of level 34
 // quicken from 3 to 20.
 func TestTheGearPastTheFirstIsTheClients(t *testing.T) {
-	if len(gear) != 49 {
+	if len(gear) != 53 {
 		t.Errorf("%d kinds of gear", len(gear))
 	}
 	for vnum := range gear {
@@ -343,6 +343,7 @@ func TestTheGearPastTheFirstIsTheClients(t *testing.T) {
 		65:    {AttackMin: 36 + 32, AttackMax: 46 + 32, MagicMin: 38 + 32, MagicMax: 52 + 32, Level: 25, SellPrice: 10500 / 5},
 		69:    {AttackMin: 36 + 74, AttackMax: 46 + 74, MagicMin: 38 + 74, MagicMax: 52 + 74, Level: 25, SellPrice: 38500 / 5},
 		11249: {Defence: 47 + 2*27, Level: 34, SellPrice: 65000 / 5},
+		11839: {Defence: 38 + 2*27, Level: 26, SellPrice: 50000 / 5},
 		12229: {Defence: 9 + 2*28, Level: 21, SellPrice: 315000 / 5},
 		13029: {Defence: 4 + 2*35, MoveSpeed: -6, Level: 21, SellPrice: 150000 / 5},
 		15100: {Defence: 4, MoveSpeed: 3, Level: 34, SellPrice: 1000 / 5},

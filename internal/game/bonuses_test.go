@@ -24,8 +24,14 @@ func seeded() *rand.Rand { return rand.New(rand.NewPCG(3, 3)) } //nolint:gosec /
 // dice every time, and the flags it was told with; the dog is made too tough to fall.
 func blowWith(t *testing.T, totals account.Totals, animal bool) (int, uint8) {
 	t.Helper()
+	return blowOn(t, totals, animal, false)
+}
+
+// blowOn is blowWith on a monster of the animals' race, the orcs' or neither.
+func blowOn(t *testing.T, totals account.Totals, animal, orc bool) (int, uint8) {
+	t.Helper()
 	s, dog, client, c := suraHits(t, 100)
-	c.Totals, dog.p.fight.animal = totals, animal
+	c.Totals, dog.p.fight.animal, dog.p.fight.orc = totals, animal, orc
 	dog.p.fight.hp, dog.p.fight.maxHP = 1_000_000, 1_000_000
 	s.record.held(func(l locked) { l.land(l.all[1000], dog.p, seeded(), noon) })
 	d := protocol.NewReader(read(t, client, damageSize)[1:])
@@ -84,6 +90,26 @@ func TestAverageDamageAndStrengthAgainstAnimalsRaiseABlow(t *testing.T) {
 		"average taken off":    {account.Totals{Average: -15}, true, plain * 85 / 100},
 	} {
 		if got, _ := blowWith(t, c.totals, c.animal); got != c.want {
+			t.Errorf("%s: took %d, want %d of %d", name, got, c.want, plain)
+		}
+	}
+}
+
+// Strength against orcs raises a blow on an orc, and not on an animal, as strength against
+// animals raises none on an orc.
+func TestStrengthAgainstOrcsRaisesABlowOnAnOrc(t *testing.T) {
+	plain, _ := blowOn(t, account.Totals{}, false, true)
+	for name, c := range map[string]struct {
+		totals      account.Totals
+		animal, orc bool
+		want        int
+	}{
+		"orcs 10 on an orc":       {account.Totals{Orcs: 10}, false, true, plain * 110 / 100},
+		"orcs 10 on an animal":    {account.Totals{Orcs: 10}, true, false, plain},
+		"animals 10 on an orc":    {account.Totals{Animals: 10}, false, true, plain},
+		"orcs and average on orc": {account.Totals{Orcs: 10, Average: 20}, false, true, plain * 120 * 110 / 10000},
+	} {
+		if got, _ := blowOn(t, c.totals, c.animal, c.orc); got != c.want {
 			t.Errorf("%s: took %d, want %d of %d", name, got, c.want, plain)
 		}
 	}
@@ -263,8 +289,8 @@ func TestARemarkableDropIsToldOnceItLies(t *testing.T) {
 
 // /bonusy lists the totals of what she wears in the client's words, or says there are none.
 func TestBonusyListsWhatSheWears(t *testing.T) {
-	got := bonusLines(account.Totals{Average: 20, Skill: -10, MaxHP: 400})
-	want := []string{"Bonusy tego, co nosisz:", "Średnie Obrażenia: +20%", "Obrażenie Umiejętności: -10%", "Maks. PŻ: +400"}
+	got := bonusLines(account.Totals{Average: 20, Skill: -10, Orcs: 6, MaxHP: 400})
+	want := []string{"Bonusy tego, co nosisz:", "Średnie Obrażenia: +20%", "Obrażenie Umiejętności: -10%", "Silny przeciwko Orkom: +6%", "Maks. PŻ: +400"}
 	if len(got) != len(want) {
 		t.Fatalf("%d lines, want %d", len(got), len(want))
 	}
@@ -292,6 +318,9 @@ func TestEachBonusIsSentAsTheClientsType(t *testing.T) {
 	if got := bonusSlots(item.Bonuses{{Kind: account.BonusResist, Value: 4}}); got[0] != (protocol.Bonus{Type: 74, Value: 4}) {
 		t.Fatalf("resistance %v", got[0])
 	}
+	if got := bonusSlots(item.Bonuses{{Kind: account.BonusOrcs, Value: 6}}); got[0] != (protocol.Bonus{Type: 19, Value: 6}) {
+		t.Fatalf("orcs %v", got[0])
+	}
 }
 
 // Gear offered in a trade shows its bonuses to both sides.
@@ -317,7 +346,7 @@ func TestGearOfferedShowsItsBonusesToBoth(t *testing.T) {
 // none leaves the damage as rolled; average and animals are taken in one sum, so small
 // bonuses are not rounded away.
 func TestRaisedDamage(t *testing.T) {
-	animal, other := &present{fight: &fight{animal: true}}, &present{fight: &fight{}}
+	animal, orc, other := &present{fight: &fight{animal: true}}, &present{fight: &fight{orc: true}}, &present{fight: &fight{}}
 	for _, c := range []struct {
 		damage, percent int
 		v               *present
@@ -327,11 +356,15 @@ func TestRaisedDamage(t *testing.T) {
 		{1, -15, animal, 0, 1},
 		{7, 0, animal, 0, 7},
 		{7, 0, other, 25, 7},
+		{7, 0, orc, 25, 7},
 		{10, 5, animal, 5, 11},
 	} {
-		if got := raised(c.damage, c.percent, c.v, c.animals); got != c.want {
+		if got := raised(c.damage, c.percent, c.v, account.Totals{Animals: c.animals}); got != c.want {
 			t.Errorf("%d raised by %d, animals %d: %d, want %d", c.damage, c.percent, c.animals, got, c.want)
 		}
+	}
+	if got := raised(10, 5, orc, account.Totals{Orcs: 5}); got != 11 {
+		t.Errorf("10 raised by 5 and orcs 5 on an orc: %d, want 11", got)
 	}
 }
 

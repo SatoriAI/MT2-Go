@@ -161,3 +161,21 @@ func TestTotalsAreSummedThenCapped(t *testing.T) {
 		t.Fatalf("totals %+v", got)
 	}
 }
+
+// Strength against orcs rolls where strength against animals does, a weapon, a helmet and
+// a shield, at the same values, and its total stops at the same 25.
+func TestStrengthAgainstOrcsRollsWhereAgainstAnimalsDoes(t *testing.T) {
+	for wear, kinds := range allowed {
+		if slices.Contains(kinds, account.BonusOrcs) != slices.Contains(kinds, account.BonusAnimals) {
+			t.Errorf("%s: %v", wear, kinds)
+		}
+	}
+	if bonusValues[account.BonusOrcs] != bonusValues[account.BonusAnimals] {
+		t.Errorf("values %v", bonusValues[account.BonusOrcs])
+	}
+	var sum account.Totals
+	Bonuses{{account.BonusOrcs, 10}, {account.BonusOrcs, 10}, {account.BonusOrcs, 10}}.Sum(&sum)
+	if got := sum.Capped(); got.Orcs != 25 || got.Animals != 0 {
+		t.Errorf("totals %+v", got)
+	}
+}
