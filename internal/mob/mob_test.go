@@ -266,26 +266,29 @@ func TestEveryTeacherTeachesAGroupThereIs(t *testing.T) {
 
 // Skill books come from monsters of level 15 or more, 3 times in 1,000, each the book of
 // one of every skill the game has; soul stones from Metin Bitwy, once in 100, the valley's
-// stones 2 to 5 times in 100, the deeper the more, and the orc lord 3 times in 10; and Zwój
-// Błogosławieństwa from those but Metin Bitwy, 1 to 4 times in 100 and 3 times in 10.
-func TestBooksAndSoulStonesComeFromTheStrongest(t *testing.T) {
-	stones := map[uint16][2]uint16{8003: {100, 0}, 8005: {200, 100}, 8006: {300, 200}, 8007: {400, 300}, 8008: {500, 400}, 691: {3000, 3000}}
+// stones 2 to 5 times in 100, the deeper the more, and the orc lord 3 times in 10; Zwój
+// Błogosławieństwa from those but Metin Bitwy, 1 to 4 times in 100 and 3 times in 10; and
+// Zaczarowanie Przedmiotu from them all, Metin Bitwy once in 200.
+func TestBooksStonesAndScrollsComeFromTheStrongest(t *testing.T) {
+	stones := map[uint16][3]uint16{8003: {100, 0, 50}, 8005: {200, 100, 200}, 8006: {300, 200, 200}, 8007: {400, 300, 300}, 8008: {500, 400, 400}, 691: {3000, 3000, 2000}}
 	for vnum, p := range protos {
 		hasBooks := slices.ContainsFunc(p.Picks, func(pk Pick) bool { return slices.Equal(pk.From, books) })
 		if p.Kind == Monster && hasBooks != (p.Level >= 15) {
 			t.Errorf("%d, level %d: books %v", vnum, p.Level, hasBooks)
 		}
-		var soul, scroll uint16
+		var soul, scroll, enchant uint16
 		for _, d := range p.Drops {
 			switch d.VNum {
 			case item.SoulStone:
 				soul = d.Chance
 			case item.BlessingScroll:
 				scroll = d.Chance
+			case item.EnchantItem:
+				enchant = d.Chance
 			}
 		}
-		if want := stones[vnum]; soul != want[0] || scroll != want[1] {
-			t.Errorf("%d leaves a soul stone %d and a scroll %d in 10,000, want %v", vnum, soul, scroll, stones[vnum])
+		if want := stones[vnum]; soul != want[0] || scroll != want[1] || enchant != want[2] {
+			t.Errorf("%d leaves a soul stone %d, a scroll %d and an enchanting %d in 10,000, want %v", vnum, soul, scroll, enchant, stones[vnum])
 		}
 	}
 	if p, _ := Lookup(114); !slices.EqualFunc(p.Picks, fieldBooks, func(a, b Pick) bool { return a.Chance == b.Chance && a.Count == b.Count }) ||

@@ -11,21 +11,15 @@ import (
 func bonusLines(t account.Totals) [][]byte {
 	var lines [][]byte
 	for _, b := range []struct {
-		value  int
-		format string
+		kind  account.Bonus
+		value int
 	}{
-		{t.Average, "Średnie Obrażenia: %+d%%"},
-		{t.Skill, "Obrażenie Umiejętności: %+d%%"},
-		{t.Critical, "Szansa na cios krytyczny: %d%%"},
-		{t.Pierce, "Szansa na przeszywające Uderzenie: %d%%"},
-		{t.Animals, "Silny przeciwko Zwierzętom: +%d%%"},
-		{t.Orcs, "Silny przeciwko Orkom: +%d%%"},
-		{t.AttackSpeed, "Szybkość ataku: +%d%%"},
-		{t.MaxHP, "Maks. PŻ: +%d"},
-		{t.Resist, "Odporność na Obrażenia: %d%%"},
+		{account.BonusAverage, t.Average}, {account.BonusSkill, t.Skill}, {account.BonusCritical, t.Critical},
+		{account.BonusPierce, t.Pierce}, {account.BonusAnimals, t.Animals}, {account.BonusOrcs, t.Orcs},
+		{account.BonusAttackSpeed, t.AttackSpeed}, {account.BonusMaxHP, t.MaxHP}, {account.BonusResist, t.Resist},
 	} {
 		if b.value != 0 {
-			lines = append(lines, infoLine(fmt.Sprintf(b.format, b.value)))
+			lines = append(lines, infoLine(bonusText(b.kind, b.value)))
 		}
 	}
 	if len(lines) == 0 {
@@ -33,6 +27,16 @@ func bonusLines(t account.Totals) [][]byte {
 	}
 	return append([][]byte{infoLine("Bonusy tego, co nosisz:")}, lines...)
 }
+
+// bonusFormats are each bonus in the client's tooltip words.
+var bonusFormats = map[account.Bonus]string{
+	account.BonusAverage: "Średnie Obrażenia: %+d%%", account.BonusSkill: "Obrażenie Umiejętności: %+d%%",
+	account.BonusCritical: "Szansa na cios krytyczny: %d%%", account.BonusPierce: "Szansa na przeszywające Uderzenie: %d%%",
+	account.BonusAnimals: "Silny przeciwko Zwierzętom: +%d%%", account.BonusOrcs: "Silny przeciwko Orkom: +%d%%",
+	account.BonusAttackSpeed: "Szybkość ataku: +%d%%", account.BonusMaxHP: "Maks. PŻ: +%d", account.BonusResist: "Odporność na Obrażenia: %d%%",
+}
+
+func bonusText(kind account.Bonus, value int) string { return fmt.Sprintf(bonusFormats[kind], value) }
 
 // totalsOf is the bonuses of what the player wears.
 func (w *record) totalsOf(vid uint32) account.Totals {

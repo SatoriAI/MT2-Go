@@ -63,19 +63,23 @@ func (s *session) onGiveItem(body []byte) error {
 // onItemUseToItem answers an item dropped onto another in the bag: Zwój Błogosławieństwa
 // onto gear whose next upgrade may take a grade back opens the refine dialog, asking no
 // question, as there is nothing to warn of, for an upgrade it guards, wherever the player
-// stands, and says why of other gear, leaving any dialog open. Nothing else dropped onto an
-// item does anything yet.
+// stands, and says why of other gear, leaving any dialog open; Zaczarowanie Przedmiotu
+// asks before it rolls (enchant.go). Nothing else dropped onto an item does anything yet.
 func (s *session) onItemUseToItem(body []byte) error {
 	u, err := protocol.DecodeItemUseToItem(body)
 	if err != nil {
 		return err
 	}
 	scroll, held := s.itemAt(u.From)
-	if !held || scroll.VNum != item.BlessingScroll {
+	it, onto := s.itemAt(u.To)
+	switch {
+	case held && scroll.VNum == item.EnchantItem:
+		return s.offerEnchant(scroll, it, onto)
+	case !held || scroll.VNum != item.BlessingScroll:
 		s.conn.Log().Debug("item onto item not taken", "from", u.From, "to", u.To)
 		return nil
 	}
-	it, held := s.itemAt(u.To)
+	held = onto
 	kind, _ := item.Lookup(it.VNum)
 	step, upgraded := upgrade.Of(kind)
 	switch {

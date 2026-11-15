@@ -27,7 +27,7 @@ The yang is the table's for the first gear and gear below level 20. It is twice 
 
 **Zwój Błogosławieństwa (25040),** dropped from the bag onto gear in the bag, opens the same dialog anywhere, no blacksmith needed, for the next grade at its usual cost and chance, and the chat says «Zwój Błogosławieństwa: przy porażce przedmiot zachowa stopień, ale Yang i materiał przepadną.».
 - **What it guards:** from the step to +5 on, a failure keeps the item's grade, «Ulepszanie nie powiodło się, ale Zwój Błogosławieństwa zachował stopień przedmiotu.». The yang and the material are still spent.
-- **Its cost:** the scroll is spent on every try, a success too.
+- **Its cost:** one scroll is spent on every try, a success too. Scrolls stack, up to 200.
 - **Before the step to +5,** where a failure costs only the yang, it is refused and kept: «Zwoju Błogosławieństwa używa się od ulepszenia na +5: wcześniej porażka kosztuje tylko Yang.». Onto anything that is not upgraded it is refused as the blacksmith refuses it.
 - **Where it comes from:** only Seungryong Valley's stones, 1 to 4 times in 100, and the orc lord, 3 times in 10 ([maps.md](maps.md)). No shop sells it, and it can be traded.
 

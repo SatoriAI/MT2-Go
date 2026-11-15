@@ -19,7 +19,7 @@
 | Metin Zazdrości (8007) | 35 | 30,000 to 48,000 | 2 | an orc sorcerer, two elite orcs, an elite scout, an elite warrior | 49,000 | 3,600 to 5,000 | 14,000 |
 | Metin Duszy (8008) | 40 | 45,000 on | 1 | an elite scout, an elite warrior, two elite sorcerers, an elite general | 60,000 | 4,200 to 6,000 | 18,000 |
 
-Each leaves six potions, all middle red or all small blue, five claws or five teeth, the rare gear 6 times in 100, and, as Metin Bitwy does, each helper of a read 3 times in 100, besides the book and the gloves every stone leaves. A valley stone's waves stand up to four levels above it: there are no orcs below level 26. They also leave a soul stone and Zwój Błogosławieństwa ([upgrading.md](upgrading.md)), Metin Czerni 2 and 1 times in 100, Metin Ciemności 3 and 2, Metin Zazdrości 4 and 3, Metin Duszy 5 and 4.
+Each leaves six potions, all middle red or all small blue, five claws or five teeth, the rare gear 6 times in 100, and, as Metin Bitwy does, each helper of a read 3 times in 100, besides the book and the gloves every stone leaves. A valley stone's waves stand up to four levels above it: there are no orcs below level 26. They also leave a soul stone and Zwój Błogosławieństwa ([upgrading.md](upgrading.md)), Metin Czerni 2 and 1 times in 100, Metin Ciemności 3 and 2, Metin Zazdrości 4 and 3, Metin Duszy 5 and 4; and Zaczarowanie Przedmiotu 2, 2, 3 and 4 times in 100 ([bonuses.md](bonuses.md)), which Metin Bitwy leaves once in 200 too.
 
 **Fighting one:**
 - A stone never moves and never strikes back. A wave of its monsters already stands around it.

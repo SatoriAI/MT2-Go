@@ -81,11 +81,7 @@ func Roll(p Proto, fromStone bool, r *rand.Rand) Bonuses {
 	}
 	var b Bonuses
 	if fromStone {
-		kinds = slices.Clone(kinds)
-		r.Shuffle(len(kinds), func(i, j int) { kinds[i], kinds[j] = kinds[j], kinds[i] })
-		for _, kind := range kinds[:min(len(kinds), weighted(countWeights[:], r)+1)] {
-			b = append(b, Rolled{kind, bonusValues[kind][grade(p.Level, r)]})
-		}
+		b = ordinary(p, kinds, weighted(countWeights[:], r)+1, r)
 	}
 	if p.Wear == Weapon && p.Level == pairLevel && r.IntN(100) < pairChance {
 		g := grade(p.Level, r)
@@ -96,6 +92,41 @@ func Roll(p Proto, fromStone bool, r *rand.Rand) Bonuses {
 		b = append(b, Rolled{strong, pairStrong[strong][g]}, Rolled{weak, -pairWeak[g]})
 	}
 	return b
+}
+
+// ordinary rolls n bonuses, or as many as there are kinds, each of a different one of the
+// kinds, at a grade for p's level.
+func ordinary(p Proto, kinds []account.Bonus, n int, r *rand.Rand) Bonuses {
+	kinds = slices.Clone(kinds)
+	r.Shuffle(len(kinds), func(i, j int) { kinds[i], kinds[j] = kinds[j], kinds[i] })
+	var b Bonuses
+	for _, kind := range kinds[:min(len(kinds), n)] {
+		b = append(b, Rolled{kind, bonusValues[kind][grade(p.Level, r)]})
+	}
+	return b
+}
+
+// Ordinary is how many of the bonuses are ordinary ones, the pair's two aside.
+func (b Bonuses) Ordinary() int {
+	n := 0
+	for _, r := range b {
+		if _, paired := pairStrong[r.Kind]; !paired {
+			n++
+		}
+	}
+	return n
+}
+
+// Reroll is what Zaczarowanie Przedmiotu makes of gear of kind p carrying b: as many
+// ordinary bonuses, rolled afresh as a stone's are, and the pair as it was.
+func Reroll(p Proto, b Bonuses, r *rand.Rand) Bonuses {
+	rolled := ordinary(p, allowed[p.Wear], b.Ordinary(), r)
+	for _, kept := range b {
+		if _, paired := pairStrong[kept.Kind]; paired {
+			rolled = append(rolled, kept)
+		}
+	}
+	return rolled
 }
 
 // grade rolls a grade, never the top one below topFrom.

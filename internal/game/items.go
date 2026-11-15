@@ -38,6 +38,9 @@ type Items interface {
 	// Upgrade takes cost yang, keeps the item's new kind and what is left of each stack of
 	// material spent, and returns the yang the character then has.
 	Upgrade(ctx context.Context, characterID, cost uint32, upgraded item.Item, spent []item.Item) (uint32, error)
+	// Enchant keeps the bonuses an item now carries and what is left of the scroll that
+	// rolled them.
+	Enchant(ctx context.Context, characterID uint32, enchanted, scroll item.Item) error
 	// Trade carries out a trade, all of it or none, and returns the yang each side then has.
 	Trade(ctx context.Context, t item.Trade) ([2]uint32, error)
 }

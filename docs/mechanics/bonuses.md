@@ -40,6 +40,11 @@ Gear can carry bonuses, drawn in its tooltip below its stats, each in the client
 
   Hit points have no cap.
 - **Bonuses stay with their item:** through upgrades at the blacksmith (an upgrade keeps the item, and a failed one never destroys it), trades, being dropped and picked up again, and logging out.
+- **Zaczarowanie Przedmiotu (71084),** dropped from the bag onto gear in the bag that carries an ordinary bonus, asks first, in a dialog listing every bonus the gear carries and saying the ordinary ones will be replaced and the pair kept: «Czy chcesz zmienić bonusy przedmiotu …?». Yes rolls as many ordinary bonuses as it had afresh, as a stone's gear rolls them (its place's kinds, never two alike, the grades' odds, no top grade below level 25), keeps the pair as it was, spends one scroll and says «Bonusy przedmiotu zostały zmienione.». It always succeeds. Gear with no ordinary bonus, worn gear and anything else are refused, «Ten przedmiot nie ma bonusów, które można zmienić.», the scroll kept. A yes while a trade is open is refused, «Nie możesz tego zrobić podczas handlu.», as the gear may be on offer there.
+  - **Where it comes from:** Metin Bitwy once in 200, Seungryong Valley's stones 2, 2, 3 and 4 times in 100, its orc lord 2 times in 10. No shop sells it; it stacks and, as item_proto's ANTI_DROP, ANTI_GIVE and ANTI_SELL say, is bound, so the client keeps it out of trades and off the ground.
+  - **What the client allows:** its description, «Usuwa wszystkie bonusy z twojego jednego przedmiotu, po czym dodaje nowe - losowe. Ilość bonusów nie ulega zmianie.» (`itemdesc.txt`). The original's check whether gear has a bonus compares each slot's tuple with 0, which never matches, so it offers the drop onto any weapon or armour; MT2-Godot offers it onto bag gear with a bonus only, and the server refuses the rest either way.
+  - **Why it asks:** the client sends the drop at once, asking nothing (`uiinventory.py`), and a reroll loses what was there; the veteran held to a plain reroll, no choosing between old and new, but with the bonuses at stake shown first.
+  - **Not yet:** Wzmocnienie Przedmiotu (71085), adding a bonus, waits for more kinds per place, since armour allows only two; the 6th and 7th bonuses wait for gear past level 55 and an endgame, as all three debaters held (2026-11-15).
 - **/bonusy** lists what everything worn adds, named as the tooltip names each, or says nothing worn has any.
 - **A remarkable roll:** once it lies on the ground, when a monster leaves gear with three bonuses besides a pair, or any bonus at its top grade, everyone on the map is told: «Hendra zdobywa Żelazny Hełm z niezwykłymi bonusami!».
 
@@ -132,6 +137,9 @@ The client's numbers for the bonuses, its APPLY_ types (open-mt2's `ApplyTypeEnu
   - a stone's gear rolling and a monster's not, and a remarkable one told on the map after it lies;
   - /bonusy's lines.
 - `internal/mob/mob_test.go`: every monster an animal or, the valley's, an orc, nothing else.
+- `internal/game/enchant_test.go`: the scroll asking first with every bonus shown; yes rolling the ordinary ones of the weapon's kinds, keeping the pair, spending one scroll and showing it; the last scroll's cell emptied; no, gear gone or worn enchanting nothing; a yes during a trade refused; refused with nothing to roll or onto a potion; a write that fails changing nothing.
+- `internal/item/bonus_test.go`, also: a reroll keeping the count and the pair, the place's kinds and no top grade below level 25.
+- `internal/store/upgrade_test.go`: an enchanting kept whole, the scroll forgotten at none; one of another's item changing nothing.
 - `internal/game/boss_test.go`: a monster taking its race from its kind, an orc's or a dog's.
 - `internal/item/bonus_test.go`, also: strength against orcs rolling where strength against animals does, at its values, its total capped at 25.
 - `internal/server/items_test.go` (real sockets and database): armour with a bonus shown with it in its slot on entering, and worn telling her max HP.
