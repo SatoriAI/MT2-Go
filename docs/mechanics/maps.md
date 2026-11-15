@@ -2,7 +2,14 @@
 
 ## What the player sees
 
-The world is four maps: each kingdom's first village (Shinsoo's Strefa Yongan, Chunjo's Strefa Joan, Jinno's Strefa Pyungmoo) and **Dolina Seungryong**, the valley all three kingdoms share. The teleport ring takes a player there from level 20, to the open ground of its southern plateau ([teleporting.md](teleporting.md)). The valley is orcs only:
+The world is four maps: each kingdom's first village (Shinsoo's Strefa Yongan, Chunjo's Strefa Joan, Jinno's Strefa Pyungmoo) and **Dolina Seungryong**, the valley all three kingdoms share. From level 20 three ways lead there, each to the open ground of its southern plateau:
+- **the gate** at the far edge of each first village, the one with its arch and platform;
+- **the Teleporter** on each village's market square, for 1,500 yang, whose offer says what lives there: «Dolina Seungryong: orki od 26 do 49 poziomu.»;
+- **the teleport ring** ([teleporting.md](teleporting.md)).
+
+Below level 20 each says «Dolina Seungryong jest dostępna od 20 poziomu.». The valley's southern gate takes a player home, a step inside their own kingdom's gate to it. Each village's other gate and the valley's other two say «Ta droga jest jeszcze zamknięta.».
+
+The valley is orcs only:
 - ordinary orcs at its edge;
 - their scouts, warriors and sorcerers further in;
 - the elite orcs beyond;
@@ -97,6 +104,19 @@ None of their own: the map follows from the position in MAIN_CHARACTER and WARP.
 - **The orcs:** stats from the client's `--dump_proto--/mob_proto.txt`, and names from its Polish `mob_proto`. The yang, the stones' hit points, experience and drops, and the loot are this server's.
 - **The design:** the debate of the veteran, the designer and the youth-games expert, with the veteran deciding ties: level 20, orcs only, the gradient from the centre, no camp, rising at the arrival, the lord's announcement and its 20 to 30 minutes.
 
+### The ways in
+
+- **The gates** are the client's WARP marks on each map's minimap (`locale/pl/map/*_point.txt`), with a gate object on each but Shinsoo's second, which is bare ground.
+  - **Passing:** whoever walks within 6 m of a mark, the platform's inner half-width, goes through, once until they walk out of it. There is no question, as in the original: the gates stand at the map's edges, walked to on purpose, and the level is the guard.
+  - **Refused** while dead, trading, or at a shop or the blacksmith: «Nie możesz teraz przejść przez bramę.».
+  - **Which leads where:** each village's first mark is named for its kingdom's second map (자양현, 복정현, 박라현), and the valley's three marks carry the same three names, so in the original the valley lay beyond the second maps. Until they exist, that first gate, which is also the one further from the village, leads to the valley. The other, named for the old man (노인), stays closed, and so do the valley's two that face the other second maps.
+  - **Landing:** 20 m inside a gate, on ground the client session checked open. Players coming from a first village land at the valley's one arrival, which keeps its gradient; they reach home a step inside their own gate.
+  - **Code:** `internal/world/portals.go` places them, and `internal/game/gates.go` takes a move through them.
+- **The Teleporter (9012),** the client's «Teleporter», stands on each village's market square, at the middle of its shops and blacksmith, as no minimap mark places him.
+  - **The price** is 1,500 yang, the veteran's: a service, not a taxi.
+  - **The answer** is checked as the soul stone's is: the NPC still in reach, the player free («Nie mogę cię teraz zabrać.»), of the level, and with the yang («Nie masz dość Yang na podróż.»), spent and kept before the warp; the client reads the yang left as it enters the valley.
+- **The debate (2026-11-15),** the veteran deciding: no teleporter in the valley, its gate home standing by the arrival; one arrival for all; no foreign villages.
+
 ## What proves it
 
 - `internal/world/valley_test.go`:
@@ -113,6 +133,8 @@ None of their own: the map follows from the position in MAIN_CHARACTER and WARP.
 - `internal/game/teleport_test.go`: the ring offering the valley, warping to its arrival at level 20 and refusing it at 19.
 - `internal/game/dying_test.go`: a fall in the valley rising at its arrival, and at home at the start; restart in town in the valley rising there.
 - `internal/game/save_test.go`: one who leaves dead in the valley kept at its arrival.
+- `internal/world/portals_test.go`: each map's gates; a gate taking those within 6 m; home inside the kingdom's gate to the valley; a teleporter in each village.
+- `internal/game/gates_test.go`: the gate to the valley taking her there at level 20; refusing her at 19 once per approach; a closed gate saying so; the valley's gate taking her home; no passing while trading; the teleporter taking her for its price, and saying why not below the level, without the yang or trading, and nothing on no or once she walked away.
 - `internal/game/boss_test.go`: the lord back 20 to 30 minutes after it dies, and its waking told to its map.
 
 ## Not yet

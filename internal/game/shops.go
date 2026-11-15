@@ -13,8 +13,9 @@ import (
 // before it sends the click, and the rest is room for moves still on their way.
 const npcReach = 1000
 
-// onClick answers a click on an NPC near the player: a shopkeeper opens their shop, and a
-// class teacher talks of the skill group they teach. Any other click is not answered yet.
+// onClick answers a click on an NPC near the player: a shopkeeper opens their shop, a class
+// teacher talks of the skill group they teach, and the teleporter offers the valley. Any
+// other click is not answered yet.
 func (s *session) onClick(body []byte) error {
 	vid, err := protocol.DecodeOnClick(body)
 	if err != nil {
@@ -28,6 +29,8 @@ func (s *session) onClick(body []byte) error {
 		return s.openShop(vid, npc)
 	case npc.Teaches != "":
 		return s.teach(vid, npc)
+	case npc.Teleports:
+		return s.offerTeleporter(vid)
 	}
 	return nil
 }
