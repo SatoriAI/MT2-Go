@@ -49,6 +49,8 @@ Seen from the real client: a red potion laid at (977491, 272599) is `1a 53ea0e00
   | Dzik (108) | the potions and the first gear, as Alfa Wilk, and a Ząb Dzika (30004), 3 in 100 |
   | Nieb. Wilk (104) | as Wilk |
   | Nieb. Alfa Wilk (105) | as Alfa Wilk |
+  | Szary Wilk (106) | as Wilk |
+  | Szary Alfa Wilk (107) | as Alfa Wilk |
   | Czerw. Dzik (109) | as Dzik |
   | Niedźwiedź (110), Niedźw. Grizzly (111), Czar. Niedźw. (112), Brąz. Niedźw. (113), Tygrys (114) | the potions and the first gear |
 
@@ -68,6 +70,8 @@ Seen from the real client: a red potion laid at (977491, 272599) is `1a 53ea0e00
   | Dzik (108) | 20 to 40, 6 in 10 |
   | Nieb. Wilk (104) | 15 to 30, 6 in 10 |
   | Nieb. Alfa Wilk (105) | 20 to 40, 6 in 10 |
+  | Szary Wilk (106) | 30 to 50, 6 in 10 |
+  | Szary Alfa Wilk (107) | 45 to 75, 6 in 10 |
   | Czerw. Dzik (109) | 30 to 55, 6 in 10 |
   | Niedźwiedź (110) | 25 to 45, 6 in 10 |
   | Niedźw. Grizzly (111) | 40 to 70, 6 in 10 |

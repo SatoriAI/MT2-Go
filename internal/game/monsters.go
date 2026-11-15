@@ -86,6 +86,16 @@ func (k *pack) down() (bool, time.Time) {
 	return true, last
 }
 
+// backAfter is how long after its last death the pack comes back: its slowest kind's
+// time, so a clump of dogs and wolves holds the wolves to theirs.
+func (k *pack) backAfter() time.Duration {
+	var slowest time.Duration
+	for _, m := range k.members {
+		slowest = max(slowest, m.respawnAfter())
+	}
+	return slowest
+}
+
 // Run puts the world's mobs in it, then walks the monsters until ctx ends.
 func (svc *Service) Run(ctx context.Context) error {
 	if err := svc.spawn(svc.now()); err != nil {
@@ -388,8 +398,8 @@ func (svc *Service) tick(now time.Time) {
 }
 
 // bringBack puts a monster whose body is gone back in the world once its time has come:
-// its own time after its death, or, for one of a pack, its time after the last of the pack
-// died, the whole pack together.
+// its own time after its death, or, for one of a pack, the pack's time after the last of
+// it died, the whole pack together.
 func (svc *Service) bringBack(m *monster, now time.Time) {
 	if m.pack == nil {
 		if !now.Before(m.diedAt.Add(m.respawnAfter())) {
@@ -397,7 +407,7 @@ func (svc *Service) bringBack(m *monster, now time.Time) {
 		}
 		return
 	}
-	if down, last := m.pack.down(); down && !now.Before(last.Add(m.respawnAfter())) {
+	if down, last := m.pack.down(); down && !now.Before(last.Add(m.pack.backAfter())) {
 		if m.pack.family != nil {
 			svc.placeFamily(m.pack, now)
 			return
