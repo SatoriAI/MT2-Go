@@ -133,7 +133,7 @@ func TestEveryWareFitsTheShopWindow(t *testing.T) {
 // Wolves leave a wolf's claw and boars a boar's tooth, each 3 times in 100: the materials
 // later upgrades take.
 func TestWolvesAndBoarsLeaveTheMaterialsOfUpgrades(t *testing.T) {
-	for vnum, material := range map[uint16]uint32{102: 30028, 103: 30028, 104: 30028, 105: 30028, 108: 30004, 109: 30004} {
+	for vnum, material := range map[uint16]uint32{102: 30028, 103: 30028, 104: 30028, 105: 30028, 106: 30028, 107: 30028, 108: 30004, 109: 30004} {
 		p, _ := Lookup(vnum)
 		if !slices.Contains(p.Drops, Drop{VNum: material, Count: 1, Chance: 300}) {
 			t.Errorf("%d leaves %+v", vnum, p.Drops)

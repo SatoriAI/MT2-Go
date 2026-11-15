@@ -118,6 +118,34 @@ func TestAPackComesBackTogether(t *testing.T) {
 	}
 }
 
+// A clump of two kinds comes back on the slower's time: dogs back after 5 s with a wolf
+// back after 15, all of them 15 s after the last died.
+func TestAClumpOfTwoKindsComesBackOnTheSlowersTime(t *testing.T) {
+	s, _ := packed(t, world.Spawn{VNum: 102, X: homeX, Y: homeY, Count: 1, Respawn: 15 * time.Second},
+		world.Spawn{VNum: 101, X: homeX, Y: homeY, Count: 2, Respawn: 5 * time.Second})
+	s.record.held(func(l locked) {
+		for _, m := range s.monsters {
+			l.kill(s.record.state.all[1000], m.p, noon)
+		}
+	})
+	s.tick(noon)
+	s.tick(noon.Add(3 * time.Second)) // the bodies gone
+
+	s.tick(noon.Add(6 * time.Second)) // past the dogs' time
+	s.tick(noon.Add(15*time.Second - time.Millisecond))
+	for _, m := range s.monsters {
+		if !m.gone {
+			t.Fatalf("%d back before the wolf's time", m.p.add.Race)
+		}
+	}
+	s.tick(noon.Add(15 * time.Second))
+	for _, m := range s.monsters {
+		if m.gone {
+			t.Fatalf("%d not back", m.p.add.Race)
+		}
+	}
+}
+
 // fierce is packed with a pack of three dogs, the first made aggressive and its packmates
 // passive, so they come only as its pack, and Hendra at level 1 x east of their home, seen
 // at once.

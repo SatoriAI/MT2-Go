@@ -2,13 +2,15 @@
 
 ## What the player sees
 
-**On the map:** seven Metin stones stand around each first village, further out the stronger they are:
+**On the map:** as many Metin stones stand around each first village as around the original's, 36 in Shinsoo's and 61 in Chunjo's and Jinno's, as far out from the start as the original's, and the stronger the further out:
 
-| Stone | Level | How far out | Per village | Its waves |
+| Stone | Level | How far out (Shinsoo, Chunjo, Jinno) | Per village | Its waves |
 |---|---|---|---|---|
-| Metin Cierpienia (8001) | 5 | 25,000 to 35,000 | 3 | three wolves, two alpha wolves |
-| Metin Walki (8002) | 10 | 35,000 to 45,000 | 2 | three blue wolves, two alpha blue wolves |
-| Metin Bitwy (8003) | 15 | 45,000 to 55,000 | 2 | two red boars, two bears, a grizzly |
+| Metin Cierpienia (8001) | 5 | 95 to 312 m, 86 to 385, 117 to 332 | 15, 25, 25 | three wolves, two alpha wolves |
+| Metin Walki (8002) | 10 | 338 to 524 m, 403 to 477, 348 to 430 | 11, 18, 18 | three blue wolves, two alpha blue wolves |
+| Metin Bitwy (8003) | 15 | 547 to 625 m, 492 to 670, 454 to 664 | 10, 18, 18 | two red boars, two bears, a grizzly |
+
+The original's first maps hold five kinds of stone, Metin Chciwości (20) and Metin Czerni (25) among them, some as near the village as the weakest. Ours stay three, the nearest two fifths Cierpienia, the next three tenths Walki and the farthest Bitwy, so a new player's first stone is the weakest, as the debaters chose when there were seven.
 
 **In Seungryong Valley** nine more stand, deeper the stronger, depth measured inward from the arrival's ring about the centre ([maps.md](maps.md)), each calling the orcs about it:
 
@@ -30,7 +32,7 @@ Each leaves six potions, all middle red or all small blue, five claws or five te
 **Destroyed:**
 - It breaks apart. Whoever did it the most damage is told «Zniszczyłeś kamień Metin.» and the drops are kept for them.
 - Experience is shared out by damage, as for any monster.
-- Ten minutes later the stone appears again, at one of its three spots, and everyone on the map sees «Pojawił się Metin Cierpienia.» across the top of the screen.
+- Ten minutes later the stone appears again, at its spot, and everyone on the map sees «Pojawił się Metin Cierpienia.» across the top of the screen.
 
 | Stone | Hit points | Yang | Potions | Claws or teeth | A piece of the first gear | Experience |
 |---|---|---|---|---|---|---|
@@ -75,9 +77,9 @@ Damage, target, death and drops use the same packets as for monsters ([combat.md
 `internal/mob` holds the stones and their waves, `internal/world` their spots, and `internal/game/monsters.go` and `combat.go` how they stand, call and fall.
 
 - **Kind `stone`:** fought, never wandering, and never answering a blow, as `engage` skips it. Its level, HT and DEF are the client's. Its hit points, experience, yang and drops are this server's.
-- **Spots:** each stone has three spots of its own and picks one at random each time it appears. They were chosen by the same throwaway terrain script as the monster areas, run over the client's height and attribute maps ([monsters.md](monsters.md)). Each spot has:
-  - no blocked cell, and no step steeper than 60 per 200, within 1,500;
-  - 3,500 to any monster area, 8,000 to any NPC, and 9,000 to any other spot.
+- **Spots:** a first village's stone has one spot, as the original's each have, at a distance from the start its own stone had, in a random direction; a valley stone has three and picks one at random each time it appears. They were chosen by the same throwaway terrain scripts as the monster areas, run over the client's height and attribute maps ([monsters.md](monsters.md)). Each first village's spot has:
+  - no water, at most 2 in 100 cells blocked, and no step steeper than 60 per 200, within 900;
+  - 3,500 to any monster area, 8,000 to any NPC, 4,000 to the town, and 5,000 to any other stone.
 - **Appearing** (`place`):
   1. Monsters it called before and still alive are taken away. One a player has just killed is left to die as any monster does.
   2. The notice goes to every player on its map.
@@ -126,7 +128,7 @@ Damage, target, death and drops use the same packets as for monsters ([combat.md
   - only stones call waves and come back late;
   - each stone's drops are as in the table above, with a skill book 3 times in 100, a piece of the rare gear 4 times in 100 and the thief's gloves once in 200;
   - the +3 gear is the first gear's +3.
-- `internal/world/spawns_test.go`: three, two and two stones per village, each with three spots; each spot in its band, on its map, and clear of everything else.
+- `internal/world/spawns_test.go`: 36, 61 and 61 stones a village, each of the three kinds with one spot; every Metin Walki further from the start than every Metin Cierpienia and every Metin Bitwy further than every Walki; each on its map and clear of everything else.
 - `internal/world/valley_test.go`: the valley's three, three, two and one, each with three spots in its band, 9,000 apart and clear of the arrival.
 - `internal/game/monsters_test.go`: a stone's waves and their strolls stay on its map.
 - `internal/game/stones_test.go`:
