@@ -34,7 +34,7 @@ Gear can carry bonuses, drawn in its tooltip below its stats, each in the client
 - **What counts:** only what is worn. Each kind is summed across everything worn, then capped:
   - Średnie and Umiejętności 30;
   - krytyczny and przeszywające 20;
-  - Zwierzęta 25;
+  - Zwierzęta and Orki 25 each;
   - Odporność 15;
   - Szybkość ataku 20.
 
