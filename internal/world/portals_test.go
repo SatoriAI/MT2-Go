@@ -57,13 +57,16 @@ func TestHomeIsInsideTheKingdomsGateToTheValley(t *testing.T) {
 	}
 }
 
-// Each first village has its teleporter.
+// Each first village has its teleporter, facing its shops.
 func TestEveryFirstVillageHasItsTeleporter(t *testing.T) {
-	for _, name := range []string{"metin2_map_a1", "metin2_map_b1", "metin2_map_c1"} {
+	for name, facing := range map[string]float32{"metin2_map_a1": 350, "metin2_map_b1": 190, "metin2_map_c1": 210} {
 		n := 0
 		for _, s := range spawnsByMap[name] {
 			if s.vnum == 9012 {
 				n++
+				if s.facing != facing {
+					t.Errorf("%s: facing %v", name, s.facing)
+				}
 			}
 		}
 		if n != 1 {
