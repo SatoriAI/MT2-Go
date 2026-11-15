@@ -60,17 +60,37 @@ func TestGetItemSaysWhatItCannotGive(t *testing.T) {
 		full = append(full, item.Item{ID: int64(cell + 1), VNum: 27001, Count: item.MaxStack, Cell: cell})
 	}
 	for line, want := range map[string]string{
-		"getitem 4242":    "Serwer nie zna przedmiotu 4242.",
-		"getitem":         "Użycie: /getitem VNUM [ilość]",
-		"getitem miecz":   "Użycie: /getitem VNUM [ilość]",
-		"getitem 10 0":    "Użycie: /getitem VNUM [ilość]",
-		"getitem 10 1 2":  "Użycie: /getitem VNUM [ilość]",
-		"getitem 27001 1": "Nie masz miejsca w ekwipunku.",
+		"getitem 4242":           "Serwer nie zna przedmiotu 4242.",
+		"getitem":                getItemUsage,
+		"getitem miecz":          getItemUsage,
+		"getitem 10 0":           getItemUsage,
+		"getitem 10 1 2":         getItemUsage,
+		"getitem 27001 1":        "Nie masz miejsca w ekwipunku.",
+		"getitem bonusy":         getItemUsage,
+		"getitem 27001 1 bonusy": "Ten przedmiot nie może mieć bonusów.",
 	} {
 		s, kept, told := tester(t, 0, full)
 		command(t, s, line)
 		if p := told(); len(kept.added) != 0 || len(kept.count) != 0 || !holds(p, infoLine(want)) {
 			t.Errorf("/%s: kept %+v %v, told %x", line, kept.added, kept.count, p)
+		}
+	}
+}
+
+// /getitem with "bonusy" gives gear carrying one to three bonuses its place allows, kept
+// with it and shown, as a stone's gear rolls them.
+func TestGetItemWithBonusesGivesGearCarryingThem(t *testing.T) {
+	for _, line := range []string{"getitem 290 bonusy", "getitem 290 1 bonusy"} {
+		s, kept, told := tester(t, 0, nil)
+		s.rand = seeded()
+
+		command(t, s, line)
+
+		if len(kept.added) != 1 || kept.added[0].VNum != 290 || kept.added[0].Bonuses.Ordinary() == 0 {
+			t.Fatalf("/%s: kept %+v", line, kept.added)
+		}
+		if got := s.inventory[0]; !reflect.DeepEqual(got.Bonuses, kept.added[0].Bonuses) || !holds(told(), itemSet(got)) {
+			t.Fatalf("/%s: holds %+v", line, s.inventory)
 		}
 	}
 }
